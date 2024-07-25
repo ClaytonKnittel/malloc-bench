@@ -1,13 +1,13 @@
 cc_binary(
     name = "main",
     srcs = ["main.cc"],
+    data = [
+        "//traces",
+    ],
     deps = [
         ":correctness_checker",
         ":tracefile_reader",
         "@abseil-cpp//absl/status",
-    ],
-    data = [
-        "//traces",
     ],
 )
 
@@ -30,6 +30,21 @@ cc_library(
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",
+    ],
+)
+
+cc_test(
+    name = "correctness_test",
+    srcs = ["correctness_test.cc"],
+    data = [
+        "//traces",
+    ],
+    deps = [
+        ":correctness_checker",
+        ":util",
+        "@abseil-cpp//absl/status",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
@@ -57,5 +72,7 @@ cc_library(
     deps = [
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+        "@googletest//:gtest",
     ],
 )
