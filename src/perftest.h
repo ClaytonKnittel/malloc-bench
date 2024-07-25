@@ -1,10 +1,10 @@
 #pragma once
 
 #include "absl/status/statusor.h"
-#include "absl/time/time.h"
 
 namespace bench {
 
-absl::StatusOr<absl::Duration> TimeTrace(const std::string& tracefile);
+// On success, returns the number of MOps/s (1000 ops per second).
+absl::StatusOr<double> TimeTrace(const std::string& tracefile);
 
 }  // namespace bench
