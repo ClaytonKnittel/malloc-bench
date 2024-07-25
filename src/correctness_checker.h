@@ -16,6 +16,10 @@ namespace bench {
 
 class CorrectnessChecker {
  public:
+  static constexpr std::string kFailedTestPrefix = "[Failed]";
+
+  static bool IsFailedTestStatus(const absl::Status& status);
+
   static absl::Status Check(const std::string& tracefile, bool verbose = false);
 
  private:

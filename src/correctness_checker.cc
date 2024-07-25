@@ -17,6 +17,11 @@
 namespace bench {
 
 /* static */
+bool CorrectnessChecker::IsFailedTestStatus(const absl::Status& status) {
+  return status.message().starts_with(kFailedTestPrefix);
+}
+
+/* static */
 absl::Status CorrectnessChecker::Check(const std::string& tracefile,
                                        bool verbose) {
   absl::btree_map<void*, uint32_t> allocated_blocks;
@@ -206,7 +211,8 @@ absl::Status CorrectnessChecker::HandleNewAllocation(void* id, void* ptr,
     for (size_t i = 0; i < size; i++) {
       if (static_cast<uint8_t*>(ptr)[i] != 0x00) {
         return absl::InternalError(absl::StrFormat(
-            "calloc-ed block at %p of size %zu is not cleared", ptr, size));
+            "%s calloc-ed block at %p of size %zu is not cleared",
+            kFailedTestPrefix, ptr, size));
       }
     }
   }
@@ -220,27 +226,30 @@ absl::Status CorrectnessChecker::ValidateNewBlock(void* ptr,
                                                   size_t size) const {
   if (ptr < heap_->Start() ||
       static_cast<uint8_t*>(ptr) + size > heap_->End()) {
-    return absl::InternalError(
-        absl::StrFormat("Bad alloc of out-of-range block at %p of size %zu "
-                        "(heap ranges from %p to %p)",
-                        ptr, size, heap_->Start(), heap_->End()));
+    return absl::InternalError(absl::StrFormat(
+        "%s Bad alloc of out-of-range block at %p of size %zu "
+        "(heap ranges from %p to %p)",
+        kFailedTestPrefix, ptr, size, heap_->Start(), heap_->End()));
   }
 
   auto block = FindContainingBlock(ptr);
   if (block.has_value()) {
     return absl::InternalError(absl::StrFormat(
-        "Bad alloc of %p within allocated block at %p of size %zu", ptr,
-        block.value()->first, block.value()->second.size));
+        "%s Bad alloc of %p within allocated block at %p of size %zu",
+        kFailedTestPrefix, ptr, block.value()->first,
+        block.value()->second.size));
   }
 
   size_t ptr_val = static_cast<char*>(ptr) - static_cast<char*>(nullptr);
   if (size <= 8 && ptr_val % 8 != 0) {
-    return absl::InternalError(absl::StrFormat(
-        "Pointer %p of size %zu is not aligned to 8 bytes", ptr, size));
+    return absl::InternalError(
+        absl::StrFormat("%s Pointer %p of size %zu is not aligned to 8 bytes",
+                        kFailedTestPrefix, ptr, size));
   }
   if (size > 8 && ptr_val % 16 != 0) {
-    return absl::InternalError(absl::StrFormat(
-        "Pointer %p of size %zu is not aligned to 16 bytes", ptr, size));
+    return absl::InternalError(
+        absl::StrFormat("%s Pointer %p of size %zu is not aligned to 16 bytes",
+                        kFailedTestPrefix, ptr, size));
   }
 
   return absl::OkStatus();
@@ -266,19 +275,19 @@ absl::Status CorrectnessChecker::CheckMagicBytes(void* ptr, size_t size,
     uint64_t val = static_cast<uint64_t*>(ptr)[i];
     if (val != magic_bytes) {
       size_t offset = i * 8 + (std::countr_zero(val ^ magic_bytes) / 8);
-      return absl::InternalError(
-          absl::StrFormat("Allocated block %p of size %zu has dirtied bytes at "
-                          "position %zu from the beginning",
-                          ptr, size, offset));
+      return absl::InternalError(absl::StrFormat(
+          "%s Allocated block %p of size %zu has dirtied bytes at "
+          "position %zu from the beginning",
+          kFailedTestPrefix, ptr, size, offset));
     }
   }
   for (size_t j = 8 * i; j < size; j++) {
     if (static_cast<uint8_t*>(ptr)[j] !=
         static_cast<uint8_t>(magic_bytes >> (8 * (j - 8 * i)))) {
-      return absl::InternalError(
-          absl::StrFormat("Allocated block %p of size %zu has dirtied bytes at "
-                          "position %zu from the beginning",
-                          ptr, size, j));
+      return absl::InternalError(absl::StrFormat(
+          "%s Allocated block %p of size %zu has dirtied bytes at "
+          "position %zu from the beginning",
+          kFailedTestPrefix, ptr, size, j));
     }
   }
 
