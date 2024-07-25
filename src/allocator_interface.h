@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cstdlib>
+#include <cstring>
 #include <new>
 
 #include "src/fake_heap.h"
@@ -9,38 +9,29 @@ namespace bench {
 
 inline void* malloc(size_t size) {
   // TODO: implement
-  return ::malloc(size);
+  size_t round_up = (size + 0xf) & ~0xf;
+  return FakeHeap::GlobalInstance()->sbrk(round_up);
 }
 
 inline void* calloc(size_t nmemb, size_t size) {
   // TODO: implement
-  return ::calloc(nmemb, size);
+  void* ptr = malloc(nmemb * size);
+  memset(ptr, 0, nmemb * size);
+  return ptr;
 }
 
 inline void* realloc(void* ptr, size_t size) {
   // TODO: implement
-  return ::realloc(ptr, size);
+  void* new_ptr = malloc(size);
+  memcpy(new_ptr, ptr, size);
+  return new_ptr;
 }
 
 inline void free(void* ptr) {
   // TODO: implement
-  return ::free(ptr);
 }
 
 inline void free_hint(void* ptr, std::align_val_t size) {
-  // TODO: implement
-  return ::operator delete(ptr, size);
-}
-
-// Should return a pointer to the heap manager currently being used. If this is
-// not initialized, you should initialize it.
-inline FakeHeap* HeapManager() {
-  // TODO: implement
-  return nullptr;
-}
-
-// Resets the heap. This should destroy the heap manager.
-inline void ResetHeap() {
   // TODO: implement
 }
 

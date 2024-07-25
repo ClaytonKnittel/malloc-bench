@@ -11,9 +11,19 @@ class FakeHeap {
   friend class CorrectnessChecker;
 
  public:
+  FakeHeap(FakeHeap&& heap) noexcept;
   ~FakeHeap();
 
+  FakeHeap& operator=(FakeHeap&& heap) noexcept;
+
+  void swap(FakeHeap& other) noexcept;
+
   static absl::StatusOr<FakeHeap> Initialize();
+
+  static FakeHeap* GlobalInstance();
+
+  // Resets the heap and returns a pointer to the beginning of the heap.
+  void* Reset();
 
   // Returns a shared_ptr to the global heap for this process.
   static absl::StatusOr<std::shared_ptr<FakeHeap>> GlobalHeap();
@@ -30,9 +40,6 @@ class FakeHeap {
  private:
   explicit FakeHeap(void* heap_start);
 
-  // Resets the heap and returns a pointer to the beginning of the heap.
-  void* Reset();
-
   // Returns the start of the heap.
   void* Start() const {
     return heap_start_;
@@ -46,7 +53,10 @@ class FakeHeap {
   // Max heap size is 100 MB.
   static constexpr size_t kHeapSize = 100 * (1 << 20);
 
-  void* const heap_start_;
+  // The global heap instance.
+  static FakeHeap global_heap_;
+
+  void* heap_start_;
   void* heap_end_;
 };
 

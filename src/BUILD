@@ -7,12 +7,14 @@ cc_binary(
     deps = [
         ":correctness_checker",
         ":tracefile_reader",
+        ":util",
         "@abseil-cpp//absl/status",
     ],
 )
 
 cc_library(
     name = "allocator_interface",
+    srcs = ["allocator_interface.cc"],
     hdrs = ["allocator_interface.h"],
     deps = [
         ":fake_heap",
