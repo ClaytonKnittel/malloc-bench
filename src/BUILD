@@ -6,15 +6,19 @@ cc_binary(
     ],
     deps = [
         ":correctness_checker",
+        ":perftest",
         ":tracefile_reader",
         ":util",
+        ":utiltest",
         "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/time",
     ],
 )
 
-cc_binary(
+cc_library(
     name = "perftest",
     srcs = ["perftest.cc"],
+    hdrs = ["perftest.h"],
     data = [
         "//traces",
     ],
@@ -22,15 +26,16 @@ cc_binary(
         ":allocator_interface",
         ":tracefile_reader",
         ":util",
+        "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/time",
-        "@abseil-cpp//absl/container:flat_hash_map",
     ],
 )
 
-cc_binary(
+cc_library(
     name = "utiltest",
     srcs = ["utiltest.cc"],
+    hdrs = ["utiltest.h"],
     data = [
         "//traces",
     ],
@@ -39,8 +44,8 @@ cc_binary(
         ":fake_heap",
         ":tracefile_reader",
         ":util",
-        "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/container:flat_hash_map",
+        "@abseil-cpp//absl/status:statusor",
     ],
 )
 
