@@ -14,7 +14,6 @@ cc_binary(
 
 cc_library(
     name = "allocator_interface",
-    srcs = ["allocator_interface.cc"],
     hdrs = ["allocator_interface.h"],
     deps = [
         ":fake_heap",
