@@ -32,8 +32,12 @@ CorrectnessChecker::CorrectnessChecker(TracefileReader&& reader)
     : reader_(std::move(reader)), rng_(0, 1) {}
 
 absl::Status CorrectnessChecker::Run() {
-  std::optional<TraceLine> line;
-  while ((line = reader_.NextLine()).has_value()) {
+  while (true) {
+    DEFINE_OR_RETURN(std::optional<TraceLine>, line, reader_.NextLine());
+    if (!line.has_value()) {
+      break;
+    }
+
     switch (line->op) {
       case TraceLine::Op::kMalloc:
         RETURN_IF_ERROR(

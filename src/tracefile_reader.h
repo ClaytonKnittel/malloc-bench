@@ -34,7 +34,7 @@ class TracefileReader {
  public:
   static absl::StatusOr<TracefileReader> Open(const std::string& filename);
 
-  std::optional<TraceLine> NextLine();
+  absl::StatusOr<std::optional<TraceLine>> NextLine();
 
  private:
   explicit TracefileReader(std::ifstream&& file);
