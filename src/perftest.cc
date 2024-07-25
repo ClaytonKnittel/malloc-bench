@@ -104,9 +104,8 @@ std::pair<std::vector<TimeOp>, size_t> ComputeOps(
 
 }  // namespace
 
-// Runs at least 1000000 ops, and returns the average amount of time spent per
-// op.
-absl::StatusOr<absl::Duration> TimeTrace(const std::string& tracefile) {
+// Runs at least 1000000 ops, and returns the average MOps/s.
+absl::StatusOr<double> TimeTrace(const std::string& tracefile) {
   constexpr size_t kMinDesiredOps = 1000000;
 
   DEFINE_OR_RETURN(TracefileReader, reader, TracefileReader::Open(tracefile));
@@ -148,7 +147,9 @@ absl::StatusOr<absl::Duration> TimeTrace(const std::string& tracefile) {
   }
   absl::Time end = absl::Now();
 
-  return (end - start) / (num_repetitions * ops.size());
+  size_t total_ops = num_repetitions * ops.size();
+  double seconds = absl::FDivDuration((end - start), absl::Seconds(1));
+  return total_ops / seconds / 1000000;
 }
 
 }  // namespace bench
