@@ -18,6 +18,8 @@ struct TimeOp {
   size_t res_idx;
 };
 
+namespace {
+
 std::pair<std::vector<TimeOp>, size_t> ComputeOps(
     const std::vector<TraceLine>& lines) {
   absl::flat_hash_map<void*, size_t> idx_map;
@@ -100,6 +102,8 @@ std::pair<std::vector<TimeOp>, size_t> ComputeOps(
   return { ops, next_idx };
 }
 
+}  // namespace
+
 // Runs at least 1000000 ops, and returns the average amount of time spent per
 // op.
 absl::StatusOr<absl::Duration> TimeTrace(const std::string& tracefile) {
@@ -148,15 +152,3 @@ absl::StatusOr<absl::Duration> TimeTrace(const std::string& tracefile) {
 }
 
 }  // namespace bench
-
-int main() {
-  auto status = bench::TimeTrace("traces/simple_realloc.trace");
-  if (!status.ok()) {
-    std::cerr << status.status() << std::endl;
-    return -1;
-  }
-
-  std::cout << "Completed trace, average time per op: " << status.value()
-            << std::endl;
-  return 0;
-}

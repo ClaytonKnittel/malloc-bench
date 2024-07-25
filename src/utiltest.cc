@@ -60,14 +60,3 @@ absl::StatusOr<double> MeasureUtilization(const std::string& tracefile) {
 }
 
 }  // namespace bench
-
-int main() {
-  auto status = bench::MeasureUtilization("traces/simple_realloc.trace");
-  if (!status.ok()) {
-    std::cerr << status.status() << std::endl;
-    return -1;
-  }
-
-  std::cout << "Completed trace, utilization: " << status.value() << std::endl;
-  return 0;
-}
