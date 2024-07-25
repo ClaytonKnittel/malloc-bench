@@ -141,6 +141,8 @@ int main() {
            "traces/simple.trace",
            "traces/simple_calloc.trace",
            "traces/simple_realloc.trace",
+           "traces/onoro.trace",
+           "traces/onoro-cc.trace",
        }) {
     auto result = bench::RunTrace(tracefile);
     if (!result.ok()) {
