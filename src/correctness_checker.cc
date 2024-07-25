@@ -10,6 +10,7 @@
 #include "absl/strings/str_format.h"
 
 #include "src/allocator_interface.h"
+#include "src/fake_heap.h"
 #include "src/rng.h"
 #include "src/tracefile_reader.h"
 #include "src/util.h"
@@ -32,6 +33,17 @@ CorrectnessChecker::CorrectnessChecker(TracefileReader&& reader)
     : reader_(std::move(reader)), rng_(0, 1) {}
 
 absl::Status CorrectnessChecker::Run() {
+  FakeHeap* heap = HeapManager();
+  if (heap == nullptr) {
+    return absl::InternalError("`HeapManager()` returned `nullptr` heap.");
+  }
+
+  absl::Status result = ProcessTracefile();
+  ResetHeap();
+  return result;
+}
+
+absl::Status CorrectnessChecker::ProcessTracefile() {
   while (true) {
     DEFINE_OR_RETURN(std::optional<TraceLine>, line, reader_.NextLine());
     if (!line.has_value()) {

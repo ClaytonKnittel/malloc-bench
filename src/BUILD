@@ -14,6 +14,9 @@ cc_binary(
 cc_library(
     name = "allocator_interface",
     hdrs = ["allocator_interface.h"],
+    deps = [
+        ":fake_heap",
+    ],
 )
 
 cc_library(
@@ -22,6 +25,7 @@ cc_library(
     hdrs = ["correctness_checker.h"],
     deps = [
         ":allocator_interface",
+        ":fake_heap",
         ":rng",
         ":tracefile_reader",
         ":util",
@@ -45,6 +49,16 @@ cc_test(
         "@abseil-cpp//absl/status",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "fake_heap",
+    srcs = ["fake_heap.cc"],
+    hdrs = ["fake_heap.h"],
+    deps = [
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings:str_format",
     ],
 )
 

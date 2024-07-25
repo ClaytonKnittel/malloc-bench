@@ -30,6 +30,7 @@ class CorrectnessChecker {
   explicit CorrectnessChecker(TracefileReader&& reader);
 
   absl::Status Run();
+  absl::Status ProcessTracefile();
 
   absl::Status Malloc(size_t nmemb, size_t size, void* id, bool is_calloc);
   absl::Status Realloc(void* orig_id, size_t size, void* new_id);
