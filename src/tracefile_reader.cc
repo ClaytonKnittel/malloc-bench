@@ -114,7 +114,7 @@ absl::StatusOr<std::optional<TraceLine>> TracefileReader::NextLine() {
       };
     }
     if (method == "free" || method == "_ZdlPv" || method == "_ZdaPv" ||
-        method == "_ZdlPvm") {
+        method == "_ZdlPvm" || method == "_ZdaPvm") {
       void* arg1;
       if (!(std::istringstream(sarg1) >> arg1).eof()) {
         return absl::InternalError(
@@ -124,24 +124,6 @@ absl::StatusOr<std::optional<TraceLine>> TracefileReader::NextLine() {
       return TraceLine{
         .op = TraceLine::Op::kFree,
         .input_ptr = arg1,
-      };
-    }
-    if (method == "_ZdaPvm") {
-      void* arg1;
-      size_t arg2;
-      if (!(std::istringstream(sarg1) >> arg1).eof()) {
-        return absl::InternalError(
-            absl::StrCat("Failed to parse ", sarg1, " as pointer for free"));
-      }
-      if (!(std::istringstream(sarg2.substr(1)) >> arg2).eof()) {
-        return absl::InternalError(absl::StrCat(
-            "Failed to parse ", sarg2.substr(1), " as pointer for free"));
-      }
-
-      return TraceLine{
-        .op = TraceLine::Op::kFreeHint,
-        .input_ptr = arg1,
-        .input_size = arg2,
       };
     }
   }

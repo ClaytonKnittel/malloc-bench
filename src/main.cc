@@ -35,12 +35,6 @@ absl::Status PrintTrace(const std::string& tracefile) {
           std::cout << "free(" << line->input_ptr << ")" << std::endl;
         }
         break;
-      case bench::TraceLine::Op::kFreeHint:
-        if (line->input_ptr != nullptr) {
-          std::cout << "free(" << line->input_ptr << ", " << line->input_size
-                    << ")" << std::endl;
-        }
-        break;
     }
   }
 

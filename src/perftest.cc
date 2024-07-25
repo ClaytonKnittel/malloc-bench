@@ -80,8 +80,7 @@ std::pair<std::vector<TimeOp>, size_t> ComputeOps(
         }
         break;
       }
-      case TraceLine::Op::kFree:
-      case TraceLine::Op::kFreeHint: {
+      case TraceLine::Op::kFree: {
         if (line.input_ptr == nullptr) {
           break;
         }
@@ -135,8 +134,7 @@ absl::StatusOr<absl::Duration> TimeTrace(const std::string& tracefile) {
           ptrs[op.res_idx] = ptr;
           break;
         }
-        case TraceLine::Op::kFree:
-        case TraceLine::Op::kFreeHint: {
+        case TraceLine::Op::kFree: {
           free(ptrs[op.arg_idx]);
           break;
         }
