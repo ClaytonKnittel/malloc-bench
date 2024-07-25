@@ -18,15 +18,10 @@ class FakeHeap {
 
   void swap(FakeHeap& other) noexcept;
 
-  static absl::StatusOr<FakeHeap> Initialize();
-
   static FakeHeap* GlobalInstance();
 
   // Resets the heap and returns a pointer to the beginning of the heap.
   void* Reset();
-
-  // Returns a shared_ptr to the global heap for this process.
-  static absl::StatusOr<std::shared_ptr<FakeHeap>> GlobalHeap();
 
   // Increments the size of the heap by `increment` bytes. The heap starts off
   // empty and must be increased by calling `sbrk()` before anything can be
@@ -39,6 +34,8 @@ class FakeHeap {
 
  private:
   explicit FakeHeap(void* heap_start);
+
+  static absl::StatusOr<FakeHeap> Initialize();
 
   // Returns the start of the heap.
   void* Start() const {
