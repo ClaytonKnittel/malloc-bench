@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdlib>
+#include <new>
 
 namespace bench {
 
@@ -18,6 +19,10 @@ inline void* realloc(void* ptr, size_t size) {
 
 inline void free(void* ptr) {
   return ::free(ptr);
+}
+
+inline void free_hint(void* ptr, std::align_val_t size) {
+  return ::operator delete(ptr, size);
 }
 
 }  // namespace bench

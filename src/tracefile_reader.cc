@@ -1,7 +1,6 @@
 #include "src/tracefile_reader.h"
 
 #include <fstream>
-#include <ios>
 #include <iostream>
 #include <optional>
 #include <regex>
@@ -44,7 +43,7 @@ std::optional<TraceLine> TracefileReader::NextLine() {
     const std::string sarg2 = match[3].str();
     const std::string sres = match[5].str();
 
-    if (method == "malloc") {
+    if (method == "malloc" || method == "_Znwm" || method == "_Znam") {
       size_t arg1;
       void* res;
       if (!(std::istringstream(sarg1) >> arg1).eof()) {
@@ -86,8 +85,8 @@ std::optional<TraceLine> TracefileReader::NextLine() {
 
       return TraceLine{
         .op = TraceLine::Op::kCalloc,
-        .input_size = arg1,
-        .nmemb = arg2,
+        .input_size = arg2,
+        .nmemb = arg1,
         .result = res,
       };
     }
@@ -118,7 +117,8 @@ std::optional<TraceLine> TracefileReader::NextLine() {
         .result = res,
       };
     }
-    if (method == "free") {
+    if (method == "free" || method == "_ZdlPv" || method == "_ZdaPv" ||
+        method == "_ZdlPvm") {
       void* arg1;
       if (!(std::istringstream(sarg1) >> arg1).eof()) {
         std::cerr << "Failed to parse " << sarg1 << " as pointer for free"
@@ -129,6 +129,26 @@ std::optional<TraceLine> TracefileReader::NextLine() {
       return TraceLine{
         .op = TraceLine::Op::kFree,
         .input_ptr = arg1,
+      };
+    }
+    if (method == "_ZdaPvm") {
+      void* arg1;
+      size_t arg2;
+      if (!(std::istringstream(sarg1) >> arg1).eof()) {
+        std::cerr << "Failed to parse " << sarg1 << " as pointer for free"
+                  << std::endl;
+        continue;
+      }
+      if (!(std::istringstream(sarg2.substr(1)) >> arg2).eof()) {
+        std::cerr << "Failed to parse " << sarg2.substr(1)
+                  << " as pointer for free" << std::endl;
+        continue;
+      }
+
+      return TraceLine{
+        .op = TraceLine::Op::kFreeHint,
+        .input_ptr = arg1,
+        .input_size = arg2,
       };
     }
   }
