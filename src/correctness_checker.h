@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <new>
 #include <optional>
 
 #include "absl/container/btree_map.h"

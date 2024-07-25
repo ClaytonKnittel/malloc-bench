@@ -71,4 +71,8 @@ inline size_t get_size(void* ptr) {
   return 0;
 }
 
+inline void free_hint(void* ptr, std::align_val_t size) {
+  return ::operator delete(ptr, size);
+}
+
 }  // namespace bench

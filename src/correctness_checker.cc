@@ -191,6 +191,34 @@ absl::Status CorrectnessChecker::HandleNewAllocation(void* ptr, size_t size,
   return absl::OkStatus();
 }
 
+absl::Status CorrectnessChecker::HandleNewAllocation(void* id, void* ptr,
+                                                     size_t size,
+                                                     bool is_calloc) {
+  RETURN_IF_ERROR(ValidateNewBlock(ptr, size));
+
+  uint64_t magic_bytes = rng_.GenRand64();
+  allocated_blocks_.insert({
+      ptr,
+      AllocatedBlock{
+          .size = size,
+          .magic_bytes = magic_bytes,
+      },
+  });
+
+  if (is_calloc) {
+    for (size_t i = 0; i < size; i++) {
+      if (static_cast<uint8_t*>(ptr)[i] != 0x00) {
+        return absl::InternalError(absl::StrFormat(
+            "calloc-ed block at %p of size %zu is not cleared", ptr, size));
+      }
+    }
+  }
+
+  FillMagicBytes(ptr, size, magic_bytes);
+  id_map_[id] = ptr;
+  return absl::OkStatus();
+}
+
 absl::Status CorrectnessChecker::ValidateNewBlock(void* ptr,
                                                   size_t size) const {
   if (ptr == nullptr) {
