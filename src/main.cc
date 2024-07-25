@@ -36,6 +36,9 @@ absl::StatusOr<TraceResult> RunTrace(const std::string& tracefile) {
     if (!CorrectnessChecker::IsFailedTestStatus(correctness_status)) {
       return correctness_status;
     }
+
+    std::cout << "Failed " << tracefile << ": " << correctness_status
+              << std::endl;
     result.correct = false;
   }
 
@@ -86,7 +89,7 @@ void PrintTestResults(const std::vector<TraceResult>& results) {
       std::cout << std::setw(12) << result.mega_ops << " | " << std::setw(11)
                 << result.utilization << " |" << std::endl;
     } else {
-      std::cout << "            |             |" << std::endl;
+      std::cout << "             |             |" << std::endl;
     }
   }
   std::cout << "-" << std::setw(max_file_len) << std::setfill('-') << ""
