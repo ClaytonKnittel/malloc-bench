@@ -14,13 +14,15 @@ struct TraceLine {
     kCalloc,
     kRealloc,
     kFree,
+    // Free with size hint.
+    kFreeHint,
   };
 
   Op op;
 
   // For free/realloc, the input pointer.
   void* input_ptr;
-  // For malloc/calloc/realloc, the requested size.
+  // For malloc/calloc/realloc/free_hint, the requested size.
   size_t input_size;
   // For calloc, the nmemb argument.
   size_t nmemb;

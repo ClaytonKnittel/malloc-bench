@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <new>
 #include <optional>
 
 #include "absl/container/btree_map.h"
@@ -32,7 +33,10 @@ class CorrectnessChecker {
 
   absl::Status Malloc(size_t nmemb, size_t size, void* id, bool is_calloc);
   absl::Status Realloc(void* orig_id, size_t size, void* new_id);
-  absl::Status Free(void* id);
+  absl::Status Free(void* id, std::optional<std::align_val_t> size);
+
+  absl::Status HandleNewAllocation(void* id, void* ptr, size_t size,
+                                   bool is_calloc);
 
   // Validates that a new block doesn't overlap with any existing block, and
   // that it satisfies alignment requirements.

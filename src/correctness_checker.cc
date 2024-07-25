@@ -3,6 +3,7 @@
 #include <bit>
 #include <cstddef>
 #include <cstdint>
+#include <new>
 
 #include "absl/container/btree_map.h"
 #include "absl/status/status.h"
@@ -47,8 +48,11 @@ absl::Status CorrectnessChecker::Run() {
             Realloc(line->input_ptr, line->input_size, line->result));
         break;
       case TraceLine::Op::kFree:
-        RETURN_IF_ERROR(Free(line->input_ptr));
+        RETURN_IF_ERROR(Free(line->input_ptr, std::nullopt));
         break;
+      case bench::TraceLine::Op::kFreeHint:
+        RETURN_IF_ERROR(Free(line->input_ptr,
+                             static_cast<std::align_val_t>(line->input_size)));
     }
   }
 
@@ -78,33 +82,20 @@ absl::Status CorrectnessChecker::Malloc(size_t nmemb, size_t size, void* id,
   }
   size *= nmemb;
 
-  RETURN_IF_ERROR(ValidateNewBlock(ptr, size));
-
-  uint64_t magic_bytes = rng_.GenRand64();
-  allocated_blocks_.insert({
-      ptr,
-      AllocatedBlock{
-          .size = size,
-          .magic_bytes = magic_bytes,
-      },
-  });
-
-  if (is_calloc) {
-    for (size_t i = 0; i < size; i++) {
-      if (static_cast<uint8_t*>(ptr)[i] != 0x00) {
-        return absl::InternalError(absl::StrFormat(
-            "calloc-ed block at %p of size %zu is not cleared", ptr, size));
-      }
-    }
-  }
-
-  FillMagicBytes(ptr, size, magic_bytes);
-  id_map_[id] = ptr;
-  return absl::OkStatus();
+  return HandleNewAllocation(id, ptr, size, is_calloc);
 }
 
 absl::Status CorrectnessChecker::Realloc(void* orig_id, size_t size,
                                          void* new_id) {
+  if (orig_id == nullptr) {
+    if (verbose_) {
+      std::cout << "realloc(nullptr, " << size << ")" << std::endl;
+    }
+
+    void* new_ptr = bench::realloc(nullptr, size);
+    return HandleNewAllocation(new_id, new_ptr, size, /*is_calloc=*/false);
+  }
+
   auto id_map_it = id_map_.find(orig_id);
   if (id_map_it == id_map_.end()) {
     return absl::InternalError(absl::StrFormat(
@@ -154,9 +145,14 @@ absl::Status CorrectnessChecker::Realloc(void* orig_id, size_t size,
   return absl::OkStatus();
 }
 
-absl::Status CorrectnessChecker::Free(void* id) {
+absl::Status CorrectnessChecker::Free(void* id,
+                                      std::optional<std::align_val_t> size) {
   if (id == nullptr) {
-    bench::free(nullptr);
+    if (size.has_value()) {
+      bench::free_hint(nullptr, size.value());
+    } else {
+      bench::free(nullptr);
+    }
     return absl::OkStatus();
   }
 
@@ -168,17 +164,62 @@ absl::Status CorrectnessChecker::Free(void* id) {
   void* ptr = id_map_it->second;
   auto block_it = allocated_blocks_.find(ptr);
 
+  if (size.has_value() &&
+      static_cast<size_t>(size.value()) != block_it->second.size) {
+    return absl::InternalError(
+        absl::StrFormat("Unexpected size hint mismatch in block %p of size "
+                        "%zu, free called with size hint %zu",
+                        ptr, block_it->second.size, size.value()));
+  }
+
   if (verbose_) {
-    std::cout << "free(" << ptr << ")" << std::endl;
+    if (size.has_value()) {
+      std::cout << "free_hint(" << ptr << ", "
+                << static_cast<size_t>(size.value()) << ")" << std::endl;
+    } else {
+      std::cout << "free(" << ptr << ")" << std::endl;
+    }
   }
 
   // Check that the block has not been corrupted.
   RETURN_IF_ERROR(CheckMagicBytes(ptr, block_it->second.size,
                                   block_it->second.magic_bytes));
 
-  bench::free(ptr);
+  if (size.has_value()) {
+    bench::free_hint(ptr, size.value());
+  } else {
+    bench::free(ptr);
+  }
   id_map_.erase(id_map_it);
   allocated_blocks_.erase(block_it);
+  return absl::OkStatus();
+}
+
+absl::Status CorrectnessChecker::HandleNewAllocation(void* id, void* ptr,
+                                                     size_t size,
+                                                     bool is_calloc) {
+  RETURN_IF_ERROR(ValidateNewBlock(ptr, size));
+
+  uint64_t magic_bytes = rng_.GenRand64();
+  allocated_blocks_.insert({
+      ptr,
+      AllocatedBlock{
+          .size = size,
+          .magic_bytes = magic_bytes,
+      },
+  });
+
+  if (is_calloc) {
+    for (size_t i = 0; i < size; i++) {
+      if (static_cast<uint8_t*>(ptr)[i] != 0x00) {
+        return absl::InternalError(absl::StrFormat(
+            "calloc-ed block at %p of size %zu is not cleared", ptr, size));
+      }
+    }
+  }
+
+  FillMagicBytes(ptr, size, magic_bytes);
+  id_map_[id] = ptr;
   return absl::OkStatus();
 }
 
