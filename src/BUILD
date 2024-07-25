@@ -6,6 +6,9 @@ cc_binary(
         ":tracefile_reader",
         "@abseil-cpp//absl/status",
     ],
+    data = [
+        "//traces",
+    ],
 )
 
 cc_library(
