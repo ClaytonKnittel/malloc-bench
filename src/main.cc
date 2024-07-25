@@ -1,3 +1,4 @@
+#include <cstdlib>
 #include <iostream>
 
 #include "absl/status/status.h"
@@ -47,14 +48,16 @@ absl::Status PrintTrace(const std::string& tracefile) {
 }
 
 int main() {
+  void* x = calloc(10, 4);
+  free(x);
   // return PrintTrace("traces/onoro-cc.trace");
 
-  absl::Status result =
-      bench::CorrectnessChecker::Check("traces/simple_realloc.trace");
-  if (!result.ok()) {
-    std::cerr << "Failed: " << result << std::endl;
-    return -1;
-  }
+  // absl::Status result =
+  //     bench::CorrectnessChecker::Check("traces/simple_realloc.trace");
+  // if (!result.ok()) {
+  //   std::cerr << "Failed: " << result << std::endl;
+  //   return -1;
+  // }
 
   return 0;
 }
