@@ -1,5 +1,8 @@
+#include <algorithm>
 #include <cstdlib>
+#include <iomanip>
 #include <iostream>
+#include <vector>
 
 #include "absl/status/status.h"
 #include "absl/time/time.h"
@@ -46,6 +49,37 @@ absl::StatusOr<TraceResult> RunTrace(const std::string& tracefile) {
   return result;
 }
 
+void PrintTestResults(const std::vector<TraceResult>& results) {
+  size_t max_file_len = 0;
+  for (const TraceResult& result : results) {
+    max_file_len = std::max(result.trace.size(), max_file_len);
+  }
+
+  std::cout << "-" << std::setw(max_file_len) << std::setfill('-') << ""
+            << std::setfill(' ') << "------------------------------------------"
+            << std::endl;
+  std::cout << "| trace" << std::setw(max_file_len - 5) << ""
+            << " | correct? | avg time/op | utilization |" << std::endl;
+  std::cout << "-" << std::setw(max_file_len) << std::setfill('-') << ""
+            << std::setfill(' ') << "------------------------------------------"
+            << std::endl;
+  for (const TraceResult& result : results) {
+    std::cout << "| " << std::setw(max_file_len) << std::left << result.trace
+              << " |        " << (result.correct ? "Y" : "N") << " | ";
+    if (result.correct) {
+      std::cout << std::setw(11) << result.time_per_op << " | " << std::setw(11)
+                << result.utilization << " |" << std::endl;
+    } else {
+      std::cout << "            |             |" << std::endl;
+    }
+  }
+  std::cout << "-" << std::setw(max_file_len) << std::setfill('-') << ""
+            << std::setfill(' ') << "------------------------------------------"
+            << std::endl;
+
+  std::cout << std::endl << "Summary:" << std::endl;
+}
+
 absl::Status PrintTrace(const std::string& tracefile) {
   DEFINE_OR_RETURN(TracefileReader, reader, TracefileReader::Open(tracefile));
 
@@ -84,11 +118,23 @@ absl::Status PrintTrace(const std::string& tracefile) {
 int main() {
   // return PrintTrace("traces/onoro-cc.trace");
 
-  auto result = bench::RunTrace("traces/simple.trace");
-  if (!result.ok()) {
-    std::cerr << "Failed to run trace: " << result.status() << std::endl;
-    return -1;
+  std::vector<bench::TraceResult> results;
+
+  for (const auto& tracefile : {
+           "traces/simple.trace",
+           "traces/simple_calloc.trace",
+           "traces/simple_realloc.trace",
+       }) {
+    auto result = bench::RunTrace(tracefile);
+    if (!result.ok()) {
+      std::cerr << "Failed to run trace " << tracefile << ": "
+                << result.status() << std::endl;
+      return -1;
+    }
+
+    results.push_back(result.value());
   }
+  PrintTestResults(results);
 
   return 0;
 }
