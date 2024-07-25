@@ -5,6 +5,10 @@
 
 namespace bench {
 
+TEST(TestCorrectness, Simple) {
+  ASSERT_THAT(bench::CorrectnessChecker::Check("traces/simple.trace"), IsOk());
+}
+
 TEST(TestCorrectness, SimpleRealloc) {
   ASSERT_THAT(bench::CorrectnessChecker::Check("traces/simple_realloc.trace"),
               IsOk());
