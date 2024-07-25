@@ -1,0 +1,5 @@
+build --repo_env=CC=clang
+build --features=layering_check
+# Turn off these flags to not confuse the compile commands generator when building abseil.
+build --process_headers_in_dependencies=false --features=-parse_headers
+build --cxxopt=-std=c++20
