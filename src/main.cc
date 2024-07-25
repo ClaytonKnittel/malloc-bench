@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cmath>
 #include <cstdlib>
 #include <iomanip>
 #include <iostream>
@@ -18,7 +19,7 @@ namespace bench {
 struct TraceResult {
   std::string trace;
   bool correct;
-  absl::Duration time_per_op;
+  double mega_ops;
   double utilization;
 };
 
@@ -39,10 +40,10 @@ absl::StatusOr<TraceResult> RunTrace(const std::string& tracefile) {
   }
 
   if (result.correct) {
-    DEFINE_OR_RETURN(absl::Duration, time_per_op, TimeTrace(tracefile));
+    DEFINE_OR_RETURN(double, mega_ops, TimeTrace(tracefile));
     DEFINE_OR_RETURN(double, utilization, MeasureUtilization(tracefile));
 
-    result.time_per_op = time_per_op;
+    result.mega_ops = mega_ops;
     result.utilization = utilization;
   }
 
@@ -54,30 +55,48 @@ void PrintTestResults(const std::vector<TraceResult>& results) {
   for (const TraceResult& result : results) {
     max_file_len = std::max(result.trace.size(), max_file_len);
   }
+  uint32_t n_correct = 0;
+  double total_util = 0;
+  double total_mops_geom = 1;
+
+  for (const TraceResult& result : results) {
+    if (result.correct) {
+      n_correct++;
+      total_util += result.utilization;
+    }
+  }
+  for (const TraceResult& result : results) {
+    if (result.correct) {
+      total_mops_geom *= pow(result.mega_ops, 1. / n_correct);
+    }
+  }
 
   std::cout << "-" << std::setw(max_file_len) << std::setfill('-') << ""
-            << std::setfill(' ') << "------------------------------------------"
-            << std::endl;
+            << std::setfill(' ')
+            << "-------------------------------------------" << std::endl;
   std::cout << "| trace" << std::setw(max_file_len - 5) << ""
-            << " | correct? | avg time/op | utilization |" << std::endl;
+            << " | correct? | mega ops / s | utilization |" << std::endl;
   std::cout << "-" << std::setw(max_file_len) << std::setfill('-') << ""
-            << std::setfill(' ') << "------------------------------------------"
-            << std::endl;
+            << std::setfill(' ')
+            << "-------------------------------------------" << std::endl;
   for (const TraceResult& result : results) {
     std::cout << "| " << std::setw(max_file_len) << std::left << result.trace
               << " |        " << (result.correct ? "Y" : "N") << " | ";
     if (result.correct) {
-      std::cout << std::setw(11) << result.time_per_op << " | " << std::setw(11)
+      std::cout << std::setw(12) << result.mega_ops << " | " << std::setw(11)
                 << result.utilization << " |" << std::endl;
     } else {
       std::cout << "            |             |" << std::endl;
     }
   }
   std::cout << "-" << std::setw(max_file_len) << std::setfill('-') << ""
-            << std::setfill(' ') << "------------------------------------------"
-            << std::endl;
+            << std::setfill(' ')
+            << "-------------------------------------------" << std::endl;
 
+  n_correct = std::max(n_correct, 1U);
   std::cout << std::endl << "Summary:" << std::endl;
+  std::cout << "Average utilization: " << (total_util / n_correct) << std::endl;
+  std::cout << "Average mega ops / s: " << total_mops_geom << std::endl;
 }
 
 absl::Status PrintTrace(const std::string& tracefile) {
@@ -116,8 +135,6 @@ absl::Status PrintTrace(const std::string& tracefile) {
 }  // namespace bench
 
 int main() {
-  // return PrintTrace("traces/onoro-cc.trace");
-
   std::vector<bench::TraceResult> results;
 
   for (const auto& tracefile : {
