@@ -66,10 +66,16 @@ std::optional<TraceLine> TracefileReader::NextLine() {
     }
     if (method == "calloc") {
       size_t arg1;
+      size_t arg2;
       void* res;
       if (!(std::istringstream(sarg1) >> arg1).eof()) {
         std::cerr << "Failed to parse " << sarg1 << " as integer for calloc"
                   << std::endl;
+        continue;
+      }
+      if (!(std::istringstream(sarg2.substr(1)) >> arg2).eof()) {
+        std::cerr << "Failed to parse " << sarg2.substr(1)
+                  << " as integer for calloc" << std::endl;
         continue;
       }
       if (!(std::istringstream(sres) >> res).eof()) {
@@ -81,6 +87,7 @@ std::optional<TraceLine> TracefileReader::NextLine() {
       return TraceLine{
         .op = TraceLine::Op::kCalloc,
         .input_size = arg1,
+        .nmemb = arg2,
         .result = res,
       };
     }
