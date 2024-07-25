@@ -22,8 +22,24 @@ cc_binary(
         ":allocator_interface",
         ":tracefile_reader",
         ":util",
-        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/time",
+        "@abseil-cpp//absl/container:flat_hash_map",
+    ],
+)
+
+cc_binary(
+    name = "utiltest",
+    srcs = ["utiltest.cc"],
+    data = [
+        "//traces",
+    ],
+    deps = [
+        ":allocator_interface",
+        ":fake_heap",
+        ":tracefile_reader",
+        ":util",
+        "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/container:flat_hash_map",
     ],
 )
