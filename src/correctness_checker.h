@@ -15,7 +15,7 @@ namespace bench {
 
 class CorrectnessChecker {
  public:
-  static absl::Status Check(const std::string& tracefile);
+  static absl::Status Check(const std::string& tracefile, bool verbose = false);
 
  private:
   struct AllocatedBlock {
@@ -55,6 +55,8 @@ class CorrectnessChecker {
   IdMap id_map_;
 
   util::Rng rng_;
+
+  bool verbose_;
 };
 
 }  // namespace bench

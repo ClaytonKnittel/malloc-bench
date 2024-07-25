@@ -16,12 +16,14 @@
 namespace bench {
 
 /* static */
-absl::Status CorrectnessChecker::Check(const std::string& tracefile) {
+absl::Status CorrectnessChecker::Check(const std::string& tracefile,
+                                       bool verbose) {
   absl::btree_map<void*, uint32_t> allocated_blocks;
 
   DEFINE_OR_RETURN(TracefileReader, reader, TracefileReader::Open(tracefile));
 
   CorrectnessChecker checker(std::move(reader));
+  checker.verbose_ = verbose;
   return checker.Run();
 }
 
@@ -58,6 +60,14 @@ absl::Status CorrectnessChecker::Malloc(size_t nmemb, size_t size, void* id,
   if (id_map_.contains(id)) {
     return absl::InternalError(
         absl::StrFormat("Unexpected duplicate ID allocated: %p", id));
+  }
+
+  if (verbose_) {
+    if (is_calloc) {
+      std::cout << "calloc(" << nmemb << ", " << size << ")" << std::endl;
+    } else {
+      std::cout << "malloc(" << size << ")" << std::endl;
+    }
   }
 
   void* ptr;
@@ -105,10 +115,17 @@ absl::Status CorrectnessChecker::Realloc(void* orig_id, size_t size,
   AllocatedBlock block = block_it->second;
   size_t orig_size = block.size;
 
+  if (verbose_) {
+    std::cout << "realloc(" << ptr << ", " << size << ")" << std::endl;
+  }
+
   if (new_id != orig_id && id_map_.contains(new_id)) {
     return absl::InternalError(
         absl::StrFormat("Unexpected duplicate ID reallocated: %p", new_id));
   }
+
+  // Check that the block has not been corrupted.
+  RETURN_IF_ERROR(CheckMagicBytes(ptr, orig_size, block.magic_bytes));
 
   void* new_ptr = bench::realloc(ptr, size);
 
@@ -128,13 +145,21 @@ absl::Status CorrectnessChecker::Realloc(void* orig_id, size_t size,
     id_map_[new_id] = new_ptr;
   }
 
-  RETURN_IF_ERROR(CheckMagicBytes(new_ptr, std::min(orig_size, size),
-                                  block_it->second.magic_bytes));
+  RETURN_IF_ERROR(
+      CheckMagicBytes(new_ptr, std::min(orig_size, size), block.magic_bytes));
+  if (size > orig_size) {
+    FillMagicBytes(new_ptr, size, block.magic_bytes);
+  }
 
   return absl::OkStatus();
 }
 
 absl::Status CorrectnessChecker::Free(void* id) {
+  if (id == nullptr) {
+    bench::free(nullptr);
+    return absl::OkStatus();
+  }
+
   auto id_map_it = id_map_.find(id);
   if (id_map_it == id_map_.end()) {
     return absl::InternalError(
@@ -142,6 +167,10 @@ absl::Status CorrectnessChecker::Free(void* id) {
   }
   void* ptr = id_map_it->second;
   auto block_it = allocated_blocks_.find(ptr);
+
+  if (verbose_) {
+    std::cout << "free(" << ptr << ")" << std::endl;
+  }
 
   // Check that the block has not been corrupted.
   RETURN_IF_ERROR(CheckMagicBytes(ptr, block_it->second.size,
@@ -202,7 +231,8 @@ absl::Status CorrectnessChecker::CheckMagicBytes(void* ptr, size_t size,
     }
   }
   for (size_t j = 8 * i; j < size; j++) {
-    if (static_cast<uint8_t*>(ptr)[j] != (magic_bytes >> (8 * (j - 8 * i)))) {
+    if (static_cast<uint8_t*>(ptr)[j] !=
+        static_cast<uint8_t>(magic_bytes >> (8 * (j - 8 * i)))) {
       return absl::InternalError(
           absl::StrFormat("Allocated block %p of size %zu has dirtied bytes at "
                           "position %zu from the beginning",
