@@ -15,8 +15,6 @@ struct TraceLine {
     kCalloc,
     kRealloc,
     kFree,
-    // Free with size hint.
-    kFreeHint,
   };
 
   Op op;

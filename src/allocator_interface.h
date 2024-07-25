@@ -31,8 +31,4 @@ inline void free(void* ptr) {
   // TODO: implement
 }
 
-inline void free_hint(void* ptr, std::align_val_t size) {
-  // TODO: implement
-}
-
 }  // namespace bench
