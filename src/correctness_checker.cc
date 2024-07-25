@@ -42,6 +42,7 @@ absl::Status CorrectnessChecker::Run() {
     return absl::InternalError("`HeapManager()` returned `nullptr` heap.");
   }
   heap_ = heap;
+  heap->Reset();
 
   absl::Status result = ProcessTracefile();
   heap->Reset();
