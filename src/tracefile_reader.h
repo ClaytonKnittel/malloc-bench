@@ -3,6 +3,7 @@
 #include <fstream>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "absl/status/statusor.h"
 
@@ -35,6 +36,9 @@ class TracefileReader {
   static absl::StatusOr<TracefileReader> Open(const std::string& filename);
 
   absl::StatusOr<std::optional<TraceLine>> NextLine();
+
+  // Reads all lines in a file into a vector.
+  absl::StatusOr<std::vector<TraceLine>> CollectLines();
 
  private:
   explicit TracefileReader(std::ifstream&& file);
