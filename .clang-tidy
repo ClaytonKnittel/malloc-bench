@@ -72,6 +72,8 @@ Checks: >
   -*,
   abseil-*,
   bugprone-*,
+  clang-analyzer-*,
+  clang-diagnostic-*,
   google-*,
   misc-*,
   modernize-*,

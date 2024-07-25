@@ -1,18 +1,12 @@
 #include <iostream>
 
+#include "absl/status/status.h"
+
+#include "src/correctness_checker.h"
 #include "src/tracefile_reader.h"
 
-int main() {
-  // int* x = new int(10);
-  // std::cout << "Malloc bench" << std::endl;
-  // delete x;
-
-  // void* ptr = malloc(100);
-  // void* new_ptr = realloc(ptr, 150);
-  // free(new_ptr == nullptr ? ptr : new_ptr);
-
-  auto res = bench::TracefileReader::Open(
-      "/home/cknittel/Documents/VSCode/malloc-bench/test.trace");
+int PrintTrace(const std::string& tracefile) {
+  auto res = bench::TracefileReader::Open(tracefile);
   if (!res.ok()) {
     std::cerr << res.status() << std::endl;
     return -1;
@@ -40,6 +34,28 @@ int main() {
         }
         break;
     }
+  }
+
+  return 0;
+}
+
+int main() {
+  // int* x = new int(10);
+  // std::cout << "Malloc bench" << std::endl;
+  // delete x;
+
+  // void* ptr = malloc(100);
+  // void* new_ptr = realloc(ptr, 150);
+  // free(new_ptr == nullptr ? ptr : new_ptr);
+
+  // return
+  // PrintTrace("/home/cknittel/Documents/VSCode/malloc-bench/test.trace");
+
+  absl::Status result = bench::CorrectnessChecker::Check(
+      "/home/cknittel/Documents/VSCode/malloc-bench/test.trace");
+  if (!result.ok()) {
+    std::cerr << "Failed: " << result << std::endl;
+    return -1;
   }
 
   return 0;
