@@ -40,19 +40,10 @@ int PrintTrace(const std::string& tracefile) {
 }
 
 int main() {
-  // int* x = new int(10);
-  // std::cout << "Malloc bench" << std::endl;
-  // delete x;
+  // return PrintTrace("traces/simple_realloc.trace");
 
-  // void* ptr = malloc(100);
-  // void* new_ptr = realloc(ptr, 150);
-  // free(new_ptr == nullptr ? ptr : new_ptr);
-
-  // return
-  // PrintTrace("/home/cknittel/Documents/VSCode/malloc-bench/test.trace");
-
-  absl::Status result = bench::CorrectnessChecker::Check(
-      "/home/cknittel/Documents/VSCode/malloc-bench/test.trace");
+  absl::Status result =
+      bench::CorrectnessChecker::Check("traces/simple_realloc.trace");
   if (!result.ok()) {
     std::cerr << "Failed: " << result << std::endl;
     return -1;
