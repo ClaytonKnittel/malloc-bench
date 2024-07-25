@@ -26,7 +26,7 @@ absl::StatusOr<TracefileReader> TracefileReader::Open(
   return TracefileReader(std::move(file));
 }
 
-std::optional<TraceLine> TracefileReader::NextLine() {
+absl::StatusOr<std::optional<TraceLine>> TracefileReader::NextLine() {
   while (true) {
     std::string line;
     if (std::getline(file_, line).eof()) {
@@ -47,14 +47,12 @@ std::optional<TraceLine> TracefileReader::NextLine() {
       size_t arg1;
       void* res;
       if (!(std::istringstream(sarg1) >> arg1).eof()) {
-        std::cerr << "Failed to parse " << sarg1 << " as integer for malloc"
-                  << std::endl;
-        continue;
+        return absl::InternalError(
+            absl::StrCat("Failed to parse ", sarg1, " as integer for malloc"));
       }
       if (!(std::istringstream(sres) >> res).eof()) {
-        std::cerr << "Failed to parse " << sres << " as pointer for malloc"
-                  << std::endl;
-        continue;
+        return absl::InternalError(
+            absl::StrCat("Failed to parse ", sres, " as pointer for malloc"));
       }
 
       return TraceLine{
@@ -68,19 +66,16 @@ std::optional<TraceLine> TracefileReader::NextLine() {
       size_t arg2;
       void* res;
       if (!(std::istringstream(sarg1) >> arg1).eof()) {
-        std::cerr << "Failed to parse " << sarg1 << " as integer for calloc"
-                  << std::endl;
-        continue;
+        return absl::InternalError(
+            absl::StrCat("Failed to parse ", sarg1, " as integer for calloc"));
       }
       if (!(std::istringstream(sarg2.substr(1)) >> arg2).eof()) {
-        std::cerr << "Failed to parse " << sarg2.substr(1)
-                  << " as integer for calloc" << std::endl;
-        continue;
+        return absl::InternalError(absl::StrCat(
+            "Failed to parse ", sarg2.substr(1), " as integer for calloc"));
       }
       if (!(std::istringstream(sres) >> res).eof()) {
-        std::cerr << "Failed to parse " << sres << " as pointer for calloc"
-                  << std::endl;
-        continue;
+        return absl::InternalError(
+            absl::StrCat("Failed to parse ", sres, " as pointer for calloc"));
       }
 
       return TraceLine{
@@ -95,19 +90,16 @@ std::optional<TraceLine> TracefileReader::NextLine() {
       size_t arg2;
       void* res;
       if (!(std::istringstream(sarg1) >> arg1).eof()) {
-        std::cerr << "Failed to parse " << sarg1 << " as pointer for realloc"
-                  << std::endl;
-        continue;
+        return absl::InternalError(
+            absl::StrCat("Failed to parse ", sarg1, " as pointer for realloc"));
       }
       if (!(std::istringstream(sarg2.substr(1)) >> arg2).eof()) {
-        std::cerr << "Failed to parse " << sarg2.substr(1)
-                  << " as integer for realloc" << std::endl;
-        continue;
+        return absl::InternalError(absl::StrCat(
+            "Failed to parse ", sarg2.substr(1), " as integer for realloc"));
       }
       if (!(std::istringstream(sres) >> res).eof()) {
-        std::cerr << "Failed to parse " << sres << " as pointer for realloc"
-                  << std::endl;
-        continue;
+        return absl::InternalError(
+            absl::StrCat("Failed to parse ", sres, " as pointer for realloc"));
       }
 
       return TraceLine{
@@ -121,9 +113,8 @@ std::optional<TraceLine> TracefileReader::NextLine() {
         method == "_ZdlPvm") {
       void* arg1;
       if (!(std::istringstream(sarg1) >> arg1).eof()) {
-        std::cerr << "Failed to parse " << sarg1 << " as pointer for free"
-                  << std::endl;
-        continue;
+        return absl::InternalError(
+            absl::StrCat("Failed to parse ", sarg1, " as pointer for free"));
       }
 
       return TraceLine{
@@ -135,14 +126,12 @@ std::optional<TraceLine> TracefileReader::NextLine() {
       void* arg1;
       size_t arg2;
       if (!(std::istringstream(sarg1) >> arg1).eof()) {
-        std::cerr << "Failed to parse " << sarg1 << " as pointer for free"
-                  << std::endl;
-        continue;
+        return absl::InternalError(
+            absl::StrCat("Failed to parse ", sarg1, " as pointer for free"));
       }
       if (!(std::istringstream(sarg2.substr(1)) >> arg2).eof()) {
-        std::cerr << "Failed to parse " << sarg2.substr(1)
-                  << " as pointer for free" << std::endl;
-        continue;
+        return absl::InternalError(absl::StrCat(
+            "Failed to parse ", sarg2.substr(1), " as pointer for free"));
       }
 
       return TraceLine{
