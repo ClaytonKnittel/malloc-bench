@@ -4,17 +4,18 @@
 
 #include "src/correctness_checker.h"
 #include "src/tracefile_reader.h"
+#include "src/util.h"
 
-int PrintTrace(const std::string& tracefile) {
-  auto res = bench::TracefileReader::Open(tracefile);
-  if (!res.ok()) {
-    std::cerr << res.status() << std::endl;
-    return -1;
-  }
+absl::Status PrintTrace(const std::string& tracefile) {
+  DEFINE_OR_RETURN(bench::TracefileReader, reader,
+                   bench::TracefileReader::Open(tracefile));
 
-  bench::TracefileReader& reader = res.value();
-  std::optional<bench::TraceLine> line;
-  while ((line = reader.NextLine()).has_value()) {
+  while (true) {
+    DEFINE_OR_RETURN(std::optional<bench::TraceLine>, line, reader.NextLine());
+    if (line.has_value()) {
+      break;
+    }
+
     switch (line->op) {
       case bench::TraceLine::Op::kMalloc:
         std::cout << "malloc(" << line->input_size << ") = " << line->result
@@ -42,14 +43,14 @@ int PrintTrace(const std::string& tracefile) {
     }
   }
 
-  return 0;
+  return absl::OkStatus();
 }
 
 int main() {
   // return PrintTrace("traces/onoro-cc.trace");
 
   absl::Status result =
-      bench::CorrectnessChecker::Check("traces/onoro-cc.trace");
+      bench::CorrectnessChecker::Check("traces/simple_realloc.trace");
   if (!result.ok()) {
     std::cerr << "Failed: " << result << std::endl;
     return -1;

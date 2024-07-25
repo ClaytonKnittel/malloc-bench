@@ -9,6 +9,7 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/status/status.h"
 
+#include "src/fake_heap.h"
 #include "src/rng.h"
 #include "src/tracefile_reader.h"
 
@@ -53,6 +54,8 @@ class CorrectnessChecker {
   std::optional<Map::const_iterator> FindContainingBlock(void* ptr) const;
 
   TracefileReader reader_;
+
+  FakeHeap* heap_;
 
   Map allocated_blocks_;
   // A map from the pointer value ID from the trace to the actual pointer value

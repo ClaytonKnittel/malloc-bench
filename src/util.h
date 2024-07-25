@@ -48,7 +48,7 @@ absl::Status DoAssignOrReturn(T &lhs, absl::StatusOr<T> result) {
   if (!(tmp).ok()) {                                 \
     return (tmp).status();                           \
   }                                                  \
-  type &lhs = (tmp).value();
+  type &lhs = (tmp).value()
 
 // Executes an expression that returns an absl::StatusOr<T>, and defines a new
 // variable with given type and name to the result if the error code is OK. If
