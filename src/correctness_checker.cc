@@ -33,13 +33,15 @@ CorrectnessChecker::CorrectnessChecker(TracefileReader&& reader)
     : reader_(std::move(reader)), rng_(0, 1) {}
 
 absl::Status CorrectnessChecker::Run() {
-  FakeHeap* heap = HeapManager();
+  FakeHeap* heap = FakeHeap::GlobalInstance();
   if (heap == nullptr) {
     return absl::InternalError("`HeapManager()` returned `nullptr` heap.");
   }
+  heap_ = heap;
 
   absl::Status result = ProcessTracefile();
-  ResetHeap();
+  heap->Reset();
+  heap_ = nullptr;
   return result;
 }
 
@@ -241,6 +243,14 @@ absl::Status CorrectnessChecker::HandleNewAllocation(void* id, void* ptr,
 
 absl::Status CorrectnessChecker::ValidateNewBlock(void* ptr,
                                                   size_t size) const {
+  if (ptr < heap_->Start() ||
+      static_cast<uint8_t*>(ptr) + size > heap_->End()) {
+    return absl::InternalError(
+        absl::StrFormat("Bad alloc of out-of-range block at %p of size %zu "
+                        "(heap ranges from %p to %p)",
+                        ptr, size, heap_->Start(), heap_->End()));
+  }
+
   auto block = FindContainingBlock(ptr);
   if (block.has_value()) {
     return absl::InternalError(absl::StrFormat(

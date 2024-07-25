@@ -10,16 +10,34 @@
 
 namespace bench {
 
+FakeHeap::FakeHeap(FakeHeap&& heap) noexcept
+    : heap_start_(heap.heap_start_), heap_end_(heap.heap_end_) {
+  heap.heap_start_ = nullptr;
+  heap.heap_end_ = nullptr;
+}
+
 FakeHeap::~FakeHeap() {
-  int result = munmap(heap_start_, kHeapSize);
-  if (result == -1) {
-    std::cerr << "Failed to unmap heap: " << strerror(errno) << std::endl;
+  if (heap_start_ != nullptr) {
+    int result = munmap(heap_start_, kHeapSize);
+    if (result == -1) {
+      std::cerr << "Failed to unmap heap: " << strerror(errno) << std::endl;
+    }
   }
+}
+
+FakeHeap& FakeHeap::operator=(FakeHeap&& heap) noexcept {
+  FakeHeap(std::move(heap)).swap(*this);
+  return *this;
+}
+
+void FakeHeap::swap(FakeHeap& other) noexcept {
+  std::swap(heap_start_, other.heap_start_);
+  std::swap(heap_end_, other.heap_end_);
 }
 
 /* static */
 absl::StatusOr<FakeHeap> FakeHeap::Initialize() {
-  void* heap_start = mmap(nullptr, FakeHeap::kHeapSize, PROT_WRITE,
+  void* heap_start = mmap(nullptr, FakeHeap::kHeapSize, PROT_READ | PROT_WRITE,
                           MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
   if (heap_start == MAP_FAILED) {
     return absl::InternalError(
@@ -27,6 +45,11 @@ absl::StatusOr<FakeHeap> FakeHeap::Initialize() {
   }
 
   return FakeHeap(heap_start);
+}
+
+/* static */
+FakeHeap* FakeHeap::GlobalInstance() {
+  return &global_heap_;
 }
 
 void* FakeHeap::sbrk(intptr_t increment) {
@@ -55,5 +78,15 @@ void* FakeHeap::Reset() {
   heap_end_ = heap_start_;
   return heap_start_;
 }
+
+FakeHeap FakeHeap::global_heap_ = []() {
+  auto result = FakeHeap::Initialize();
+  if (!result.ok()) {
+    std::cerr << "Failed to initialize heap: " << result.status() << std::endl;
+    exit(-1);
+  }
+
+  return std::move(result.value());
+}();
 
 }  // namespace bench
