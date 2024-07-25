@@ -6,8 +6,12 @@
 #include <regex>
 #include <sstream>
 #include <string>
+#include <vector>
 
+#include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
+
+#include "src/util.h"
 
 namespace bench {
 
@@ -141,6 +145,21 @@ absl::StatusOr<std::optional<TraceLine>> TracefileReader::NextLine() {
       };
     }
   }
+}
+
+absl::StatusOr<std::vector<TraceLine>> TracefileReader::CollectLines() {
+  std::vector<TraceLine> lines;
+
+  while (true) {
+    DEFINE_OR_RETURN(std::optional<TraceLine>, line, NextLine());
+    if (!line.has_value()) {
+      break;
+    }
+
+    lines.push_back(line.value());
+  }
+
+  return lines;
 }
 
 TracefileReader::TracefileReader(std::ifstream&& file)

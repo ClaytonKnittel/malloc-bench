@@ -12,6 +12,22 @@ cc_binary(
     ],
 )
 
+cc_binary(
+    name = "perftest",
+    srcs = ["perftest.cc"],
+    data = [
+        "//traces",
+    ],
+    deps = [
+        ":allocator_interface",
+        ":tracefile_reader",
+        ":util",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/time",
+        "@abseil-cpp//absl/container:flat_hash_map",
+    ],
+)
+
 cc_library(
     name = "allocator_interface",
     hdrs = ["allocator_interface.h"],
@@ -68,6 +84,7 @@ cc_library(
     srcs = ["tracefile_reader.cc"],
     hdrs = ["tracefile_reader.h"],
     deps = [
+        ":util",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
     ],
