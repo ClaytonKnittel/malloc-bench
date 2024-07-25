@@ -32,6 +32,11 @@ class FakeHeap {
   // memory). On error, `nullptr` is returned, and errno is set to ENOMEM.
   void* sbrk(intptr_t increment);
 
+  size_t Size() const {
+    return static_cast<uint8_t*>(heap_end_) -
+           static_cast<uint8_t*>(heap_start_);
+  }
+
  private:
   explicit FakeHeap(void* heap_start);
 

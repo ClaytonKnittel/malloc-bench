@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstring>
-#include <new>
 
 #include "src/fake_heap.h"
 
