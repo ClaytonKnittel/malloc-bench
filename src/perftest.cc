@@ -116,12 +116,13 @@ absl::StatusOr<absl::Duration> TimeTrace(const std::string& tracefile) {
 
   absl::Time start = absl::Now();
   for (size_t t = 0; t < num_repetitions; t++) {
+    FakeHeap::GlobalInstance()->Reset();
+
     for (const TimeOp& op : ops) {
       switch (op.line.op) {
         case TraceLine::Op::kMalloc: {
           void* ptr = malloc(op.line.input_size);
           ptrs[op.res_idx] = ptr;
-          std::cout << op.res_idx << " = " << ptr << std::endl;
           break;
         }
         case TraceLine::Op::kCalloc: {
@@ -132,15 +133,11 @@ absl::StatusOr<absl::Duration> TimeTrace(const std::string& tracefile) {
         case TraceLine::Op::kRealloc: {
           void* ptr = realloc(ptrs[op.arg_idx], op.line.input_size);
           ptrs[op.res_idx] = ptr;
-          std::cout << "Realloc" << std::endl;
-          std::cout << op.arg_idx << " ! " << ptrs[op.arg_idx] << std::endl;
-          std::cout << op.res_idx << " = " << ptr << std::endl;
           break;
         }
         case TraceLine::Op::kFree:
         case TraceLine::Op::kFreeHint: {
           free(ptrs[op.arg_idx]);
-          std::cout << op.arg_idx << " ! " << ptrs[op.arg_idx] << std::endl;
           break;
         }
       }

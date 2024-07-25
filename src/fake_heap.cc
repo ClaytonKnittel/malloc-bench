@@ -36,20 +36,13 @@ void FakeHeap::swap(FakeHeap& other) noexcept {
 }
 
 /* static */
-absl::StatusOr<FakeHeap> FakeHeap::Initialize() {
-  void* heap_start = mmap(nullptr, FakeHeap::kHeapSize, PROT_READ | PROT_WRITE,
-                          MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-  if (heap_start == MAP_FAILED) {
-    return absl::InternalError(
-        absl::StrFormat("Failed to mmap 100MB region: %s", strerror(errno)));
-  }
-
-  return FakeHeap(heap_start);
-}
-
-/* static */
 FakeHeap* FakeHeap::GlobalInstance() {
   return &global_heap_;
+}
+
+void* FakeHeap::Reset() {
+  heap_end_ = heap_start_;
+  return heap_start_;
 }
 
 void* FakeHeap::sbrk(intptr_t increment) {
@@ -74,9 +67,16 @@ void* FakeHeap::sbrk(intptr_t increment) {
 FakeHeap::FakeHeap(void* heap_start)
     : heap_start_(heap_start), heap_end_(heap_start) {}
 
-void* FakeHeap::Reset() {
-  heap_end_ = heap_start_;
-  return heap_start_;
+/* static */
+absl::StatusOr<FakeHeap> FakeHeap::Initialize() {
+  void* heap_start = mmap(nullptr, FakeHeap::kHeapSize, PROT_READ | PROT_WRITE,
+                          MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  if (heap_start == MAP_FAILED) {
+    return absl::InternalError(
+        absl::StrFormat("Failed to mmap 100MB region: %s", strerror(errno)));
+  }
+
+  return FakeHeap(heap_start);
 }
 
 FakeHeap FakeHeap::global_heap_ = []() {
