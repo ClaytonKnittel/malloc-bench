@@ -22,6 +22,8 @@ struct TraceLine {
   void* input_ptr;
   // For malloc/calloc/realloc, the requested size.
   size_t input_size;
+  // For calloc, the nmemb argument.
+  size_t nmemb;
   // For malloc/calloc/realloc, the returned pointer.
   void* result;
 };
