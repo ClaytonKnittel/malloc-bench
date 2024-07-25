@@ -225,6 +225,11 @@ absl::Status CorrectnessChecker::HandleNewAllocation(void* id, void* ptr,
 
 absl::Status CorrectnessChecker::ValidateNewBlock(void* ptr,
                                                   size_t size) const {
+  if (ptr == nullptr) {
+    return absl::InternalError(absl::StrFormat(
+        "%s Bad nullptr alloc for size %zu, did you run out of memory?",
+        kFailedTestPrefix, size));
+  }
   if (ptr < heap_->Start() ||
       static_cast<uint8_t*>(ptr) + size > heap_->End()) {
     return absl::InternalError(absl::StrFormat(
