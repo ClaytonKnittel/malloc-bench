@@ -49,6 +49,9 @@ cc_library(
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/status:statusor",
     ],
+    data = [
+        "//traces",
+    ],
 )
 
 cc_library(
