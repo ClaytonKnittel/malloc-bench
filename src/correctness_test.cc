@@ -37,6 +37,10 @@ TEST(TestCorrectness, All) {
   ASSERT_THAT(bench::CorrectnessChecker::Check("test.trace"), IsOk());
 }
 
+TEST(TestCorrectness, Server) {
+  ASSERT_THAT(bench::CorrectnessChecker::Check("traces/server.trace"), IsOk());
+}
+
 TEST(TestCorrectness, Simple) {
   ASSERT_THAT(bench::CorrectnessChecker::Check("traces/simple.trace"), IsOk());
 }

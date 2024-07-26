@@ -8,6 +8,9 @@ namespace bench {
 
 inline void* malloc(size_t size) {
   // TODO: implement
+  if (size == 0) {
+    return nullptr;
+  }
   size_t round_up = (size + 0xf) & ~0xf;
   return FakeHeap::GlobalInstance()->sbrk(round_up);
 }
