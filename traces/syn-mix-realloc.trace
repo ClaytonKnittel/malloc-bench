@@ -1,0 +1,852 @@
+==80300== Memcheck, a memory error detector
+==80300== Copyright (C) 2002-2017, and GNU GPL'd, by Julian Seward et al.
+==80300== Using Valgrind-3.18.1 and LibVEX; rerun with -h for copyright info
+==80300== Command: ./translate ../SlabMalloc/traces/syn-mix-realloc.rep
+==80300== 
+--80300-- malloc(472) = 0x4A9F040
+--80300-- malloc(4096) = 0x4A9F260
+--80300-- malloc(9904) = 0x4AA02A0
+--80300-- malloc(189) = 0x4AA2990
+--80300-- malloc(16) = 0x4AA2A90
+--80300-- malloc(136) = 0x4AA2AE0
+--80300-- malloc(56) = 0x4AA2BB0
+--80300-- malloc(88) = 0x4AA2C30
+--80300-- realloc(0x4AA2A90,90) = 0x4AA2CD0
+--80300-- realloc(0x4AA2990,8) = 0x4AA2D70
+--80300-- realloc(0x4AA02A0,29) = 0x4AA2DC0
+--80300-- realloc(0x4AA2AE0,4776) = 0x4AA2E20
+--80300-- malloc(74) = 0x4AA4110
+--80300-- realloc(0x4AA2D70,225) = 0x4AA41A0
+--80300-- realloc(0x4AA41A0,16) = 0x4AA42D0
+--80300-- malloc(40) = 0x4AA4320
+--80300-- realloc(0x4AA4110,219) = 0x4AA4390
+--80300-- realloc(0x4AA2DC0,4) = 0x4AA44B0
+--80300-- malloc(24) = 0x4AA4500
+--80300-- realloc(0x4AA4500,104) = 0x4AA4560
+--80300-- malloc(219) = 0x4AA4610
+--80300-- realloc(0x4AA42D0,24) = 0x4AA4730
+--80300-- malloc(8) = 0x4AA4790
+--80300-- malloc(60048) = 0x4AA47E0
+--80300-- free(0x4AA2BB0)
+--80300-- malloc(112) = 0x4AB32B0
+--80300-- realloc(0x4AA4790,152) = 0x4AB3360
+--80300-- realloc(0x4AA2C30,100) = 0x4AB3440
+--80300-- malloc(169) = 0x4AB34F0
+--80300-- malloc(4) = 0x4AB35E0
+--80300-- free(0x4AB3360)
+--80300-- realloc(0x4AA4610,4) = 0x4AB3630
+--80300-- malloc(3608) = 0x4AB3680
+--80300-- malloc(16) = 0x4AB44E0
+--80300-- realloc(0x4AB35E0,10268) = 0x4AB4530
+--80300-- malloc(4) = 0x4AB6D90
+--80300-- realloc(0x4AB6D90,126) = 0x4AB6DE0
+--80300-- malloc(416) = 0x4AB6EA0
+--80300-- realloc(0x4AA4390,4) = 0x4AB7080
+--80300-- malloc(256) = 0x4AB70D0
+--80300-- malloc(11396) = 0x4AB7210
+--80300-- realloc(0x4AB3440,572) = 0x4AB9EE0
+--80300-- malloc(168) = 0x4ABA160
+--80300-- realloc(0x4AA44B0,8116) = 0x4ABA250
+--80300-- free(0x4ABA160)
+--80300-- malloc(188) = 0x4ABC250
+--80300-- malloc(24) = 0x4ABC350
+--80300-- malloc(40) = 0x4ABC3B0
+--80300-- malloc(168) = 0x4ABC420
+--80300-- malloc(4) = 0x4ABC510
+--80300-- realloc(0x4AA47E0,36) = 0x4ABC560
+--80300-- malloc(200) = 0x4ABC5D0
+--80300-- malloc(112) = 0x4ABC6E0
+--80300-- realloc(0x4AA4730,13736) = 0x4ABC790
+--80300-- realloc(0x4AA2E20,1) = 0x4ABFD80
+--80300-- realloc(0x4ABC3B0,80) = 0x4ABFDD0
+--80300-- free(0x4ABFDD0)
+--80300-- realloc(0x4AB3630,240) = 0x4ABFE60
+--80300-- malloc(3048) = 0x4ABFF90
+--80300-- realloc(0x4AB3680,200) = 0x4AC0BC0
+--80300-- malloc(8) = 0x4AC0CD0
+--80300-- realloc(0x4AB9EE0,4804) = 0x4AC0D20
+--80300-- free(0x4ABFE60)
+--80300-- realloc(0x4ABC420,150) = 0x4AC2030
+--80300-- malloc(232) = 0x4AC2110
+--80300-- realloc(0x4AA4320,4) = 0x4AC2240
+--80300-- realloc(0x4AB4530,192) = 0x4AC2290
+--80300-- realloc(0x4AC2290,56) = 0x4AC2390
+--80300-- realloc(0x4AB6EA0,16) = 0x4AC2410
+--80300-- malloc(168) = 0x4AC2460
+--80300-- malloc(120) = 0x4AC2550
+--80300-- malloc(1104) = 0x4AC2610
+--80300-- malloc(151) = 0x4AC2AA0
+--80300-- malloc(208) = 0x4AC2B80
+--80300-- realloc(0x4AC2390,8) = 0x4AC2C90
+--80300-- free(0x4AC2B80)
+--80300-- malloc(117) = 0x4AC2CE0
+--80300-- malloc(183) = 0x4AC2DA0
+--80300-- malloc(6744) = 0x4AC2EA0
+--80300-- realloc(0x4AC2AA0,24) = 0x4AC4940
+--80300-- realloc(0x4AB34F0,16) = 0x4AC49A0
+--80300-- realloc(0x4ABC790,360) = 0x4AC49F0
+--80300-- malloc(8) = 0x4AC4BA0
+--80300-- malloc(77) = 0x4AC4BF0
+--80300-- realloc(0x4AC49A0,27804) = 0x4AC4C80
+--80300-- malloc(72) = 0x4ACB960
+--80300-- free(0x4AC4C80)
+--80300-- realloc(0x4AC4BA0,120) = 0x4ACB9F0
+--80300-- realloc(0x4ABC350,188616) = 0x4ACBAB0
+--80300-- free(0x4ACBAB0)
+--80300-- realloc(0x4AC4BF0,4) = 0x4AF9BC0
+--80300-- free(0x4AF9BC0)
+--80300-- realloc(0x4AB6DE0,5) = 0x4AF9C10
+--80300-- realloc(0x4ABC5D0,176) = 0x4AF9C60
+--80300-- realloc(0x4AC2240,632) = 0x4AF9D50
+--80300-- free(0x4AF9D50)
+--80300-- realloc(0x4AC2030,16) = 0x4AFA010
+--80300-- malloc(8468) = 0x4AFA060
+--80300-- free(0x4AFA060)
+--80300-- malloc(8) = 0x4AFC1C0
+--80300-- malloc(126) = 0x4AFC210
+--80300-- realloc(0x4AB7210,145132) = 0x4AFC2D0
+--80300-- malloc(28) = 0x4B1FA00
+--80300-- malloc(56) = 0x4B1FA60
+--80300-- realloc(0x4AC2110,48) = 0x4B1FAE0
+--80300-- free(0x4B1FAE0)
+--80300-- realloc(0x4AB70D0,5) = 0x4B1FB50
+--80300-- realloc(0x4ABFF90,2288) = 0x4B1FBA0
+--80300-- malloc(164) = 0x4B204D0
+--80300-- malloc(32) = 0x4B205C0
+--80300-- malloc(88) = 0x4B20620
+--80300-- realloc(0x4B20620,8) = 0x4B206C0
+--80300-- realloc(0x4AC4940,2172) = 0x4B20710
+--80300-- malloc(152) = 0x4B20FD0
+--80300-- malloc(50) = 0x4B210B0
+--80300-- realloc(0x4B1FA00,66) = 0x4B21130
+--80300-- malloc(32) = 0x4B211C0
+--80300-- malloc(240) = 0x4B21220
+--80300-- realloc(0x4ABC510,96) = 0x4B21350
+--80300-- realloc(0x4B211C0,73) = 0x4B213F0
+--80300-- realloc(0x4B20FD0,150524) = 0x4B21480
+--80300-- malloc(80) = 0x4B460C0
+--80300-- realloc(0x4AB7080,4) = 0x4B46150
+--80300-- malloc(46044) = 0x4B461A0
+--80300-- malloc(155928) = 0x4B515C0
+--80300-- free(0x4B461A0)
+--80300-- malloc(112) = 0x4B77720
+--80300-- malloc(72) = 0x4B777D0
+--80300-- realloc(0x4B21480,24) = 0x4B77860
+--80300-- malloc(200) = 0x4B778C0
+--80300-- malloc(44) = 0x4B779D0
+--80300-- malloc(8) = 0x4B77A40
+--80300-- free(0x4B77A40)
+--80300-- realloc(0x4AC2550,96) = 0x4B77A90
+--80300-- free(0x4B77A90)
+--80300-- malloc(42) = 0x4B77B30
+--80300-- malloc(112) = 0x4B77BA0
+--80300-- free(0x4B77BA0)
+--80300-- realloc(0x4ABA250,4332) = 0x4B77C50
+--80300-- malloc(3528) = 0x4B78D80
+--80300-- malloc(80) = 0x4B79B90
+--80300-- free(0x4B79B90)
+--80300-- malloc(8) = 0x4B79C20
+--80300-- malloc(56) = 0x4B79C70
+--80300-- realloc(0x4B79C20,8) = 0x4B79CF0
+--80300-- malloc(32) = 0x4B79D40
+--80300-- free(0x4B79D40)
+--80300-- malloc(32) = 0x4B79DA0
+--80300-- realloc(0x4B79C70,176) = 0x4B79E00
+--80300-- realloc(0x4B205C0,9236) = 0x4B79EF0
+--80300-- malloc(32) = 0x4B7C350
+--80300-- malloc(17124) = 0x4B7C3B0
+--80300-- malloc(8) = 0x4B806E0
+--80300-- free(0x4B7C350)
+--80300-- realloc(0x4B210B0,40) = 0x4B80730
+--80300-- free(0x4B80730)
+--80300-- realloc(0x4B77860,53) = 0x4B807A0
+--80300-- free(0x4B807A0)
+--80300-- realloc(0x4B206C0,3) = 0x4B80820
+--80300-- realloc(0x4B460C0,48) = 0x4B80870
+--80300-- realloc(0x4B79DA0,176) = 0x4B808E0
+--80300-- malloc(36188) = 0x4B809D0
+--80300-- free(0x4B809D0)
+--80300-- realloc(0x4B77720,40) = 0x4B89770
+--80300-- realloc(0x4AC2EA0,56) = 0x4B897E0
+--80300-- realloc(0x4AC2CE0,144) = 0x4B89860
+--80300-- malloc(80) = 0x4B89930
+--80300-- free(0x4B897E0)
+--80300-- realloc(0x4B1FB50,3932) = 0x4B899C0
+--80300-- realloc(0x4AC0CD0,24) = 0x4B8A960
+--80300-- free(0x4B80820)
+--80300-- malloc(56) = 0x4B8A9C0
+--80300-- free(0x4B8A960)
+--80300-- malloc(190) = 0x4B8AA40
+--80300-- malloc(2448) = 0x4B8AB40
+--80300-- realloc(0x4B808E0,4904) = 0x4B8B510
+--80300-- realloc(0x4ABFD80,56) = 0x4B8C880
+--80300-- free(0x4B8A9C0)
+--80300-- realloc(0x4B80870,152) = 0x4B8C900
+--80300-- malloc(240) = 0x4B8C9E0
+--80300-- free(0x4B8C900)
+--80300-- malloc(16) = 0x4B8CB10
+--80300-- realloc(0x4B20710,77308) = 0x4B8CB60
+--80300-- malloc(18) = 0x4B9F9A0
+--80300-- malloc(73) = 0x4B9FA00
+--80300-- realloc(0x4B899C0,168) = 0x4B9FA90
+--80300-- realloc(0x4AC0D20,184) = 0x4B9FB80
+--80300-- malloc(224) = 0x4B9FC80
+--80300-- realloc(0x4B89930,8) = 0x4B9FDA0
+--80300-- free(0x4B9FB80)
+--80300-- malloc(237424) = 0x4B9FDF0
+--80300-- realloc(0x4AC0BC0,16) = 0x4BD9DA0
+--80300-- realloc(0x4B213F0,88) = 0x4BD9DF0
+--80300-- malloc(230) = 0x4BD9E90
+--80300-- malloc(119) = 0x4BD9FC0
+--80300-- free(0x4BD9E90)
+--80300-- realloc(0x4ACB9F0,104) = 0x4BDA080
+--80300-- realloc(0x4B9F9A0,6084) = 0x4BDA130
+--80300-- malloc(308) = 0x4BDB940
+--80300-- free(0x4BDA080)
+--80300-- realloc(0x4B77C50,12192) = 0x4BDBAC0
+--80300-- malloc(35) = 0x4BDEAA0
+--80300-- malloc(8) = 0x4BDEB10
+--80300-- free(0x4BDEB10)
+--80300-- malloc(8) = 0x4BDEB60
+--80300-- free(0x4BDEAA0)
+--80300-- realloc(0x4B46150,80) = 0x4BDEBB0
+--80300-- malloc(21300) = 0x4BDEC40
+--80300-- malloc(64) = 0x4BE3FC0
+--80300-- malloc(113824) = 0x4BE4040
+--80300-- free(0x4BE4040)
+--80300-- realloc(0x4ACB960,111) = 0x4BFFD20
+--80300-- malloc(40) = 0x4BFFDD0
+--80300-- realloc(0x4B9FA90,128) = 0x4BFFE40
+--80300-- free(0x4BFFE40)
+--80300-- malloc(49) = 0x4BFFF00
+--80300-- realloc(0x4BDEBB0,24) = 0x4BFFF80
+--80300-- free(0x4BFFDD0)
+--80300-- malloc(126) = 0x4BFFFE0
+--80300-- realloc(0x4B8C9E0,14312) = 0x4C000A0
+--80300-- malloc(248) = 0x4C038D0
+--80300-- malloc(182) = 0x4C03A10
+--80300-- malloc(64) = 0x4C03B10
+--80300-- malloc(35136) = 0x4C03B90
+--80300-- realloc(0x4B89860,61) = 0x4C0C510
+--80300-- free(0x4C0C510)
+--80300-- malloc(12) = 0x4C0C590
+--80300-- malloc(200) = 0x4C0C5E0
+--80300-- free(0x4C0C5E0)
+--80300-- realloc(0x4ABC560,9372) = 0x4C0C6F0
+--80300-- malloc(384) = 0x4C0EBD0
+--80300-- malloc(8) = 0x4C0ED90
+--80300-- free(0x4C0EBD0)
+--80300-- realloc(0x4AC2610,268) = 0x4C0EDE0
+--80300-- malloc(1812) = 0x4C0EF30
+--80300-- realloc(0x4B7C3B0,82) = 0x4C0F690
+--80300-- malloc(42852) = 0x4C0F730
+--80300-- realloc(0x4B8CB60,74200) = 0x4C19EE0
+--80300-- free(0x4C0F730)
+--80300-- malloc(12772) = 0x4C2C100
+--80300-- free(0x4C19EE0)
+--80300-- realloc(0x4C038D0,22) = 0x4C2F330
+--80300-- malloc(48) = 0x4C2F390
+--80300-- realloc(0x4C2F330,48) = 0x4C2F400
+--80300-- free(0x4C2F400)
+--80300-- realloc(0x4BD9DA0,48) = 0x4C2F470
+--80300-- free(0x4C2C100)
+--80300-- realloc(0x4B8B510,24) = 0x4C2F4E0
+--80300-- malloc(7) = 0x4C2F540
+--80300-- free(0x4C2F4E0)
+--80300-- realloc(0x4B21220,176) = 0x4C2F590
+--80300-- realloc(0x4C000A0,64) = 0x4C2F680
+--80300-- free(0x4C2F680)
+--80300-- realloc(0x4B8CB10,656) = 0x4C2F700
+--80300-- free(0x4C2F590)
+--80300-- malloc(141) = 0x4C2F9D0
+--80300-- free(0x4C2F700)
+--80300-- malloc(8) = 0x4C2FAA0
+--80300-- malloc(23) = 0x4C2FAF0
+--80300-- free(0x4C2FAF0)
+--80300-- realloc(0x4C2F470,165) = 0x4C2FB50
+--80300-- realloc(0x4AC49F0,35) = 0x4C2FC40
+--80300-- malloc(16) = 0x4C2FCB0
+--80300-- realloc(0x4AC2DA0,16) = 0x4C2FD00
+--80300-- malloc(226) = 0x4C2FD50
+--80300-- malloc(112) = 0x4C2FE80
+--80300-- realloc(0x4B1FA60,14) = 0x4C2FF30
+--80300-- free(0x4C2FF30)
+--80300-- malloc(104) = 0x4C2FF80
+--80300-- malloc(16) = 0x4C30030
+--80300-- realloc(0x4BDB940,144) = 0x4C30080
+--80300-- malloc(199092) = 0x4C30150
+--80300-- free(0x4C30030)
+--80300-- malloc(168) = 0x4C60B50
+--80300-- free(0x4C30150)
+--80300-- malloc(144) = 0x4C60C40
+--80300-- malloc(8) = 0x4C60D10
+--80300-- free(0x4C60C40)
+--80300-- malloc(200) = 0x4C60D60
+--80300-- realloc(0x4C2FD00,66) = 0x4C60E70
+--80300-- free(0x4C60E70)
+--80300-- malloc(48) = 0x4C60F00
+--80300-- realloc(0x4C03B90,5124) = 0x4C60F70
+--80300-- malloc(8) = 0x4C623C0
+--80300-- realloc(0x4AC2C90,24) = 0x4C62410
+--80300-- realloc(0x4AF9C10,8) = 0x4C62470
+--80300-- free(0x4C62410)
+--80300-- realloc(0x4B9FDA0,42) = 0x4C624C0
+--80300-- free(0x4C62470)
+--80300-- malloc(160) = 0x4C62530
+--80300-- free(0x4C62530)
+--80300-- malloc(88) = 0x4C62610
+--80300-- free(0x4C62610)
+--80300-- realloc(0x4B204D0,80304) = 0x4C626B0
+--80300-- malloc(1792) = 0x4C760A0
+--80300-- free(0x4C760A0)
+--80300-- realloc(0x4B9FDF0,146) = 0x4C767E0
+--80300-- free(0x4C767E0)
+--80300-- realloc(0x4B77B30,16) = 0x4C768C0
+--80300-- malloc(16) = 0x4C76910
+--80300-- realloc(0x4C2FC40,69) = 0x4C76960
+--80300-- realloc(0x4C2FF80,64) = 0x4C769F0
+--80300-- malloc(253) = 0x4C76A70
+--80300-- free(0x4C769F0)
+--80300-- malloc(39) = 0x4C76BB0
+--80300-- realloc(0x4C03B10,8) = 0x4C76C20
+--80300-- free(0x4C76C20)
+--80300-- realloc(0x4B515C0,40) = 0x4C76C70
+--80300-- malloc(8) = 0x4C76CE0
+--80300-- free(0x4C76CE0)
+--80300-- malloc(16) = 0x4C76D30
+--80300-- malloc(98) = 0x4C76D80
+--80300-- malloc(149) = 0x4C76E30
+--80300-- free(0x4C76E30)
+--80300-- realloc(0x4C76D30,2084) = 0x4C76F10
+--80300-- free(0x4C76F10)
+--80300-- realloc(0x4BFFD20,130) = 0x4C77780
+--80300-- malloc(16) = 0x4C77850
+--80300-- realloc(0x4C76BB0,8) = 0x4C778A0
+--80300-- realloc(0x4C623C0,1) = 0x4C778F0
+--80300-- malloc(1776) = 0x4C77940
+--80300-- realloc(0x4AA4560,212) = 0x4C78070
+--80300-- free(0x4C78070)
+--80300-- realloc(0x4C60F00,232) = 0x4C78190
+--80300-- free(0x4C78190)
+--80300-- malloc(16) = 0x4C782C0
+--80300-- free(0x4C782C0)
+--80300-- malloc(49536) = 0x4C78310
+--80300-- free(0x4C78310)
+--80300-- malloc(516) = 0x4C844D0
+--80300-- free(0x4C844D0)
+--80300-- realloc(0x4B89770,232) = 0x4C84720
+--80300-- free(0x4C84720)
+--80300-- realloc(0x4C2FB50,540) = 0x4C84850
+--80300-- free(0x4C84850)
+--80300-- realloc(0x4B8AB40,16) = 0x4C84AB0
+--80300-- free(0x4C84AB0)
+--80300-- realloc(0x4C2FCB0,200) = 0x4C84B00
+--80300-- malloc(96) = 0x4C84C10
+--80300-- realloc(0x4C2FD50,38100) = 0x4C84CB0
+--80300-- free(0x4C84CB0)
+--80300-- malloc(1040) = 0x4C8E1D0
+--80300-- realloc(0x4C77850,24) = 0x4C8E620
+--80300-- malloc(72) = 0x4C8E680
+--80300-- free(0x4C8E680)
+--80300-- realloc(0x4ABC6E0,144) = 0x4C8E710
+--80300-- free(0x4C8E710)
+--80300-- realloc(0x4C76910,95732) = 0x4C8E7E0
+--80300-- free(0x4C8E7E0)
+--80300-- malloc(328) = 0x4CA5E20
+--80300-- free(0x4CA5E20)
+--80300-- realloc(0x4C8E620,492) = 0x4CA5FB0
+--80300-- free(0x4CA5FB0)
+--80300-- realloc(0x4C03A10,1) = 0x4CA61E0
+--80300-- free(0x4CA61E0)
+--80300-- malloc(248) = 0x4CA6230
+--80300-- free(0x4CA6230)
+--80300-- malloc(192) = 0x4CA6370
+--80300-- free(0x4CA6370)
+--80300-- realloc(0x4BFFF80,120) = 0x4CA6470
+--80300-- malloc(83) = 0x4CA6530
+--80300-- malloc(120) = 0x4CA65D0
+--80300-- free(0x4CA65D0)
+--80300-- malloc(4728) = 0x4CA6690
+--80300-- malloc(213) = 0x4CA7950
+--80300-- free(0x4CA7950)
+--80300-- realloc(0x4C60D60,140468) = 0x4CA7A70
+--80300-- realloc(0x4CA7A70,144520) = 0x4CC9F70
+--80300-- realloc(0x4C0C590,120) = 0x4CED440
+--80300-- malloc(101) = 0x4CED500
+--80300-- free(0x4CED500)
+--80300-- malloc(5612) = 0x4CED5B0
+--80300-- free(0x4CED5B0)
+--80300-- realloc(0x4C0ED90,168) = 0x4CEEBE0
+--80300-- free(0x4CEEBE0)
+--80300-- malloc(2744) = 0x4CEECD0
+--80300-- free(0x4CEECD0)
+--80300-- malloc(496) = 0x4CEF7D0
+--80300-- free(0x4CEF7D0)
+--80300-- malloc(19396) = 0x4CEFA00
+--80300-- free(0x4CEFA00)
+--80300-- malloc(32) = 0x4CF4610
+--80300-- free(0x4CF4610)
+--80300-- malloc(121284) = 0x4CF4670
+--80300-- realloc(0x4C0EF30,34236) = 0x4D12080
+--80300-- malloc(114) = 0x4D1A680
+--80300-- free(0x4D1A680)
+--80300-- malloc(216) = 0x4D1A740
+--80300-- malloc(8) = 0x4D1A860
+--80300-- free(0x4D1A860)
+--80300-- malloc(60) = 0x4D1A8B0
+--80300-- free(0x4D1A8B0)
+--80300-- realloc(0x4BE3FC0,64) = 0x4D1A930
+--80300-- free(0x4D1A930)
+--80300-- malloc(156) = 0x4D1A9B0
+--80300-- free(0x4D1A9B0)
+--80300-- malloc(104) = 0x4D1AA90
+--80300-- free(0x4D1AA90)
+--80300-- malloc(24) = 0x4D1AB40
+--80300-- free(0x4D1AB40)
+--80300-- realloc(0x4CC9F70,564) = 0x4D1ABA0
+--80300-- free(0x4D1ABA0)
+--80300-- malloc(93) = 0x4D1AE20
+--80300-- free(0x4D1AE20)
+--80300-- realloc(0x4C626B0,20) = 0x4D1AEC0
+--80300-- free(0x4D1AEC0)
+--80300-- realloc(0x4D1A740,16) = 0x4D1AF20
+--80300-- free(0x4D1AF20)
+--80300-- realloc(0x4AFC210,96) = 0x4D1AF70
+--80300-- realloc(0x4C76D80,32) = 0x4D1B010
+--80300-- free(0x4D1B010)
+--80300-- realloc(0x4BD9FC0,78280) = 0x4D1B070
+--80300-- free(0x4D1B070)
+--80300-- malloc(7728) = 0x4D2E280
+--80300-- free(0x4D2E280)
+--80300-- realloc(0x4C30080,99) = 0x4D300F0
+--80300-- free(0x4D300F0)
+--80300-- malloc(16) = 0x4D301A0
+--80300-- free(0x4D301A0)
+--80300-- realloc(0x4C2F390,97) = 0x4D301F0
+--80300-- malloc(60) = 0x4D302A0
+--80300-- free(0x4D302A0)
+--80300-- malloc(39) = 0x4D30320
+--80300-- realloc(0x4AB44E0,88) = 0x4D30390
+--80300-- malloc(24) = 0x4D30430
+--80300-- malloc(237680) = 0x4D30490
+--80300-- free(0x4D30490)
+--80300-- realloc(0x4AF9C60,12) = 0x4D6A540
+--80300-- free(0x4D6A540)
+--80300-- realloc(0x4C77940,36) = 0x4D6A590
+--80300-- free(0x4D6A590)
+--80300-- malloc(3416) = 0x4D6A600
+--80300-- free(0x4D6A600)
+--80300-- realloc(0x4C60B50,48) = 0x4D6B3A0
+--80300-- realloc(0x4B1FBA0,10256) = 0x4D6B410
+--80300-- free(0x4D6B410)
+--80300-- malloc(16) = 0x4D6DC60
+--80300-- realloc(0x4AFC1C0,121) = 0x4D6DCB0
+--80300-- free(0x4D6DCB0)
+--80300-- malloc(150692) = 0x4D6DD70
+--80300-- free(0x4D6DD70)
+--80300-- realloc(0x4C76C70,33) = 0x4D92A60
+--80300-- free(0x4D92A60)
+--80300-- realloc(0x4BFFF00,14) = 0x4D92AD0
+--80300-- free(0x4D92AD0)
+--80300-- malloc(224) = 0x4D92B20
+--80300-- malloc(40) = 0x4D92C40
+--80300-- free(0x4D92C40)
+--80300-- realloc(0x4B21130,8) = 0x4D92CB0
+--80300-- free(0x4D92CB0)
+--80300-- malloc(92) = 0x4D92D00
+--80300-- malloc(1) = 0x4D92DA0
+--80300-- malloc(4) = 0x4D92DF0
+--80300-- malloc(48) = 0x4D92E40
+--80300-- realloc(0x4C2FE80,160) = 0x4D92EB0
+--80300-- free(0x4D92EB0)
+--80300-- realloc(0x4B806E0,4) = 0x4D92F90
+--80300-- free(0x4D92F90)
+--80300-- malloc(250348) = 0x4D92FE0
+--80300-- free(0x4D92FE0)
+--80300-- malloc(10644) = 0x4DD0210
+--80300-- free(0x4DD0210)
+--80300-- malloc(44) = 0x4DD2BF0
+--80300-- free(0x4DD2BF0)
+--80300-- malloc(32) = 0x4DD2C60
+--80300-- malloc(48000) = 0x4DD2CC0
+--80300-- free(0x4DD2CC0)
+--80300-- realloc(0x4BFFFE0,94) = 0x4DDE880
+--80300-- free(0x4DDE880)
+--80300-- realloc(0x4AC2410,8) = 0x4DDE920
+--80300-- free(0x4DDE920)
+--80300-- malloc(12) = 0x4DDE970
+--80300-- free(0x4DDE970)
+--80300-- malloc(16) = 0x4DDE9C0
+--80300-- free(0x4DDE9C0)
+--80300-- realloc(0x4BD9DF0,56592) = 0x4DDEA10
+--80300-- free(0x4DDEA10)
+--80300-- realloc(0x4DD2C60,8) = 0x4DEC760
+--80300-- free(0x4DEC760)
+--80300-- realloc(0x4CA6690,26472) = 0x4DEC7B0
+--80300-- free(0x4DEC7B0)
+--80300-- realloc(0x4D6DC60,234) = 0x4DF2F60
+--80300-- free(0x4DF2F60)
+--80300-- realloc(0x4C778A0,49) = 0x4DF3090
+--80300-- free(0x4DF3090)
+--80300-- realloc(0x4C2F9D0,40) = 0x4DF3110
+--80300-- malloc(28) = 0x4DF3180
+--80300-- realloc(0x4D12080,24) = 0x4DF31E0
+--80300-- free(0x4DF31E0)
+--80300-- malloc(166) = 0x4DF3240
+--80300-- free(0x4DF3240)
+--80300-- realloc(0x4BDA130,460) = 0x4DF3330
+--80300-- free(0x4DF3330)
+--80300-- realloc(0x4ABC250,13) = 0x4DF3540
+--80300-- free(0x4DF3540)
+--80300-- malloc(8) = 0x4DF3590
+--80300-- malloc(121) = 0x4DF35E0
+--80300-- free(0x4DF35E0)
+--80300-- malloc(1) = 0x4DF36A0
+--80300-- free(0x4DF36A0)
+--80300-- malloc(20) = 0x4DF36F0
+--80300-- free(0x4DF36F0)
+--80300-- malloc(16) = 0x4DF3750
+--80300-- realloc(0x4B79EF0,160) = 0x4DF37A0
+--80300-- free(0x4DF37A0)
+--80300-- malloc(16) = 0x4DF3880
+--80300-- free(0x4DF3880)
+--80300-- realloc(0x4C76A70,24) = 0x4DF38D0
+--80300-- free(0x4DF38D0)
+--80300-- realloc(0x4B8C880,23884) = 0x4DF3930
+--80300-- realloc(0x4D92D00,15) = 0x4DF96C0
+--80300-- free(0x4DF96C0)
+--80300-- realloc(0x4B9FC80,173) = 0x4DF9710
+--80300-- free(0x4DF9710)
+--80300-- malloc(64) = 0x4DF9800
+--80300-- free(0x4DF9800)
+--80300-- realloc(0x4AA2CD0,79092) = 0x4DF9880
+--80300-- free(0x4DF9880)
+--80300-- realloc(0x4C778F0,36) = 0x4E0CDC0
+--80300-- free(0x4E0CDC0)
+--80300-- realloc(0x4CF4670,1828) = 0x4E0CE30
+--80300-- free(0x4E0CE30)
+--80300-- malloc(208) = 0x4E0D5A0
+--80300-- malloc(205) = 0x4E0D6B0
+--80300-- malloc(4112) = 0x4E0D7C0
+--80300-- free(0x4E0D7C0)
+--80300-- realloc(0x4CED440,80) = 0x4E0E810
+--80300-- free(0x4E0E810)
+--80300-- malloc(72) = 0x4E0E8A0
+--80300-- free(0x4E0E8A0)
+--80300-- realloc(0x4AFA010,1) = 0x4E0E930
+--80300-- realloc(0x4DF3180,141396) = 0x4E0E980
+--80300-- free(0x4E0E980)
+--80300-- realloc(0x4DF3930,168) = 0x4E31220
+--80300-- realloc(0x4BDEB60,7752) = 0x4E31310
+--80300-- free(0x4E31310)
+--80300-- malloc(212) = 0x4E331A0
+--80300-- realloc(0x4CA6530,2120) = 0x4E332C0
+--80300-- free(0x4E332C0)
+--80300-- malloc(8380) = 0x4E33B50
+--80300-- free(0x4E33B50)
+--80300-- realloc(0x4B8AA40,240) = 0x4E35C50
+--80300-- malloc(8) = 0x4E35D80
+--80300-- free(0x4E35D80)
+--80300-- realloc(0x4D301F0,544) = 0x4E35DD0
+--80300-- free(0x4E35DD0)
+--80300-- malloc(168) = 0x4E36030
+--80300-- free(0x4E36030)
+--80300-- realloc(0x4E0D5A0,184) = 0x4E36120
+--80300-- free(0x4E36120)
+--80300-- malloc(111) = 0x4E36220
+--80300-- free(0x4E36220)
+--80300-- malloc(223) = 0x4E362D0
+--80300-- free(0x4E362D0)
+--80300-- realloc(0x4C2FAA0,8) = 0x4E363F0
+--80300-- free(0x4E363F0)
+--80300-- malloc(8) = 0x4E36440
+--80300-- free(0x4E36440)
+--80300-- malloc(8) = 0x4E36490
+--80300-- free(0x4E36490)
+--80300-- malloc(27008) = 0x4E364E0
+--80300-- free(0x4E364E0)
+--80300-- malloc(2) = 0x4E3CEA0
+--80300-- free(0x4E3CEA0)
+--80300-- realloc(0x4E0D6B0,112) = 0x4E3CEF0
+--80300-- free(0x4E3CEF0)
+--80300-- realloc(0x4E35C50,800) = 0x4E3CFA0
+--80300-- malloc(8) = 0x4E3D300
+--80300-- free(0x4E3D300)
+--80300-- realloc(0x4C8E1D0,176) = 0x4E3D350
+--80300-- free(0x4E3D350)
+--80300-- malloc(160) = 0x4E3D440
+--80300-- free(0x4E3D440)
+--80300-- malloc(28) = 0x4E3D520
+--80300-- realloc(0x4E3D520,16) = 0x4E3D580
+--80300-- free(0x4E3D580)
+--80300-- malloc(39) = 0x4E3D5D0
+--80300-- free(0x4E3D5D0)
+--80300-- malloc(39424) = 0x4E3D640
+--80300-- free(0x4E3D640)
+--80300-- realloc(0x4C624C0,159) = 0x4E47080
+--80300-- free(0x4E47080)
+--80300-- realloc(0x4D92E40,111) = 0x4E47160
+--80300-- free(0x4E47160)
+--80300-- realloc(0x4D6B3A0,81) = 0x4E47210
+--80300-- free(0x4E47210)
+--80300-- realloc(0x4B778C0,48) = 0x4E472B0
+--80300-- free(0x4E472B0)
+--80300-- realloc(0x4B78D80,128) = 0x4E47320
+--80300-- malloc(10932) = 0x4E473E0
+--80300-- free(0x4E473E0)
+--80300-- realloc(0x4C60D10,250536) = 0x4E49EE0
+--80300-- malloc(16) = 0x4E871D0
+--80300-- malloc(24) = 0x4E87220
+--80300-- free(0x4E87220)
+--80300-- malloc(20) = 0x4E87280
+--80300-- realloc(0x4D92B20,56) = 0x4E872E0
+--80300-- free(0x4E872E0)
+--80300-- malloc(112) = 0x4E87360
+--80300-- free(0x4E87360)
+--80300-- malloc(32) = 0x4E87410
+--80300-- free(0x4E87410)
+--80300-- realloc(0x4B79CF0,214) = 0x4E87470
+--80300-- free(0x4E87470)
+--80300-- malloc(75484) = 0x4E87590
+--80300-- realloc(0x4AFC2D0,17684) = 0x4E99CB0
+--80300-- malloc(81) = 0x4E9E210
+--80300-- free(0x4E9E210)
+--80300-- realloc(0x4D30320,60) = 0x4E9E2B0
+--80300-- free(0x4E9E2B0)
+--80300-- malloc(138) = 0x4E9E330
+--80300-- free(0x4E9E330)
+--80300-- realloc(0x4B21350,128) = 0x4E9E400
+--80300-- free(0x4E9E400)
+--80300-- realloc(0x4DF3110,16) = 0x4E9E4C0
+--80300-- free(0x4E9E4C0)
+--80300-- realloc(0x4C0C6F0,78) = 0x4E9E510
+--80300-- free(0x4E9E510)
+--80300-- malloc(40) = 0x4E9E5A0
+--80300-- free(0x4E9E5A0)
+--80300-- realloc(0x4DF3590,12172) = 0x4E9F040
+--80300-- free(0x4E9F040)
+--80300-- malloc(176) = 0x4E9E610
+--80300-- free(0x4E9E610)
+--80300-- malloc(8) = 0x4E9E700
+--80300-- free(0x4E9E700)
+--80300-- malloc(83884) = 0x4EA2010
+--80300-- free(0x4EA2010)
+--80300-- realloc(0x4C60F70,44964) = 0x4EB6800
+--80300-- free(0x4EB6800)
+--80300-- malloc(212) = 0x4E9E750
+--80300-- free(0x4E9E750)
+--80300-- realloc(0x4DF3750,104) = 0x4E9E870
+--80300-- free(0x4E9E870)
+--80300-- malloc(128) = 0x4E9E920
+--80300-- malloc(124) = 0x4E9E9E0
+--80300-- free(0x4E9E9E0)
+--80300-- malloc(24) = 0x4E9EAA0
+--80300-- free(0x4E9EAA0)
+--80300-- realloc(0x4AC2460,80) = 0x4E9EB00
+--80300-- free(0x4E9EB00)
+--80300-- malloc(32) = 0x4E9EB90
+--80300-- free(0x4E9EB90)
+--80300-- malloc(56) = 0x4E9EBF0
+--80300-- free(0x4E9EBF0)
+--80300-- realloc(0x4C2F540,96) = 0x4E9EC70
+--80300-- free(0x4E9EC70)
+--80300-- realloc(0x4D92DF0,16) = 0x4E9ED10
+--80300-- free(0x4E9ED10)
+--80300-- malloc(15) = 0x4E9ED60
+--80300-- free(0x4E9ED60)
+--80300-- realloc(0x4E87280,132) = 0x4E9EDB0
+--80300-- free(0x4E9EDB0)
+--80300-- malloc(40) = 0x4E9EE80
+--80300-- realloc(0x4B779D0,6372) = 0x4EC17F0
+--80300-- free(0x4EC17F0)
+--80300-- realloc(0x4BDEC40,1000) = 0x4EC3120
+--80300-- free(0x4EC3120)
+--80300-- realloc(0x4E0E930,56) = 0x4E9EEF0
+--80300-- realloc(0x4B777D0,25) = 0x4E9EF70
+--80300-- free(0x4E9EF70)
+--80300-- realloc(0x4C77780,16) = 0x4E9EFD0
+--80300-- free(0x4E9EFD0)
+--80300-- malloc(4) = 0x4EC3550
+--80300-- free(0x4EC3550)
+--80300-- realloc(0x4C768C0,24) = 0x4EC35A0
+--80300-- free(0x4EC35A0)
+--80300-- realloc(0x4E9EEF0,13) = 0x4EC3600
+--80300-- free(0x4EC3600)
+--80300-- malloc(56) = 0x4EC3650
+--80300-- free(0x4EC3650)
+--80300-- malloc(4064) = 0x4EC36D0
+--80300-- free(0x4EC36D0)
+--80300-- malloc(54572) = 0x4EC46F0
+--80300-- free(0x4EC46F0)
+--80300-- malloc(8) = 0x4ED1C60
+--80300-- free(0x4ED1C60)
+--80300-- realloc(0x4C76960,240) = 0x4ED1CB0
+--80300-- free(0x4ED1CB0)
+--80300-- realloc(0x4D92DA0,135) = 0x4ED1DE0
+--80300-- malloc(153) = 0x4ED1EB0
+--80300-- free(0x4ED1EB0)
+--80300-- malloc(8) = 0x4ED1F90
+--80300-- free(0x4ED1F90)
+--80300-- malloc(124) = 0x4ED1FE0
+--80300-- free(0x4ED1FE0)
+--80300-- realloc(0x4E331A0,137) = 0x4ED20A0
+--80300-- malloc(8) = 0x4ED2170
+--80300-- free(0x4ED2170)
+--80300-- malloc(80) = 0x4ED21C0
+--80300-- free(0x4ED21C0)
+--80300-- realloc(0x4D30390,24) = 0x4ED2250
+--80300-- free(0x4ED2250)
+--80300-- realloc(0x4B9FA00,227) = 0x4ED22B0
+--80300-- free(0x4ED22B0)
+--80300-- malloc(2000) = 0x4ED23E0
+--80300-- free(0x4ED23E0)
+--80300-- realloc(0x4AB32B0,8) = 0x4ED2BF0
+--80300-- free(0x4ED2BF0)
+--80300-- realloc(0x4E87590,72) = 0x4ED2C40
+--80300-- free(0x4ED2C40)
+--80300-- malloc(59) = 0x4ED2CD0
+--80300-- free(0x4ED2CD0)
+--80300-- realloc(0x4ED20A0,8) = 0x4ED2D50
+--80300-- free(0x4ED2D50)
+--80300-- realloc(0x4D30430,56) = 0x4ED2DA0
+--80300-- free(0x4ED2DA0)
+--80300-- malloc(48) = 0x4ED2E20
+--80300-- free(0x4ED2E20)
+--80300-- malloc(104) = 0x4ED2E90
+--80300-- free(0x4ED2E90)
+--80300-- malloc(214) = 0x4ED2F40
+--80300-- free(0x4ED2F40)
+--80300-- realloc(0x4E49EE0,176) = 0x4ED3060
+--80300-- free(0x4ED3060)
+--80300-- realloc(0x4E9E920,8) = 0x4ED3150
+--80300-- free(0x4ED3150)
+--80300-- realloc(0x4E47320,102) = 0x4ED31A0
+--80300-- free(0x4ED31A0)
+--80300-- realloc(0x4E9EE80,144) = 0x4ED3250
+--80300-- free(0x4ED3250)
+--80300-- malloc(32) = 0x4ED3320
+--80300-- free(0x4ED3320)
+--80300-- malloc(5028) = 0x4ED3380
+--80300-- free(0x4ED3380)
+--80300-- realloc(0x4E99CB0,32) = 0x4ED4770
+--80300-- free(0x4ED4770)
+--80300-- realloc(0x4C84B00,12) = 0x4ED47D0
+--80300-- free(0x4ED47D0)
+--80300-- realloc(0x4C0EDE0,620) = 0x4ED4820
+--80300-- free(0x4ED4820)
+--80300-- realloc(0x4E871D0,115) = 0x4ED4AD0
+--80300-- free(0x4ED4AD0)
+--80300-- realloc(0x4E3CFA0,63) = 0x4ED4B90
+--80300-- free(0x4ED4B90)
+--80300-- realloc(0x4E31220,31) = 0x4ED4C10
+--80300-- free(0x4ED4C10)
+--80300-- realloc(0x4BDBAC0,165) = 0x4ED4C70
+--80300-- free(0x4ED4C70)
+--80300-- realloc(0x4B79E00,8) = 0x4ED4D60
+--80300-- free(0x4ED4D60)
+--80300-- realloc(0x4D1AF70,16) = 0x4ED4DB0
+--80300-- free(0x4ED4DB0)
+--80300-- realloc(0x4ED1DE0,48) = 0x4ED4E00
+--80300-- free(0x4ED4E00)
+--80300-- realloc(0x4CA6470,72) = 0x4ED4E70
+--80300-- free(0x4ED4E70)
+--80300-- malloc(8) = 0x4ED4F00
+--80300-- free(0x4ED4F00)
+--80300-- realloc(0x4C0F690,24) = 0x4ED4F50
+--80300-- free(0x4ED4F50)
+--80300-- realloc(0x4C84C10,48) = 0x4ED4FB0
+--80300-- free(0x4ED4FB0)
+--80300-- malloc(117) = 0x4ED5020
+--80300-- free(0x4ED5020)
+--80300-- malloc(9940) = 0x4ED50E0
+--80300-- free(0x4ED50E0)
+--80300-- malloc(16) = 0x4ED7800
+--80300-- free(0x4ED7800)
+--80300-- free(0x4A9F260)
+--80300-- free(0x4A9F040)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+--80300-- free(0x0)
+==80300== 
+==80300== HEAP SUMMARY:
+==80300==     in use at exit: 0 bytes in 0 blocks
+==80300==   total heap usage: 502 allocs, 502 frees, 4,390,601 bytes allocated
+==80300== 
+==80300== All heap blocks were freed -- no leaks are possible
+==80300== 
+==80300== For lists of detected and suppressed errors, rerun with: -s
+==80300== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)

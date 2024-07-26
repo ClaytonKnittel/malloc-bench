@@ -57,6 +57,11 @@ absl::StatusOr<double> MeasureUtilization(const std::string& tracefile) {
     max_allocated_bytes = std::max(total_allocated_bytes, max_allocated_bytes);
   }
 
+  if (total_allocated_bytes != 0) {
+    return absl::InternalError(
+        "Tracefile does not free all the memory it allocates.");
+  }
+
   return static_cast<double>(max_allocated_bytes) /
          FakeHeap::GlobalInstance()->Size();
 }
