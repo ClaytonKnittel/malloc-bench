@@ -6,7 +6,7 @@
 #include <vector>
 
 #include "absl/status/status.h"
-#include "absl/time/time.h"
+#include "absl/strings/match.h"
 
 #include "src/correctness_checker.h"
 #include "src/perftest.h"
@@ -22,6 +22,12 @@ struct TraceResult {
   double mega_ops;
   double utilization;
 };
+
+bool ShouldIgnoreForScoring(const std::string& trace) {
+  return trace.ends_with("-short.trace") ||
+         absl::StrContains(trace, "simple") || trace.ends_with("test.trace") ||
+         trace.ends_with("ngram-fox1.trace");
+}
 
 absl::StatusOr<TraceResult> RunTrace(const std::string& tracefile) {
   TraceResult result{
@@ -63,13 +69,13 @@ void PrintTestResults(const std::vector<TraceResult>& results) {
   double total_mops_geom = 1;
 
   for (const TraceResult& result : results) {
-    if (result.correct) {
+    if (result.correct && !ShouldIgnoreForScoring(result.trace)) {
       n_correct++;
       total_util += result.utilization;
     }
   }
   for (const TraceResult& result : results) {
-    if (result.correct) {
+    if (result.correct && !ShouldIgnoreForScoring(result.trace)) {
       total_mops_geom *= pow(result.mega_ops, 1. / n_correct);
     }
   }
@@ -83,7 +89,13 @@ void PrintTestResults(const std::vector<TraceResult>& results) {
             << std::setfill(' ')
             << "-------------------------------------------" << std::endl;
   for (const TraceResult& result : results) {
-    std::cout << "| " << std::setw(max_file_len) << std::left << result.trace
+    if (ShouldIgnoreForScoring(result.trace)) {
+      std::cout << "|*";
+    } else {
+      std::cout << "| ";
+    }
+
+    std::cout << std::setw(max_file_len) << std::left << result.trace
               << " |        " << (result.correct ? "Y" : "N") << " | ";
     if (result.correct) {
       std::cout << std::setw(12) << result.mega_ops << " | " << std::setw(11)
@@ -95,6 +107,7 @@ void PrintTestResults(const std::vector<TraceResult>& results) {
   std::cout << "-" << std::setw(max_file_len) << std::setfill('-') << ""
             << std::setfill(' ')
             << "-------------------------------------------" << std::endl;
+  std::cout << "* = ignored for scoring" << std::endl;
 
   n_correct = std::max(n_correct, 1U);
   std::cout << std::endl << "Summary:" << std::endl;
