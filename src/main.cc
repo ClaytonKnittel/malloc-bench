@@ -5,6 +5,8 @@
 #include <iostream>
 #include <vector>
 
+#include "absl/flags/flag.h"
+#include "absl/flags/parse.h"
 #include "absl/status/status.h"
 #include "absl/strings/match.h"
 
@@ -13,6 +15,9 @@
 #include "src/tracefile_reader.h"
 #include "src/util.h"
 #include "src/utiltest.h"
+
+ABSL_FLAG(std::string, trace, "",
+          "If set, a specific tracefile to run (must start with \"traces/\").");
 
 namespace bench {
 
@@ -154,9 +159,7 @@ absl::Status PrintTrace(const std::string& tracefile) {
   return absl::OkStatus();
 }
 
-}  // namespace bench
-
-int main() {
+int RunAllTraces() {
   std::vector<bench::TraceResult> results;
 
   for (const auto& tracefile : {
@@ -191,7 +194,7 @@ int main() {
            "traces/test.trace",
            "traces/test-zero.trace",
        }) {
-    auto result = bench::RunTrace(tracefile);
+    auto result = RunTrace(tracefile);
     if (!result.ok()) {
       std::cerr << "Failed to run trace " << tracefile << ": "
                 << result.status() << std::endl;
@@ -202,5 +205,33 @@ int main() {
   }
   PrintTestResults(results);
 
+  return 0;
+}
+
+}  // namespace bench
+
+int main(int argc, char* argv[]) {
+  absl::ParseCommandLine(argc, argv);
+
+  const std::string& tracefile = absl::GetFlag(FLAGS_trace);
+  if (tracefile.empty()) {
+    return bench::RunAllTraces();
+  }
+
+  auto result = bench::RunTrace(tracefile);
+  if (!result.ok()) {
+    std::cerr << "Failed to run trace " << tracefile << ": " << result.status()
+              << std::endl;
+    return -1;
+  }
+
+  std::cout << tracefile << std::endl;
+  std::cout << "Correct? " << (result->correct ? "Y" : "N") << std::endl;
+  if (result->correct) {
+    std::cout << "mega-ops / s: " << std::fixed << std::setprecision(1)
+              << result->mega_ops << std::endl;
+    std::cout << "Utilization:  " << std::fixed << std::setprecision(1)
+              << (result->utilization * 100) << "%" << std::endl;
+  }
   return 0;
 }
