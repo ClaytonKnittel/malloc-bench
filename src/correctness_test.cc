@@ -71,4 +71,9 @@ TEST_F(TestCorrectness, Zero) {
   ASSERT_THAT(Check("traces/test-zero.trace"), util::IsOk());
 }
 
+TEST(TestCorrectness, Zero) {
+  ASSERT_THAT(bench::CorrectnessChecker::Check("traces/test-zero.trace"),
+              IsOk());
+}
+
 }  // namespace bench

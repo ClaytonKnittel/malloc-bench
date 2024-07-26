@@ -96,7 +96,7 @@ absl::StatusOr<double> MeasureUtilization(TracefileReader& reader,
 
   if (total_allocated_bytes != 0) {
     for (const auto& [id, ptr] : id_to_ptrs) {
-      printf("%p\n", id);
+      printf("%p: %p %zu\n", id, ptr.first, ptr.second);
     }
     return absl::InternalError(
         "Tracefile does not free all the memory it allocates.");
