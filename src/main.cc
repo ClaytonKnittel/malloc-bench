@@ -2,6 +2,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <iomanip>
+#include <ios>
 #include <iostream>
 #include <vector>
 
@@ -124,6 +125,27 @@ void PrintTestResults(const std::vector<TraceResult>& results) {
   std::cout << "Average utilization: " << (100 * (total_util / n_correct))
             << "%" << std::endl;
   std::cout << "Average mega ops / s: " << total_mops_geom << std::endl;
+
+  if (all_correct) {
+    constexpr double kMinUtilThresh = 0.55;
+    constexpr double kMaxUtilThresh = 0.75;
+    constexpr double kMinOpsThresh = 50;
+    constexpr double kMaxOpsThresh = 150;
+
+    double util_score = std::clamp((total_util / n_correct - kMinUtilThresh) /
+                                       (kMaxUtilThresh - kMinUtilThresh),
+                                   0., 1.);
+    double ops_score =
+        std::clamp((std::log(total_mops_geom) - std::log(kMinOpsThresh)) /
+                       (std::log(kMaxOpsThresh) - std::log(kMinOpsThresh)),
+                   0., 1.);
+
+    double score = 0.5 * util_score + 0.5 * ops_score;
+    std::cout << "Score: " << std::fixed << std::setprecision(1)
+              << (score * 100) << "%" << std::endl;
+  } else {
+    std::cout << "Score: 0%" << std::endl;
+  }
 }
 
 absl::Status PrintTrace(const std::string& tracefile) {
