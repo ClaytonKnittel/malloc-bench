@@ -10,6 +10,8 @@ cc_binary(
         ":tracefile_reader",
         ":util",
         ":utiltest",
+        "@abseil-cpp//absl/flags:parse",
+        "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/strings",
     ],
@@ -55,7 +57,6 @@ cc_library(
     hdrs = ["allocator_interface.h"],
     deps = [
         ":fake_heap",
-        "//src/ref_solution:clayton",
     ],
 )
 

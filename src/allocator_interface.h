@@ -6,6 +6,9 @@
 
 namespace bench {
 
+// Called before any allocations are made.
+inline void initialize_heap() {}
+
 inline void* malloc(size_t size) {
   // TODO: implement
   if (size == 0) {
