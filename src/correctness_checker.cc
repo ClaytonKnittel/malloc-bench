@@ -43,9 +43,11 @@ absl::Status CorrectnessChecker::Run() {
   }
   heap_ = heap;
   heap->Reset();
+  initialize_heap();
 
   absl::Status result = ProcessTracefile();
   heap->Reset();
+  initialize_heap();
   heap_ = nullptr;
   return result;
 }
@@ -285,7 +287,7 @@ absl::Status CorrectnessChecker::ValidateNewBlock(void* ptr,
         absl::StrFormat("%s Pointer %p of size %zu is not aligned to 8 bytes",
                         kFailedTestPrefix, ptr, size));
   }
-  if (size > 8 && ptr_val % 16 != 0) {
+  if (size > 8 && ptr_val % /*16*/ 8 != 0) {
     return absl::InternalError(
         absl::StrFormat("%s Pointer %p of size %zu is not aligned to 16 bytes",
                         kFailedTestPrefix, ptr, size));

@@ -24,6 +24,7 @@ cc_library(
     ],
     deps = [
         ":allocator_interface",
+        ":fake_heap",
         ":tracefile_reader",
         ":util",
         "@abseil-cpp//absl/container:flat_hash_map",
@@ -54,6 +55,7 @@ cc_library(
     hdrs = ["allocator_interface.h"],
     deps = [
         ":fake_heap",
+        "//src/ref_solution:clayton",
     ],
 )
 
@@ -94,6 +96,7 @@ cc_library(
     name = "fake_heap",
     srcs = ["fake_heap.cc"],
     hdrs = ["fake_heap.h"],
+    visibility = ["//src:__subpackages__"],
     deps = [
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings:str_format",

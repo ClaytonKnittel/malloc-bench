@@ -15,6 +15,7 @@ absl::StatusOr<double> MeasureUtilization(const std::string& tracefile) {
   DEFINE_OR_RETURN(TracefileReader, reader, TracefileReader::Open(tracefile));
 
   FakeHeap::GlobalInstance()->Reset();
+  initialize_heap();
 
   size_t total_allocated_bytes = 0;
   size_t max_allocated_bytes = 0;
