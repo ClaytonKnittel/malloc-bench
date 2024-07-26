@@ -30,6 +30,7 @@ filegroup(
         "syn-struct.trace",
         "syn-struct-short.trace",
         "test.trace",
+        "test-zero.trace",
     ],
     visibility = ["//visibility:public"],
 )

@@ -41,8 +41,8 @@ absl::StatusOr<double> MeasureUtilization(const std::string& tracefile) {
         void* new_ptr =
             realloc(id_to_ptrs[line->input_ptr].first, line->input_size);
         total_allocated_bytes -= id_to_ptrs[line->input_ptr].second;
-        total_allocated_bytes += line->input_size;
         id_to_ptrs.erase(line->input_ptr);
+        total_allocated_bytes += line->input_size;
         id_to_ptrs[line->result] = { new_ptr, line->input_size };
         break;
       }
@@ -59,7 +59,7 @@ absl::StatusOr<double> MeasureUtilization(const std::string& tracefile) {
 
   if (total_allocated_bytes != 0) {
     for (const auto& [id, ptr] : id_to_ptrs) {
-      printf("%p\n", id);
+      printf("%p: %p %zu\n", id, ptr.first, ptr.second);
     }
     return absl::InternalError(
         "Tracefile does not free all the memory it allocates.");
