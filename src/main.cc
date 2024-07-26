@@ -25,7 +25,8 @@ struct TraceResult {
 
 bool ShouldIgnoreForScoring(const std::string& trace) {
   return trace.ends_with("-short.trace") ||
-         absl::StrContains(trace, "simple") || trace.ends_with("test.trace") ||
+         absl::StrContains(trace, "simple") ||
+         absl::StrContains(trace, "test") ||
          trace.ends_with("ngram-fox1.trace");
 }
 
@@ -67,8 +68,10 @@ void PrintTestResults(const std::vector<TraceResult>& results) {
   uint32_t n_correct = 0;
   double total_util = 0;
   double total_mops_geom = 1;
+  bool all_correct = true;
 
   for (const TraceResult& result : results) {
+    all_correct = all_correct && result.correct;
     if (result.correct && !ShouldIgnoreForScoring(result.trace)) {
       n_correct++;
       total_util += result.utilization;
@@ -98,8 +101,9 @@ void PrintTestResults(const std::vector<TraceResult>& results) {
     std::cout << std::setw(max_file_len) << std::left << result.trace
               << " |        " << (result.correct ? "Y" : "N") << " | ";
     if (result.correct) {
-      std::cout << std::setw(12) << result.mega_ops << " | " << std::setw(11)
-                << result.utilization << " |" << std::endl;
+      std::cout << std::right << std::fixed << std::setprecision(1)
+                << std::setw(12) << result.mega_ops << " | " << std::setw(10)
+                << (100 * result.utilization) << "% |" << std::endl;
     } else {
       std::cout << "             |             |" << std::endl;
     }
@@ -111,7 +115,9 @@ void PrintTestResults(const std::vector<TraceResult>& results) {
 
   n_correct = std::max(n_correct, 1U);
   std::cout << std::endl << "Summary:" << std::endl;
-  std::cout << "Average utilization: " << (total_util / n_correct) << std::endl;
+  std::cout << "All correct? " << (all_correct ? "Y" : "N") << std::endl;
+  std::cout << "Average utilization: " << (100 * (total_util / n_correct))
+            << "%" << std::endl;
   std::cout << "Average mega ops / s: " << total_mops_geom << std::endl;
 }
 
@@ -183,6 +189,7 @@ int main() {
            "traces/syn-struct.trace",
            "traces/syn-struct-short.trace",
            "traces/test.trace",
+           "traces/test-zero.trace",
        }) {
     auto result = bench::RunTrace(tracefile);
     if (!result.ok()) {
