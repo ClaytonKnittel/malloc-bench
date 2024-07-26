@@ -64,4 +64,9 @@ TEST(TestCorrectness, OnoroCC) {
               IsOk());
 }
 
+TEST(TestCorrectness, Zero) {
+  ASSERT_THAT(bench::CorrectnessChecker::Check("traces/test-zero.trace"),
+              IsOk());
+}
+
 }  // namespace bench

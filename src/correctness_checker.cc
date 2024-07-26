@@ -162,7 +162,7 @@ absl::Status CorrectnessChecker::Realloc(void* orig_id, size_t size,
           "Unexpected non-null new_id for realloc with size 0");
     }
 
-    if (ptr != nullptr) {
+    if (new_ptr != nullptr) {
       return absl::InternalError(
           absl::StrFormat("%s Expected `nullptr` return value on realloc with "
                           "size 0: %p = realloc(%p, %zu)",
