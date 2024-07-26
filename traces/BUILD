@@ -16,6 +16,7 @@ filegroup(
         "ngram-shake1.trace",
         "onoro.trace",
         "onoro-cc.trace",
+        "server.trace",
         "simple.trace",
         "simple_calloc.trace",
         "simple_realloc.trace",

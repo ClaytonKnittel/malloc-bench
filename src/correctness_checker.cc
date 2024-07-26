@@ -102,6 +102,22 @@ absl::Status CorrectnessChecker::Malloc(size_t nmemb, size_t size, void* id,
   }
   size *= nmemb;
 
+  if (size == 0) {
+    if (id != nullptr) {
+      return absl::InternalError(
+          "Unexpected non-null new_id for malloc with size 0");
+    }
+
+    if (ptr != nullptr) {
+      return absl::InternalError(
+          absl::StrFormat("%s Expected `nullptr` return value on malloc with "
+                          "size 0: %p = malloc(%zu)",
+                          kFailedTestPrefix, ptr, size));
+    }
+
+    return absl::OkStatus();
+  }
+
   return HandleNewAllocation(id, ptr, size, is_calloc);
 }
 
@@ -140,6 +156,23 @@ absl::Status CorrectnessChecker::Realloc(void* orig_id, size_t size,
 
   void* new_ptr = bench::realloc(ptr, size);
 
+  if (size == 0) {
+    if (new_id != nullptr) {
+      return absl::InternalError(
+          "Unexpected non-null new_id for realloc with size 0");
+    }
+
+    if (ptr != nullptr) {
+      return absl::InternalError(
+          absl::StrFormat("%s Expected `nullptr` return value on realloc with "
+                          "size 0: %p = realloc(%p, %zu)",
+                          kFailedTestPrefix, new_ptr, ptr, size));
+    }
+
+    allocated_blocks_.erase(block_it);
+    id_map_.erase(id_map_it);
+    return absl::OkStatus();
+  }
   if (new_ptr != ptr) {
     allocated_blocks_.erase(block_it);
 
