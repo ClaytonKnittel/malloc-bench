@@ -11,7 +11,7 @@ cc_binary(
         ":util",
         ":utiltest",
         "@abseil-cpp//absl/status",
-        "@abseil-cpp//absl/time",
+        "@abseil-cpp//absl/strings",
     ],
 )
 
