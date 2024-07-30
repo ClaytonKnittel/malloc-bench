@@ -7,8 +7,8 @@
  left=20mm,
  top=20mm,
  }
- \usepackage{graphicx}
- \usepackage{titling}
+\usepackage{graphicx}
+\usepackage{titling}
 \usepackage{listings}
 \usepackage{xcolor}
 
@@ -38,11 +38,11 @@
 
 \lstset{style=mystyle}
 
- \title{Malloc Lab}
+\title{Malloc Lab}
 \author{Clayton Knittel}
 \date{August 2024}
  
- \usepackage{fancyhdr}
+\usepackage{fancyhdr}
 \fancypagestyle{plain}{%  the preset of fancyhdr 
     \fancyhf{} % clear all header and footer fields
     \fancyfoot[L]{\thedate}
@@ -154,7 +154,7 @@ You should fork the repository at \url{https://github.com/ClaytonKnittel/malloc-
 
 When your program loads, no memory has yet been allocated by the kernel for the heap (where dynamic memory lives). Normally, you would request the kernel to allocate a range of virtual addresses with \texttt{mmap}, but for the purposes of testing, I have provided a heap interface that you should allocate through.
 
-This heap management interface contains only one memory "arena" (i.e. contiguous region of memory) which "grows upward". The region of memory starts at some address $heap\_start$, and continues up through $heap\_start+heap\_size$. When \texttt{sbrk(n\_bytes)} is called, $heap\_start+heap\_size$ is returned, and $heap\_size$ is increased by $n\_bytes$. Note that $heap\_start+heap\_size$ is calculated before $heap\_size$ is modified.
+This heap management interface contains only one memory ``arena'' (i.e. contiguous region of memory) which ``grows upward''. The region of memory starts at some address $heap\_start$, and continues up through $heap\_start+heap\_size$. When \texttt{sbrk(n\_bytes)} is called, $heap\_start+heap\_size$ is returned, and $heap\_size$ is increased by $n\_bytes$. Note that $heap\_start+heap\_size$ is calculated before $heap\_size$ is modified.
 
 To request memory from the heap manager, you may call:
 
@@ -176,14 +176,41 @@ Note that the benchmarking tool measures heap fragmentation by looking at how mu
 
 \section*{Running the correctness checker and benchmarking tools}
 
-Todo
+You can test your code against all traces by running
 
-\section*{How performance and utilization are measured}
+\begin{lstlisting}[language=bash]
+bazel run -c opt //src:driver
+\end{lstlisting}
 
-Todo
+This will check for correctness on each trace first, and if your code is correct, it will measure throughput and memory utilization. When running your code for scoring, make sure you use \texttt{-c opt} so throughput is measured accurately.
+
+While writing your code, you will probably want to run on specific small traces first. You can run the driver on a single trace in debugging mode with:
+
+\begin{lstlisting}[language=bash]
+bazel run -c dbg //src:driver -- --trace=traces/<trace>
+\end{lstlisting}
+
+(replace \texttt{<trace>} with the name of the trace you want to run). The short traces typically contain ``test'', ``simple'' or ``\_short''.
+
+\section*{How throughput and utilization are measured}
+
+Throughput is measured in mega ops per second, or million \texttt{malloc}/\texttt{free}/etc. calls per second. There is some overhead in the calling code, but it is very small.
+
+Utilization measures the overhead of metadata and fragmentation. It simply checks how much total memory you requested with \texttt{sbrk} compared to the peak amount of memory allocated to the user at once over the course of a trace, and reports this difference as a percentage.
+
+\section*{Heap Checker}
+
+It is highly recommended that you write a heap check function which checks for consistency of the whole heap. Don't worry about how slow this method is, it will likely need to iterate over the entire heap. It will be invaluable for testing, as dynamic memory allocators are notoriously difficult to debug when something breaks.
+
+I recommend either using macro guards, a global variable, or something similar to enable heap checking for debugging purposes. You want it to be configurable so you can disable it after you finish and want to measure throughput (also, some of the longer traces may take a long time to complete with heap checking enabled).
 
 \section*{Tips and Tricks}
 
-Todo
+You are only given access to one memory region (heap/arena), so your heap metadata and allocated blocks will likely interleave. It is often possible to use the extra space in unallocated blocks for metadata, which doesn't waste any space (since this extra space is caused by fragmentation and is unavoidable).
+
+Additionally, you may assume that all pointers passed to \texttt{free} are valid, so you may be able to avoid tracking allocated blocks in the same way you will freed blocks (i.e. you will never need to find an allocated block at any point, you can wait until it is freed before inserting it back into your data structures).
+
+Small allocation sizes are much more common than large, and certain sizes (i.e. 8, 16, 32, 64) are typically most common (note that cache lines are usually 64 bytes). You may want to treat small allocation sizes differently from large.
 
 \end{document}
+
