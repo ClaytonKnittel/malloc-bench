@@ -2,7 +2,7 @@
 
 #include <cstring>
 
-#include "src/singleton_heap.h"
+#include "src/ckmalloc/ckmalloc.h"
 
 namespace bench {
 
@@ -10,32 +10,19 @@ namespace bench {
 inline void initialize_heap() {}
 
 inline void* malloc(size_t size) {
-  // TODO: implement
-  if (size == 0) {
-    return nullptr;
-  }
-  size_t round_up = (size + 0xf) & ~0xf;
-  return SingletonHeap::GlobalInstance()->sbrk(round_up);
+  return ckmalloc::malloc(size);
 }
 
 inline void* calloc(size_t nmemb, size_t size) {
-  // TODO: implement
-  void* ptr = malloc(nmemb * size);
-  memset(ptr, 0, nmemb * size);
-  return ptr;
+  return ckmalloc::ck_calloc(nmemb, size);
 }
 
 inline void* realloc(void* ptr, size_t size) {
-  // TODO: implement
-  void* new_ptr = malloc(size);
-  if (size > 0) {
-    memcpy(new_ptr, ptr, size);
-  }
-  return new_ptr;
+  return ckmalloc::ck_realloc(ptr, size);
 }
 
 inline void free(void* ptr) {
-  // TODO: implement
+  ckmalloc::ck_free(ptr);
 }
 
 }  // namespace bench
