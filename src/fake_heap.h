@@ -52,8 +52,8 @@ class FakeHeap {
     return heap_end_;
   }
 
-  // Max heap size is 1 GB.
-  static constexpr size_t kHeapSize = 1 << 30;
+  // Max heap size is 512 MB.
+  static constexpr size_t kHeapSize = 512 * (1 << 20);
 
   // The global heap instance.
   static FakeHeap global_heap_;
