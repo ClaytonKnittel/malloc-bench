@@ -56,7 +56,7 @@ cc_library(
     name = "allocator_interface",
     hdrs = ["allocator_interface.h"],
     deps = [
-        ":singleton_heap",
+        "//src/ckmalloc",
     ],
 )
 
