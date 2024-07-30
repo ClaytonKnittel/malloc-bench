@@ -1,0 +1,189 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage{geometry}
+ \geometry{
+ a4paper,
+ total={170mm,257mm},
+ left=20mm,
+ top=20mm,
+ }
+ \usepackage{graphicx}
+ \usepackage{titling}
+\usepackage{listings}
+\usepackage{xcolor}
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2
+}
+
+\lstset{style=mystyle}
+
+ \title{Malloc Lab}
+\author{Clayton Knittel}
+\date{August 2024}
+ 
+ \usepackage{fancyhdr}
+\fancypagestyle{plain}{%  the preset of fancyhdr 
+    \fancyhf{} % clear all header and footer fields
+    \fancyfoot[L]{\thedate}
+    \fancyhead[L]{Malloc Lab}
+    \fancyhead[R]{\theauthor}
+}
+\makeatletter
+\def\@maketitle{%
+  \newpage
+  \null
+  \vskip 1em%
+  \begin{center}%
+  \let \footnote \thanks
+    {\LARGE \@title \par}%
+    \vskip 1em%
+    %{\large \@date}%
+  \end{center}%
+  \par
+  \vskip 1em}
+\makeatother
+
+\usepackage{lipsum}  
+\usepackage{cmbright}
+
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=blue,
+    pdftitle={Overleaf Example},
+    pdfpagemode=FullScreen,
+}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{8pt plus16pt}
+
+\begin{document}
+
+\maketitle
+
+\noindent\begin{tabular}{@{}ll}
+    Author & \theauthor\\
+\end{tabular}
+
+\section*{Overview}
+
+You'll be implementing dynamic memory allocation via the C \texttt{malloc} API for 64-bit virtual address spaces. You will be implementing the following four functions:
+
+\begin{lstlisting}[language=C++]
+void* malloc(size_t size);
+void* calloc(size_t nmemb, size_t size);
+void* realloc(void* ptr, size_t size);
+void free(void* ptr);
+\end{lstlisting}
+
+\texttt{malloc} is used to allocate blocks of contiguous memory of a requested size in bytes, returning a pointer to the starting address of that block. The block must be deallocated by calling \texttt{free} on that pointer before the program terminates, otherwise the program is considered to have a memory leak. This is a contract requested by \texttt{malloc}, but it is up to the callers of \texttt{malloc} to uphold this contract. Tools like valgrind are used to catch bugs in code like memory leaks, or writes to unallocated memory.
+
+As the author of \texttt{malloc}, you are allowed to assume the invariants requested by the API, which are the following:
+
+\begin{enumerate}
+  \item For every pointer \texttt{p} returned from \texttt{malloc}/\texttt{calloc}/\texttt{realloc}, there is a call to \texttt{free(p)} or \texttt{realloc(p, \_)} some time in the future, with no calls to \texttt{free(p)} or \texttt{realloc(p, \_)} between those two calls.
+  \item For every call to \texttt{free(p)} or \texttt{realloc(p, \_)} on pointer \texttt{p}, there is a \texttt{malloc}/\texttt{calloc}/\texttt{realloc} which previosuly returned \texttt{p}.
+\end{enumerate}
+
+In other words, you may assume all calls to \texttt{free}/\texttt{realloc} are passed pointers to allocated blocks.
+
+There are some invariants that you as the \texttt{malloc} author must uphold:
+
+\begin{enumerate}
+    \item All pointers returned from allocation functions lie within memory allocated by the kernel and can be written to in full by the caller.
+    \item All pointers returned from allocation functions are aligned to 16 bytes, unless the requested size is 8 bytes or smaller, in which case they must be aligned to 8 bytes.
+    \item Blocks of allocated memory must not overlap.
+    \item Blocks of allocated memory must not be written to by \texttt{malloc} code (i.e. you are not allowed to dirty allocated blocks).
+\end{enumerate}
+
+Each of the \texttt{malloc} functions are described in detail below:
+
+\begin{lstlisting}[language=C++]
+void* malloc(size_t size);
+\end{lstlisting}
+
+
+\texttt{malloc} returns a pointer to an allocated block of \textit{uninitialized} memory of the requested size. If \texttt{size} is 0, then \texttt{nullptr} is returned.
+
+\begin{lstlisting}[language=C++]
+void* calloc(size_t nmemb, size_t size);
+\end{lstlisting}
+
+\texttt{calloc} returns a pointer to an allocated block of size $nmemb*size$ fully initialized to 0. Similarly to \texttt{malloc}, if \texttt{size} is 0, then \texttt{nullptr} is returned.
+
+\begin{lstlisting}[language=C++]
+void* realloc(void* ptr, size_t size);
+\end{lstlisting}
+
+\texttt{realloc} changes the size of an allocated block to \texttt{size}, returning a pointer to a block of memory of the new size, with the contents of the old block passed to \texttt{realloc} copied up to the minimum of the length of the old and new block. \textit{Note}: \texttt{realloc} may return the same block which is passed to it.
+
+\begin{lstlisting}[language=C++]
+void free(void* ptr);
+\end{lstlisting}
+
+\texttt{free} deallocates the block of memory passed to it, allowing it to be allocated by a future allocation call. This block must have been returned by a previous call to one of the allocation functions. If \texttt{nullptr} is passed, \texttt{free} should do nothing.
+
+\section*{Git instructions}
+
+You should fork the repository at \url{https://github.com/ClaytonKnittel/malloc-bench}. The functions you must fill in are at \texttt{/src/allocator\_interface.h}. Please feel free to make more files/directories to nicely organize your code.
+
+\section*{Requesting memory from the kernel}
+
+When your program loads, no memory has yet been allocated by the kernel for the heap (where dynamic memory lives). Normally, you would request the kernel to allocate a range of virtual addresses with \texttt{mmap}, but for the purposes of testing, I have provided a heap interface that you should allocate through.
+
+This heap management interface contains only one memory "arena" (i.e. contiguous region of memory) which "grows upward". The region of memory starts at some address $heap\_start$, and continues up through $heap\_start+heap\_size$. When \texttt{sbrk(n\_bytes)} is called, $heap\_start+heap\_size$ is returned, and $heap\_size$ is increased by $n\_bytes$. Note that $heap\_start+heap\_size$ is calculated before $heap\_size$ is modified.
+
+To request memory from the heap manager, you may call:
+
+\begin{lstlisting}[language=C++]
+// #include "src/fake_heap.h"
+void* prior_heap_end = FakeHeap::GlobalInstance()->sbrk(n_bytes);
+\end{lstlisting}
+
+This function returns the previous end of the heap, before being extended by \texttt{n\_bytes}. On the first call to this function, the start of the heap is returned.
+
+Note that the benchmarking tool measures heap fragmentation by looking at how much memory the program requested with \texttt{sbrk}. This means you may want to wait to \texttt{sbrk} more memory for the heap until you need it, since requesting too much may lead to a poorer fragmentation score.
+
+\section*{Programming Restrictions}
+
+\begin{itemize}
+  \item This may be obvious, but you are not allowed to invoke system dynamic \texttt{malloc}/\texttt{free}, nor \texttt{mmap} or \texttt{sbrk} not directly through the \texttt{FakeHeap} interface.
+  \item You may not define large global data (i.e. compound global data structures to hold heap metadata). You will need to use global data (i.e. a pointer to somewhere on the heap where your metadata starts), but all other bookkeeping must be done on the heap.
+\end{itemize}
+
+\section*{Running the correctness checker and benchmarking tools}
+
+Todo
+
+\section*{How performance and utilization are measured}
+
+Todo
+
+\section*{Tips and Tricks}
+
+Todo
+
+\end{document}
