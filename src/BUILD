@@ -1,6 +1,6 @@
 cc_binary(
-    name = "main",
-    srcs = ["main.cc"],
+    name = "driver",
+    srcs = ["driver.cc"],
     data = [
         "//traces",
     ],
