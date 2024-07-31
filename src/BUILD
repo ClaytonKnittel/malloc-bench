@@ -66,6 +66,7 @@ cc_library(
     hdrs = ["correctness_checker.h"],
     deps = [
         ":allocator_interface",
+        ":singleton_heap",
         ":rng",
         ":singleton_heap",
         ":tracefile_reader",

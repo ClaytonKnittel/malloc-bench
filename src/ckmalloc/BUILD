@@ -8,12 +8,24 @@ cc_library(
 )
 
 cc_library(
-    name = "fake_allocator",
-    srcs = ["fake_allocator.cc"],
-    hdrs = ["fake_allocator.h"],
+    name = "allocator",
+    srcs = ["allocator.cc"],
+    hdrs = ["allocator.h"],
     deps = [
         ":util",
-        "//src:fake_heap",
+        "//src:heap_interface",
+    ],
+)
+
+cc_test(
+    name = "allocator_test",
+    srcs = ["allocator_test.cc"],
+    deps = [
+        ":allocator",
+        ":util",
+        "//src:sim_heap",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
