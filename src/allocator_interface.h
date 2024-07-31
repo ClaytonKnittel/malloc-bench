@@ -14,15 +14,15 @@ inline void* malloc(size_t size) {
 }
 
 inline void* calloc(size_t nmemb, size_t size) {
-  return ckmalloc::ck_calloc(nmemb, size);
+  return ckmalloc::calloc(nmemb, size);
 }
 
 inline void* realloc(void* ptr, size_t size) {
-  return ckmalloc::ck_realloc(ptr, size);
+  return ckmalloc::realloc(ptr, size);
 }
 
 inline void free(void* ptr) {
-  ckmalloc::ck_free(ptr);
+  ckmalloc::free(ptr);
 }
 
 }  // namespace bench
