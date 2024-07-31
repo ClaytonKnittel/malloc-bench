@@ -32,6 +32,16 @@ cc_test(
 )
 
 cc_library(
+    name = "heap_manager",
+    srcs = ["heap_manager.cc"],
+    hdrs = ["heap_manager.h"],
+    deps = [
+        ":util",
+        "//src:heap_interface",
+    ],
+)
+
+cc_library(
     name = "util",
     hdrs = ["util.h"],
     deps = [
