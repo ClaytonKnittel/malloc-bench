@@ -10,8 +10,8 @@ cc_binary(
         ":tracefile_reader",
         ":util",
         ":utiltest",
-        "@abseil-cpp//absl/flags:parse",
         "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/flags:parse",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/strings",
     ],
@@ -26,7 +26,7 @@ cc_library(
     ],
     deps = [
         ":allocator_interface",
-        ":fake_heap",
+        ":singleton_heap",
         ":tracefile_reader",
         ":util",
         "@abseil-cpp//absl/container:flat_hash_map",
@@ -44,7 +44,7 @@ cc_library(
     ],
     deps = [
         ":allocator_interface",
-        ":fake_heap",
+        ":singleton_heap",
         ":tracefile_reader",
         ":util",
         "@abseil-cpp//absl/container:flat_hash_map",
@@ -56,7 +56,7 @@ cc_library(
     name = "allocator_interface",
     hdrs = ["allocator_interface.h"],
     deps = [
-        ":fake_heap",
+        ":singleton_heap",
     ],
 )
 
@@ -66,8 +66,8 @@ cc_library(
     hdrs = ["correctness_checker.h"],
     deps = [
         ":allocator_interface",
-        ":fake_heap",
         ":rng",
+        ":singleton_heap",
         ":tracefile_reader",
         ":util",
         "@abseil-cpp//absl/container:btree",
@@ -94,13 +94,32 @@ cc_test(
 )
 
 cc_library(
-    name = "fake_heap",
-    srcs = ["fake_heap.cc"],
-    hdrs = ["fake_heap.h"],
+    name = "singleton_heap",
+    srcs = ["singleton_heap.cc"],
+    hdrs = ["singleton_heap.h"],
     visibility = ["//src:__subpackages__"],
     deps = [
+        ":heap_interface",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings:str_format",
+    ],
+)
+
+cc_library(
+    name = "heap_interface",
+    srcs = ["heap_interface.cc"],
+    hdrs = ["heap_interface.h"],
+    visibility = ["//src:__subpackages__"],
+    deps = [
+    ],
+)
+
+cc_library(
+    name = "sim_heap",
+    hdrs = ["sim_heap.h"],
+    visibility = ["//src:__subpackages__"],
+    deps = [
+        ":heap_interface",
     ],
 )
 

@@ -2,7 +2,7 @@
 
 #include <cstring>
 
-#include "src/fake_heap.h"
+#include "src/singleton_heap.h"
 
 namespace bench {
 
@@ -15,7 +15,7 @@ inline void* malloc(size_t size) {
     return nullptr;
   }
   size_t round_up = (size + 0xf) & ~0xf;
-  return FakeHeap::GlobalInstance()->sbrk(round_up);
+  return SingletonHeap::GlobalInstance()->sbrk(round_up);
 }
 
 inline void* calloc(size_t nmemb, size_t size) {

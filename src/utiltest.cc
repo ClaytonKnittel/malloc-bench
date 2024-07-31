@@ -4,7 +4,7 @@
 #include "absl/status/statusor.h"
 
 #include "src/allocator_interface.h"
-#include "src/fake_heap.h"
+#include "src/singleton_heap.h"
 #include "src/tracefile_reader.h"
 #include "src/util.h"
 
@@ -14,7 +14,7 @@ absl::StatusOr<double> MeasureUtilization(const std::string& tracefile) {
   absl::flat_hash_map<void*, std::pair<void*, size_t>> id_to_ptrs;
   DEFINE_OR_RETURN(TracefileReader, reader, TracefileReader::Open(tracefile));
 
-  FakeHeap::GlobalInstance()->Reset();
+  SingletonHeap::GlobalInstance()->Reset();
   initialize_heap();
 
   size_t total_allocated_bytes = 0;
@@ -67,7 +67,7 @@ absl::StatusOr<double> MeasureUtilization(const std::string& tracefile) {
   }
 
   return static_cast<double>(max_allocated_bytes) /
-         FakeHeap::GlobalInstance()->Size();
+         SingletonHeap::GlobalInstance()->Size();
 }
 
 }  // namespace bench

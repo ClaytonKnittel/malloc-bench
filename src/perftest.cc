@@ -7,7 +7,7 @@
 #include "absl/time/time.h"
 
 #include "src/allocator_interface.h"
-#include "src/fake_heap.h"
+#include "src/singleton_heap.h"
 #include "src/tracefile_reader.h"
 #include "src/util.h"
 
@@ -120,7 +120,7 @@ absl::StatusOr<double> TimeTrace(const std::string& tracefile) {
 
   absl::Time start = absl::Now();
   for (size_t t = 0; t < num_repetitions; t++) {
-    FakeHeap::GlobalInstance()->Reset();
+    SingletonHeap::GlobalInstance()->Reset();
     initialize_heap();
 
     for (const TimeOp& op : ops) {
