@@ -4,6 +4,8 @@ cc_library(
     hdrs = ["ckmalloc.h"],
     visibility = ["//visibility:public"],
     deps = [
+        ":allocator",
+        "//src:singleton_heap",
     ],
 )
 
