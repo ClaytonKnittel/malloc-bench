@@ -159,8 +159,8 @@ This heap management interface contains only one memory ``arena'' (i.e. contiguo
 To request memory from the heap manager, you may call:
 
 \begin{lstlisting}[language=C++]
-// #include "src/fake_heap.h"
-void* prior_heap_end = FakeHeap::GlobalInstance()->sbrk(n_bytes);
+// #include "src/singleton_heap.h"
+void* prior_heap_end = SingletonHeap::GlobalInstance()->sbrk(n_bytes);
 \end{lstlisting}
 
 This function returns the previous end of the heap, before being extended by \texttt{n\_bytes}. On the first call to this function, the start of the heap is returned.
@@ -170,7 +170,7 @@ Note that the benchmarking tool measures heap fragmentation by looking at how mu
 \section*{Programming Restrictions}
 
 \begin{itemize}
-  \item This may be obvious, but you are not allowed to invoke system dynamic \texttt{malloc}/\texttt{free}, nor \texttt{mmap} or \texttt{sbrk} not directly through the \texttt{FakeHeap} interface.
+  \item This may be obvious, but you are not allowed to invoke system dynamic \texttt{malloc}/\texttt{free}, nor \texttt{mmap} or \texttt{sbrk} not directly through the \texttt{SingletonHeap} interface.
   \item You may not define large global data (i.e. compound global data structures to hold heap metadata). You will need to use global data (i.e. a pointer to somewhere on the heap where your metadata starts), but all other bookkeeping must be done on the heap.
 \end{itemize}
 
@@ -213,4 +213,3 @@ Additionally, you may assume that all pointers passed to \texttt{free} are valid
 Small allocation sizes are much more common than large, and certain sizes (i.e. 8, 16, 32, 64) are typically most common (note that cache lines are usually 64 bytes). You may want to treat small allocation sizes differently from large.
 
 \end{document}
-
