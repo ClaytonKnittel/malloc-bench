@@ -9,8 +9,8 @@
 #include "absl/strings/str_format.h"
 
 #include "src/allocator_interface.h"
-#include "src/fake_heap.h"
 #include "src/rng.h"
+#include "src/singleton_heap.h"
 #include "src/tracefile_reader.h"
 #include "src/util.h"
 
@@ -37,7 +37,7 @@ CorrectnessChecker::CorrectnessChecker(TracefileReader&& reader)
     : reader_(std::move(reader)), rng_(0, 1) {}
 
 absl::Status CorrectnessChecker::Run() {
-  FakeHeap* heap = FakeHeap::GlobalInstance();
+  SingletonHeap* heap = SingletonHeap::GlobalInstance();
   if (heap == nullptr) {
     return absl::InternalError("`HeapManager()` returned `nullptr` heap.");
   }
