@@ -80,6 +80,7 @@ Checks: >
   performance-*,
   portability-*,
   readability-*,
+  -misc-no-recursion,
   -google-readability-braces-around-statements,
   -google-readability-todo,
   -google-runtime-references,
