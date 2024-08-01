@@ -22,8 +22,8 @@ std::optional<RbNode*> RbNode::InsertRight(RbNode* node) {
   return InsertFix(this);
 }
 
-RbNode* RbNode::Remove() {
-  return nullptr;
+std::optional<RbNode*> RbNode::Remove() {
+  return std::nullopt;
 }
 
 void RbNode::SetLeft(RbNode* node) {
