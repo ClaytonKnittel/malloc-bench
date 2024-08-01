@@ -58,6 +58,10 @@ class RedBlackTreeTest : public ::testing::Test {
         return absl::FailedPreconditionError(
             absl::StrFormat("Found left child of node >= node"));
       }
+      if (node->IsRed() && node->Left()->IsRed()) {
+        return absl::FailedPreconditionError(
+            "Found left child of red node which is also red.");
+      }
     }
     if (node->Right() != nullptr) {
       if (node->Right()->Parent() != node) {
@@ -68,6 +72,10 @@ class RedBlackTreeTest : public ::testing::Test {
                  *static_cast<const T*>(node->Right()))) {
         return absl::FailedPreconditionError(
             absl::StrFormat("Found right child of node < node"));
+      }
+      if (node->IsRed() && node->Right()->IsRed()) {
+        return absl::FailedPreconditionError(
+            "Found right child of red node which is also red.");
       }
     }
 
@@ -139,26 +147,15 @@ TEST_F(RedBlackTreeTest, TestTwo) {
 }
 
 TEST_F(RedBlackTreeTest, TestMany) {
-  constexpr size_t kNumElements = 20;
+  constexpr size_t kNumElements = 1000;
 
   ElementTree tree;
   Element elements[kNumElements];
   for (size_t i = 0; i < kNumElements; i++) {
     elements[i].val = (i + 17) % kNumElements;
     tree.Insert(&elements[i]);
-
-    std::cout << "pass " << i << std::endl;
-    for (const RbNode* l = tree.Root()->LeftmostChild(); l != nullptr;
-         l = l->Next()) {
-      std::cout << "Node: " << static_cast<const Element*>(l)->val << " "
-                << (l->IsRed() ? "red" : "black") << std::endl;
-    }
-
-    Print(tree);
     ASSERT_THAT(Validate(tree), util::IsOk());
   }
-
-  EXPECT_THAT(Validate(tree), util::IsOk());
 
   for (size_t i = 0; i < kNumElements; i++) {
     Element* element = tree.LowerBound(
