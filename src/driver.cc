@@ -10,11 +10,11 @@
 #include "absl/flags/parse.h"
 #include "absl/status/status.h"
 #include "absl/strings/match.h"
+#include "util/gtest_util.h"
 
 #include "src/correctness_checker.h"
 #include "src/perftest.h"
 #include "src/tracefile_reader.h"
-#include "src/util.h"
 #include "src/utiltest.h"
 
 ABSL_FLAG(std::string, trace, "",
