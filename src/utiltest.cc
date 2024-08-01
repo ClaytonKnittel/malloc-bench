@@ -2,11 +2,11 @@
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/status/statusor.h"
+#include "util/gtest_util.h"
 
 #include "src/allocator_interface.h"
 #include "src/singleton_heap.h"
 #include "src/tracefile_reader.h"
-#include "src/util.h"
 
 namespace bench {
 
