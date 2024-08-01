@@ -36,7 +36,46 @@ cc_library(
     srcs = ["heap_manager.cc"],
     hdrs = ["heap_manager.h"],
     deps = [
+        ":slab_manager",
         ":util",
+    ],
+)
+
+cc_library(
+    name = "red_black_tree",
+    srcs = ["red_black_tree.cc"],
+    hdrs = ["red_black_tree.h"],
+    deps = [
+        ":util",
+    ],
+)
+
+cc_test(
+    name = "red_black_tree_test",
+    srcs = ["red_black_tree_test.cc"],
+    deps = [
+        ":red_black_tree",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/strings:str_format",
+        "@cc-util//util:gtest_util",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "slab",
+    srcs = ["slab.cc"],
+    hdrs = ["slab.h"],
+    deps = [
+    ],
+)
+
+cc_library(
+    name = "slab_manager",
+    srcs = ["slab_manager.cc"],
+    hdrs = ["slab_manager.h"],
+    deps = [
         "//src:heap_interface",
     ],
 )
