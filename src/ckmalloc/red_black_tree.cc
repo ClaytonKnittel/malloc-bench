@@ -1,5 +1,7 @@
 #include "src/ckmalloc/red_black_tree.h"
 
+#include <iomanip>
+
 #include "src/ckmalloc/util.h"
 
 namespace ckmalloc {
@@ -49,6 +51,50 @@ void RbNode::SetParentOf(RbNode* node) {
   }
 }
 
+namespace {
+struct Element : public RbNode {
+  int val;
+};
+
+std::ostream& operator<<(std::ostream& ostr, const Element& element) {
+  return ostr << element.val << (element.IsRed() ? " (r)" : " (b)");
+}
+
+bool operator<(const Element& e1, const Element& e2) {
+  return e1.val < e2.val;
+}
+
+void PrintNode(const RbNode* node, int depth) {
+  if (node == nullptr) {
+    return;
+  }
+
+  std::cout << std::setw(2 * depth) << "" << *static_cast<const Element*>(node)
+            << " : ";
+  if (node->Left() != nullptr) {
+    std::cout << "l:" << static_cast<const Element*>(node->Left())->val << " ";
+  }
+  if (node->Right() != nullptr) {
+    std::cout << "r:" << static_cast<const Element*>(node->Right())->val << " ";
+  }
+  if (node->Parent() != nullptr) {
+    std::cout << "p:" << static_cast<const Element*>(node->Parent())->val
+              << " ";
+  }
+  std::cout << std::endl;
+  PrintNode(node->Left(), depth + 1);
+  PrintNode(node->Right(), depth + 1);
+}
+
+void Print(const RbNode* any_node) {
+  while (any_node->Parent() != nullptr) {
+    any_node = any_node->Parent();
+  }
+  PrintNode(any_node, 0);
+}
+
+}  // namespace
+
 /* static */
 std::optional<RbNode*> RbNode::InsertFix(RbNode* n) {
   RbNode* p;
@@ -76,6 +122,8 @@ std::optional<RbNode*> RbNode::InsertFix(RbNode* n) {
         n->SetParentOf(gp);
         n->SetLeft(p);
         n->SetRight(gp);
+        p = n->parent_;
+        break;
       }
     } else /* p == gp->right_ */ {
       RbNode* a = gp->left_;
@@ -99,6 +147,8 @@ std::optional<RbNode*> RbNode::InsertFix(RbNode* n) {
         n->SetParentOf(gp);
         n->SetRight(p);
         n->SetLeft(gp);
+        p = n->parent_;
+        break;
       }
     }
   }
