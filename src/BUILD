@@ -8,7 +8,7 @@ cc_binary(
         ":correctness_checker",
         ":perftest",
         ":tracefile_reader",
-        ":util",
+        "@cc-util//util:gtest_util",
         ":utiltest",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/flags:parse",
@@ -28,7 +28,7 @@ cc_library(
         ":allocator_interface",
         ":singleton_heap",
         ":tracefile_reader",
-        ":util",
+        "@cc-util//util:gtest_util",
         "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/time",
@@ -46,7 +46,7 @@ cc_library(
         ":allocator_interface",
         ":singleton_heap",
         ":tracefile_reader",
-        ":util",
+        "@cc-util//util:gtest_util",
         "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/status:statusor",
     ],
@@ -69,7 +69,7 @@ cc_library(
         ":rng",
         ":singleton_heap",
         ":tracefile_reader",
-        ":util",
+        "@cc-util//util:gtest_util",
         "@abseil-cpp//absl/container:btree",
         "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/status",
@@ -86,7 +86,7 @@ cc_test(
     ],
     deps = [
         ":correctness_checker",
-        ":util",
+        "@cc-util//util:gtest_util",
         "@abseil-cpp//absl/status",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
@@ -128,7 +128,7 @@ cc_library(
     srcs = ["tracefile_reader.cc"],
     hdrs = ["tracefile_reader.h"],
     deps = [
-        ":util",
+        "@cc-util//util:gtest_util",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
     ],
@@ -139,16 +139,5 @@ cc_library(
     hdrs = ["rng.h"],
     deps = [
         "@abseil-cpp//absl/status:statusor",
-    ],
-)
-
-cc_library(
-    name = "util",
-    hdrs = ["util.h"],
-    deps = [
-        "@abseil-cpp//absl/status",
-        "@abseil-cpp//absl/status:statusor",
-        "@abseil-cpp//absl/strings",
-        "@googletest//:gtest",
     ],
 )

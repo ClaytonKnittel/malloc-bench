@@ -16,6 +16,13 @@ git_override(
     # Even better, set up Renovate and let it do the work for you (see "Suggestion: Updates" in the README).
 )
 
+bazel_dep(name = "cc-util")
+git_override(
+    module_name = "cc-util",
+    commit = "d1b52a96fea91c3d4fdb273b290a060f7f71cfa1",
+    remote = "https://github.com/ClaytonKnittel/cc-util.git",
+)
+
 bazel_dep(name = "buildifier_prebuilt", version = "6.4.0", dev_dependency = True)
 
 bazel_dep(name = "abseil-cpp", version = "20240116.2")
