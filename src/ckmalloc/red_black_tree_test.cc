@@ -10,6 +10,11 @@
 
 namespace ckmalloc {
 
+using ::testing::Field;
+using ::testing::Not;
+using ::testing::Pointee;
+using util::IsOk;
+
 class RedBlackTreeTest : public ::testing::Test {
  protected:
   template <typename T, typename Cmp>
@@ -113,7 +118,7 @@ using ElementTree = RbTree<Element, ElementLess>;
 TEST_F(RedBlackTreeTest, TestEmpty) {
   ElementTree tree;
   EXPECT_EQ(tree.LowerBound([](const Element&) { return true; }), nullptr);
-  EXPECT_THAT(Validate(tree), util::IsOk());
+  EXPECT_THAT(Validate(tree), IsOk());
 }
 
 TEST_F(RedBlackTreeTest, TestSingle) {
@@ -126,7 +131,7 @@ TEST_F(RedBlackTreeTest, TestSingle) {
   EXPECT_EQ(
       tree.LowerBound([](const Element& element) { return element.val > 1; }),
       nullptr);
-  EXPECT_THAT(Validate(tree), util::IsOk());
+  EXPECT_THAT(Validate(tree), IsOk());
 }
 
 TEST_F(RedBlackTreeTest, TestTwo) {
@@ -143,25 +148,55 @@ TEST_F(RedBlackTreeTest, TestTwo) {
   EXPECT_EQ(
       tree.LowerBound([](const Element& element) { return element.val > 1; }),
       &child);
-  EXPECT_THAT(Validate(tree), util::IsOk());
+  EXPECT_THAT(Validate(tree), IsOk());
 }
 
-TEST_F(RedBlackTreeTest, TestMany) {
+TEST_F(RedBlackTreeTest, TestInsertMany) {
   constexpr size_t kNumElements = 1000;
 
   ElementTree tree;
   Element elements[kNumElements];
   for (size_t i = 0; i < kNumElements; i++) {
-    elements[i].val = (i + 17) % kNumElements;
+    elements[i].val = (i * 17) % kNumElements;
     tree.Insert(&elements[i]);
-    ASSERT_THAT(Validate(tree), util::IsOk());
+    ASSERT_THAT(Validate(tree), IsOk());
+    ASSERT_EQ(tree.Size(), i + 1);
   }
 
   for (size_t i = 0; i < kNumElements; i++) {
     Element* element = tree.LowerBound(
         [i](const Element& element) { return element.val >= i; });
     ASSERT_NE(element, nullptr);
-    EXPECT_EQ(((element - &elements[0]) + 17) % kNumElements, i);
+    EXPECT_EQ(((element - &elements[0]) * 17) % kNumElements, i);
+  }
+}
+
+TEST_F(RedBlackTreeTest, TestDeleteMany) {
+  constexpr size_t kNumElements = 20;
+
+  ElementTree tree;
+  Element elements[kNumElements];
+  for (size_t i = 0; i < kNumElements; i++) {
+    elements[i].val = (i * 17) % kNumElements;
+    tree.Insert(&elements[i]);
+  }
+
+  ASSERT_THAT(Validate(tree), IsOk());
+
+  for (size_t i = 0; i < kNumElements; i++) {
+    size_t idx = (i * 19 + 3) % kNumElements;
+    tree.Remove(&elements[idx]);
+    ASSERT_THAT(Validate(tree), IsOk());
+    ASSERT_EQ(tree.Size(), kNumElements - i - 1);
+
+    for (size_t j = 0; j < kNumElements; j++) {
+      if (j <= i) {
+        ASSERT_THAT(tree.LowerBound([j](const Element& element) {
+          return element.val >= j;
+        }),
+                    Not(Pointee(Field(&Element::val, j))));
+      }
+    }
   }
 }
 
