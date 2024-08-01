@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <functional>
 #include <optional>
 
@@ -62,7 +63,7 @@ class RbNode {
   std::optional<RbNode*> InsertRight(RbNode* node);
 
   // Removes this node, returning the new root of the tree.
-  RbNode* Remove();
+  std::optional<RbNode*> Remove();
 
   void MakeRed() {
     red_ = true;
@@ -87,9 +88,9 @@ class RbNode {
 
   static std::optional<RbNode*> InsertFix(RbNode* node);
 
-  RbNode* left_{};
-  RbNode* right_{};
-  RbNode* parent_{};
+  RbNode* left_ = nullptr;
+  RbNode* right_ = nullptr;
+  RbNode* parent_ = nullptr;
   bool red_ = true;
 };
 
@@ -100,10 +101,15 @@ class RbTree {
     return root_;
   }
 
+  size_t Size() const {
+    return size_;
+  }
+
   void Insert(T* item) {
     if (root_ == nullptr) {
       root_ = static_cast<RbNode*>(item);
       root_->Reset();
+      size_++;
       return;
     }
 
@@ -124,10 +130,15 @@ class RbTree {
     if (new_root.has_value()) {
       root_ = new_root.value();
     }
+    size_++;
   }
 
   void Remove(T* item) {
-    root_ = item->RbNode::Remove();
+    std::optional<RbNode*> new_root = item->RbNode::Remove();
+    if (new_root.has_value()) {
+      root_ = new_root.value();
+    }
+    size_--;
   }
 
   // Returns the lowest-valued element in the tree that `AtLeast`() is true
@@ -150,6 +161,7 @@ class RbTree {
 
  private:
   RbNode* root_ = nullptr;
+  size_t size_ = 0;
 };
 
 }  // namespace ckmalloc
