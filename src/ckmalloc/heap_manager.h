@@ -1,6 +1,6 @@
 #pragma once
 
-#include "src/heap_interface.h"
+#include "src/ckmalloc/slab_manager.h"
 
 namespace ckmalloc {
 
@@ -9,7 +9,7 @@ class HeapManager {
   HeapManager();
 
  private:
-  class SlabManager* slab_manager_;
+  SlabManager* slab_manager_;
 };
 
 }  // namespace ckmalloc
