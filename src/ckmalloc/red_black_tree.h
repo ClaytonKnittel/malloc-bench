@@ -4,6 +4,8 @@
 #include <functional>
 #include <optional>
 
+#include "src/ckmalloc/util.h"
+
 namespace ckmalloc {
 
 class RbNode {
@@ -16,8 +18,6 @@ class RbNode {
   // Nodes cannot be moved/copied.
   RbNode(const RbNode&) = delete;
   RbNode(RbNode&&) = delete;
-  RbNode& operator=(const RbNode&) = delete;
-  RbNode& operator=(RbNode&&) = delete;
 
   const RbNode* Left() const {
     return left_;
@@ -54,6 +54,9 @@ class RbNode {
   }
 
  private:
+  RbNode& operator=(const RbNode&) = default;
+  RbNode& operator=(RbNode&&) = default;
+
   // Inserts this node to the left of `node`, returning the current root after
   // the operation is complete.
   std::optional<RbNode*> InsertLeft(RbNode* node);
@@ -79,6 +82,18 @@ class RbNode {
 
   void SetParentOf(RbNode* node);
 
+  // Detaches this RbNode from its parent, replacing it with `new_child`. Either
+  // `parent_` or `new_child` may be null.
+  void DetachParent(RbNode* new_child);
+
+  RbNode* LeftmostChild() {
+    return left_ != nullptr ? left_->LeftmostChild() : this;
+  }
+
+  RbNode* RightmostChild() {
+    return right_ != nullptr ? right_->RightmostChild() : this;
+  }
+
   void Reset() {
     left_ = nullptr;
     right_ = nullptr;
@@ -87,6 +102,8 @@ class RbNode {
   }
 
   static std::optional<RbNode*> InsertFix(RbNode* node);
+
+  static std::optional<RbNode*> DeleteFix(RbNode* node);
 
   RbNode* left_ = nullptr;
   RbNode* right_ = nullptr;
