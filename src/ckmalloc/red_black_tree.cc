@@ -1,6 +1,7 @@
 #include "src/ckmalloc/red_black_tree.h"
 
 #include <iomanip>
+#include <optional>
 
 #include "src/ckmalloc/util.h"
 
@@ -23,7 +24,55 @@ std::optional<RbNode*> RbNode::InsertRight(RbNode* node) {
 }
 
 std::optional<RbNode*> RbNode::Remove() {
-  return std::nullopt;
+  RbNode* successor;
+  if (left_ == nullptr) {
+    if (right_ == nullptr) {
+      successor = nullptr;
+    } else {
+      successor = right_->LeftmostChild();
+      // successor does not have a left child. Detach it from its parent and
+      // replace it with its right (only) child.
+      successor->DetachParent(successor->right_);
+    }
+  } else {
+    successor = left_->RightmostChild();
+    // successor does not have a right child. Detach it from its parent and
+    // replace it with its left (only) child.
+    successor->DetachParent(successor->left_);
+  }
+
+  // Even though we have detached successor from the tree, it's parent_ pointer
+  // is still intact. Determine if we need to fix the tree, and if so where to
+  // start from.
+  //
+  // No need to fix the tree if we are removing a red node. Otherwise, fix
+  // starting from successor's former parent. If there was no successor, fix
+  // from our parent if this node is black, otherwise no need to fix.
+  RbNode* correct_from = successor != nullptr ? successor : this;
+  RbNode* parent_to_fix =
+      correct_from->IsRed() ? nullptr : correct_from->parent_;
+
+  // Replace this node with its successor.
+  if (successor != nullptr) {
+    successor->SetLeft(left_);
+    successor->SetRight(right_);
+    successor->SetParentOf(this);
+    successor->red_ = red_;
+  } else {
+    DetachParent(nullptr);
+  }
+
+  if (parent_to_fix == nullptr) {
+    if (parent_ == nullptr) {
+      // If we removed the root of the tree, return the new root.
+      return successor;
+    }
+
+    // Otherwise, since the root was not changed, return `nullopt`.
+    return std::nullopt;
+  }
+
+  return DeleteFix(parent_to_fix);
 }
 
 void RbNode::SetLeft(RbNode* node) {
@@ -47,6 +96,19 @@ void RbNode::SetParentOf(RbNode* node) {
       parent_->left_ = this;
     } else {
       parent_->right_ = this;
+    }
+  }
+}
+
+void RbNode::DetachParent(RbNode* new_child) {
+  if (new_child != nullptr) {
+    new_child->parent_ = parent_;
+  }
+  if (parent_ != nullptr) {
+    if (parent_->left_ == this) {
+      parent_->left_ = new_child;
+    } else {
+      parent_->right_ = new_child;
     }
   }
 }
@@ -160,5 +222,7 @@ std::optional<RbNode*> RbNode::InsertFix(RbNode* n) {
   n->MakeBlack();
   return n;
 }
+
+std::optional<RbNode*> RbNode::DeleteFix(RbNode* n) {}
 
 }  // namespace ckmalloc
