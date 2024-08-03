@@ -23,21 +23,25 @@ std::optional<RbNode*> RbNode::InsertRight(RbNode* node) {
   return InsertFix(this);
 }
 
-std::optional<RbNode*> RbNode::Remove() {
+std::optional<RbNode*> RbNode::Remove() const {
   RbNode* successor;
-  RbNode* parent_to_fix;
+  RbNode* node_to_fix;
   if (left_ == nullptr) {
     successor = right_;
-    parent_to_fix = red_ ? nullptr : parent_;
+    node_to_fix = red_ ? nullptr : (right_ != nullptr ? right_ : parent_);
     DetachParent(right_);
   } else if (right_ == nullptr) {
     successor = left_;
-    parent_to_fix = red_ ? nullptr : parent_;
+    node_to_fix = red_ ? nullptr : left_;
     DetachParent(left_);
   } else {
     RbNode* successor = left_->RightmostChild();
-    // We will have to fix from the successor's parent if it was black.
-    parent_to_fix = successor->red_ ? nullptr : successor->parent_;
+    // If the successor was black, we will fix from it's left child. If it had
+    // no left child, fix from its parent.
+    node_to_fix = successor->red_
+                      ? nullptr
+                      : (successor->left_ != nullptr ? successor->left_
+                                                     : successor->parent_);
     // successor does not have a right child. Detach it from its parent and
     // replace it with its left (only) child.
     successor->DetachParent(successor->left_);
@@ -53,13 +57,13 @@ std::optional<RbNode*> RbNode::Remove() {
   // the root of the tree, we will need to return the updated root.
   std::optional<RbNode*> new_root =
       parent_ == nullptr ? std::optional<RbNode*>(successor) : std::nullopt;
-  if (parent_to_fix == nullptr) {
+  if (node_to_fix == nullptr) {
     return new_root;
   }
 
   // If `DeleteFix` returns a new root, return that. Otherwise, return
   // `successor` if `this` was previously the root, else root has not changed.
-  return OptionalOr(DeleteFix(parent_to_fix), std::move(new_root));
+  return OptionalOr(DeleteFix(node_to_fix), std::move(new_root));
 }
 
 void RbNode::SetLeft(RbNode* node) {
@@ -76,7 +80,7 @@ void RbNode::SetRight(RbNode* node) {
   }
 }
 
-void RbNode::SetParentOf(RbNode* node) {
+void RbNode::SetParentOf(const RbNode* node) {
   parent_ = node->parent_;
   if (parent_ != nullptr) {
     if (parent_->left_ == node) {
@@ -87,7 +91,7 @@ void RbNode::SetParentOf(RbNode* node) {
   }
 }
 
-void RbNode::DetachParent(RbNode* new_child) {
+void RbNode::DetachParent(RbNode* new_child) const {
   if (new_child != nullptr) {
     new_child->parent_ = parent_;
   }
@@ -210,6 +214,24 @@ std::optional<RbNode*> RbNode::InsertFix(RbNode* n) {
   return n;
 }
 
-std::optional<RbNode*> RbNode::DeleteFix(RbNode* n) {}
+std::optional<RbNode*> RbNode::DeleteFix(RbNode* n) {
+  RbNode* p;
+  while ((p = n->parent_) != nullptr && !n->red_) {
+    if (n == p->left_) {
+      RbNode* s = p->right_;
+    } else {
+      RbNode* s = p->left_;
+    }
+  }
+
+  // If we landed on a red node, we can color it black and that will fix the
+  // black defecit. If we happened to land on the root, then we need to color it
+  // black anyway, so this coincidentally covers both cases.
+  if (n->red_) {
+    n->MakeBlack();
+  }
+
+  return p != nullptr ? std::optional<RbNode*>(p) : std::nullopt;
+}
 
 }  // namespace ckmalloc
