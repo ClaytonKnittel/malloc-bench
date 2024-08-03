@@ -28,11 +28,12 @@ std::optional<RbNode*> RbNode::Remove() {
   RbNode* parent_to_fix;
   if (left_ == nullptr) {
     successor = right_;
+    parent_to_fix = red_ ? nullptr : parent_;
     DetachParent(right_);
-    parent_to_fix = red_ ? nullptr : parent_;
   } else if (right_ == nullptr) {
-    DetachParent(left_);
+    successor = left_;
     parent_to_fix = red_ ? nullptr : parent_;
+    DetachParent(left_);
   } else {
     RbNode* successor = left_->RightmostChild();
     // We will have to fix from the successor's parent if it was black.
@@ -48,25 +49,17 @@ std::optional<RbNode*> RbNode::Remove() {
     successor->red_ = red_;
   }
 
-  // Even though we have detached successor from the tree, it's parent_ pointer
-  // is still intact. Determine if we need to fix the tree, and if so where to
-  // start from.
-  //
-  // No need to fix the tree if we are removing a red node. Otherwise, fix
-  // starting from successor's former parent. If there was no successor, fix
-  // from our parent if this node is black, otherwise no need to fix.
-
+  // We have already replaced `this` with `successor`. If `this` was previously
+  // the root of the tree, we will need to return the updated root.
+  std::optional<RbNode*> new_root =
+      parent_ == nullptr ? std::optional<RbNode*>(successor) : std::nullopt;
   if (parent_to_fix == nullptr) {
-    if (parent_ == nullptr) {
-      // If we removed the root of the tree, return the new root.
-      return successor;
-    }
-
-    // Otherwise, since the root was not changed, return `nullopt`.
-    return std::nullopt;
+    return new_root;
   }
 
-  return DeleteFix(parent_to_fix);
+  // If `DeleteFix` returns a new root, return that. Otherwise, return
+  // `successor` if `this` was previously the root, else root has not changed.
+  return OptionalOr(DeleteFix(parent_to_fix), std::move(new_root));
 }
 
 void RbNode::SetLeft(RbNode* node) {
