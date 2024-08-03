@@ -190,11 +190,13 @@ TEST_F(RedBlackTreeTest, TestDeleteMany) {
     ASSERT_EQ(tree.Size(), kNumElements - i - 1);
 
     for (size_t j = 0; j < kNumElements; j++) {
+      Element* find_j = tree.LowerBound(
+          [j](const Element& element) { return element.val >= j; });
+      auto is_ptr_to_j = Pointee(Field(&Element::val, j));
       if (j <= i) {
-        ASSERT_THAT(tree.LowerBound([j](const Element& element) {
-          return element.val >= j;
-        }),
-                    Not(Pointee(Field(&Element::val, j))));
+        ASSERT_THAT(find_j, Not(is_ptr_to_j));
+      } else {
+        ASSERT_THAT(find_j, is_ptr_to_j);
       }
     }
   }
