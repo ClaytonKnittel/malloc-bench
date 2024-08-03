@@ -25,20 +25,27 @@ std::optional<RbNode*> RbNode::InsertRight(RbNode* node) {
 
 std::optional<RbNode*> RbNode::Remove() {
   RbNode* successor;
+  RbNode* parent_to_fix;
   if (left_ == nullptr) {
-    if (right_ == nullptr) {
-      successor = nullptr;
-    } else {
-      successor = right_->LeftmostChild();
-      // successor does not have a left child. Detach it from its parent and
-      // replace it with its right (only) child.
-      successor->DetachParent(successor->right_);
-    }
+    successor = right_;
+    DetachParent(right_);
+    parent_to_fix = red_ ? nullptr : parent_;
+  } else if (right_ == nullptr) {
+    DetachParent(left_);
+    parent_to_fix = red_ ? nullptr : parent_;
   } else {
-    successor = left_->RightmostChild();
+    RbNode* successor = left_->RightmostChild();
+    // We will have to fix from the successor's parent if it was black.
+    parent_to_fix = successor->red_ ? nullptr : successor->parent_;
     // successor does not have a right child. Detach it from its parent and
     // replace it with its left (only) child.
     successor->DetachParent(successor->left_);
+
+    // Replace this node with the successor.
+    successor->SetLeft(left_);
+    successor->SetRight(right_);
+    successor->SetParentOf(this);
+    successor->red_ = red_;
   }
 
   // Even though we have detached successor from the tree, it's parent_ pointer
@@ -48,19 +55,6 @@ std::optional<RbNode*> RbNode::Remove() {
   // No need to fix the tree if we are removing a red node. Otherwise, fix
   // starting from successor's former parent. If there was no successor, fix
   // from our parent if this node is black, otherwise no need to fix.
-  RbNode* correct_from = successor != nullptr ? successor : this;
-  RbNode* parent_to_fix =
-      correct_from->IsRed() ? nullptr : correct_from->parent_;
-
-  // Replace this node with its successor.
-  if (successor != nullptr) {
-    successor->SetLeft(left_);
-    successor->SetRight(right_);
-    successor->SetParentOf(this);
-    successor->red_ = red_;
-  } else {
-    DetachParent(nullptr);
-  }
 
   if (parent_to_fix == nullptr) {
     if (parent_ == nullptr) {
