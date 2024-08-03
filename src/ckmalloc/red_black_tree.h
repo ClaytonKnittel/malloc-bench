@@ -66,7 +66,7 @@ class RbNode {
   std::optional<RbNode*> InsertRight(RbNode* node);
 
   // Removes this node, returning the new root of the tree.
-  std::optional<RbNode*> Remove();
+  std::optional<RbNode*> Remove() const;
 
   void MakeRed() {
     red_ = true;
@@ -80,11 +80,11 @@ class RbNode {
 
   void SetRight(RbNode* node);
 
-  void SetParentOf(RbNode* node);
+  void SetParentOf(const RbNode* node);
 
   // Detaches this RbNode from its parent, replacing it with `new_child`. Either
-  // `parent_` or `new_child` may be null.
-  void DetachParent(RbNode* new_child);
+  // `parent_` or `new_child` may be null. This does not modify `this`.
+  void DetachParent(RbNode* new_child) const;
 
   RbNode* LeftmostChild() {
     return left_ != nullptr ? left_->LeftmostChild() : this;
@@ -103,6 +103,9 @@ class RbNode {
 
   static std::optional<RbNode*> InsertFix(RbNode* node);
 
+  // Fixes a node `node` which has a black height of 1 less than it should. The
+  // subtree rooted at `node` should still be a valid red-black tree (except
+  // `node` may be red).
   static std::optional<RbNode*> DeleteFix(RbNode* node);
 
   RbNode* left_ = nullptr;
