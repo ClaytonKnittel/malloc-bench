@@ -74,7 +74,7 @@ class RbNode {
   // parent->RotateLeft(left);
   //
   // `this` is the right child of parent, and left is the left child of `this`.
-  void RotateRightLeft(RbNode* parent, RbNode* left);
+  void RotateRightLeft(RbNode* parent, RbNode* right);
 
   // Equivalent to:
   // this->RotateLeft(right);
