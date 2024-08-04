@@ -23,24 +23,24 @@ void RbNode::RotateRight(RbNode* left) {
   left->right_ = this;
 }
 
-void RbNode::RotateRightLeft(RbNode* parent, RbNode* left) {
-  CK_ASSERT(parent == parent_);
-  CK_ASSERT(left == left_);
-  this->SetRight(left->Left());
-  parent->SetLeft(left->Right());
-  left->SetParentOf(parent);
-  left->SetLeft(this);
-  left->SetRight(parent);
-}
-
-void RbNode::RotateLeftRight(RbNode* parent, RbNode* right) {
+void RbNode::RotateRightLeft(RbNode* parent, RbNode* right) {
   CK_ASSERT(parent == parent_);
   CK_ASSERT(right == right_);
-  this->SetLeft(right->Right());
-  parent->SetRight(right->Left());
+  this->SetRight(right->Left());
+  parent->SetLeft(right->Right());
   right->SetParentOf(parent);
-  right->SetRight(this);
-  right->SetLeft(parent);
+  right->SetLeft(this);
+  right->SetRight(parent);
+}
+
+void RbNode::RotateLeftRight(RbNode* parent, RbNode* left) {
+  CK_ASSERT(parent == parent_);
+  CK_ASSERT(left == left_);
+  this->SetLeft(left->Right());
+  parent->SetRight(left->Left());
+  left->SetParentOf(parent);
+  left->SetRight(this);
+  left->SetLeft(parent);
 }
 
 std::optional<RbNode*> RbNode::InsertLeft(RbNode* node) {
@@ -250,10 +250,10 @@ std::optional<RbNode*> RbNode::DeleteFix(RbNode* n) {
     p->Rotate##dir(s);                                                     \
     break;                                                                 \
   } else /* s->dir()->IsRed() */ {                                         \
-    RbNode* sl = s->dir();                                                 \
-    sl->red_ = p->red_;                                                    \
+    RbNode* sd = s->dir();                                                 \
+    sd->red_ = p->red_;                                                    \
     p->MakeBlack();                                                        \
-    s->Rotate##opp##dir(p, sl);                                            \
+    s->Rotate##opp##dir(p, sd);                                            \
     break;                                                                 \
   }
 
