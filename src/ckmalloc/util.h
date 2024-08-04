@@ -4,6 +4,12 @@
 #include <iostream>
 #include <optional>
 
+#ifdef NDEBUG
+
+#define CK_ASSERT(cond)
+
+#else
+
 #define CK_ASSERT(cond)                                                     \
   do {                                                                      \
     if (!(cond)) {                                                          \
@@ -12,6 +18,8 @@
       std::abort();                                                         \
     }                                                                       \
   } while (0)
+
+#endif
 
 namespace ckmalloc {
 
