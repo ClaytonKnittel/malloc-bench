@@ -206,12 +206,7 @@ std::optional<RbNode*> RbNode::InsertFix(RbNode* n) {
 }
 
 std::optional<RbNode*> RbNode::DeleteFix(RbNode* n, RbNode* p) {
-  if (p == nullptr || IsRedPtr(n)) {
-    if (IsRedPtr(n)) {
-      n->MakeBlack();
-    }
-  } else {
-    while (true) {
+  while (true) {
 #define FIX_CHILD(dir, opp)                           \
   RbNode* s = p->opp();                               \
   CK_ASSERT(s != nullptr);                            \
@@ -244,22 +239,21 @@ std::optional<RbNode*> RbNode::DeleteFix(RbNode* n, RbNode* p) {
     break;                                            \
   }
 
-      if (n == p->Left()) {
-        FIX_CHILD(Left, Right);
-      } else /* n == p->Right() */ {
-        FIX_CHILD(Right, Left);
+    if (p == nullptr || IsRedPtr(n)) {
+      // If we landed on a red node, we can color it black and that will fix
+      // the black defecit. If we happened to land on the root, then we need
+      // to color it black anyway, so this coincidentally covers both cases.
+      if (n != nullptr && n->IsRed()) {
+        n->MakeBlack();
       }
 
-      if (p == nullptr || n->IsRed()) {
-        // If we landed on a red node, we can color it black and that will fix
-        // the black defecit. If we happened to land on the root, then we need
-        // to color it black anyway, so this coincidentally covers both cases.
-        if (n != nullptr && n->IsRed()) {
-          n->MakeBlack();
-        }
+      break;
+    }
 
-        break;
-      }
+    if (n == p->Left()) {
+      FIX_CHILD(Left, Right);
+    } else /* n == p->Right() */ {
+      FIX_CHILD(Right, Left);
     }
 
 #undef FIX_CHILD
