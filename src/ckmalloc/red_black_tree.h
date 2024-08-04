@@ -70,18 +70,18 @@ class RbNode {
   void RotateRight(RbNode* left);
 
   // Equivalent to:
-  // this->RotateRight(left);
-  // parent->RotateLeft(left);
-  //
-  // `this` is the right child of parent, and left is the left child of `this`.
-  void RotateRightLeft(RbNode* parent, RbNode* right);
-
-  // Equivalent to:
   // this->RotateLeft(right);
   // parent->RotateRight(right);
   //
   // `this` is the left child of parent, and right is the right child of `this`.
   void RotateLeftRight(RbNode* parent, RbNode* right);
+
+  // Equivalent to:
+  // this->RotateRight(left);
+  // parent->RotateLeft(left);
+  //
+  // `this` is the right child of parent, and left is the left child of `this`.
+  void RotateRightLeft(RbNode* parent, RbNode* left);
 
   // Inserts this node to the left of `node`, returning the current root after
   // the operation is complete.
