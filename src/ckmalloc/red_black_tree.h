@@ -35,6 +35,10 @@ class RbNode {
     return red_;
   }
 
+  bool IsBlack() const {
+    return !red_;
+  }
+
   const RbNode* Next() const {
     if (right_ != nullptr) {
       return right_->LeftmostChild();
@@ -57,6 +61,28 @@ class RbNode {
   RbNode& operator=(const RbNode&) = default;
   RbNode& operator=(RbNode&&) = default;
 
+  // Rotate left about `this`. Pass the right child of `this` if already loaded
+  // into a variable.
+  void RotateLeft(RbNode* right);
+
+  // Rotate right about `this`. Pass the left child of `this` if already loaded
+  // into a variable.
+  void RotateRight(RbNode* left);
+
+  // Equivalent to:
+  // this->RotateRight(left);
+  // parent->RotateLeft(left);
+  //
+  // `this` is the right child of parent, and left is the left child of `this`.
+  void RotateRightLeft(RbNode* parent, RbNode* left);
+
+  // Equivalent to:
+  // this->RotateLeft(right);
+  // parent->RotateRight(right);
+  //
+  // `this` is the left child of parent, and right is the right child of `this`.
+  void RotateLeftRight(RbNode* parent, RbNode* right);
+
   // Inserts this node to the left of `node`, returning the current root after
   // the operation is complete.
   std::optional<RbNode*> InsertLeft(RbNode* node);
@@ -67,6 +93,18 @@ class RbNode {
 
   // Removes this node, returning the new root of the tree.
   std::optional<RbNode*> Remove() const;
+
+  RbNode* Left() {
+    return left_;
+  }
+
+  RbNode* Right() {
+    return right_;
+  }
+
+  RbNode* Parent() {
+    return parent_;
+  }
 
   void MakeRed() {
     red_ = true;
