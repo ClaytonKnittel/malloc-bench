@@ -1,21 +1,18 @@
 #pragma once
 
-#include <cstddef>
+#include <cstdint>
+
+#include "src/ckmalloc/slab_id.h"
 
 namespace ckmalloc {
-
-enum class SlabType {
-  kSmallBlocks,
-  kLargeBlocks,
-};
 
 class Slab {
  public:
   static Slab* MakeSmallBlocksSlab();
 
  private:
-  void* slab_start_;
-  size_t n_pages_;
+  SlabId id_;
+  uint32_t n_pages_;
 };
 
 }  // namespace ckmalloc
