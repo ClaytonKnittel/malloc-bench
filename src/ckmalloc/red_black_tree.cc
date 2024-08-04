@@ -23,8 +23,9 @@ void RbNode::RotateRight(RbNode* left) {
   left->right_ = this;
 }
 
-void RbNode::RotateRightLeft(RbNode* parent, RbNode* right) {
+void RbNode::RotateLeftRight(RbNode* parent, RbNode* right) {
   CK_ASSERT(parent == parent_);
+  CK_ASSERT(parent->left_ == this);
   CK_ASSERT(right == right_);
   this->SetRight(right->Left());
   parent->SetLeft(right->Right());
@@ -33,8 +34,9 @@ void RbNode::RotateRightLeft(RbNode* parent, RbNode* right) {
   right->SetRight(parent);
 }
 
-void RbNode::RotateLeftRight(RbNode* parent, RbNode* left) {
+void RbNode::RotateRightLeft(RbNode* parent, RbNode* left) {
   CK_ASSERT(parent == parent_);
+  CK_ASSERT(parent->right_ == this);
   CK_ASSERT(left == left_);
   this->SetLeft(left->Right());
   parent->SetRight(left->Left());
@@ -200,10 +202,12 @@ std::optional<RbNode*> RbNode::InsertFix(RbNode* n) {
     gp->MakeRed();                  \
     gp->Rotate##opp(p);             \
     n = p;                          \
+    p = n->Parent();                \
+    break;                          \
   } else {                          \
     n->MakeBlack();                 \
     gp->MakeRed();                  \
-    p->Rotate##opp##dir(gp, n);     \
+    p->Rotate##dir##opp(gp, n);     \
     p = n->parent_;                 \
     break;                          \
   }
