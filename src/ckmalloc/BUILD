@@ -72,11 +72,20 @@ cc_library(
 )
 
 cc_library(
+    name = "slab_id",
+    hdrs = ["slab_id.h"],
+    deps = [
+    ],
+)
+
+cc_library(
     name = "slab_manager",
     srcs = ["slab_manager.cc"],
     hdrs = ["slab_manager.h"],
     deps = [
-        "//src:heap_interface",
+        ":allocator",
+        ":slab_id",
+        ":util",
     ],
 )
 

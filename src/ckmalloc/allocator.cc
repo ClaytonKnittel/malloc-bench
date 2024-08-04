@@ -33,4 +33,8 @@ void* Allocator::Alloc(size_t size, std::align_val_t alignment) {
   return alloc_start;
 }
 
+size_t Allocator::AllocatedBytes() const {
+  return heap_->Size();
+}
+
 }  // namespace ckmalloc
