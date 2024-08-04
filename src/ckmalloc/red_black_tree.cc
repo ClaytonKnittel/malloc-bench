@@ -7,11 +7,47 @@
 
 namespace ckmalloc {
 
+void RbNode::RotateLeft(RbNode* right) {
+  CK_ASSERT(right == right_);
+  this->SetRight(right->Left());
+  right->SetParentOf(this);
+  this->parent_ = right;
+  right->left_ = this;
+}
+
+void RbNode::RotateRight(RbNode* left) {
+  CK_ASSERT(left == left_);
+  this->SetLeft(left->Right());
+  left->SetParentOf(this);
+  this->parent_ = left;
+  left->right_ = this;
+}
+
+void RbNode::RotateRightLeft(RbNode* parent, RbNode* left) {
+  CK_ASSERT(parent == parent_);
+  CK_ASSERT(left == left_);
+  this->SetRight(left->Left());
+  parent->SetLeft(left->Right());
+  left->SetParentOf(parent);
+  left->SetLeft(this);
+  left->SetRight(parent);
+}
+
+void RbNode::RotateLeftRight(RbNode* parent, RbNode* right) {
+  CK_ASSERT(parent == parent_);
+  CK_ASSERT(right == right_);
+  this->SetLeft(right->Right());
+  parent->SetRight(right->Left());
+  right->SetParentOf(parent);
+  right->SetRight(this);
+  right->SetLeft(parent);
+}
+
 std::optional<RbNode*> RbNode::InsertLeft(RbNode* node) {
   CK_ASSERT(node->left_ == nullptr);
   node->left_ = this;
   this->parent_ = node;
-  this->red_ = true;
+  this->MakeRed();
   return InsertFix(this);
 }
 
@@ -19,7 +55,7 @@ std::optional<RbNode*> RbNode::InsertRight(RbNode* node) {
   CK_ASSERT(node->right_ == nullptr);
   node->right_ = this;
   this->parent_ = node;
-  this->red_ = true;
+  this->MakeRed();
   return InsertFix(this);
 }
 
@@ -151,59 +187,35 @@ void Print(const RbNode* any_node) {
 /* static */
 std::optional<RbNode*> RbNode::InsertFix(RbNode* n) {
   RbNode* p;
-  while ((p = n->parent_) != nullptr && p->red_) {
+  while ((p = n->parent_) != nullptr && p->IsRed()) {
+#define FIX_CHILD(dir, opp)         \
+  RbNode* a = gp->opp();            \
+  if (a != nullptr && a->IsRed()) { \
+    p->MakeBlack();                 \
+    a->MakeBlack();                 \
+    gp->MakeRed();                  \
+    n = gp;                         \
+  } else if (n == p->dir()) {       \
+    p->MakeBlack();                 \
+    gp->MakeRed();                  \
+    gp->Rotate##opp(p);             \
+    n = p;                          \
+  } else {                          \
+    n->MakeBlack();                 \
+    gp->MakeRed();                  \
+    p->Rotate##opp##dir(gp, n);     \
+    p = n->parent_;                 \
+    break;                          \
+  }
+
     RbNode* gp = p->parent_;
-    if (p == gp->left_) {
-      RbNode* a = gp->right_;
-      if (a != nullptr && a->red_) {
-        p->MakeBlack();
-        a->MakeBlack();
-        gp->MakeRed();
-        n = gp;
-      } else if (n == p->left_) {
-        p->MakeBlack();
-        gp->MakeRed();
-        gp->SetLeft(p->right_);
-        p->SetParentOf(gp);
-        p->SetRight(gp);
-        n = p;
-      } else {
-        n->MakeBlack();
-        gp->MakeRed();
-        p->SetRight(n->left_);
-        gp->SetLeft(n->right_);
-        n->SetParentOf(gp);
-        n->SetLeft(p);
-        n->SetRight(gp);
-        p = n->parent_;
-        break;
-      }
-    } else /* p == gp->right_ */ {
-      RbNode* a = gp->left_;
-      if (a != nullptr && a->red_) {
-        p->MakeBlack();
-        a->MakeBlack();
-        gp->MakeRed();
-        n = gp;
-      } else if (n == p->right_) {
-        p->MakeBlack();
-        gp->MakeRed();
-        gp->SetRight(p->left_);
-        p->SetParentOf(gp);
-        p->SetLeft(gp);
-        n = p;
-      } else {
-        n->MakeBlack();
-        gp->MakeRed();
-        p->SetLeft(n->right_);
-        gp->SetRight(n->left_);
-        n->SetParentOf(gp);
-        n->SetRight(p);
-        n->SetLeft(gp);
-        p = n->parent_;
-        break;
-      }
+    if (p == gp->Left()) {
+      FIX_CHILD(Left, Right);
+    } else /* p == gp->Right() */ {
+      FIX_CHILD(Right, Left);
     }
+
+#undef FIX_CHILD
   }
 
   if (p != nullptr) {
@@ -216,18 +228,48 @@ std::optional<RbNode*> RbNode::InsertFix(RbNode* n) {
 
 std::optional<RbNode*> RbNode::DeleteFix(RbNode* n) {
   RbNode* p;
-  while ((p = n->parent_) != nullptr && !n->red_) {
-    if (n == p->left_) {
-      RbNode* s = p->right_;
-    } else {
-      RbNode* s = p->left_;
+  while ((p = n->Parent()) != nullptr && n->IsBlack()) {
+#define FIX_CHILD(dir, opp)                                                \
+  RbNode* s = p->opp();                                                    \
+  CK_ASSERT(s != nullptr);                                                 \
+  if (s->IsRed()) {                                                        \
+    p->MakeRed();                                                          \
+    s->MakeBlack();                                                        \
+    p->Rotate##dir(s);                                                     \
+  }                                                                        \
+  /* Since `n` is double black, `s`'s black depth must be at least two, */ \
+  /* so it must have left and right children. */                           \
+  /* NOLINTNEXTLINE(readability-simplify-boolean-expr) */                  \
+  CK_ASSERT(s->Left() != nullptr && s->Right() != nullptr);                \
+  if (s->dir()->IsBlack() && s->opp()->IsBlack()) {                        \
+    s->MakeRed();                                                          \
+    n = p;                                                                 \
+  } else if (s->opp()->IsRed()) {                                          \
+    s->red_ = p->red_;                                                     \
+    p->MakeBlack();                                                        \
+    p->Rotate##dir(s);                                                     \
+    break;                                                                 \
+  } else /* s->dir()->IsRed() */ {                                         \
+    RbNode* sl = s->dir();                                                 \
+    sl->red_ = p->red_;                                                    \
+    p->MakeBlack();                                                        \
+    s->Rotate##opp##dir(p, sl);                                            \
+    break;                                                                 \
+  }
+
+    if (n == p->Left()) {
+      FIX_CHILD(Left, Right);
+    } else /* n == p->Right() */ {
+      FIX_CHILD(Right, Left);
     }
+
+#undef FIX_CHILD
   }
 
   // If we landed on a red node, we can color it black and that will fix the
-  // black defecit. If we happened to land on the root, then we need to color it
-  // black anyway, so this coincidentally covers both cases.
-  if (n->red_) {
+  // black defecit. If we happened to land on the root, then we need to color
+  // it black anyway, so this coincidentally covers both cases.
+  if (n->IsRed()) {
     n->MakeBlack();
   }
 
