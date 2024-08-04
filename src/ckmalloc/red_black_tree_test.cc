@@ -91,8 +91,6 @@ class RedBlackTreeTest : public ::testing::Test {
     DEFINE_OR_RETURN(size_t, right_depth, ValidateNode<T, Cmp>(node->Right()));
 
     if (left_depth != right_depth) {
-      std::cout << "Diff depths: " << *static_cast<const T*>(node->Left())
-                << " vs " << *static_cast<const T*>(node->Right()) << std::endl;
       return absl::FailedPreconditionError(
           absl::StrFormat("Found inequal black depth of node: %zu vs %zu",
                           left_depth, right_depth));
@@ -175,29 +173,39 @@ TEST_F(RedBlackTreeTest, TestInsertMany) {
 }
 
 TEST_F(RedBlackTreeTest, TestDeleteMany) {
-  constexpr size_t kNumElements = 20;
-  return;
+  constexpr size_t kNumElements = 1000;
 
   ElementTree tree;
   Element elements[kNumElements];
   for (size_t i = 0; i < kNumElements; i++) {
-    elements[i].val = (i * 17) % kNumElements;
-    tree.Insert(&elements[i]);
+    const size_t idx = (i * 17) % kNumElements;
+    elements[idx].val = idx;
+    tree.Insert(&elements[idx]);
   }
 
   ASSERT_THAT(Validate(tree), IsOk());
+  // std::cerr << "Onto delete" << std::endl;
+  // std::cerr << Print(tree) << std::endl;
 
   for (size_t i = 0; i < kNumElements; i++) {
-    size_t idx = (i * 19 + 3) % kNumElements;
+    size_t idx = (i * 13 + 3) % kNumElements;
+    ASSERT_EQ(((idx + kNumElements - 3) * 77) % kNumElements, i);
+    if (elements[idx].val == 535) {
+      std::cerr << "From now:" << std::endl;
+      std::cerr << Print(tree) << std::endl;
+    }
+    std::cerr << "Deleting " << elements[idx].val << std::endl;
     tree.Remove(&elements[idx]);
-    ASSERT_THAT(Validate(tree), IsOk());
+    std::cerr << Print(tree) << std::endl;
+    ASSERT_THAT(Validate(tree), IsOk()) << Print(tree);
     ASSERT_EQ(tree.Size(), kNumElements - i - 1);
 
     for (size_t j = 0; j < kNumElements; j++) {
+      const size_t iter_idx = ((j + kNumElements - 3) * 77) % kNumElements;
       Element* find_j = tree.LowerBound(
           [j](const Element& element) { return element.val >= j; });
       auto is_ptr_to_j = Pointee(Field(&Element::val, j));
-      if (j <= i) {
+      if (iter_idx <= i) {
         ASSERT_THAT(find_j, Not(is_ptr_to_j));
       } else {
         ASSERT_THAT(find_j, is_ptr_to_j);
