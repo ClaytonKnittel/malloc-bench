@@ -21,7 +21,7 @@ class RedBlackTreeTest : public ::testing::Test {
   template <typename T, typename Cmp>
   static absl::Status Validate(const RbTree<T, Cmp>& tree) {
     if (tree.Root() != nullptr) {
-      if (tree.Root()->Parent() != nullptr) {
+      if (tree.Root()->Parent() != tree.RootSentinel()) {
         return absl::FailedPreconditionError(
             "Found root with non-null parent.");
       }
