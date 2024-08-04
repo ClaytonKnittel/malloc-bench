@@ -83,16 +83,14 @@ class RbNode {
   // `this` is the right child of parent, and left is the left child of `this`.
   void RotateRightLeft(RbNode* parent, RbNode* left);
 
-  // Inserts this node to the left of `node`, returning the current root after
-  // the operation is complete.
-  std::optional<RbNode*> InsertLeft(RbNode* node);
+  // Inserts this node to the left of `node`, fixing the tree as necessary.
+  void InsertLeft(RbNode* node, const RbNode* root);
 
-  // Inserts this node to the right of `node`, returning the current root
-  // after the operation is complete.
-  std::optional<RbNode*> InsertRight(RbNode* node);
+  // Inserts this node to the right of `node`, fixing the tree as necessary.
+  void InsertRight(RbNode* node, const RbNode* root);
 
-  // Removes this node, returning the new root of the tree.
-  std::optional<RbNode*> Remove() const;
+  // Removes this node, fixing the tree as necessary.
+  void Remove(const RbNode* root) const;
 
   RbNode* Left() {
     return left_;
@@ -139,12 +137,12 @@ class RbNode {
     red_ = false;
   }
 
-  static std::optional<RbNode*> InsertFix(RbNode* node);
+  static void InsertFix(RbNode* node, const RbNode* root);
 
   // Fixes a node `node` which has a black height of 1 less than it should. The
   // subtree rooted at `node` should still be a valid red-black tree (except
   // `node` may be red).
-  static std::optional<RbNode*> DeleteFix(RbNode* node, RbNode* parent);
+  static void DeleteFix(RbNode* node, RbNode* parent, const RbNode* root);
 
   RbNode* left_ = nullptr;
   RbNode* right_ = nullptr;
@@ -155,8 +153,21 @@ class RbNode {
 template <typename T, typename Cmp = std::less<T>>
 class RbTree {
  public:
+  RbTree() = default;
+
+  // Disallow copy/move construction/assignment, since tree nodes will point
+  // back to root, which lives in this class.
+  RbTree(const RbTree<T, Cmp>&) = delete;
+  RbTree(RbTree<T, Cmp>&&) = delete;
+  RbTree<T, Cmp>& operator=(const RbTree<T, Cmp>&) = delete;
+  RbTree<T, Cmp>& operator=(RbTree<T, Cmp>&&) = delete;
+
+  const RbNode* RootSentinel() const {
+    return &root_;
+  }
+
   const RbNode* Root() const {
-    return root_;
+    return root_.Left();
   }
 
   size_t Size() const {
@@ -164,38 +175,31 @@ class RbTree {
   }
 
   void Insert(T* item) {
-    if (root_ == nullptr) {
-      root_ = static_cast<RbNode*>(item);
-      root_->Reset();
+    if (Root() == nullptr) {
+      auto* node = static_cast<RbNode*>(item);
+      node->Reset();
+      root_.SetLeft(node);
       size_++;
       return;
     }
 
-    RbNode* parent = root_;
+    RbNode* parent = Root();
     for (RbNode* node; (node = Cmp{}(*item, *static_cast<T*>(parent))
                                    ? parent->left_
                                    : parent->right_) != nullptr;
          parent = node)
       ;
 
-    std::optional<RbNode*> new_root;
     if (Cmp{}(*item, *static_cast<T*>(parent))) {
-      new_root = item->RbNode::InsertLeft(parent);
+      item->RbNode::InsertLeft(parent, RootSentinel());
     } else {
-      new_root = item->RbNode::InsertRight(parent);
-    }
-
-    if (new_root.has_value()) {
-      root_ = new_root.value();
+      item->RbNode::InsertRight(parent, RootSentinel());
     }
     size_++;
   }
 
   void Remove(T* item) {
-    std::optional<RbNode*> new_root = item->RbNode::Remove();
-    if (new_root.has_value()) {
-      root_ = new_root.value();
-    }
+    item->RbNode::Remove(RootSentinel());
     size_--;
   }
 
@@ -203,7 +207,7 @@ class RbTree {
   // for.
   template <typename AtLeast>
   T* LowerBound(AtLeast at_least) {
-    RbNode* node = root_;
+    RbNode* node = Root();
     RbNode* smallest = nullptr;
     while (node != nullptr) {
       if (at_least(*static_cast<T*>(node))) {
@@ -218,7 +222,11 @@ class RbTree {
   }
 
  private:
-  RbNode* root_ = nullptr;
+  RbNode* Root() {
+    return root_.Left();
+  }
+
+  RbNode root_;
   size_t size_ = 0;
 };
 

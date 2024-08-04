@@ -56,25 +56,23 @@ void RbNode::RotateRightLeft(RbNode* parent, RbNode* left) {
   left->SetLeft(parent);
 }
 
-std::optional<RbNode*> RbNode::InsertLeft(RbNode* node) {
+void RbNode::InsertLeft(RbNode* node, const RbNode* root) {
   CK_ASSERT(node->left_ == nullptr);
   node->left_ = this;
   this->parent_ = node;
   this->MakeRed();
-  return InsertFix(this);
+  InsertFix(this, root);
 }
 
-std::optional<RbNode*> RbNode::InsertRight(RbNode* node) {
+void RbNode::InsertRight(RbNode* node, const RbNode* root) {
   CK_ASSERT(node->right_ == nullptr);
   node->right_ = this;
   this->parent_ = node;
   this->MakeRed();
-  return InsertFix(this);
+  InsertFix(this, root);
 }
 
-std::optional<RbNode*> RbNode::Remove() const {
-  // The node which will be replacing `this`'s place in the tree.
-  RbNode* replacer;
+void RbNode::Remove(const RbNode* root) const {
   // The node which will be succeeding the location being removed from the tree.
   // This is where we start fixing from.
   RbNode* successor;
@@ -82,45 +80,35 @@ std::optional<RbNode*> RbNode::Remove() const {
   RbNode* parent;
   bool deleted_black;
   if (left_ == nullptr) {
-    replacer = right_;
     successor = right_;
     parent = parent_;
     deleted_black = this->IsBlack();
     DetachParent(right_);
   } else if (right_ == nullptr) {
-    replacer = left_;
     successor = left_;
     parent = parent_;
     deleted_black = this->IsBlack();
     DetachParent(left_);
   } else {
-    replacer = left_->RightmostChild();
-    successor = replacer->left_;
-    parent = replacer->parent_ != this ? replacer->parent_ : replacer;
-    deleted_black = replacer->IsBlack();
+    RbNode* scapegoat = left_->RightmostChild();
+    successor = scapegoat->left_;
+    parent = scapegoat->parent_ != this ? scapegoat->parent_ : scapegoat;
+    deleted_black = scapegoat->IsBlack();
 
     // successor does not have a right child. Detach it from its parent and
     // replace it with its left (only) child.
-    replacer->DetachParent(successor);
+    scapegoat->DetachParent(successor);
 
     // Replace this node with the successor.
-    replacer->SetLeft(left_);
-    replacer->SetRight(right_);
-    replacer->SetParentOf(this);
-    replacer->red_ = red_;
+    scapegoat->SetLeft(left_);
+    scapegoat->SetRight(right_);
+    scapegoat->SetParentOf(this);
+    scapegoat->red_ = red_;
   }
 
-  // We have already replaced `this` with `successor`. If `this` was previously
-  // the root of the tree, we will need to return the updated root.
-  std::optional<RbNode*> new_root =
-      parent_ == nullptr ? std::optional<RbNode*>(replacer) : std::nullopt;
-  if (!deleted_black) {
-    return new_root;
+  if (deleted_black) {
+    DeleteFix(successor, parent, root);
   }
-
-  // If `DeleteFix` returns a new root, return that. Otherwise, return
-  // `successor` if `this` was previously the root, else root has not changed.
-  return OptionalOr(DeleteFix(successor, parent), std::move(new_root));
 }
 
 void RbNode::SetLeft(RbNode* node) {
@@ -161,10 +149,9 @@ void RbNode::DetachParent(RbNode* new_child) const {
   }
 }
 
-/* static */
-std::optional<RbNode*> RbNode::InsertFix(RbNode* n) {
+void RbNode::InsertFix(RbNode* n, const RbNode* root) {
   RbNode* p;
-  while ((p = n->parent_) != nullptr && p->IsRed()) {
+  while ((p = n->parent_) != root && p->IsRed()) {
 #define FIX_CHILD(dir, opp)         \
   RbNode* a = gp->opp();            \
   if (a != nullptr && a->IsRed()) { \
@@ -197,15 +184,12 @@ std::optional<RbNode*> RbNode::InsertFix(RbNode* n) {
 #undef FIX_CHILD
   }
 
-  if (p != nullptr) {
-    return std::nullopt;
+  if (p == root) {
+    n->MakeBlack();
   }
-
-  n->MakeBlack();
-  return n;
 }
 
-std::optional<RbNode*> RbNode::DeleteFix(RbNode* n, RbNode* p) {
+void RbNode::DeleteFix(RbNode* n, RbNode* p, const RbNode* root) {
   while (true) {
 #define FIX_CHILD(dir, opp)                           \
   RbNode* s = p->opp();                               \
@@ -239,7 +223,7 @@ std::optional<RbNode*> RbNode::DeleteFix(RbNode* n, RbNode* p) {
     break;                                            \
   }
 
-    if (p == nullptr || IsRedPtr(n)) {
+    if (p == root || IsRedPtr(n)) {
       // If we landed on a red node, we can color it black and that will fix
       // the black defecit. If we happened to land on the root, then we need
       // to color it black anyway, so this coincidentally covers both cases.
@@ -258,10 +242,6 @@ std::optional<RbNode*> RbNode::DeleteFix(RbNode* n, RbNode* p) {
 
 #undef FIX_CHILD
   }
-
-  return p == nullptr ? std::optional<RbNode*>(n)
-                      : (p->parent_ == nullptr ? std::optional<RbNode*>(p)
-                                               : std::nullopt);
 }
 
 }  // namespace ckmalloc
