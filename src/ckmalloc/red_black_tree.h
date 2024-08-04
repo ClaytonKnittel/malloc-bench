@@ -144,7 +144,7 @@ class RbNode {
   // Fixes a node `node` which has a black height of 1 less than it should. The
   // subtree rooted at `node` should still be a valid red-black tree (except
   // `node` may be red).
-  static std::optional<RbNode*> DeleteFix(RbNode* node);
+  static std::optional<RbNode*> DeleteFix(RbNode* node, RbNode* parent);
 
   RbNode* left_ = nullptr;
   RbNode* right_ = nullptr;
