@@ -20,6 +20,8 @@ class Allocator {
   void* Alloc(size_t size,
               std::align_val_t alignment = static_cast<std::align_val_t>(1));
 
+  size_t AllocatedBytes() const;
+
  private:
   bench::Heap* heap_;
 };
