@@ -184,19 +184,11 @@ TEST_F(RedBlackTreeTest, TestDeleteMany) {
   }
 
   ASSERT_THAT(Validate(tree), IsOk());
-  // std::cerr << "Onto delete" << std::endl;
-  // std::cerr << Print(tree) << std::endl;
 
   for (size_t i = 0; i < kNumElements; i++) {
     size_t idx = (i * 13 + 3) % kNumElements;
     ASSERT_EQ(((idx + kNumElements - 3) * 77) % kNumElements, i);
-    if (elements[idx].val == 535) {
-      std::cerr << "From now:" << std::endl;
-      std::cerr << Print(tree) << std::endl;
-    }
-    std::cerr << "Deleting " << elements[idx].val << std::endl;
     tree.Remove(&elements[idx]);
-    std::cerr << Print(tree) << std::endl;
     ASSERT_THAT(Validate(tree), IsOk()) << Print(tree);
     ASSERT_EQ(tree.Size(), kNumElements - i - 1);
 
