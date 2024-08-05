@@ -32,12 +32,10 @@ cc_test(
 )
 
 cc_library(
-    name = "heap_manager",
-    srcs = ["heap_manager.cc"],
-    hdrs = ["heap_manager.h"],
+    name = "free_slab",
+    hdrs = ["free_slab.h"],
     deps = [
-        ":slab_manager",
-        ":util",
+        ":red_black_tree",
     ],
 )
 
@@ -65,7 +63,6 @@ cc_test(
 
 cc_library(
     name = "slab",
-    srcs = ["slab.cc"],
     hdrs = ["slab.h"],
     deps = [
     ],
@@ -83,9 +80,11 @@ cc_library(
     srcs = ["slab_manager.cc"],
     hdrs = ["slab_manager.h"],
     deps = [
-        "//src:heap_interface",
+        ":free_slab",
+        ":slab",
         ":slab_id",
         ":util",
+        "//src:heap_interface",
     ],
 )
 
