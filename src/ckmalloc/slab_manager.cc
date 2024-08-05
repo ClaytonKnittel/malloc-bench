@@ -46,8 +46,8 @@ std::optional<SlabId> SlabManager::Alloc(uint32_t n_pages) {
       slab = smallest_multi_page_;
     } else {
       slab = multi_page_free_slabs_.LowerBound(
-          [n_pages](const FreeMultiPageSlab* slab) {
-            return slab->Pages() >= n_pages;
+          [n_pages](const FreeMultiPageSlab& slab) {
+            return slab.Pages() >= n_pages;
           });
     }
 
