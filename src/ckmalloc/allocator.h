@@ -7,6 +7,7 @@
 
 namespace ckmalloc {
 
+// TODO delete if not used
 // Alloc-only allocator that allocates memory directly from the kernel.
 class Allocator {
  public:
