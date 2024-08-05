@@ -1,6 +1,7 @@
 #pragma once
 
 #include "src/ckmalloc/red_black_tree.h"
+
 namespace ckmalloc {
 
 class FreeSinglePageSlab {

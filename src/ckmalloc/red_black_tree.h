@@ -232,7 +232,7 @@ class RbTree {
     RbNode* node = Root();
     RbNode* smallest = nullptr;
     while (node != nullptr) {
-      if (at_least(*static_cast<T*>(node))) {
+      if (at_least(*static_cast<const T*>(node))) {
         smallest = node;
         node = node->left_;
       } else {
