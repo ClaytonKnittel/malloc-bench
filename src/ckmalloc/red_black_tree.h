@@ -39,6 +39,10 @@ class RbNode {
     return !red_;
   }
 
+  RbNode* Next() {
+    return const_cast<RbNode*>(static_cast<const RbNode*>(this)->Next());
+  }
+
   const RbNode* Next() const {
     if (right_ != nullptr) {
       return right_->LeftmostChild();
@@ -47,6 +51,24 @@ class RbNode {
     const RbNode* node = this;
     const RbNode* prev = nullptr;
     while (node != nullptr && node->right_ == prev) {
+      prev = node;
+      node = node->parent_;
+    }
+    return node;
+  }
+
+  RbNode* Prev() {
+    return const_cast<RbNode*>(static_cast<const RbNode*>(this)->Prev());
+  }
+
+  const RbNode* Prev() const {
+    if (left_ != nullptr) {
+      return left_->RightmostChild();
+    }
+
+    const RbNode* node = this;
+    const RbNode* prev = nullptr;
+    while (node != nullptr && node->left_ == prev) {
       prev = node;
       node = node->parent_;
     }
