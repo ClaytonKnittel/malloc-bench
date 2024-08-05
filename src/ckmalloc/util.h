@@ -12,6 +12,7 @@
 
 #define CK_ASSERT(cond)                                                     \
   do {                                                                      \
+    /* NOLINTNEXTLINE(readability-simplify-boolean-expr) */                 \
     if (!(cond)) {                                                          \
       std::cerr << __FILE__ ":" << __LINE__ << ": Condition failed: " #cond \
                 << std::endl;                                               \
