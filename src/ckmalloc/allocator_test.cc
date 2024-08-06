@@ -1,7 +1,6 @@
 #include "src/ckmalloc/allocator.h"
 
 #include <cstddef>
-#include <new>
 
 #include "gtest/gtest.h"
 
