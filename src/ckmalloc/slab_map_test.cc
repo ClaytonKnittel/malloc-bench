@@ -82,4 +82,48 @@ TEST_F(SlabMapTest, TestInsert) {
             nullptr);
 }
 
+TEST_F(SlabMapTest, TestAssignRange) {
+  Slab* test_slab = reinterpret_cast<Slab*>(0x123456789abcd0);
+
+  constexpr uint32_t kStartIdx =
+      20 + 5 * kNodeSize + 16 * kNodeSize * kNodeSize;
+  constexpr uint32_t kEndIdx = 2 + 10 * kNodeSize + 18 * kNodeSize * kNodeSize;
+  SlabId start_id = SlabId::Zero() + kStartIdx;
+  SlabId end_id = SlabId::Zero() + kEndIdx;
+  EXPECT_THAT(SlabMap().AllocatePath(start_id, end_id), IsOk());
+
+  for (uint32_t i = kStartIdx; i <= kEndIdx; i++) {
+    SlabMap().Insert(SlabId::Zero() + i, test_slab + (i - kStartIdx));
+  }
+
+  for (uint32_t i = kStartIdx - 1000; i <= kEndIdx + 1000; i++) {
+    if (i >= kStartIdx && i <= kEndIdx) {
+      ASSERT_EQ(SlabMap().FindSlab(SlabId::Zero() + i),
+                test_slab + (i - kStartIdx));
+    } else {
+      ASSERT_EQ(SlabMap().FindSlab(SlabId::Zero() + i), nullptr);
+    }
+  }
+}
+
+TEST_F(SlabMapTest, TestInsertRange) {
+  Slab* test_slab = reinterpret_cast<Slab*>(0x123456789abcd0);
+
+  constexpr uint32_t kStartIdx =
+      20 + 5 * kNodeSize + 16 * kNodeSize * kNodeSize;
+  constexpr uint32_t kEndIdx = 2 + 10 * kNodeSize + 18 * kNodeSize * kNodeSize;
+  SlabId start_id = SlabId::Zero() + kStartIdx;
+  SlabId end_id = SlabId::Zero() + kEndIdx;
+  EXPECT_THAT(SlabMap().AllocatePath(start_id, end_id), IsOk());
+  SlabMap().InsertRange(start_id, end_id, test_slab);
+
+  for (uint32_t i = kStartIdx - 1000; i <= kEndIdx + 1000; i++) {
+    if (i >= kStartIdx && i <= kEndIdx) {
+      ASSERT_EQ(SlabMap().FindSlab(SlabId::Zero() + i), test_slab);
+    } else {
+      ASSERT_EQ(SlabMap().FindSlab(SlabId::Zero() + i), nullptr);
+    }
+  }
+}
+
 }  // namespace ckmalloc
