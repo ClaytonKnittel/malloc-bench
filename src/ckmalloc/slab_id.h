@@ -6,6 +6,7 @@ namespace ckmalloc {
 
 class SlabId {
   friend class SlabManager;
+  friend class SlabMap;
 
  public:
   SlabId(const SlabId& slab_id) = default;

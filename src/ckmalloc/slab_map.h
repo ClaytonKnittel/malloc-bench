@@ -2,8 +2,10 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <new>
 
 #include "src/ckmalloc/slab.h"
+#include "src/ckmalloc/slab_id.h"
 #include "src/ckmalloc/util.h"
 #include "src/singleton_heap.h"
 
@@ -25,6 +27,10 @@ constexpr uint32_t kRootShift = kHeapSizeShift - kPageShift - 2 * kNodeShift;
 constexpr size_t kRootSize = 1 << kRootShift;
 
 // NOLINTEND(google-readability-casting)
+
+// This method is defined in state.cc, but we can't depend on :state due to
+// circular dependencies.
+extern void* MetadataAlloc(size_t size, std::align_val_t alignment);
 
 class SlabMap {
  public:
@@ -56,6 +62,18 @@ class SlabMap {
    private:
     Leaf* leaves_[kNodeSize];
   };
+
+  static size_t RootIdx(SlabId slab_id) {
+    return slab_id.Idx() / (kNodeSize * kNodeSize);
+  }
+
+  static size_t MiddleIdx(SlabId slab_id) {
+    return (slab_id.Idx() / kNodeSize) % kRootSize;
+  }
+
+  static size_t LeafIdx(SlabId slab_id) {
+    return slab_id.Idx() % (kRootSize * kNodeSize);
+  }
 
   Node& operator[](size_t idx) {
     CK_ASSERT(idx < kRootSize);
