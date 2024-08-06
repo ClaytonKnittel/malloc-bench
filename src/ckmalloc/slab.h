@@ -16,9 +16,6 @@ enum class SlabType {
   // any allocated slab and can be claimed for a new slab.
   kFree,
 
-  // This slab metadata is managing a metadata slab.
-  kMetadata,
-
   // This slab metadata is managing a small block slab.
   kSmall,
 
