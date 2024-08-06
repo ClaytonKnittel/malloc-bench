@@ -17,8 +17,7 @@ class MetadataManager {
   // beginning of that region.
   //
   // If out of memory, `nullptr` is returned.
-  void* Alloc(size_t size,
-              std::align_val_t alignment = static_cast<std::align_val_t>(1));
+  void* Alloc(size_t size, size_t alignment = 1);
 
   // Allocate a new slab metadata and return a pointer to it uninitialized.
   Slab* NewSlabMeta();
