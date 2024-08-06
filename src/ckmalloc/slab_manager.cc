@@ -17,7 +17,7 @@ SlabManager::SlabManager(bench::Heap* heap)
 
 void* SlabManager::SlabFromId(SlabId slab_id) const {
   void* slab_start = static_cast<uint8_t*>(heap_start_) +
-                     (static_cast<ptrdiff_t>(slab_id.Idx()) * kSlabSize);
+                     (static_cast<ptrdiff_t>(slab_id.Idx()) * kPageSize);
   CK_ASSERT(slab_start >= heap_->Start() && slab_start < heap_->End());
   return slab_start;
 }
@@ -27,14 +27,14 @@ SlabId SlabManager::SlabIdFromPtr(void* ptr) const {
   CK_ASSERT(ptr >= heap_->Start() && ptr < heap_->End());
   ptrdiff_t diff =
       static_cast<uint8_t*>(ptr) - static_cast<uint8_t*>(heap_start_);
-  return SlabId(static_cast<uint32_t>(diff / kSlabSize));
+  return SlabId(static_cast<uint32_t>(diff / kPageSize));
 }
 
-std::optional<SlabId> SlabManager::Alloc(uint32_t n_pages) {
+void* SlabManager::AllocRaw(uint32_t n_pages) {
   if (n_pages == 1 && single_page_freelist_ != nullptr) {
     FreeSinglePageSlab* slab = single_page_freelist_;
     single_page_freelist_ = slab->NextFree();
-    return SlabIdFromPtr(single_page_freelist_);
+    return single_page_freelist_;
   }
   if (smallest_multi_page_ != nullptr) {
     FreeMultiPageSlab* slab;
@@ -61,8 +61,12 @@ std::optional<SlabId> SlabManager::Alloc(uint32_t n_pages) {
     }
   }
 
-  size_t requested_size = static_cast<size_t>(n_pages) * kSlabSize;
-  void* slab_start = heap_->sbrk(requested_size);
+  size_t requested_size = static_cast<size_t>(n_pages) * kPageSize;
+  return heap_->sbrk(requested_size);
+}
+
+std::optional<SlabId> SlabManager::Alloc(uint32_t n_pages) {
+  void* slab_start = AllocRaw(n_pages);
   return slab_start != nullptr ? std::optional(SlabIdFromPtr(slab_start))
                                : std::nullopt;
 }
@@ -73,6 +77,7 @@ void SlabManager::Free(SlabId slab_id, uint32_t n_pages) {
   }
 
   void* slab_start = SlabFromId(slab_id);
+  // TODO: coalesce (need slab map).
   if (n_pages == 1) {
     auto* slab = new (slab_start) FreeSinglePageSlab();
     slab->SetNextFree(single_page_freelist_);
