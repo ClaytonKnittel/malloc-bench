@@ -6,7 +6,9 @@
 
 #include "absl/status/status.h"
 #include "absl/strings/str_format.h"
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "util/absl_util.h"
 #include "util/gtest_util.h"
 
 namespace ckmalloc {
