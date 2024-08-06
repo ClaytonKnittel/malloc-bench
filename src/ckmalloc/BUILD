@@ -109,6 +109,7 @@ cc_library(
         ":common",
         ":free_slab",
         ":slab_id",
+        ":slab_map",
         ":util",
         "//src:heap_interface",
     ],
@@ -137,6 +138,21 @@ cc_test(
         "@cc-util//util:gtest_util",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "state",
+    srcs = ["state.cc"],
+    hdrs = ["state.h"],
+    deps = [
+        ":common",
+        ":metadata_manager",
+        ":slab",
+        ":slab_manager",
+        ":slab_map",
+        ":util",
+        "//src:heap_interface",
     ],
 )
 
