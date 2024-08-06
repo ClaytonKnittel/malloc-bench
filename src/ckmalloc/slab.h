@@ -9,7 +9,13 @@ namespace ckmalloc {
 enum class SlabType {
   // The slab metadata is free and in the metadata freelist. It is not managing
   // any allocated slab and can be claimed for a new slab.
+  kUnmapped,
+
+  // This slab metadata is managing a free slab.
   kFree,
+
+  // This slab metadata is managing a metadata slab.
+  kMetadata,
 
   // This slab metadata is managing a small block slab.
   kSmall,
@@ -22,6 +28,15 @@ enum class SlabType {
 // in a metadata slab.
 class Slab {
  public:
+  void InitFreeSlab(SlabId start_id, uint32_t n_pages);
+
+  // Returns the `SlabId` of the first page in this slab.
+  SlabId StartId() const;
+
+  SlabType Type() const {
+    return type_;
+  }
+
   // Returns the number of pages that this slab manages. This slab must not be a
   // freed slab metadata.
   uint32_t Pages() const;
@@ -32,12 +47,15 @@ class Slab {
   union {
     struct {
       uint32_t n_pages_;
-    } free;
+    } unmapped;
 
     struct {
       SlabId id_;
 
       union {
+        struct {
+          uint32_t n_pages_;
+        } free;
         struct {
         } metadata;
         struct {
@@ -46,7 +64,7 @@ class Slab {
           uint32_t n_pages_;
         } large;
       };
-    } allocated;
+    } mapped;
   };
 };
 
