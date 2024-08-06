@@ -12,12 +12,11 @@ Allocator::Allocator(bench::Heap* heap) : heap_(heap) {
   CK_ASSERT(heap->Start() == heap->End());
 }
 
-void* Allocator::Alloc(size_t size, std::align_val_t alignment) {
+void* Allocator::Alloc(size_t size, size_t alignment) {
   // Alignment must be a power of two.
-  CK_ASSERT((static_cast<size_t>(alignment) &
-             (static_cast<size_t>(alignment) - 1)) == 0);
+  CK_ASSERT((alignment & (alignment - 1)) == 0);
   // Size must already be aligned to `alignment`.
-  CK_ASSERT((size & (static_cast<size_t>(alignment) - 1)) == 0);
+  CK_ASSERT((size & (alignment - 1)) == 0);
 
   auto current_end = reinterpret_cast<uintptr_t>(heap_->End());
   auto align_mask = static_cast<uintptr_t>(alignment) - 1;

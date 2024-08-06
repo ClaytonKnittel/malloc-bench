@@ -8,7 +8,7 @@ namespace ckmalloc {
 
 // Allocates raw memory from the metadata allocator which cannot be freed. This
 // is only intended for metadata allocation, never user data allocation.
-void* MetadataAlloc(size_t size, std::align_val_t alignment);
+void* MetadataAlloc(size_t size, size_t alignment);
 
 class State {
  public:

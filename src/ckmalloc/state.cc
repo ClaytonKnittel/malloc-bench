@@ -11,7 +11,7 @@ namespace ckmalloc {
 
 State* State::state_ = nullptr;
 
-void* MetadataAlloc(size_t size, std::align_val_t alignment) {
+void* MetadataAlloc(size_t size, size_t alignment) {
   return State::Instance()->MetadataManager()->Alloc(size, alignment);
 }
 

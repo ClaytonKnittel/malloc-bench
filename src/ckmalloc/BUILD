@@ -10,6 +10,13 @@ cc_library(
 )
 
 cc_library(
+    name = "common",
+    hdrs = ["common.h"],
+    deps = [
+    ],
+)
+
+cc_library(
     name = "allocator",
     srcs = ["allocator.cc"],
     hdrs = ["allocator.h"],
@@ -93,9 +100,12 @@ cc_library(
 
 cc_library(
     name = "slab_map",
-    srcs = ["slab_map.cc"],
     hdrs = ["slab_map.h"],
     deps = [
+        ":common",
+        ":slab",
+        ":slab_id",
+        ":util",
         "//src:singleton_heap",
     ],
 )
