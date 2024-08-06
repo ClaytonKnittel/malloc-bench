@@ -3,18 +3,14 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
-#include <unistd.h>
 
 #include "src/ckmalloc/free_slab.h"
+#include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/slab_id.h"
 #include "src/ckmalloc/util.h"
 #include "src/heap_interface.h"
 
 namespace ckmalloc {
-
-const size_t SlabManager::kSlabSize = []() {
-  return static_cast<size_t>(sysconf(_SC_PAGESIZE));
-}();
 
 SlabManager::SlabManager(bench::Heap* heap)
     : heap_(heap), heap_start_(heap->Start()) {}
