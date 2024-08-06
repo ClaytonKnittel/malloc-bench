@@ -23,6 +23,10 @@ class MetadataManager {
   // Allocate a new slab metadata and return a pointer to it uninitialized.
   Slab* NewSlabMeta();
 
+  // Frees a slab metadata. This freed slab can be returned from
+  // `NewSlabMeta()`.
+  void FreeSlabMeta(Slab* slab);
+
  private:
   // The most recently allocated metadata slab.
   SlabId last_;

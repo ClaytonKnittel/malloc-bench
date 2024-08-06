@@ -21,6 +21,11 @@ class SlabManager {
   // Returns the `SlabId` for the slab containing `ptr`.
   SlabId SlabIdFromPtr(void* ptr) const;
 
+  // Allocates `n_pages` contiguous pages, returning a pointer to the start of
+  // the first page in the contiguous block of pages if there is availability,
+  // otherwise returning `nullptr`.
+  void* AllocRaw(uint32_t n_pages);
+
   // Allocates `n_pages` contiguous pages, returning the SlabId of the first
   // page in the contiguous block of pages if there is availability, otherwise
   // returning `nullopt`.
