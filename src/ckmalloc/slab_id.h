@@ -2,11 +2,15 @@
 
 #include <cstdint>
 
+#include "src/ckmalloc/common.h"
+
 namespace ckmalloc {
 
 class SlabId {
   friend class SlabManager;
-  friend class SlabMap;
+
+  template <AllocFn Alloc>
+  friend class SlabMapImpl;
 
  public:
   SlabId(const SlabId& slab_id) = default;

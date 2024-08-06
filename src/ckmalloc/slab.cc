@@ -10,7 +10,6 @@ uint32_t Slab::Pages() const {
     case SlabType::kLarge: {
       return allocated.large.n_pages_;
     }
-    case SlabType::kMetadata:
     case SlabType::kSmall: {
       return 1;
     }

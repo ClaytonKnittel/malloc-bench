@@ -6,7 +6,7 @@
 
 #ifdef NDEBUG
 
-#define CK_ASSERT(cond)
+#define CK_ASSERT(cond) __builtin_assume(cond)
 
 #else
 
