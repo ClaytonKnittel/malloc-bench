@@ -1,6 +1,6 @@
 #include "src/ckmalloc/metadata_manager.h"
 
-#include "src/ckmalloc/slab.h"
+#include "src/ckmalloc/common.h"
 #include "src/ckmalloc/util.h"
 
 namespace ckmalloc {

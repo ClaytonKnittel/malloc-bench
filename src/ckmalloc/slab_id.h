@@ -3,8 +3,11 @@
 #include <cstdint>
 
 #include "src/ckmalloc/common.h"
+#include "src/ckmalloc/util.h"
 
 namespace ckmalloc {
+
+constexpr uint32_t kMaxSlabIdx = 1 << (kHeapSizeShift - kPageShift);
 
 class SlabId {
   friend class SlabManager;
@@ -27,7 +30,9 @@ class SlabId {
   }
 
  private:
-  constexpr explicit SlabId(uint32_t slab_idx) : slab_idx_(slab_idx) {}
+  constexpr explicit SlabId(uint32_t slab_idx) : slab_idx_(slab_idx) {
+    CK_ASSERT(slab_idx < kMaxSlabIdx);
+  }
 
   uint32_t Idx() const {
     return slab_idx_;
