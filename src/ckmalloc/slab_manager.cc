@@ -4,8 +4,8 @@
 #include <cstdint>
 #include <optional>
 
+#include "src/ckmalloc/common.h"
 #include "src/ckmalloc/free_slab.h"
-#include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/slab_id.h"
 #include "src/ckmalloc/util.h"
 #include "src/heap_interface.h"
