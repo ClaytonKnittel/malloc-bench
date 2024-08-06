@@ -25,12 +25,8 @@ size_t AlignSize(size_t size) {
 }
 
 // Returns the alignment that should be used for a given size.
-std::align_val_t AlignmentForSize(size_t size) {
-  if (size <= 8) {
-    return static_cast<std::align_val_t>(8);
-  }
-
-  return static_cast<std::align_val_t>(16);
+size_t AlignmentForSize(size_t size) {
+  return size <= 8 ? 8 : 16;
 }
 
 }  // namespace

@@ -62,7 +62,7 @@ TEST_F(AllocatorTest, SecondInsertAligned) {
   Allocator& alloc = MakeAllocator(100);
 
   alloc.Alloc(10);
-  EXPECT_EQ(alloc.Alloc(8, std::align_val_t(8)), PtrAt(16));
+  EXPECT_EQ(alloc.Alloc(8, 8), PtrAt(16));
 }
 
 }  // namespace ckmalloc
