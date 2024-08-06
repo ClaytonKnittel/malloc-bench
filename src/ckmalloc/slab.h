@@ -1,15 +1,10 @@
 #pragma once
 
-#include <cstddef>
 #include <cstdint>
 
 #include "src/ckmalloc/slab_id.h"
 
 namespace ckmalloc {
-
-static constexpr uint32_t kPageShift = 12;
-// The size of slabs in bytes.
-static constexpr size_t kPageSize = 1 << kPageShift;
 
 enum class SlabType {
   // The slab metadata is free and in the metadata freelist. It is not managing
