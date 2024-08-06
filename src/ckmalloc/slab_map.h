@@ -87,7 +87,7 @@ class SlabMapImpl {
   }
 
   static size_t MiddleIdx(SlabId slab_id) {
-    return (slab_id.Idx() / kNodeSize) % kRootSize;
+    return (slab_id.Idx() / kNodeSize) % kNodeSize;
   }
 
   static size_t LeafIdx(SlabId slab_id) {
@@ -128,18 +128,15 @@ absl::Status SlabMapImpl<Alloc>::AllocatePath(SlabId start_id, SlabId end_id) {
   auto root_idxs = std::make_pair(RootIdx(start_id), RootIdx(end_id));
   auto middle_idxs = std::make_pair(MiddleIdx(start_id), MiddleIdx(end_id));
 
-  std::cout << "Ranging " << root_idxs.first << "," << root_idxs.second << " "
-            << middle_idxs.first << "," << middle_idxs.second << std::endl;
   for (size_t root_idx = root_idxs.first; root_idx <= root_idxs.second;
        root_idx++) {
     DEFINE_OR_RETURN(Node*, node, GetOrAllocateNode(root_idx));
-    for (size_t middle_idx = root_idx != root_idxs.first ? 0
-                                                         : middle_idxs.first;
+    for (size_t middle_idx =
+             (root_idx != root_idxs.first ? 0 : middle_idxs.first);
          middle_idx <=
-         (root_idx != root_idxs.second ? kNodeSize : middle_idxs.second);
+         (root_idx != root_idxs.second ? kNodeSize - 1 : middle_idxs.second);
          middle_idx++) {
       RETURN_IF_ERROR(node->GetOrAllocateLeaf(middle_idx).status());
-      std::cerr << "Allocated " << root_idx << " " << middle_idx << std::endl;
     }
   }
 
@@ -163,10 +160,10 @@ void SlabMapImpl<Alloc>::InsertRange(SlabId start_id, SlabId end_id,
   for (size_t root_idx = root_idxs.first; root_idx <= root_idxs.second;
        root_idx++) {
     Node& node = *(*this)[root_idx];
-    for (size_t middle_idx = root_idx != root_idxs.first ? 0
-                                                         : middle_idxs.first;
+    for (size_t middle_idx =
+             (root_idx != root_idxs.first ? 0 : middle_idxs.first);
          middle_idx <=
-         (root_idx != root_idxs.second ? kNodeSize : middle_idxs.second);
+         (root_idx != root_idxs.second ? kNodeSize - 1 : middle_idxs.second);
          middle_idx++) {
       Leaf& leaf = *node[middle_idx];
       for (size_t leaf_idx =
@@ -175,7 +172,7 @@ void SlabMapImpl<Alloc>::InsertRange(SlabId start_id, SlabId end_id,
                     : leaf_idxs.first);
            leaf_idx <=
            (root_idx != root_idxs.second || middle_idx != middle_idxs.second
-                ? kNodeSize
+                ? kNodeSize - 1
                 : leaf_idxs.second);
            leaf_idx++) {
         leaf.SetLeaf(leaf_idx, slab);
