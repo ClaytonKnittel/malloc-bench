@@ -13,6 +13,7 @@ cc_library(
     name = "common",
     hdrs = ["common.h"],
     deps = [
+        "//src:singleton_heap",
     ],
 )
 
@@ -47,6 +48,19 @@ cc_library(
 )
 
 cc_library(
+    name = "metadata_manager",
+    srcs = ["metadata_manager.cc"],
+    hdrs = ["metadata_manager.h"],
+    deps = [
+        ":common",
+        ":slab",
+        ":slab_id",
+        ":slab_manager",
+        ":util",
+    ],
+)
+
+cc_library(
     name = "red_black_tree",
     srcs = ["red_black_tree.cc"],
     hdrs = ["red_black_tree.h"],
@@ -62,6 +76,7 @@ cc_test(
         ":red_black_tree",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/strings:str_format",
+        "@cc-util//util:absl_util",
         "@cc-util//util:gtest_util",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
@@ -82,6 +97,7 @@ cc_library(
     name = "slab_id",
     hdrs = ["slab_id.h"],
     deps = [
+        ":common",
     ],
 )
 
@@ -90,8 +106,8 @@ cc_library(
     srcs = ["slab_manager.cc"],
     hdrs = ["slab_manager.h"],
     deps = [
+        ":common",
         ":free_slab",
-        ":slab",
         ":slab_id",
         ":util",
         "//src:heap_interface",
@@ -106,7 +122,21 @@ cc_library(
         ":slab",
         ":slab_id",
         ":util",
-        "//src:singleton_heap",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@cc-util//util:absl_util",
+    ],
+)
+
+cc_test(
+    name = "slab_map_test",
+    srcs = ["slab_map_test.cc"],
+    deps = [
+        ":slab_id",
+        ":slab_map",
+        "@cc-util//util:gtest_util",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
