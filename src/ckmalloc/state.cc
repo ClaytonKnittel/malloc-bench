@@ -17,7 +17,7 @@ State* State::InitializeWithEmptyAlloc(bench::Heap* heap) {
 }
 
 State::State(bench::Heap* heap)
-    : slab_manager_(heap), metadata_manager_(SlabId::Zero()) {
+    : slab_manager_(heap), metadata_manager_(SlabId::Zero(), &slab_manager_) {
   // Allocate a single metadata slab.
   slab_manager_.Alloc(1);
 }
