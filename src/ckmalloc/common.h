@@ -17,8 +17,12 @@ static_assert(bench::SingletonHeap::kHeapSize == (size_t(1) << kHeapSizeShift));
 
 using AllocFn = void* (*) (size_t size, size_t alignment);
 
-// This method is defined in state.cc, but we can't depend on :state due to
-// circular dependencies.
+// The following methods are defined in state.cc, but we export them here to
+// avoid circular dependencies in the code.
+
+extern class Slab* SlabMetadataAlloc();
+extern void SlabMetadataFree(class Slab* slab);
+
 extern void* MetadataAlloc(size_t size, size_t alignment);
 
 }  // namespace ckmalloc
