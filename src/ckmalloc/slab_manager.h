@@ -1,11 +1,9 @@
 #pragma once
 
-#include <cstddef>
 #include <cstdint>
 #include <optional>
 
 #include "src/ckmalloc/free_slab.h"
-#include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/slab_id.h"
 #include "src/heap_interface.h"
 
@@ -15,9 +13,6 @@ using SlabRbTree = RbTree<FreeMultiPageSlab>;
 
 class SlabManager {
  public:
-  // The size of slabs in bytes. Typically page size.
-  static const size_t kSlabSize;
-
   explicit SlabManager(bench::Heap* heap);
 
   // Returns a pointer to the start of a slab with given `SlabId`.

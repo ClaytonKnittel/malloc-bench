@@ -22,6 +22,8 @@
 
 #endif
 
+#define CK_UNREACHABLE() __builtin_unreachable()
+
 namespace ckmalloc {
 
 template <typename T>
