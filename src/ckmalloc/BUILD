@@ -63,8 +63,11 @@ cc_test(
 
 cc_library(
     name = "slab",
+    srcs = ["slab.cc"],
     hdrs = ["slab.h"],
     deps = [
+        ":slab_id",
+        ":util",
     ],
 )
 
@@ -85,6 +88,15 @@ cc_library(
         ":slab_id",
         ":util",
         "//src:heap_interface",
+    ],
+)
+
+cc_library(
+    name = "slab_map",
+    srcs = ["slab_map.cc"],
+    hdrs = ["slab_map.h"],
+    deps = [
+        "//src:singleton_heap",
     ],
 )
 
