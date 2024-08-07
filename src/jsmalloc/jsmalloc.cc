@@ -65,6 +65,7 @@ void* realloc(bench::Heap& heap, void* ptr, size_t size) {
   if (size > 0) {
     memcpy(new_ptr, ptr, size);
   }
+  if (ptr != nullptr) free(ptr);
   return new_ptr;
 }
 
