@@ -56,6 +56,7 @@ cc_library(
         ":slab",
         ":slab_id",
         ":slab_manager",
+        ":slab_map",
         ":util",
     ],
 )
@@ -108,6 +109,7 @@ cc_library(
     deps = [
         ":common",
         ":free_slab",
+        ":slab",
         ":slab_id",
         ":slab_map",
         ":util",
@@ -149,6 +151,7 @@ cc_library(
         ":common",
         ":metadata_manager",
         ":slab",
+        ":slab_id",
         ":slab_manager",
         ":slab_map",
         ":util",
