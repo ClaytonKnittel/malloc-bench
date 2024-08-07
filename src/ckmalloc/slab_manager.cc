@@ -18,7 +18,7 @@ namespace ckmalloc {
 SlabManager::SlabManager(bench::Heap* heap, SlabMap* slab_map)
     : heap_(heap), heap_start_(heap->Start()), slab_map_(slab_map) {}
 
-void* SlabManager::SlabFromId(SlabId slab_id) const {
+void* SlabManager::SlabStartFromId(SlabId slab_id) const {
   void* slab_start = static_cast<uint8_t*>(heap_start_) +
                      (static_cast<ptrdiff_t>(slab_id.Idx()) * kPageSize);
   CK_ASSERT(slab_start >= heap_->Start() && slab_start < heap_->End());
@@ -99,8 +99,34 @@ void SlabManager::Free(Slab* slab) {
     return;
   }
 
-  void* slab_start = SlabFromId(slab->StartId());
-  // TODO: coalesce.
+  SlabId start_id = slab->StartId();
+  {
+    Slab* prev_slab = slab_map_->FindSlab(start_id - 1);
+    if (prev_slab != nullptr && prev_slab->Type() == SlabType::kFree) {
+      start_id = prev_slab->StartId();
+      n_pages += prev_slab->Pages();
+      SlabMetadataFree(prev_slab);
+    }
+  }
+
+  SlabId end_id = slab->EndId();
+  {
+    Slab* next_slab = slab_map_->FindSlab(end_id + 1);
+    if (next_slab != nullptr && next_slab->Type() == SlabType::kFree) {
+      end_id = next_slab->EndId();
+      n_pages += next_slab->Pages();
+      SlabMetadataFree(next_slab);
+    }
+  }
+
+  slab->InitFreeSlab(start_id, n_pages);
+  // We only need to map this slab to the first and last page of the slab, since
+  // those will be the only pages queried from this method, and no
+  // user-allocated data lives within a free slab.
+  slab_map_->Insert(start_id, slab);
+  slab_map_->Insert(end_id, slab);
+
+  void* slab_start = SlabStartFromId(start_id);
   if (n_pages == 1) {
     auto* slab = new (slab_start) FreeSinglePageSlab();
     slab->SetNextFree(single_page_freelist_);

@@ -48,9 +48,9 @@ class State {
   // `InitializeWithEmptyAlloc`.
   static State* state_;
 
+  ckmalloc::SlabMap slab_map_;
   ckmalloc::SlabManager slab_manager_;
   ckmalloc::MetadataManager metadata_manager_;
-  ckmalloc::SlabMap slab_map_;
 };
 
 }  // namespace ckmalloc
