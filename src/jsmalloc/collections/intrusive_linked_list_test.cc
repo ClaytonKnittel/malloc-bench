@@ -1,12 +1,9 @@
 #include "src/jsmalloc/collections/intrusive_linked_list.h"
 
-#include <algorithm>
-#include <iterator>
 #include <vector>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "util/gtest_util.h"
 
 namespace jsmalloc {
 
