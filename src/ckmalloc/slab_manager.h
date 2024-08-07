@@ -18,7 +18,7 @@ class SlabManager {
   explicit SlabManager(bench::Heap* heap, SlabMap* slab_map);
 
   // Returns a pointer to the start of a slab with given `SlabId`.
-  void* SlabFromId(SlabId slab_id) const;
+  void* SlabStartFromId(SlabId slab_id) const;
 
   // Returns the `SlabId` for the slab containing `ptr`.
   SlabId SlabIdFromPtr(void* ptr) const;
@@ -43,7 +43,7 @@ class SlabManager {
   // The slab manager needs to access the slab map when coalescing to know if
   // the adjacent slabs are free or allocated, and if they are free how large
   // they are.
-  const SlabMap* slab_map_;
+  SlabMap* slab_map_;
 
   // Single-page slabs are kept in a singly-linked freelist.
   FreeSinglePageSlab* single_page_freelist_ = nullptr;
