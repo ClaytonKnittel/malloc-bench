@@ -117,6 +117,17 @@ cc_library(
     ],
 )
 
+cc_test(
+    name = "slab_manager_test",
+    srcs = ["slab_manager_test.cc"],
+    deps = [
+        ":slab_manager",
+        ":testlib",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
 cc_library(
     name = "slab_map",
     hdrs = ["slab_map.h"],
@@ -137,6 +148,7 @@ cc_test(
     deps = [
         ":slab_id",
         ":slab_map",
+        ":testlib",
         "@cc-util//util:gtest_util",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
@@ -156,6 +168,14 @@ cc_library(
         ":slab_map",
         ":util",
         "//src:heap_interface",
+    ],
+)
+
+cc_library(
+    name = "testlib",
+    hdrs = ["testlib.h"],
+    deps = [
+        ":slab_map",
     ],
 )
 
