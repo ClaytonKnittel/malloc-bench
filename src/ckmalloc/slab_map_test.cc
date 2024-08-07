@@ -6,16 +6,11 @@
 #include "util/gtest_util.h"
 
 #include "src/ckmalloc/slab_id.h"
+#include "src/ckmalloc/testlib.h"
 
 namespace ckmalloc {
 
 using util::IsOk;
-
-void* Allocate(size_t size, size_t alignment) {
-  return ::operator new(size, static_cast<std::align_val_t>(alignment));
-}
-
-using TestSlabMap = SlabMapImpl<Allocate>;
 
 class SlabMapTest : public ::testing::Test {
  public:
