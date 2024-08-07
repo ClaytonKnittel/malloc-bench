@@ -3,6 +3,9 @@ cc_library(
     name = "intrusive_linked_list",
     hdrs = ["intrusive_linked_list.h"],
     visibility = ["//visibility:public"],
+    deps = [
+        "//src/jsmalloc/util:assert",
+    ],
 )
 
 cc_test(
