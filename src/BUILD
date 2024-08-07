@@ -55,6 +55,7 @@ cc_library(
 cc_library(
     name = "allocator_interface",
     hdrs = ["allocator_interface.h"],
+    srcs = ["allocator_interface.cc"],
     deps = [
         ":singleton_heap",
     ],
