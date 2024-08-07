@@ -3,6 +3,8 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "src/jsmalloc/util/assert.h"
+
 namespace jsmalloc {
 
 template <class T, class M>
@@ -28,16 +30,25 @@ class IntrusiveLinkedList {
    private:
     Node(Node* prev, Node* next) : next_(next), prev_(prev) {}
 
-    void insert_the_argument_after_me(Node& node) {
+    /** Inserts `this` after `node`. */
+    void insert_after(Node& node) {
+      next_ = node.next_;
+      prev_ = &node;
+      DCHECK_NON_NULL(node.next_)->prev_ = this;
+      node.next_ = this;
+    }
+
+    /** Inserts `this` before `node`. */
+    void insert_before(Node& node) {
       next_ = &node;
       prev_ = node.prev_;
-      prev_->next_ = this;
       node.prev_ = this;
+      DCHECK_NON_NULL(prev_)->next_ = this;
     }
 
     void remove() {
-      this->prev_->next_ = this->next_;
-      this->next_->prev_ = this->prev_;
+      DCHECK_NON_NULL(this->prev_)->next_ = this->next_;
+      DCHECK_NON_NULL(this->next_)->prev_ = this->prev_;
       this->prev_ = nullptr;
       this->next_ = nullptr;
     }
@@ -59,6 +70,11 @@ class IntrusiveLinkedList {
    public:
     Iterator& operator++() {
       curr_ = curr_->next_;
+      return *this;
+    }
+
+    Iterator& operator--() {
+      curr_ = curr_->prev_;
       return *this;
     }
 
@@ -95,18 +111,13 @@ class IntrusiveLinkedList {
   }
 
   void insert_back(T& el) {
-    (el.*node_field_).insert_the_argument_after_me(head_);
+    (el.*node_field_).insert_before(head_);
     size_++;
   }
 
   void insert_front(T& el) {
-    head_.insert_the_argument_after_me(el.*node_field_);
+    (el.*node_field_).insert_after(head_);
     size_++;
-  }
-
-  void remove(T& el) {
-    (el.*node_field_).remove();
-    size_--;
   }
 
   T* front() {
