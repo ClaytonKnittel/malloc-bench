@@ -30,8 +30,13 @@ class Slab {
  public:
   void InitFreeSlab(SlabId start_id, uint32_t n_pages);
 
+  void InitMetadataSlab(SlabId start_id, uint32_t n_pages);
+
   // Returns the `SlabId` of the first page in this slab.
   SlabId StartId() const;
+
+  // Returns the `SlabId` of the last page in this slab.
+  SlabId EndId() const;
 
   SlabType Type() const {
     return type_;
@@ -51,17 +56,16 @@ class Slab {
 
     struct {
       SlabId id_;
+      uint32_t n_pages_;
 
       union {
         struct {
-          uint32_t n_pages_;
         } free;
         struct {
         } metadata;
         struct {
         } small;
         struct {
-          uint32_t n_pages_;
         } large;
       };
     } mapped;
