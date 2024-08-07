@@ -1,5 +1,3 @@
-#pragma once
-
 #include "src/jsmalloc/util/math.h"
 
 namespace jsmalloc {
