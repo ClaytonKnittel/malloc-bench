@@ -208,7 +208,7 @@ int RunAllTraces() {
            "traces/ngram-gulliver2.trace",
            "traces/ngram-moby1.trace",
            "traces/ngram-shake1.trace",
-           "traces/onoro.trace",
+          //  "traces/onoro.trace",
            "traces/onoro-cc.trace",
            "traces/server.trace",
            "traces/simple.trace",

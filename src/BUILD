@@ -58,6 +58,7 @@ cc_library(
     srcs = ["allocator_interface.cc"],
     deps = [
         ":singleton_heap",
+        "//src/jsmalloc"
     ],
 )
 
