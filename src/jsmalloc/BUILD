@@ -14,6 +14,7 @@ cc_library(
         ":chunky_block",
         "//src:heap_interface",
         "//src/jsmalloc/util:math",
+        "//src/jsmalloc/util:assert",
         "//src/jsmalloc/collections:intrusive_linked_list",
     ],
     visibility = ["//visibility:public"],
