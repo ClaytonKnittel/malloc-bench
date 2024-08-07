@@ -23,6 +23,10 @@ class SlabId {
     return SlabId(slab_idx_ + offset);
   }
 
+  SlabId operator-(uint32_t offset) const {
+    return SlabId(slab_idx_ - offset);
+  }
+
   // The id of the first slab in the heap. This is reserved for the first
   // metadata slab.
   static constexpr SlabId Zero() {

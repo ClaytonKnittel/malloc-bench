@@ -5,13 +5,15 @@
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/slab_id.h"
 #include "src/ckmalloc/slab_manager.h"
+#include "src/ckmalloc/slab_map.h"
 
 namespace ckmalloc {
 
 class MetadataManager {
  public:
-  explicit MetadataManager(SlabId first_slab, SlabManager* slab_manager)
-      : last_(first_slab), slab_manager_(slab_manager) {}
+  explicit MetadataManager(SlabId first_slab, SlabMap* slab_map,
+                           SlabManager* slab_manager)
+      : last_(first_slab), slab_map_(slab_map), slab_manager_(slab_manager) {}
 
   // Allocates `size` bytes aligned to `alignment` and returns a pointer to the
   // beginning of that region.
@@ -33,6 +35,8 @@ class MetadataManager {
   // The offset in bytes that the next piece of metadata should be allocated
   // from `last_`.
   uint32_t alloc_offset_ = 0;
+
+  SlabMap* slab_map_;
 
   // The slab manager which is used to allocate more metadata slabs if
   // necessary.
