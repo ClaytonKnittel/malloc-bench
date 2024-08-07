@@ -7,10 +7,9 @@
 #include "src/heap_interface.h"
 #include "src/jsmalloc/chunky_block.h"
 #include "src/jsmalloc/util/math.h"
+#include "src/jsmalloc/util/assert.h"
 
 namespace jsmalloc {
-
-#define JASSERT(cond) assert(cond)
 
 namespace {
 
@@ -24,7 +23,7 @@ HeapMetadata* heap_metadata = nullptr;
 }  // namespace
 
 void* sbrk_16b(bench::Heap& heap, size_t size) {
-  JASSERT(size % 16 == 0);
+  DCHECK_EQ(size % 16, 0);
   return heap.sbrk(size);
 }
 
