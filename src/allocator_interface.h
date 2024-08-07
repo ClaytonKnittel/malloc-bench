@@ -2,40 +2,30 @@
 
 #include <cstring>
 
+#include "src/jsmalloc/jsmalloc.h"
 #include "src/singleton_heap.h"
 
 namespace bench {
 
 // Called before any allocations are made.
-inline void initialize_heap() {}
+inline void initialize_heap() {
+  jsmalloc::initialize_heap(*SingletonHeap::GlobalInstance());
+}
 
 inline void* malloc(size_t size) {
-  // TODO: implement
-  if (size == 0) {
-    return nullptr;
-  }
-  size_t round_up = (size + 0xf) & ~0xf;
-  return SingletonHeap::GlobalInstance()->sbrk(round_up);
+  return jsmalloc::malloc(*SingletonHeap::GlobalInstance(), size);
 }
 
 inline void* calloc(size_t nmemb, size_t size) {
-  // TODO: implement
-  void* ptr = malloc(nmemb * size);
-  memset(ptr, 0, nmemb * size);
-  return ptr;
+  return jsmalloc::calloc(*SingletonHeap::GlobalInstance(), nmemb, size);
 }
 
 inline void* realloc(void* ptr, size_t size) {
-  // TODO: implement
-  void* new_ptr = malloc(size);
-  if (size > 0) {
-    memcpy(new_ptr, ptr, size);
-  }
-  return new_ptr;
+  return jsmalloc::realloc(*SingletonHeap::GlobalInstance(), ptr, size);
 }
 
 inline void free(void* ptr) {
-  // TODO: implement
+  return jsmalloc::free(ptr);
 }
 
 }  // namespace bench
