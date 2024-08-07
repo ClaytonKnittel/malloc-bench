@@ -110,6 +110,16 @@ class IntrusiveLinkedList {
     return Iterator(head_, node_field_);
   }
 
+  /**
+   * Removes `el` from this list.
+   *
+   * Assumes that `el` is in the list.
+   */
+  void remove(T& el) {
+    (el.*node_field_).remove();
+    size_--;
+  }
+
   void insert_back(T& el) {
     (el.*node_field_).insert_before(head_);
     size_++;
