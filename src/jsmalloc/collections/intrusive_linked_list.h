@@ -1,32 +1,57 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
+
 namespace jsmalloc {
+
+template <class T, class M>
+static inline constexpr ptrdiff_t offset_of(const M T::*member) {
+  return reinterpret_cast<ptrdiff_t>(&(reinterpret_cast<T*>(0)->*member));
+}
+
+template <class T, class M>
+static inline constexpr T* owner_of(const M* ptr, const M T::*member) {
+  return reinterpret_cast<T*>(reinterpret_cast<intptr_t>(ptr) -
+                              offset_of(member));
+}
 
 template <typename T>
 class IntrusiveLinkedList {
  public:
-  class Item {
+  class Node {
     friend IntrusiveLinkedList;
 
    public:
-    Item() : Item(nullptr, nullptr) {}
+    Node() : Node(nullptr, nullptr) {}
 
    private:
-    Item(Item* prev, Item* next) : next_(next), prev_(prev) {}
+    Node(Node* prev, Node* next) : next_(next), prev_(prev) {}
 
-    void InsertTheArgumentAfterMe(Item& item) {
-      next_ = &item;
-      prev_ = item.prev_;
+    void insert_the_argument_after_me(Node& node) {
+      next_ = &node;
+      prev_ = node.prev_;
       prev_->next_ = this;
-      item.prev_ = this;
+      node.prev_ = this;
     }
 
-    Item* next_ = nullptr;
-    Item* prev_ = nullptr;
+    void remove() {
+      this->prev_->next_ = this->next_;
+      this->next_->prev_ = this->prev_;
+      this->prev_ = nullptr;
+      this->next_ = nullptr;
+    }
+
+    T* item(Node T::*node_field) const {
+      return owner_of(this, node_field);
+    }
+
+    Node* next_ = nullptr;
+    Node* prev_ = nullptr;
   };
 
-  IntrusiveLinkedList() : head_(&head_, &head_) {}
+  explicit IntrusiveLinkedList(Node T::*node_field)
+      : node_field_(node_field), head_(&head_, &head_) {}
 
   class Iterator {
     friend IntrusiveLinkedList;
@@ -46,13 +71,15 @@ class IntrusiveLinkedList {
     }
 
     T& operator*() {
-      return *static_cast<T*>(curr_);
+      return *curr_->item(node_field_);
     }
 
    private:
-    explicit Iterator(Item& item) : curr_(&item) {}
+    explicit Iterator(Node& node, Node T::*node_field)
+        : curr_(&node), node_field_(node_field) {}
 
-    Item* curr_;
+    Node* curr_;
+    Node T::*node_field_;
   };
 
   size_t size() const {
@@ -60,40 +87,44 @@ class IntrusiveLinkedList {
   }
 
   Iterator begin() {
-    return Iterator(*head_.next_);
+    return Iterator(*head_.next_, node_field_);
   }
 
   Iterator end() {
-    return Iterator(head_);
+    return Iterator(head_, node_field_);
   }
 
   void insert_back(T& el) {
-    auto& item = static_cast<Item&>(el);
-    item.InsertTheArgumentAfterMe(head_);
+    (el.*node_field_).insert_the_argument_after_me(head_);
     size_++;
   }
 
   void insert_front(T& el) {
-    auto& item = static_cast<Item&>(el);
-    head_.InsertTheArgumentAfterMe(item);
+    head_.insert_the_argument_after_me(el.*node_field_);
     size_++;
+  }
+
+  void remove(T& el) {
+    (el.*node_field_).remove();
+    size_--;
   }
 
   T* front() {
     if (size_ == 0) {
       return nullptr;
     }
-    return static_cast<T*>(head_.next_);
+    return head_.next_->item(node_field_);
   }
 
   T* back() {
     if (size_ == 0) {
       return nullptr;
     }
-    return static_cast<T*>(head_.prev_);
+    return head_.prev_->item(node_field_);
   }
 
-  Item head_;
+  Node T::*node_field_;
+  Node head_;
   size_t size_ = 0;
 };
 
