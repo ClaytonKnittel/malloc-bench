@@ -16,27 +16,32 @@ extern Heap* g_heap;
 
 extern std::mutex g_lock;
 
-size_t static space_needed_with_header(const size_t& size) {
+static size_t space_needed_with_header(const size_t& size) {
   // add size of header to size, 8 bytes
-  size_t round_up = size + 0xff;
+  size_t round_up = size + sizeof(Block);
   // round up size of memory needed to be 16 byte aligned
+  round_up += 0xf;
   // zero out first four bits
   round_up = round_up & ~0xf;
   return round_up;
 }
 
-size_t static space_needed(const size_t& size) {
+/*
+static size_t space_needed(const size_t& size) {
   // round up size of memory needed to be 16 byte aligned
   // zero out first four bits
   size_t round_up = size & ~0xf;
   return round_up;
 }
+*/
 
-Block* create_block_extend_heap(size_t size) {
+static Block* create_block_extend_heap(size_t size) {
+  size_t block_size = space_needed_with_header(size);
   auto* block = reinterpret_cast<Block*>(
-      SingletonHeap::GlobalInstance()->sbrk(space_needed_with_header(size)));
-  block->SetBlockSize(size);
+      SingletonHeap::GlobalInstance()->sbrk(block_size));
+  block->SetBlockSize(block_size);
   block->SetFree(false);
+  block->SetMagic();
   return block;
 }
 
@@ -100,3 +105,6 @@ inline void free_hint(void* ptr, std::align_val_t size) {
 }
 
 }  // namespace bench
+
+// add comments about allocating at certain address and freeing at certain
+// address *******************************
