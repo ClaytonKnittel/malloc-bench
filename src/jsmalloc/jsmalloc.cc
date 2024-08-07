@@ -6,8 +6,8 @@
 
 #include "src/heap_interface.h"
 #include "src/jsmalloc/chunky_block.h"
-#include "src/jsmalloc/util/math.h"
 #include "src/jsmalloc/util/assert.h"
+#include "src/jsmalloc/util/math.h"
 
 namespace jsmalloc {
 
@@ -50,22 +50,33 @@ void* malloc(bench::Heap& heap, size_t size) {
   }
 
   size_t block_size = Block::SizeForUserData(size);
-  auto* block = new (sbrk_16b(heap, block_size)) Block(block_size);
+
+  void* block_memory = sbrk_16b(heap, block_size);
+  if (block_memory == nullptr) {
+    return nullptr;
+  }
+  auto* block = new (block_memory) Block(block_size);
   return block->Data();
 }
 
 void* calloc(bench::Heap& heap, size_t nmemb, size_t size) {
   void* ptr = malloc(heap, nmemb * size);
+  if (ptr == nullptr) {
+    return nullptr;
+  }
   memset(ptr, 0, nmemb * size);
   return ptr;
 }
 
 void* realloc(bench::Heap& heap, void* ptr, size_t size) {
   void* new_ptr = malloc(heap, size);
+  if (new_ptr == nullptr) {
+    return nullptr;
+  }
   if (size > 0) {
     memcpy(new_ptr, ptr, size);
   }
-  if (ptr != nullptr) free(ptr);
+  free(ptr);
   return new_ptr;
 }
 

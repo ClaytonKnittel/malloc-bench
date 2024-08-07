@@ -10,7 +10,7 @@ cc_library(
     name = "assert",
     hdrs = ["assert.h"],
     deps = [
-        "@abseil-cpp//absl/strings:str_cat",
+        "@abseil-cpp//absl/strings",
     ],
     visibility = ["//visibility:public"],
 )
