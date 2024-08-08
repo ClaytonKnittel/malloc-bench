@@ -30,7 +30,7 @@ PageId Slab::StartId() const {
 
 PageId Slab::EndId() const {
   CK_ASSERT(type_ != SlabType::kUnmapped);
-  return mapped.id_ + Pages();
+  return mapped.id_ + Pages() - 1;
 }
 
 uint32_t Slab::Pages() const {

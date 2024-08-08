@@ -27,6 +27,8 @@ enum class SlabType {
 // Slab metadata class, which is stored separately from the slab it describes,
 // in a metadata slab.
 class Slab {
+  friend class SlabManagerTest;
+
  public:
   void InitFreeSlab(PageId start_id, uint32_t n_pages);
 
@@ -47,11 +49,12 @@ class Slab {
   uint32_t Pages() const;
 
  private:
+  Slab() {}
+
   SlabType type_;
 
   union {
     struct {
-      uint32_t n_pages_;
     } unmapped;
 
     struct {

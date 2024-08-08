@@ -151,7 +151,7 @@ void SlabManagerImpl<MetadataAlloc>::Free(Slab* slab) {
   }
 
   PageId start_id = slab->StartId();
-  {
+  if (start_id > PageId::Zero()) {
     Slab* prev_slab = slab_map_->FindSlab(start_id - 1);
     if (prev_slab != nullptr && prev_slab->Type() == SlabType::kFree) {
       start_id = prev_slab->StartId();
