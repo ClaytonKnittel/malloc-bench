@@ -57,6 +57,10 @@ class IntrusiveLinkedList {
       return owner_of(this, node_field);
     }
 
+    bool linked() const {
+      return next_ != nullptr;
+    }
+
     Node* next_ = nullptr;
     Node* prev_ = nullptr;
   };
@@ -108,6 +112,15 @@ class IntrusiveLinkedList {
 
   Iterator end() {
     return Iterator(head_, node_field_);
+  }
+
+  /**
+   * Returns whether `el` is in this list.
+   *
+   * Assumes that `el` _could_ only be in this list.
+   */
+  bool contains(T& el) {
+    return (el.*node_field_).linked();
   }
 
   /**
