@@ -21,9 +21,9 @@ void* MetadataManager::Alloc(size_t size, size_t alignment) {
     if (!result.has_value()) {
       return nullptr;
     }
-    auto [slab_id, slab] = std::move(result.value());
-    slab->InitMetadataSlab(slab_id, n_pages);
-    slab_map_->InsertRange(slab_id, slab_id + n_pages - 1, slab);
+    auto [page_id, slab] = std::move(result.value());
+    slab->InitMetadataSlab(page_id, n_pages);
+    slab_map_->InsertRange(page_id, page_id + n_pages - 1, slab);
 
     // Decide whether to switch to allocating from this new slab, or stick with
     // the old one. We choose the one with more remaining space.
@@ -31,11 +31,11 @@ void* MetadataManager::Alloc(size_t size, size_t alignment) {
     if (remaining_space > kPageSize - alloc_offset_) {
       // TODO: shard up the rest of the space in the heap we throw away and give
       // it to the slab freelist?
-      last_ = slab_id + n_pages - 1;
+      last_ = page_id + n_pages - 1;
       alloc_offset_ = kPageSize - remaining_space;
     }
 
-    return slab_manager_->SlabStartFromId(slab_id);
+    return slab_manager_->SlabStartFromId(page_id);
   }
 
   void* alloc_start = static_cast<uint8_t*>(slab_start_) + aligned_end;

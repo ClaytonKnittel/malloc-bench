@@ -1,7 +1,8 @@
 #include "src/ckmalloc/state.h"
 
+#include "src/ckmalloc/common.h"
 #include "src/ckmalloc/metadata_manager.h"
-#include "src/ckmalloc/slab_id.h"
+#include "src/ckmalloc/page_id.h"
 #include "src/ckmalloc/slab_manager.h"
 #include "src/ckmalloc/util.h"
 #include "src/heap_interface.h"
@@ -10,15 +11,15 @@ namespace ckmalloc {
 
 State* State::state_ = nullptr;
 
-Slab* MetadataAlloc::SlabAlloc() {
+Slab* GlobalMetadataAlloc::SlabAlloc() {
   return State::Instance()->MetadataManager()->NewSlabMeta();
 }
 
-void MetadataAlloc::SlabFree(Slab* slab) {
+void GlobalMetadataAlloc::SlabFree(Slab* slab) {
   State::Instance()->MetadataManager()->FreeSlabMeta(slab);
 }
 
-void* MetadataAlloc::Alloc(size_t size, size_t alignment) {
+void* GlobalMetadataAlloc::Alloc(size_t size, size_t alignment) {
   return State::Instance()->MetadataManager()->Alloc(size, alignment);
 }
 
@@ -39,7 +40,7 @@ State* State::Instance() {
 
 State::State(bench::Heap* heap)
     : slab_manager_(heap, &slab_map_),
-      metadata_manager_(SlabId::Zero(), &slab_map_, &slab_manager_) {
+      metadata_manager_(PageId::Zero(), &slab_map_, &slab_manager_) {
   // Allocate a single metadata slab.
   slab_manager_.Alloc(1);
 }

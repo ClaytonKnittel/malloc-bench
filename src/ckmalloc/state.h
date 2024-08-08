@@ -1,8 +1,6 @@
 #pragma once
 
-#include "src/ckmalloc/common.h"
 #include "src/ckmalloc/metadata_manager.h"
-#include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/slab_manager.h"
 #include "src/ckmalloc/slab_map.h"
 #include "src/heap_interface.h"

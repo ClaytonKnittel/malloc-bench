@@ -8,8 +8,8 @@
 #include "util/absl_util.h"
 
 #include "src/ckmalloc/common.h"
+#include "src/ckmalloc/page_id.h"
 #include "src/ckmalloc/slab.h"
-#include "src/ckmalloc/slab_id.h"
 #include "src/ckmalloc/util.h"
 
 namespace ckmalloc {
@@ -31,18 +31,18 @@ class SlabMapImpl {
  public:
   // Returns the slab metadata for a given slab id. Returns `nullptr` if no
   // metadata has ever been allocated for this slab id.
-  Slab* FindSlab(SlabId slab_id) const;
+  Slab* FindSlab(PageId page_id) const;
 
   // Ensures that the slab map has allocated the necessary nodes for an entry
-  // between start and end slab id's.
-  absl::Status AllocatePath(SlabId start_id, SlabId end_id);
+  // between start and end page id's.
+  absl::Status AllocatePath(PageId start_id, PageId end_id);
 
-  // Inserts an association from `slab_id` to `slab`.
-  void Insert(SlabId slab_id, Slab* slab);
+  // Inserts an association from `page_id` to `slab`.
+  void Insert(PageId page_id, Slab* slab);
 
-  // Inserts an association from all slabs between start_id and end_id
+  // Inserts an association from all pages between start_id and end_id
   // (inclusive) to `slab`.
-  void InsertRange(SlabId start_id, SlabId end_id, Slab* slab);
+  void InsertRange(PageId start_id, PageId end_id, Slab* slab);
 
  private:
   class Leaf {
@@ -82,16 +82,16 @@ class SlabMapImpl {
     return ptr;
   }
 
-  static size_t RootIdx(SlabId slab_id) {
-    return slab_id.Idx() / (kNodeSize * kNodeSize);
+  static size_t RootIdx(PageId page_id) {
+    return page_id.Idx() / (kNodeSize * kNodeSize);
   }
 
-  static size_t MiddleIdx(SlabId slab_id) {
-    return (slab_id.Idx() / kNodeSize) % kNodeSize;
+  static size_t MiddleIdx(PageId page_id) {
+    return (page_id.Idx() / kNodeSize) % kNodeSize;
   }
 
-  static size_t LeafIdx(SlabId slab_id) {
-    return slab_id.Idx() % kNodeSize;
+  static size_t LeafIdx(PageId page_id) {
+    return page_id.Idx() % kNodeSize;
   }
 
   Node* operator[](size_t idx) const {
@@ -105,10 +105,10 @@ class SlabMapImpl {
 };
 
 template <MetadataAllocInterface MetadataAlloc>
-Slab* SlabMapImpl<MetadataAlloc>::FindSlab(SlabId slab_id) const {
-  size_t root_idx = RootIdx(slab_id);
-  size_t middle_idx = MiddleIdx(slab_id);
-  size_t leaf_idx = LeafIdx(slab_id);
+Slab* SlabMapImpl<MetadataAlloc>::FindSlab(PageId page_id) const {
+  size_t root_idx = RootIdx(page_id);
+  size_t middle_idx = MiddleIdx(page_id);
+  size_t leaf_idx = LeafIdx(page_id);
 
   Node* node = (*this)[root_idx];
   if (node == nullptr) {
@@ -124,8 +124,8 @@ Slab* SlabMapImpl<MetadataAlloc>::FindSlab(SlabId slab_id) const {
 }
 
 template <MetadataAllocInterface MetadataAlloc>
-absl::Status SlabMapImpl<MetadataAlloc>::AllocatePath(SlabId start_id,
-                                                      SlabId end_id) {
+absl::Status SlabMapImpl<MetadataAlloc>::AllocatePath(PageId start_id,
+                                                      PageId end_id) {
   auto root_idxs = std::make_pair(RootIdx(start_id), RootIdx(end_id));
   auto middle_idxs = std::make_pair(MiddleIdx(start_id), MiddleIdx(end_id));
 
@@ -145,14 +145,14 @@ absl::Status SlabMapImpl<MetadataAlloc>::AllocatePath(SlabId start_id,
 }
 
 template <MetadataAllocInterface MetadataAlloc>
-void SlabMapImpl<MetadataAlloc>::Insert(SlabId slab_id, Slab* slab) {
-  Node& node = *(*this)[RootIdx(slab_id)];
-  Leaf& leaf = *node[MiddleIdx(slab_id)];
-  leaf.SetLeaf(LeafIdx(slab_id), slab);
+void SlabMapImpl<MetadataAlloc>::Insert(PageId page_id, Slab* slab) {
+  Node& node = *(*this)[RootIdx(page_id)];
+  Leaf& leaf = *node[MiddleIdx(page_id)];
+  leaf.SetLeaf(LeafIdx(page_id), slab);
 }
 
 template <MetadataAllocInterface MetadataAlloc>
-void SlabMapImpl<MetadataAlloc>::InsertRange(SlabId start_id, SlabId end_id,
+void SlabMapImpl<MetadataAlloc>::InsertRange(PageId start_id, PageId end_id,
                                              Slab* slab) {
   auto root_idxs = std::make_pair(RootIdx(start_id), RootIdx(end_id));
   auto middle_idxs = std::make_pair(MiddleIdx(start_id), MiddleIdx(end_id));

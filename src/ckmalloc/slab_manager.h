@@ -5,8 +5,8 @@
 
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/free_slab.h"
+#include "src/ckmalloc/page_id.h"
 #include "src/ckmalloc/slab.h"
-#include "src/ckmalloc/slab_id.h"
 #include "src/ckmalloc/slab_map.h"
 #include "src/heap_interface.h"
 
@@ -20,19 +20,19 @@ class SlabManagerImpl {
   explicit SlabManagerImpl(bench::Heap* heap,
                            SlabMapImpl<MetadataAlloc>* slab_map);
 
-  // Returns a pointer to the start of a slab with given `SlabId`.
-  void* SlabStartFromId(SlabId slab_id) const;
+  // Returns a pointer to the start of a slab with given `PageId`.
+  void* SlabStartFromId(PageId page_id) const;
 
-  // Returns the `SlabId` for the slab containing `ptr`.
-  SlabId SlabIdFromPtr(void* ptr) const;
+  // Returns the `PageId` for the slab containing `ptr`.
+  PageId PageIdFromPtr(void* ptr) const;
 
-  // Allocates `n_pages` contiguous pages, returning the `SlabId` of the first
+  // Allocates `n_pages` contiguous pages, returning the `PageId` of the first
   // page in the slab, and an allocated uninitialized `Slab` metadata for this
   // range of pages, if there was availability, otherwise returning `nullopt`.
   //
   // Upon returning, it is the responsibility of the caller to initialize the
   // returned `Slab`.
-  std::optional<std::pair<SlabId, Slab*>> Alloc(uint32_t n_pages);
+  std::optional<std::pair<PageId, Slab*>> Alloc(uint32_t n_pages);
 
   // Frees the slab and takes ownership of the `Slab` metadata object.
   void Free(Slab* slab);
@@ -63,32 +63,32 @@ SlabManagerImpl<MetadataAlloc>::SlabManagerImpl(
     : heap_(heap), heap_start_(heap->Start()), slab_map_(slab_map) {}
 
 template <MetadataAllocInterface MetadataAlloc>
-void* SlabManagerImpl<MetadataAlloc>::SlabStartFromId(SlabId slab_id) const {
+void* SlabManagerImpl<MetadataAlloc>::SlabStartFromId(PageId page_id) const {
   void* slab_start = static_cast<uint8_t*>(heap_start_) +
-                     (static_cast<ptrdiff_t>(slab_id.Idx()) * kPageSize);
+                     (static_cast<ptrdiff_t>(page_id.Idx()) * kPageSize);
   CK_ASSERT(slab_start >= heap_->Start() && slab_start < heap_->End());
   return slab_start;
 }
 
 template <MetadataAllocInterface MetadataAlloc>
-SlabId SlabManagerImpl<MetadataAlloc>::SlabIdFromPtr(void* ptr) const {
+PageId SlabManagerImpl<MetadataAlloc>::PageIdFromPtr(void* ptr) const {
   CK_ASSERT(heap_start_ == heap_->Start());
   CK_ASSERT(ptr >= heap_->Start() && ptr < heap_->End());
   ptrdiff_t diff =
       static_cast<uint8_t*>(ptr) - static_cast<uint8_t*>(heap_start_);
-  return SlabId(static_cast<uint32_t>(diff / kPageSize));
+  return PageId(static_cast<uint32_t>(diff / kPageSize));
 }
 
 template <MetadataAllocInterface MetadataAlloc>
-std::optional<std::pair<SlabId, Slab*>> SlabManagerImpl<MetadataAlloc>::Alloc(
+std::optional<std::pair<PageId, Slab*>> SlabManagerImpl<MetadataAlloc>::Alloc(
     uint32_t n_pages) {
   if (n_pages == 1 && single_page_freelist_ != nullptr) {
     FreeSinglePageSlab* slab_start = single_page_freelist_;
     single_page_freelist_ = slab_start->NextFree();
 
-    SlabId slab_id = SlabIdFromPtr(slab_start);
-    Slab* slab = slab_map_->FindSlab(slab_id);
-    return std::make_pair(slab_id, slab);
+    PageId page_id = PageIdFromPtr(slab_start);
+    Slab* slab = slab_map_->FindSlab(page_id);
+    return std::make_pair(page_id, slab);
   }
   if (smallest_multi_page_ != nullptr) {
     FreeMultiPageSlab* slab_start;
@@ -109,19 +109,19 @@ std::optional<std::pair<SlabId, Slab*>> SlabManagerImpl<MetadataAlloc>::Alloc(
       multi_page_free_slabs_.Remove(slab_start);
       CK_ASSERT(smallest_multi_page_->Prev() == nullptr);
 
-      SlabId slab_id = SlabIdFromPtr(slab_start);
+      PageId page_id = PageIdFromPtr(slab_start);
       uint32_t actual_pages = slab_start->Pages();
       CK_ASSERT(actual_pages >= n_pages);
       if (actual_pages != n_pages) {
         // TODO: free can be simpler, check next to see if is free, if so merge
         // with it. Otherwise do this but no need to coalesce.
         Slab* remainder = MetadataAlloc::SlabAlloc();
-        remainder->InitFreeSlab(slab_id + n_pages, actual_pages - n_pages);
+        remainder->InitFreeSlab(page_id + n_pages, actual_pages - n_pages);
         Free(remainder);
       }
 
-      Slab* slab = slab_map_->FindSlab(slab_id);
-      return std::make_pair(slab_id, slab);
+      Slab* slab = slab_map_->FindSlab(page_id);
+      return std::make_pair(page_id, slab);
     }
   }
 
@@ -136,7 +136,7 @@ std::optional<std::pair<SlabId, Slab*>> SlabManagerImpl<MetadataAlloc>::Alloc(
     return std::nullopt;
   }
 
-  return std::make_pair(SlabIdFromPtr(slab_start), slab);
+  return std::make_pair(PageIdFromPtr(slab_start), slab);
 }
 
 template <MetadataAllocInterface MetadataAlloc>
@@ -148,7 +148,7 @@ void SlabManagerImpl<MetadataAlloc>::Free(Slab* slab) {
     return;
   }
 
-  SlabId start_id = slab->StartId();
+  PageId start_id = slab->StartId();
   {
     Slab* prev_slab = slab_map_->FindSlab(start_id - 1);
     if (prev_slab != nullptr && prev_slab->Type() == SlabType::kFree) {
@@ -158,7 +158,7 @@ void SlabManagerImpl<MetadataAlloc>::Free(Slab* slab) {
     }
   }
 
-  SlabId end_id = slab->EndId();
+  PageId end_id = slab->EndId();
   {
     Slab* next_slab = slab_map_->FindSlab(end_id + 1);
     if (next_slab != nullptr && next_slab->Type() == SlabType::kFree) {
