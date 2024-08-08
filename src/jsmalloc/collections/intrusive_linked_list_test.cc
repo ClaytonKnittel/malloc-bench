@@ -1,6 +1,5 @@
 #include "src/jsmalloc/collections/intrusive_linked_list.h"
 
-#include <iterator>
 #include <vector>
 
 #include "gmock/gmock.h"

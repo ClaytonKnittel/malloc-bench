@@ -2,10 +2,10 @@
 
 #include <cassert>
 #include <cstddef>
-#include <new>
 
 #include "src/heap_interface.h"
-#include "src/jsmalloc/chunky_block.h"
+#include "src/jsmalloc/block.h"
+#include "src/jsmalloc/mallocator.h"
 #include "src/jsmalloc/util/assert.h"
 #include "src/jsmalloc/util/math.h"
 
@@ -15,10 +15,49 @@ namespace {
 
 class HeapMetadata {
  public:
-  Block::FreeList free_list;
+  LargeBlock::FreeList large_block_free_list;
+  MultiSmallBlockFreeList small_block_free_list;
 };
 
 HeapMetadata* heap_metadata = nullptr;
+
+void* malloc_large_block(bench::Heap& heap, size_t size) {
+  for (LargeBlock& free_block : heap_metadata->large_block_free_list) {
+    if (free_block.DataSize() >= size) {
+      heap_metadata->large_block_free_list.remove(free_block);
+      return free_block.Alloc();
+    }
+  }
+
+  HeapMallocator mallocator(&heap);
+  LargeBlock* block = LargeBlock::New(&mallocator, size);
+  if (block == nullptr) {
+    return nullptr;
+  }
+  return block->Alloc();
+}
+
+void* malloc_small_block(bench::Heap& heap, size_t size) {
+  SmallBlock::FreeList& free_list =
+      heap_metadata->small_block_free_list.Find(size);
+  if (free_list.size() > 0) {
+    SmallBlock* block = free_list.front();
+    void* ptr = block->Alloc();
+    if (!block->CanAlloc()) {
+      free_list.remove(*block);
+    }
+    return ptr;
+  }
+
+  HeapMallocator mallocator(&heap);
+  SmallBlock* block = MultiSmallBlockFreeList::Create(&mallocator, size);
+  if (block == nullptr) {
+    return nullptr;
+  }
+  void* ptr = block->Alloc();
+  heap_metadata->small_block_free_list.EnsureContains(*block);
+  return ptr;
+}
 
 }  // namespace
 
@@ -31,10 +70,6 @@ void* sbrk_16b(bench::Heap& heap, size_t size) {
 void initialize_heap(bench::Heap& heap) {
   heap_metadata = new (sbrk_16b(heap, math::round_16b(sizeof(HeapMetadata))))
       HeapMetadata();
-
-  size_t initial_block_padding =
-      math::round_16b(Block::DataOffset()) - Block::DataOffset();
-  heap.sbrk(initial_block_padding);
 }
 
 void* malloc(bench::Heap& heap, size_t size) {
@@ -42,21 +77,10 @@ void* malloc(bench::Heap& heap, size_t size) {
     return nullptr;
   }
 
-  for (Block& free_block : heap_metadata->free_list) {
-    if (free_block.DataSize() >= size) {
-      heap_metadata->free_list.remove(free_block);
-      return free_block.Data();
-    }
+  if (size > kMaxSmallBlockDataSize) {
+    return malloc_large_block(heap, size);
   }
-
-  size_t block_size = Block::SizeForUserData(size);
-
-  void* block_memory = sbrk_16b(heap, block_size);
-  if (block_memory == nullptr) {
-    return nullptr;
-  }
-  auto* block = new (block_memory) Block(block_size);
-  return block->Data();
+  return malloc_small_block(heap, size);
 }
 
 void* calloc(bench::Heap& heap, size_t nmemb, size_t size) {
@@ -84,8 +108,17 @@ void free(void* ptr) {
   if (ptr == nullptr) {
     return;
   }
-  auto* block = Block::FromDataPtr(ptr);
-  heap_metadata->free_list.insert_back(*block);
+
+  auto* block_header = BlockFromDataPointer(ptr);
+  if (block_header->kind == BlockKind::kLargeBlock) {
+    auto* block = reinterpret_cast<LargeBlock*>(block_header);
+    block->Free(ptr);
+    heap_metadata->large_block_free_list.insert_back(*block);
+  } else if (block_header->kind == BlockKind::kSmallBlock) {
+    auto* block = reinterpret_cast<SmallBlock*>(block_header);
+    block->Free(ptr);
+    heap_metadata->small_block_free_list.EnsureContains(*block);
+  }
 }
 
 }  // namespace jsmalloc
