@@ -48,6 +48,15 @@ cc_library(
 )
 
 cc_library(
+    name = "linked_list",
+    srcs = ["linked_list.cc"],
+    hdrs = ["linked_list.h"],
+    deps = [
+        ":util",
+    ],
+)
+
+cc_library(
     name = "metadata_manager",
     srcs = ["metadata_manager.cc"],
     hdrs = ["metadata_manager.h"],

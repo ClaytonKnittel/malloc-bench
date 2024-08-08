@@ -1,5 +1,3 @@
-#include "src/ckmalloc/slab_manager.h"
-
 #include <cstddef>
 
 #include "absl/container/flat_hash_map.h"
@@ -11,6 +9,7 @@
 #include "util/gtest_util.h"
 
 #include "src/ckmalloc/common.h"
+#include "src/ckmalloc/free_slab.h"
 #include "src/ckmalloc/page_id.h"
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/testlib.h"
@@ -113,6 +112,7 @@ absl::Status SlabManagerTest::ValidateHeap() {
   PageId end = HeapEnd();
   Slab* previous_slab = nullptr;
   bool previous_was_free = false;
+  uint32_t free_slabs = 0;
   uint32_t allocated_slabs = 0;
   while (page < end) {
     Slab* slab = SlabMap().FindSlab(page);
@@ -150,6 +150,7 @@ absl::Status SlabManagerTest::ValidateHeap() {
                               *previous_slab, *slab));
         }
         previous_was_free = true;
+        free_slabs++;
         break;
       }
       case SlabType::kMetadata: {
@@ -180,6 +181,11 @@ absl::Status SlabManagerTest::ValidateHeap() {
 
     page += slab->Pages();
     previous_slab = slab;
+  }
+
+  // Validate the single-page freelist.
+  for (FreeSinglePageSlab* slab = slab_manager_.single_page_freelist_;
+       slab != nullptr; slab = slab->NextFree()) {
   }
 
   if (allocated_slabs != allocated_slabs_.size()) {
@@ -261,6 +267,21 @@ TEST_F(SlabManagerTest, SlabTooLargeDoesNotAllocate) {
 TEST_F(SlabManagerTest, FreeOnce) {
   ASSERT_OK_AND_DEFINE(Slab*, slab, AllocateSlab(1));
   ASSERT_THAT(FreeSlab(slab), IsOk());
+  EXPECT_THAT(ValidateHeap(), IsOk());
+}
+
+TEST_F(SlabManagerTest, FreeLarge) {
+  ASSERT_OK_AND_DEFINE(Slab*, slab, AllocateSlab(12));
+  ASSERT_THAT(FreeSlab(slab), IsOk());
+  EXPECT_THAT(ValidateHeap(), IsOk());
+}
+
+TEST_F(SlabManagerTest, FreeTwice) {
+  ASSERT_OK_AND_DEFINE(Slab*, slab1, AllocateSlab(1));
+  ASSERT_OK_AND_DEFINE(Slab*, slab2, AllocateSlab(1));
+  ASSERT_THAT(FreeSlab(slab1), IsOk());
+  EXPECT_THAT(ValidateHeap(), IsOk());
+  ASSERT_THAT(FreeSlab(slab2), IsOk());
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
