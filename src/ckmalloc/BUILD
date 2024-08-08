@@ -120,6 +120,7 @@ cc_test(
     name = "slab_manager_test",
     srcs = ["slab_manager_test.cc"],
     deps = [
+        ":common",
         ":slab_id",
         ":slab_manager",
         ":testlib",
