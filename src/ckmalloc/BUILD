@@ -122,9 +122,11 @@ cc_test(
     deps = [
         ":common",
         ":page_id",
+        ":slab",
         ":slab_manager",
         ":testlib",
         "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings:str_format",
         "@cc-util//util:gtest_util",
         "@googletest//:gtest",

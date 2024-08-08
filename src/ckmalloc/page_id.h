@@ -50,9 +50,22 @@ class PageId {
   PageId operator+(uint32_t offset) const {
     return PageId(page_idx_ + offset);
   }
+  PageId operator+=(uint32_t offset) {
+    *this = (*this + offset);
+    return *this;
+  }
 
   PageId operator-(uint32_t offset) const {
     return PageId(page_idx_ - offset);
+  }
+  PageId operator-=(uint32_t offset) {
+    *this = (*this - offset);
+    return *this;
+  }
+
+  int32_t operator-(const PageId& page_id) const {
+    return static_cast<int32_t>(page_idx_) -
+           static_cast<int32_t>(page_id.page_idx_);
   }
 
   // The id of the first page in the heap. This is reserved for the first
