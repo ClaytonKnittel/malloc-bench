@@ -2,6 +2,8 @@
 
 #include <cstddef>
 
+#include "gtest/gtest.h"
+
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/slab_manager.h"
@@ -15,6 +17,9 @@ class TestGlobalMetadataAlloc {
   static Slab* SlabAlloc();
   static void SlabFree(Slab* slab);
   static void* Alloc(size_t size, size_t alignment);
+
+  // Test-only function to delete memory allocted by `Alloc`.
+  static void ClearAllAllocs();
 };
 
 using TestSlabMap = SlabMapImpl<TestGlobalMetadataAlloc>;
@@ -34,6 +39,13 @@ class TestHeap : public bench::Heap {
  private:
   // TODO: dynamically allocate
   uint8_t memory_region_[kMaxHeapSize];
+};
+
+class CkMallocTest : public ::testing::Test {
+ public:
+  ~CkMallocTest() override {
+    TestGlobalMetadataAlloc::ClearAllAllocs();
+  }
 };
 
 }  // namespace ckmalloc

@@ -9,7 +9,7 @@ namespace ckmalloc {
 
 namespace {
 
-// std::vector<void*> allocs;
+std::vector<std::pair<void*, std::align_val_t>> allocs;
 
 }
 
@@ -31,12 +31,26 @@ void TestGlobalMetadataAlloc::SlabFree(Slab* slab) {
 }
 
 void* TestGlobalMetadataAlloc::Alloc(size_t size, size_t alignment) {
+  auto align_val = static_cast<std::align_val_t>(alignment);
 #ifdef __cpp_aligned_new
-  return ::operator new(size, static_cast<std::align_val_t>(alignment));
+  void* ptr = ::operator new(size, align_val);
 #else
-  (void) alignment;
-  return ::operator new(size);
+  void* ptr = ::operator new(size);
 #endif
+
+  allocs.emplace_back(ptr, align_val);
+  return ptr;
+}
+
+void TestGlobalMetadataAlloc::ClearAllAllocs() {
+  for (auto [ptr, align_val] : allocs) {
+#ifdef __cpp_aligned_new
+    ::operator delete(ptr, align_val);
+#else
+    ::operator delete(ptr);
+#endif
+  }
+  allocs.clear();
 }
 
 }  // namespace ckmalloc

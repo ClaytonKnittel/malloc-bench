@@ -7,9 +7,8 @@
 
 namespace ckmalloc {
 
-class SlabManagerTest : public ::testing::Test {
+class SlabManagerTest : public CkMallocTest {
  public:
-  // TODO: either make slab_map virtual in slab manager, or template slab map.
   SlabManagerTest() : heap_(64), slab_manager_(&heap_, &slab_map_) {}
 
   TestHeap& Heap() {

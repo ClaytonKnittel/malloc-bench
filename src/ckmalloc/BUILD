@@ -181,6 +181,7 @@ cc_library(
         ":slab_manager",
         ":slab_map",
         "//src:heap_interface",
+        "@googletest//:gtest",
     ],
 )
 

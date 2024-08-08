@@ -1,7 +1,5 @@
 #include "src/ckmalloc/slab_map.h"
 
-#include <new>
-
 #include "gtest/gtest.h"
 #include "util/gtest_util.h"
 
@@ -12,48 +10,13 @@ namespace ckmalloc {
 
 using util::IsOk;
 
-class SlabMapTest : public ::testing::Test {
+class SlabMapTest : public CkMallocTest {
  public:
-  ~SlabMapTest() override {
-    FreeSlabMap();
-  }
-
   TestSlabMap& SlabMap() {
     return slab_map_;
   }
 
  private:
-  static void FreeLeaf(TestSlabMap::Leaf* leaf) {
-#ifdef __cpp_aligned_new
-    ::operator delete(
-        leaf, static_cast<std::align_val_t>(alignof(TestSlabMap::Leaf)));
-#else
-    ::operator delete(leaf);
-#endif
-  }
-
-  static void FreeNode(TestSlabMap::Node* node) {
-    for (TestSlabMap::Leaf* leaf : node->leaves_) {
-      if (leaf != nullptr) {
-        FreeLeaf(leaf);
-      }
-    }
-#ifdef __cpp_aligned_new
-    ::operator delete(
-        node, static_cast<std::align_val_t>(alignof(TestSlabMap::Node)));
-#else
-    ::operator delete(node);
-#endif
-  }
-
-  void FreeSlabMap() {
-    for (TestSlabMap::Node* node : slab_map_.nodes_) {
-      if (node != nullptr) {
-        FreeNode(node);
-      }
-    }
-  }
-
   TestSlabMap slab_map_;
 };
 
