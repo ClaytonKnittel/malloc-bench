@@ -24,8 +24,12 @@ class SlabMapTest : public ::testing::Test {
 
  private:
   static void FreeLeaf(TestSlabMap::Leaf* leaf) {
+#ifdef __cpp_aligned_new
     ::operator delete(
         leaf, static_cast<std::align_val_t>(alignof(TestSlabMap::Leaf)));
+#else
+    ::operator delete(leaf);
+#endif
   }
 
   static void FreeNode(TestSlabMap::Node* node) {
@@ -34,8 +38,12 @@ class SlabMapTest : public ::testing::Test {
         FreeLeaf(leaf);
       }
     }
+#ifdef __cpp_aligned_new
     ::operator delete(
         node, static_cast<std::align_val_t>(alignof(TestSlabMap::Node)));
+#else
+    ::operator delete(node);
+#endif
   }
 
   void FreeSlabMap() {

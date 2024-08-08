@@ -10,14 +10,26 @@ namespace ckmalloc {
 constexpr uint32_t kMaxSlabIdx = 1 << (kHeapSizeShift - kPageShift);
 
 class SlabId {
-  friend class SlabManager;
+  template <MetadataAllocInterface MetadataAlloc>
+  friend class SlabManagerImpl;
 
-  template <AllocFn Alloc>
+  template <MetadataAllocInterface MetadataAlloc>
   friend class SlabMapImpl;
 
  public:
+  constexpr explicit SlabId(uint32_t slab_idx) : slab_idx_(slab_idx) {
+    CK_ASSERT(slab_idx < kMaxSlabIdx);
+  }
+
   SlabId(const SlabId& slab_id) = default;
   SlabId& operator=(const SlabId& slab_id) = default;
+
+  bool operator==(const SlabId& slab_id) const {
+    return slab_idx_ == slab_id.slab_idx_;
+  }
+  bool operator!=(const SlabId& slab_id) const {
+    return !(*this == slab_id);
+  }
 
   SlabId operator+(uint32_t offset) const {
     return SlabId(slab_idx_ + offset);
@@ -34,10 +46,6 @@ class SlabId {
   }
 
  private:
-  constexpr explicit SlabId(uint32_t slab_idx) : slab_idx_(slab_idx) {
-    CK_ASSERT(slab_idx < kMaxSlabIdx);
-  }
-
   uint32_t Idx() const {
     return slab_idx_;
   }

@@ -9,17 +9,6 @@
 
 namespace ckmalloc {
 
-// Allocate slab metadata and return a pointer which may be used by the caller.
-// Returns nullptr if out of memory.
-Slab* SlabMetadataAlloc();
-
-// Frees slab metadata for later use.
-void SlabMetadataFree(Slab* slab);
-
-// Allocates raw memory from the metadata allocator which cannot be freed. This
-// is only intended for metadata allocation, never user data allocation.
-void* MetadataAlloc(size_t size, size_t alignment);
-
 class State {
  public:
   // Initializes a new `State` with a heap has not been allocated from yet. The

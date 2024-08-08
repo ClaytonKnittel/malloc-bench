@@ -10,15 +10,15 @@ namespace ckmalloc {
 
 State* State::state_ = nullptr;
 
-Slab* SlabMetadataAlloc() {
+Slab* MetadataAlloc::SlabAlloc() {
   return State::Instance()->MetadataManager()->NewSlabMeta();
 }
 
-void SlabMetadataFree(Slab* slab) {
+void MetadataAlloc::SlabFree(Slab* slab) {
   State::Instance()->MetadataManager()->FreeSlabMeta(slab);
 }
 
-void* MetadataAlloc(size_t size, size_t alignment) {
+void* MetadataAlloc::Alloc(size_t size, size_t alignment) {
   return State::Instance()->MetadataManager()->Alloc(size, alignment);
 }
 
