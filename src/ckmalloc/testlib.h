@@ -1,10 +1,13 @@
 #pragma once
 
+#include <cinttypes>
 #include <cstddef>
 
+#include "absl/strings/str_format.h"
 #include "gtest/gtest.h"
 
 #include "src/ckmalloc/common.h"
+#include "src/ckmalloc/page_id.h"
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/slab_manager.h"
 #include "src/ckmalloc/slab_map.h"
@@ -24,6 +27,43 @@ class TestGlobalMetadataAlloc {
 
 using TestSlabMap = SlabMapImpl<TestGlobalMetadataAlloc>;
 using TestSlabManager = SlabManagerImpl<TestGlobalMetadataAlloc>;
+
+template <typename Sink>
+void AbslStringify(Sink& sink, const PageId& page_id) {
+  absl::Format(&sink, "%" PRIu32, page_id.Idx());
+}
+
+template <typename Sink>
+void AbslStringify(Sink& sink, SlabType slab_type) {
+  switch (slab_type) {
+    case SlabType::kUnmapped: {
+      sink.Append("kUnmapped");
+      break;
+    }
+    case SlabType::kFree: {
+      sink.Append("kFree");
+      break;
+    }
+    case SlabType::kMetadata: {
+      sink.Append("kMetadata");
+      break;
+    }
+    case SlabType::kSmall: {
+      sink.Append("kSmall");
+      break;
+    }
+    case SlabType::kLarge: {
+      sink.Append("kLarge");
+      break;
+    }
+  }
+}
+
+template <typename Sink>
+void AbslStringify(Sink& sink, const Slab& slab) {
+  absl::Format(&sink, "Slab: [type=%v, pages=%" PRIu32 ", start_id=%v]",
+               slab.Type(), slab.Pages(), slab.StartId());
+}
 
 class TestHeap : public bench::Heap {
  public:

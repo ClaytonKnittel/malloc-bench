@@ -124,6 +124,9 @@ cc_test(
         ":page_id",
         ":slab_manager",
         ":testlib",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/strings:str_format",
+        "@cc-util//util:gtest_util",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
@@ -177,10 +180,12 @@ cc_library(
     hdrs = ["testlib.h"],
     deps = [
         ":common",
+        ":page_id",
         ":slab",
         ":slab_manager",
         ":slab_map",
         "//src:heap_interface",
+        "@abseil-cpp//absl/strings:str_format",
         "@googletest//:gtest",
     ],
 )

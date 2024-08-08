@@ -16,6 +16,8 @@ using SlabRbTree = RbTree<FreeMultiPageSlab>;
 
 template <MetadataAllocInterface MetadataAlloc>
 class SlabManagerImpl {
+  friend class SlabManagerTest;
+
  public:
   explicit SlabManagerImpl(bench::Heap* heap,
                            SlabMapImpl<MetadataAlloc>* slab_map);

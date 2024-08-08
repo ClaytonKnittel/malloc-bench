@@ -16,6 +16,9 @@ class PageId {
   template <MetadataAllocInterface MetadataAlloc>
   friend class SlabMapImpl;
 
+  template <typename Sink>
+  friend void AbslStringify(Sink&, const PageId&);
+
  public:
   constexpr explicit PageId(uint32_t page_idx) : page_idx_(page_idx) {
     CK_ASSERT(page_idx < kMaxPageIdx);
@@ -29,6 +32,19 @@ class PageId {
   }
   bool operator!=(const PageId& page_id) const {
     return !(*this == page_id);
+  }
+
+  bool operator<(const PageId& page_id) const {
+    return page_idx_ < page_id.page_idx_;
+  }
+  bool operator<=(const PageId& page_id) const {
+    return !(page_id < *this);
+  }
+  bool operator>(const PageId& page_id) const {
+    return page_id < *this;
+  }
+  bool operator>=(const PageId& page_id) const {
+    return !(*this < page_id);
   }
 
   PageId operator+(uint32_t offset) const {

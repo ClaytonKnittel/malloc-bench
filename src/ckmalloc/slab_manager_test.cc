@@ -2,13 +2,18 @@
 
 #include <cstddef>
 
+#include "absl/status/status.h"
+#include "absl/strings/str_format.h"
 #include "gtest/gtest.h"
+#include "util/gtest_util.h"
 
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/page_id.h"
 #include "src/ckmalloc/testlib.h"
 
 namespace ckmalloc {
+
+using util::IsOk;
 
 class SlabManagerTest : public CkMallocTest {
  public:
@@ -26,11 +31,33 @@ class SlabManagerTest : public CkMallocTest {
     return slab_manager_;
   }
 
+  absl::Status ValidateHeap();
+
  private:
   TestHeap heap_;
   TestSlabMap slab_map_;
   TestSlabManager slab_manager_;
 };
+
+absl::Status SlabManagerTest::ValidateHeap() {
+  if (Heap().Size() % kPageSize != 0) {
+    return absl::FailedPreconditionError(absl::StrFormat(
+        "Expected heap size to be a multiple of page size, but was %zu",
+        Heap().Size()));
+  }
+
+  PageId page = PageId::Zero();
+  PageId end = page + Heap().Size() / kPageSize;
+  while (page < end) {
+    Slab* slab = SlabMap().FindSlab(page);
+    if (page != slab->StartId()) {
+      return absl::FailedPreconditionError(absl::StrFormat(
+          "Expected start of slab at page %v, found slab %v", page, *slab));
+    }
+  }
+
+  return absl::OkStatus();
+}
 
 TEST_F(SlabManagerTest, HeapStartIsPageIdZero) {
   SlabManager().Alloc(1);
@@ -65,6 +92,10 @@ TEST_F(SlabManagerTest, SlabStartFromId) {
     EXPECT_EQ(SlabManager().SlabStartFromId(PageId(page_n)),
               static_cast<uint8_t*>(Heap().Start()) + page_n * kPageSize);
   }
+}
+
+TEST_F(SlabManagerTest, EmptyHeapValid) {
+  EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
 }  // namespace ckmalloc
