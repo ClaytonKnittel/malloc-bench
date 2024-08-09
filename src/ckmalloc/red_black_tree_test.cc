@@ -13,6 +13,7 @@
 
 namespace ckmalloc {
 
+using ::testing::ElementsAre;
 using ::testing::Field;
 using ::testing::Not;
 using ::testing::Pointee;
@@ -206,6 +207,37 @@ TEST_F(RedBlackTreeTest, TestDeleteMany) {
       }
     }
   }
+}
+
+TEST_F(RedBlackTreeTest, TestIterateTwo) {
+  ElementTree tree;
+  Element root = { .val = 1 };
+  Element child = { .val = 2 };
+  tree.Insert(&root);
+  tree.Insert(&child);
+
+  EXPECT_THAT(tree,
+              ElementsAre(Field(&Element::val, 1), Field(&Element::val, 2)));
+}
+
+TEST_F(RedBlackTreeTest, TestIterateMany) {
+  constexpr size_t kNumElements = 1000;
+
+  ElementTree tree;
+  Element elements[kNumElements];
+  for (size_t i = 0; i < kNumElements; i++) {
+    const size_t idx = (i * 17) % kNumElements;
+    elements[idx].val = idx;
+    tree.Insert(&elements[idx]);
+  }
+
+  auto it = tree.begin();
+  size_t i;
+  for (i = 0; i < kNumElements && it != tree.end(); i++, ++it) {
+    ASSERT_EQ(it->val, i);
+  }
+  ASSERT_EQ(i, kNumElements);
+  ASSERT_EQ(it, tree.end());
 }
 
 }  // namespace ckmalloc
