@@ -7,7 +7,7 @@
 #include "absl/container/btree_map.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_format.h"
-#include "util/gtest_util.h"
+#include "util/absl_util.h"
 
 #include "src/allocator_interface.h"
 #include "src/rng.h"
