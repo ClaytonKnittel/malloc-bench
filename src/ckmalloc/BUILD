@@ -82,6 +82,14 @@ cc_library(
 )
 
 cc_library(
+    name = "page_id",
+    hdrs = ["page_id.h"],
+    deps = [
+        ":common",
+    ],
+)
+
+cc_library(
     name = "red_black_tree",
     srcs = ["red_black_tree.cc"],
     hdrs = ["red_black_tree.h"],
@@ -115,14 +123,6 @@ cc_library(
 )
 
 cc_library(
-    name = "page_id",
-    hdrs = ["page_id.h"],
-    deps = [
-        ":common",
-    ],
-)
-
-cc_library(
     name = "slab_manager",
     hdrs = ["slab_manager.h"],
     deps = [
@@ -134,6 +134,7 @@ cc_library(
         ":slab_map",
         ":util",
         "//src:heap_interface",
+        "@cc-util//util:std_util",
     ],
 )
 
@@ -166,9 +167,7 @@ cc_library(
         ":page_id",
         ":slab",
         ":util",
-        "@abseil-cpp//absl/status",
-        "@abseil-cpp//absl/status:statusor",
-        "@cc-util//util:absl_util",
+        "@cc-util//util:std_util",
     ],
 )
 

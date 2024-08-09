@@ -27,7 +27,7 @@ TEST_F(SlabMapTest, TestEmpty) {
 TEST_F(SlabMapTest, TestInsertZero) {
   Slab* test_slab = reinterpret_cast<Slab*>(0x1230);
 
-  EXPECT_THAT(SlabMap().AllocatePath(PageId::Zero(), PageId::Zero()), IsOk());
+  EXPECT_TRUE(SlabMap().AllocatePath(PageId::Zero(), PageId::Zero()));
   SlabMap().Insert(PageId::Zero(), test_slab);
   EXPECT_EQ(SlabMap().FindSlab(PageId::Zero()), test_slab);
 }
@@ -36,7 +36,7 @@ TEST_F(SlabMapTest, TestInsert) {
   Slab* test_slab = reinterpret_cast<Slab*>(0x5010203040);
 
   PageId id = PageId::Zero() + 12 + 2 * kNodeSize + 5 * kNodeSize * kNodeSize;
-  EXPECT_THAT(SlabMap().AllocatePath(id, id), IsOk());
+  EXPECT_TRUE(SlabMap().AllocatePath(id, id));
   SlabMap().Insert(id, test_slab);
   EXPECT_EQ(SlabMap().FindSlab(id), test_slab);
 
@@ -56,7 +56,7 @@ TEST_F(SlabMapTest, TestAssignRange) {
   constexpr uint32_t kEndIdx = 2 + 10 * kNodeSize + 18 * kNodeSize * kNodeSize;
   PageId start_id = PageId::Zero() + kStartIdx;
   PageId end_id = PageId::Zero() + kEndIdx;
-  EXPECT_THAT(SlabMap().AllocatePath(start_id, end_id), IsOk());
+  EXPECT_TRUE(SlabMap().AllocatePath(start_id, end_id));
 
   for (uint32_t i = kStartIdx; i <= kEndIdx; i++) {
     SlabMap().Insert(PageId::Zero() + i, test_slab + (i - kStartIdx));
@@ -80,7 +80,7 @@ TEST_F(SlabMapTest, TestInsertRange) {
   constexpr uint32_t kEndIdx = 2 + 10 * kNodeSize + 18 * kNodeSize * kNodeSize;
   PageId start_id = PageId::Zero() + kStartIdx;
   PageId end_id = PageId::Zero() + kEndIdx;
-  EXPECT_THAT(SlabMap().AllocatePath(start_id, end_id), IsOk());
+  EXPECT_TRUE(SlabMap().AllocatePath(start_id, end_id));
   SlabMap().InsertRange(start_id, end_id, test_slab);
 
   for (uint32_t i = kStartIdx - 1000; i <= kEndIdx + 1000; i++) {
