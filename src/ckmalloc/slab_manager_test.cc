@@ -43,7 +43,9 @@ class SlabManagerTest : public CkMallocTest {
   absl::Status ValidateHeap();
 
   absl::StatusOr<Slab*> AllocateSlab(uint32_t n_pages) {
-    auto result = slab_manager_.Alloc(n_pages);
+    // Arbitrarily make all allocated slabs metadata slabs. Their actual type
+    // doesn't matter, `SlabManager` only cares about free vs. not free.
+    auto result = slab_manager_.Alloc(n_pages, SlabType::kMetadata);
     if (!result.has_value()) {
       return nullptr;
     }
@@ -63,18 +65,14 @@ class SlabManagerTest : public CkMallocTest {
       }
     }
 
-    // Arbitrarily make all allocated slabs metadata slabs. Their actual type
-    // doesn't matter, `SlabManager` only cares about free vs. not free.
-    slab->InitMetadataSlab(start_id, n_pages);
-    RETURN_IF_ERROR(slab_map_.AllocatePath(start_id, end_id));
-    slab_map_.InsertRange(start_id, end_id, slab);
-
+    // Make a copy of this slab's metadata to ensure it does not get dirtied.
     Slab copy;
     copy.InitMetadataSlab(start_id, n_pages);
     auto [it, inserted] = allocated_slabs_.insert({ slab, copy });
     if (!inserted) {
       return absl::FailedPreconditionError(absl::StrFormat(
-          "Unexpected double-alloc of slab metadata %p for %v", slab, *slab));
+          "Unexpected double-alloc of slab metadata %p when allocating %v",
+          slab, *slab));
     }
 
     return slab;
@@ -289,12 +287,12 @@ absl::Status SlabManagerTest::ValidateHeap() {
 }
 
 TEST_F(SlabManagerTest, HeapStartIsPageIdZero) {
-  SlabManager().Alloc(1);
+  ASSERT_THAT(AllocateSlab(1), IsOk());
   EXPECT_EQ(SlabManager().PageIdFromPtr(Heap().Start()), PageId(0));
 }
 
 TEST_F(SlabManagerTest, AllPtrsInFirstPageIdZero) {
-  SlabManager().Alloc(1);
+  ASSERT_THAT(AllocateSlab(1), IsOk());
   for (size_t offset = 0; offset < kPageSize; offset++) {
     EXPECT_EQ(SlabManager().PageIdFromPtr(
                   static_cast<uint8_t*>(Heap().Start()) + offset),
@@ -304,7 +302,7 @@ TEST_F(SlabManagerTest, AllPtrsInFirstPageIdZero) {
 
 TEST_F(SlabManagerTest, PageIdIncreasesPerPage) {
   constexpr size_t kPages = 16;
-  SlabManager().Alloc(kPages);
+  ASSERT_THAT(AllocateSlab(kPages), IsOk());
   for (size_t page_n = 0; page_n < kPages; page_n++) {
     void* beginning =
         static_cast<uint8_t*>(Heap().Start()) + page_n * kPageSize;
@@ -316,9 +314,9 @@ TEST_F(SlabManagerTest, PageIdIncreasesPerPage) {
 
 TEST_F(SlabManagerTest, SlabStartFromId) {
   constexpr size_t kPages = 16;
-  SlabManager().Alloc(kPages);
+  ASSERT_THAT(AllocateSlab(kPages), IsOk());
   for (size_t page_n = 0; page_n < kPages; page_n++) {
-    EXPECT_EQ(SlabManager().SlabStartFromId(PageId(page_n)),
+    EXPECT_EQ(SlabManager().PageStartFromId(PageId(page_n)),
               static_cast<uint8_t*>(Heap().Start()) + page_n * kPageSize);
   }
 }
