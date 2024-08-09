@@ -193,6 +193,7 @@ cc_library(
         ":common",
         ":metadata_manager",
         ":page_id",
+        ":slab",
         ":slab_manager",
         ":slab_map",
         ":util",

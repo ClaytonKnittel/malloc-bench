@@ -23,6 +23,16 @@ void Slab::InitMetadataSlab(PageId start_id, uint32_t n_pages) {
   };
 }
 
+void Slab::InitSmallSlab(PageId start_id, uint32_t n_pages) {
+  type_ = SlabType::kSmall;
+  // TODO
+}
+
+void Slab::InitLargeSlab(PageId start_id, uint32_t n_pages) {
+  type_ = SlabType::kLarge;
+  // TODO
+}
+
 PageId Slab::StartId() const {
   CK_ASSERT(type_ != SlabType::kUnmapped);
   return mapped.id_;
