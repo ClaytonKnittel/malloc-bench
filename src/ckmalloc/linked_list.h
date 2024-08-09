@@ -106,6 +106,10 @@ class LinkedList {
     return &sentinel_;
   }
 
+  bool Empty() const {
+    return size_ == 0;
+  }
+
   size_t Size() const {
     return size_;
   }
