@@ -1,36 +1,12 @@
 #pragma once
 
+#include "src/ckmalloc/linked_list.h"
 #include "src/ckmalloc/red_black_tree.h"
 
 namespace ckmalloc {
 
-class FreeSinglePageSlab {
- public:
-  FreeSinglePageSlab* NextFree() {
-    return next_free_;
-  }
-
-  const FreeSinglePageSlab* NextFree() const {
-    return next_free_;
-  }
-
-  FreeSinglePageSlab* PrevFree() {
-    return prev_free_;
-  }
-
-  const FreeSinglePageSlab* PrevFree() const {
-    return prev_free_;
-  }
-
-  void SetNextFree(FreeSinglePageSlab* next_free) {
-    next_free_ = next_free;
-  }
-
- private:
-  // For free single-page slabs, we have a doubly-linked list of free slabs.
-  FreeSinglePageSlab* next_free_;
-  FreeSinglePageSlab* prev_free_;
-};
+// For free single-page slabs, we have a doubly-linked list of free slabs.
+class FreeSinglePageSlab : public LinkedListNode {};
 
 // Free multi-page slabs are kept in a red-black tree in sorted order by size.
 class FreeMultiPageSlab : public RbNode {

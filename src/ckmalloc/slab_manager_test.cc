@@ -9,6 +9,7 @@
 #include "util/gtest_util.h"
 
 #include "src/ckmalloc/common.h"
+#include "src/ckmalloc/free_slab.h"
 #include "src/ckmalloc/page_id.h"
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/testlib.h"
@@ -182,16 +183,106 @@ absl::Status SlabManagerTest::ValidateHeap() {
     previous_slab = slab;
   }
 
-  // Validate the single-page freelist.
-  for (FreeSinglePageSlab* slab = slab_manager_.single_page_freelist_;
-       slab != nullptr; slab = slab->NextFree()) {
-  }
-
   if (allocated_slabs != allocated_slabs_.size()) {
     return absl::FailedPreconditionError(absl::StrFormat(
         "Encountered %" PRIu32
         " allocated slabs when iterating over the heap, but expected %zu",
         allocated_slabs, allocated_slabs_.size()));
+  }
+
+  // Validate the single-page freelist.
+  absl::flat_hash_set<Slab*> single_page_slabs;
+  for (const FreeSinglePageSlab& slab_start :
+       slab_manager_.single_page_freelist_) {
+    PageId start_id = slab_manager_.PageIdFromPtr(&slab_start);
+    Slab* slab = SlabMap().FindSlab(start_id);
+    if (slab == nullptr) {
+      return absl::FailedPreconditionError(
+          absl::StrFormat("Unexpected `nullptr` slab map entry in single-page "
+                          "freelist, at page %v",
+                          page));
+    }
+    if (slab->StartId() != start_id) {
+      return absl::FailedPreconditionError(
+          absl::StrFormat("Unexpected non-slab-start in single-page freelist: "
+                          "freelist entry on page %v, maps to %v",
+                          start_id, *slab));
+    }
+    if (slab->Pages() != 1) {
+      return absl::FailedPreconditionError(absl::StrFormat(
+          "Unexpected multi-page slab in single-page slab freelist: %v",
+          *slab));
+    }
+    if (!visited_slabs.contains(slab)) {
+      return absl::FailedPreconditionError(
+          absl::StrFormat("Found slab not encountered when iterating over the "
+                          "heap in single-page freelist: %v",
+                          *slab));
+    }
+    if (single_page_slabs.contains(slab)) {
+      return absl::FailedPreconditionError(absl::StrFormat(
+          "Detected cycle in single-page freelist at %v", *slab));
+    }
+    single_page_slabs.insert(slab);
+  }
+
+  // Validate the multi-page freelist.
+  absl::flat_hash_set<Slab*> multi_page_slabs;
+  if (slab_manager_.smallest_multi_page_ != nullptr &&
+      multi_page_slabs.empty()) {
+    return absl::FailedPreconditionError(
+        "Unexpected non-null smallest multi-page cache while "
+        "multi-page slabs tree is empty");
+  }
+  for (const FreeMultiPageSlab& slab_start :
+       slab_manager_.multi_page_free_slabs_) {
+    PageId start_id = slab_manager_.PageIdFromPtr(&slab_start);
+    Slab* slab = SlabMap().FindSlab(start_id);
+    if (slab == nullptr) {
+      return absl::FailedPreconditionError(
+          absl::StrFormat("Unexpected `nullptr` slab map entry in multi-page "
+                          "free-tree, at page %v",
+                          page));
+    }
+    if (slab->StartId() != start_id) {
+      return absl::FailedPreconditionError(
+          absl::StrFormat("Unexpected non-slab-start in multi-page free-tree: "
+                          "free-tree entry on page %v, maps to %v",
+                          start_id, *slab));
+    }
+    if (slab->Pages() <= 1) {
+      return absl::FailedPreconditionError(absl::StrFormat(
+          "Unexpected single-page slab in multi-page slab free-tree: %v",
+          *slab));
+    }
+    if (!visited_slabs.contains(slab)) {
+      return absl::FailedPreconditionError(
+          absl::StrFormat("Found slab not encountered when iterating over the "
+                          "heap in multi-page free-tree: %v",
+                          *slab));
+    }
+
+    if (multi_page_slabs.empty()) {
+      if (slab_manager_.smallest_multi_page_ != &slab_start) {
+        return absl::FailedPreconditionError(absl::StrFormat(
+            "smallest multi-page cache does not equal the first slab in the "
+            "multi-page slab tree: %p (cache) vs. %v",
+            slab_manager_.smallest_multi_page_, *slab));
+      }
+    }
+
+    if (multi_page_slabs.contains(slab)) {
+      return absl::FailedPreconditionError(absl::StrFormat(
+          "Detected cycle in multi-page free-tree at %v", *slab));
+    }
+    multi_page_slabs.insert(slab);
+  }
+
+  if (single_page_slabs.size() + multi_page_slabs.size() != free_slabs) {
+    return absl::FailedPreconditionError(absl::StrFormat(
+        "Free single-page slabs + free multi-page slabs != free slabs "
+        "encountered when iterating over the heap: %zu + %zu != %" PRIu32 "",
+        single_page_slabs.size(), multi_page_slabs.size(), free_slabs));
   }
 
   return absl::OkStatus();
