@@ -240,6 +240,10 @@ class RbTree {
     return root_.Left();
   }
 
+  bool Empty() const {
+    return size_ == 0;
+  }
+
   size_t Size() const {
     return size_;
   }
