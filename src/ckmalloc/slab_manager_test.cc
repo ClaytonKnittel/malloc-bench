@@ -229,7 +229,7 @@ absl::Status SlabManagerTest::ValidateHeap() {
   // Validate the multi-page freelist.
   absl::flat_hash_set<Slab*> multi_page_slabs;
   if (slab_manager_.smallest_multi_page_ != nullptr &&
-      multi_page_slabs.empty()) {
+      slab_manager_.multi_page_free_slabs_.Empty()) {
     return absl::FailedPreconditionError(
         "Unexpected non-null smallest multi-page cache while "
         "multi-page slabs tree is empty");

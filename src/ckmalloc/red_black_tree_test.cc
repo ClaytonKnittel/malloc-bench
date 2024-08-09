@@ -121,6 +121,7 @@ using ElementTree = RbTree<Element, ElementLess>;
 
 TEST_F(RedBlackTreeTest, TestEmpty) {
   ElementTree tree;
+  EXPECT_TRUE(tree.Empty());
   EXPECT_EQ(tree.LowerBound([](const Element&) { return true; }), nullptr);
   EXPECT_THAT(Validate(tree), IsOk());
 }
@@ -130,6 +131,7 @@ TEST_F(RedBlackTreeTest, TestSingle) {
   Element root = { .val = 1 };
   tree.Insert(&root);
 
+  EXPECT_FALSE(tree.Empty());
   EXPECT_EQ(tree.LowerBound([](const Element&) { return true; }), &root);
 
   EXPECT_EQ(
