@@ -9,7 +9,6 @@
 #include "util/gtest_util.h"
 
 #include "src/ckmalloc/common.h"
-#include "src/ckmalloc/free_slab.h"
 #include "src/ckmalloc/page_id.h"
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/testlib.h"
