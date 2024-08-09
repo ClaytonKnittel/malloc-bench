@@ -5,7 +5,7 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/status/statusor.h"
 #include "absl/time/time.h"
-#include "util/gtest_util.h"
+#include "util/absl_util.h"
 
 #include "src/allocator_interface.h"
 #include "src/singleton_heap.h"
