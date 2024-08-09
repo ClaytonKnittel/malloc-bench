@@ -43,6 +43,7 @@ cc_library(
     name = "free_slab",
     hdrs = ["free_slab.h"],
     deps = [
+        ":linked_list",
         ":red_black_tree",
     ],
 )
@@ -127,6 +128,7 @@ cc_library(
     deps = [
         ":common",
         ":free_slab",
+        ":linked_list",
         ":page_id",
         ":slab",
         ":slab_map",
@@ -140,6 +142,7 @@ cc_test(
     srcs = ["slab_manager_test.cc"],
     deps = [
         ":common",
+        ":free_slab",
         ":page_id",
         ":slab",
         ":slab_manager",
