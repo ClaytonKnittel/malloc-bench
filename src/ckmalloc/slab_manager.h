@@ -2,6 +2,9 @@
 
 #include <cstdint>
 #include <optional>
+#include <utility>
+
+#include "util/std_util.h"
 
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/free_slab.h"
@@ -21,6 +24,8 @@ class SlabManagerImpl {
   friend class SlabManagerTest;
 
  public:
+  using AllocResult = std::pair<PageId, Slab*>;
+
   explicit SlabManagerImpl(bench::Heap* heap,
                            SlabMapImpl<MetadataAlloc>* slab_map);
 
@@ -39,8 +44,7 @@ class SlabManagerImpl {
   //
   // TODO: some slab types may take additional construction args, will need to
   // pass those in a variadic way here.
-  std::optional<std::pair<PageId, Slab*>> Alloc(uint32_t n_pages,
-                                                SlabType slab_type);
+  std::optional<AllocResult> Alloc(uint32_t n_pages, SlabType slab_type);
 
   // Frees the slab and takes ownership of the `Slab` metadata object.
   void Free(Slab* slab);
@@ -59,12 +63,12 @@ class SlabManagerImpl {
   // to hold metadata for this region. This method will not increase the size of
   // the heap, and may return `std::nullopt` if there was no memory region large
   // enough for this allocation already available.
-  std::optional<std::pair<PageId, Slab*>> DoAllocWithoutSbrk(uint32_t n_pages);
+  std::optional<AllocResult> DoAllocWithoutSbrk(uint32_t n_pages);
 
   // Tries to allocate `n_pages` at the end of the heap, which should increase
   // the size of the heap. This should be called if allocating within the heap
   // has already failed.
-  std::optional<std::pair<PageId, Slab*>> AllocEndWithSbrk(uint32_t n_pages);
+  std::optional<AllocResult> AllocEndWithSbrk(uint32_t n_pages);
 
   // Inserts a single-page free slab into the slab freelist.
   void InsertSinglePageFreeSlab(FreeSinglePageSlab* slab_start);
@@ -136,13 +140,11 @@ std::optional<std::pair<PageId, Slab*>> SlabManagerImpl<MetadataAlloc>::Alloc(
     uint32_t n_pages, SlabType slab_type) {
   CK_ASSERT(slab_type != SlabType::kUnmapped && slab_type != SlabType::kFree);
 
-  auto result = OptionalOrElse(DoAllocWithoutSbrk(n_pages), [this, n_pages]() {
-    return AllocEndWithSbrk(n_pages);
-  });
-  if (!result.has_value()) {
-    return std::nullopt;
-  }
-  auto [start_id, slab] = std::move(result.value());
+  DEFINE_OR_RETURN_OPT(
+      AllocResult, result,
+      OptionalOrElse(DoAllocWithoutSbrk(n_pages),
+                     [this, n_pages]() { return AllocEndWithSbrk(n_pages); }));
+  auto [start_id, slab] = std::move(result);
 
   switch (slab_type) {
     case SlabType::kSmall: {
@@ -294,10 +296,7 @@ SlabManagerImpl<MetadataAlloc>::AllocEndWithSbrk(uint32_t n_pages) {
     return std::nullopt;
   }
 
-  auto result = slab_map_->AllocatePath(new_memory_id, start_id + n_pages - 1);
-  if (!result.ok()) {
-    // TODO return option in slab_map_->AllocatePath()?
-    std::cerr << "Failed to allocate slab map: " << result << std::endl;
+  if (!slab_map_->AllocatePath(new_memory_id, start_id + n_pages - 1)) {
     return std::nullopt;
   }
 
