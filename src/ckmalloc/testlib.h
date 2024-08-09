@@ -65,6 +65,15 @@ void AbslStringify(Sink& sink, const Slab& slab) {
                slab.Type(), slab.Pages(), slab.StartId());
 }
 
+template <typename Sink>
+void AbslStringify(Sink& sink, const Slab* slab) {
+  if (slab == nullptr) {
+    sink.Append("[nullptr]");
+  } else {
+    absl::Format(&sink, "%v", *slab);
+  }
+}
+
 class TestHeap : public bench::Heap {
  public:
   static constexpr size_t kMaxNumPages = 64;

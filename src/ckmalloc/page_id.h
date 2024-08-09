@@ -55,12 +55,32 @@ class PageId {
     return *this;
   }
 
+  PageId& operator++() {
+    *this = *this + 1;
+    return *this;
+  }
+  PageId operator++(int) {
+    PageId copy = *this;
+    ++*this;
+    return copy;
+  }
+
   PageId operator-(uint32_t offset) const {
     return PageId(page_idx_ - offset);
   }
   PageId operator-=(uint32_t offset) {
     *this = (*this - offset);
     return *this;
+  }
+
+  PageId& operator--() {
+    *this = *this - 1;
+    return *this;
+  }
+  PageId operator--(int) {
+    PageId copy = *this;
+    --*this;
+    return copy;
   }
 
   int32_t operator-(const PageId& page_id) const {
