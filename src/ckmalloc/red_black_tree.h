@@ -172,9 +172,57 @@ class RbNode {
   bool red_ = true;
 };
 
+template <typename T>
+class RbTreeIterator {
+  template <typename U, typename Cmp>
+  friend class RbTree;
+
+ public:
+  using value_type = std::remove_reference_t<T>;
+  using node_type =
+      std::conditional_t<std::is_const_v<value_type>, const RbNode, RbNode>;
+
+  RbTreeIterator(const RbTreeIterator&) = default;
+
+  bool operator==(const RbTreeIterator& it) const {
+    return node_ == it.node_;
+  }
+  bool operator!=(const RbTreeIterator& it) const {
+    return !(*this == it);
+  }
+
+  value_type& operator*() const {
+    return *static_cast<value_type*>(node_);
+  }
+  value_type* operator->() const {
+    return static_cast<value_type*>(node_);
+  }
+
+  RbTreeIterator& operator++() {
+    node_ = node_->Next();
+    return *this;
+  }
+  RbTreeIterator operator++(int) {
+    RbTreeIterator copy = *this;
+    node_ = node_->Next();
+    return copy;
+  }
+
+ private:
+  explicit RbTreeIterator(node_type& node) : node_(&node) {}
+
+  node_type* node_;
+};
+
 template <typename T, typename Cmp = std::less<T>>
 class RbTree {
  public:
+  using value_type = T;
+  using reference = T&;
+  using const_reference = const T&;
+  using iterator = RbTreeIterator<reference>;
+  using const_iterator = RbTreeIterator<const_reference>;
+
   RbTree() = default;
 
   // Disallow copy/move construction/assignment, since tree nodes will point
@@ -194,6 +242,22 @@ class RbTree {
 
   size_t Size() const {
     return size_;
+  }
+
+  iterator begin() {
+    return RbTreeIterator<reference>(*root_.LeftmostChild());
+  }
+
+  const_iterator begin() const {
+    return RbTreeIterator<const_reference>(*root_.LeftmostChild());
+  }
+
+  iterator end() {
+    return RbTreeIterator<reference>(root_);
+  }
+
+  const_iterator end() const {
+    return RbTreeIterator<const_reference>(root_);
   }
 
   void Insert(T* item) {
