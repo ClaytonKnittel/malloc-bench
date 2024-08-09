@@ -3,6 +3,7 @@
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/metadata_manager.h"
 #include "src/ckmalloc/page_id.h"
+#include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/slab_manager.h"
 #include "src/ckmalloc/util.h"
 #include "src/heap_interface.h"
@@ -42,7 +43,7 @@ State::State(bench::Heap* heap)
     : slab_manager_(heap, &slab_map_),
       metadata_manager_(PageId::Zero(), &slab_map_, &slab_manager_) {
   // Allocate a single metadata slab.
-  slab_manager_.Alloc(1);
+  slab_manager_.Alloc(1, SlabType::kMetadata);
 }
 
 }  // namespace ckmalloc
