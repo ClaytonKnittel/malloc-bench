@@ -50,4 +50,60 @@ TEST_F(LinkedListTest, InsertFront) {
                                 Field(&Item ::val, 10)));
 }
 
+TEST_F(LinkedListTest, InsertBack) {
+  LinkedList<Item> list;
+  Item items[] = {
+    { .val = 10 },
+    { .val = 20 },
+    { .val = 30 },
+  };
+  list.InsertBack(&items[0]);
+  list.InsertBack(&items[1]);
+  list.InsertBack(&items[2]);
+  EXPECT_EQ(list.Size(), 3);
+  EXPECT_EQ(list.Front(), &items[0]);
+  EXPECT_EQ(list.Back(), &items[2]);
+
+  EXPECT_THAT(list, ElementsAre(Field(&Item ::val, 10), Field(&Item ::val, 20),
+                                Field(&Item ::val, 30)));
+}
+
+TEST_F(LinkedListTest, InsertAfter) {
+  LinkedList<Item> list;
+  Item items[] = {
+    { .val = 10 },
+    { .val = 20 },
+    { .val = 30 },
+    { .val = 40 },
+  };
+  list.InsertBack(&items[0]);
+  list.InsertBack(&items[1]);
+  list.InsertBack(&items[2]);
+
+  auto it = list.begin();
+  ++it;
+  list.InsertAfter(it, &items[3]);
+
+  EXPECT_THAT(list, ElementsAre(Field(&Item ::val, 10), Field(&Item ::val, 20),
+                                Field(&Item::val, 40), Field(&Item ::val, 30)));
+}
+
+TEST_F(LinkedListTest, Remove) {
+  LinkedList<Item> list;
+  Item items[] = {
+    { .val = 10 }, { .val = 20 }, { .val = 30 }, { .val = 40 }, { .val = 50 },
+  };
+  list.InsertBack(&items[0]);
+  list.InsertBack(&items[1]);
+  list.InsertBack(&items[2]);
+  list.InsertBack(&items[3]);
+  list.InsertBack(&items[4]);
+
+  list.Remove(list.begin());
+  list.Remove(++list.begin());
+
+  EXPECT_THAT(list, ElementsAre(Field(&Item ::val, 20), Field(&Item ::val, 40),
+                                Field(&Item ::val, 50)));
+}
+
 }  // namespace ckmalloc
