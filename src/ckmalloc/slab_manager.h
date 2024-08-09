@@ -17,8 +17,6 @@
 
 namespace ckmalloc {
 
-using SlabRbTree = RbTree<FreeMultiPageSlab>;
-
 template <MetadataAllocInterface MetadataAlloc>
 class SlabManagerImpl {
   friend class SlabManagerTest;
@@ -108,7 +106,7 @@ class SlabManagerImpl {
   LinkedList<FreeSinglePageSlab> single_page_freelist_;
 
   // Multi-page slabs are kept in a red-black tree sorted by size.
-  SlabRbTree multi_page_free_slabs_;
+  RbTree<FreeMultiPageSlab> multi_page_free_slabs_;
   // Cache a pointer to the smallest multi-page slab in the tree.
   FreeMultiPageSlab* smallest_multi_page_ = nullptr;
 };
