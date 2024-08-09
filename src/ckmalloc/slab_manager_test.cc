@@ -28,10 +28,6 @@ class SlabManagerTest : public CkMallocTest {
     return heap_;
   }
 
-  TestSlabMap& SlabMap() {
-    return slab_map_;
-  }
-
   TestSlabManager& SlabManager() {
     return slab_manager_;
   }
@@ -112,7 +108,7 @@ absl::Status SlabManagerTest::ValidateHeap() {
   uint32_t free_slabs = 0;
   uint32_t allocated_slabs = 0;
   while (page < end) {
-    Slab* slab = SlabMap().FindSlab(page);
+    Slab* slab = slab_map_.FindSlab(page);
     if (slab == nullptr) {
       return absl::FailedPreconditionError(
           absl::StrFormat("Unexpected `nullptr` slab map entry after end of "
@@ -212,7 +208,7 @@ absl::Status SlabManagerTest::ValidateHeap() {
   for (const FreeSinglePageSlab& slab_start :
        slab_manager_.single_page_freelist_) {
     PageId start_id = slab_manager_.PageIdFromPtr(&slab_start);
-    Slab* slab = SlabMap().FindSlab(start_id);
+    Slab* slab = slab_map_.FindSlab(start_id);
     if (slab == nullptr) {
       return absl::FailedPreconditionError(
           absl::StrFormat("Unexpected `nullptr` slab map entry in single-page "
@@ -254,7 +250,7 @@ absl::Status SlabManagerTest::ValidateHeap() {
   for (const FreeMultiPageSlab& slab_start :
        slab_manager_.multi_page_free_slabs_) {
     PageId start_id = slab_manager_.PageIdFromPtr(&slab_start);
-    Slab* slab = SlabMap().FindSlab(start_id);
+    Slab* slab = slab_map_.FindSlab(start_id);
     if (slab == nullptr) {
       return absl::FailedPreconditionError(
           absl::StrFormat("Unexpected `nullptr` slab map entry in multi-page "
