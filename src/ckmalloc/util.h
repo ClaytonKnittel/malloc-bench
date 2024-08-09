@@ -32,4 +32,13 @@ std::optional<T> OptionalOr(std::optional<T>&& primary,
   return primary.has_value() ? std::move(primary) : std::move(secondary);
 }
 
+template <typename T, typename Fn>
+std::optional<T> OptionalOrElse(std::optional<T>&& primary, Fn&& fn) {
+  if (primary.has_value()) {
+    return std::move(primary.value());
+  }
+
+  return fn();
+}
+
 }  // namespace ckmalloc
