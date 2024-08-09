@@ -171,6 +171,11 @@ class LinkedList {
     size_++;
   }
 
+  void Remove(T* item) {
+    static_cast<LinkedListNode*>(item)->Remove();
+    size_--;
+  }
+
   void Remove(iterator it) {
     it.node_->Remove();
     size_--;

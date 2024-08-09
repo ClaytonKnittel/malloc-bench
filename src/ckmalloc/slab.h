@@ -34,6 +34,10 @@ class Slab {
 
   void InitMetadataSlab(PageId start_id, uint32_t n_pages);
 
+  void InitSmallSlab(PageId start_id, uint32_t n_pages);
+
+  void InitLargeSlab(PageId start_id, uint32_t n_pages);
+
   // Returns the `PageId` of the first page in this slab.
   PageId StartId() const;
 
