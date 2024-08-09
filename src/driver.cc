@@ -10,7 +10,7 @@
 #include "absl/flags/parse.h"
 #include "absl/status/status.h"
 #include "absl/strings/match.h"
-#include "util/gtest_util.h"
+#include "util/absl_util.h"
 
 #include "src/correctness_checker.h"
 #include "src/perftest.h"
