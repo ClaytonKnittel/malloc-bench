@@ -70,9 +70,8 @@ class SlabManagerTest : public CkMallocTest {
     copy.InitMetadataSlab(start_id, n_pages);
     auto [it, inserted] = allocated_slabs_.insert({ slab, copy });
     if (!inserted) {
-      return absl::FailedPreconditionError(absl::StrFormat(
-          "Unexpected double-alloc of slab metadata %p when allocating %v",
-          slab, *slab));
+      return absl::FailedPreconditionError(
+          absl::StrFormat("Unexpected double-alloc of slab metadata %v", slab));
     }
 
     return slab;
@@ -147,6 +146,15 @@ absl::Status SlabManagerTest::ValidateHeap() {
               absl::StrFormat("Unexpected two adjacent free slabs: %v and %v",
                               *previous_slab, *slab));
         }
+        Slab* first_page_slab = slab_map_.FindSlab(slab->StartId());
+        Slab* last_page_slab = slab_map_.FindSlab(slab->EndId());
+        if (first_page_slab != slab || last_page_slab != slab) {
+          return absl::FailedPreconditionError(absl::StrFormat(
+              "Start and end pages of free slab do not map to the correct "
+              "metadata: %v, start_id maps to %v, end_id maps to %v",
+              *slab, first_page_slab, last_page_slab));
+        }
+
         previous_was_free = true;
         free_slabs++;
         break;
@@ -163,6 +171,17 @@ absl::Status SlabManagerTest::ValidateHeap() {
           return absl::FailedPreconditionError(absl::StrFormat(
               "Allocated slab metadata was dirtied: found %v, expected %v",
               *slab, it->second));
+        }
+
+        for (PageId page_id = slab->StartId(); page_id <= slab->EndId();
+             ++page_id) {
+          Slab* mapped_slab = slab_map_.FindSlab(page_id);
+          if (mapped_slab != slab) {
+            return absl::FailedPreconditionError(
+                absl::StrFormat("Internal page %v of %v does not map to the "
+                                "correct slab metadata: %v",
+                                page_id, *slab, mapped_slab));
+          }
         }
 
         previous_was_free = false;
