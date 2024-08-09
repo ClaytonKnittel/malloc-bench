@@ -418,4 +418,12 @@ TEST_F(SlabManagerTest, CoalesceBothDirections) {
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
+TEST_F(SlabManagerTest, ReAllocateFreed) {
+  ASSERT_OK_AND_DEFINE(Slab*, slab1, AllocateSlab(2));
+  ASSERT_THAT(FreeSlab(slab1), IsOk());
+  ASSERT_THAT(AllocateSlab(1).status(), IsOk());
+  EXPECT_THAT(ValidateHeap(), IsOk());
+  EXPECT_EQ(Heap().Size(), 2 * kPageSize);
+}
+
 }  // namespace ckmalloc
