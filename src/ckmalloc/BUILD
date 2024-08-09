@@ -48,13 +48,22 @@ cc_library(
 )
 
 cc_library(
+    name = "linked_list",
+    srcs = ["linked_list.cc"],
+    hdrs = ["linked_list.h"],
+    deps = [
+        ":util",
+    ],
+)
+
+cc_library(
     name = "metadata_manager",
     srcs = ["metadata_manager.cc"],
     hdrs = ["metadata_manager.h"],
     deps = [
         ":common",
+        ":page_id",
         ":slab",
-        ":slab_id",
         ":slab_manager",
         ":slab_map",
         ":util",
@@ -89,14 +98,14 @@ cc_library(
     srcs = ["slab.cc"],
     hdrs = ["slab.h"],
     deps = [
-        ":slab_id",
+        ":page_id",
         ":util",
     ],
 )
 
 cc_library(
-    name = "slab_id",
-    hdrs = ["slab_id.h"],
+    name = "page_id",
+    hdrs = ["page_id.h"],
     deps = [
         ":common",
     ],
@@ -104,13 +113,12 @@ cc_library(
 
 cc_library(
     name = "slab_manager",
-    srcs = ["slab_manager.cc"],
     hdrs = ["slab_manager.h"],
     deps = [
         ":common",
         ":free_slab",
+        ":page_id",
         ":slab",
-        ":slab_id",
         ":slab_map",
         ":util",
         "//src:heap_interface",
@@ -121,8 +129,17 @@ cc_test(
     name = "slab_manager_test",
     srcs = ["slab_manager_test.cc"],
     deps = [
+        ":common",
+        ":page_id",
+        ":slab",
         ":slab_manager",
         ":testlib",
+        "@abseil-cpp//absl/container:flat_hash_map",
+        "@abseil-cpp//absl/container:flat_hash_set",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings:str_format",
+        "@cc-util//util:gtest_util",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
@@ -133,8 +150,8 @@ cc_library(
     hdrs = ["slab_map.h"],
     deps = [
         ":common",
+        ":page_id",
         ":slab",
-        ":slab_id",
         ":util",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
@@ -146,7 +163,7 @@ cc_test(
     name = "slab_map_test",
     srcs = ["slab_map_test.cc"],
     deps = [
-        ":slab_id",
+        ":page_id",
         ":slab_map",
         ":testlib",
         "@cc-util//util:gtest_util",
@@ -162,8 +179,7 @@ cc_library(
     deps = [
         ":common",
         ":metadata_manager",
-        ":slab",
-        ":slab_id",
+        ":page_id",
         ":slab_manager",
         ":slab_map",
         ":util",
@@ -173,9 +189,17 @@ cc_library(
 
 cc_library(
     name = "testlib",
+    srcs = ["testlib.cc"],
     hdrs = ["testlib.h"],
     deps = [
+        ":common",
+        ":page_id",
+        ":slab",
+        ":slab_manager",
         ":slab_map",
+        "//src:heap_interface",
+        "@abseil-cpp//absl/strings:str_format",
+        "@googletest//:gtest",
     ],
 )
 

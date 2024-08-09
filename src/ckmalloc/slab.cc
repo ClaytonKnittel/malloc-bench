@@ -1,11 +1,11 @@
 #include "src/ckmalloc/slab.h"
 
-#include "src/ckmalloc/slab_id.h"
+#include "src/ckmalloc/page_id.h"
 #include "src/ckmalloc/util.h"
 
 namespace ckmalloc {
 
-void Slab::InitFreeSlab(SlabId start_id, uint32_t n_pages) {
+void Slab::InitFreeSlab(PageId start_id, uint32_t n_pages) {
   type_ = SlabType::kFree;
   mapped = {
     .id_ = start_id,
@@ -14,7 +14,7 @@ void Slab::InitFreeSlab(SlabId start_id, uint32_t n_pages) {
   };
 }
 
-void Slab::InitMetadataSlab(SlabId start_id, uint32_t n_pages) {
+void Slab::InitMetadataSlab(PageId start_id, uint32_t n_pages) {
   type_ = SlabType::kMetadata;
   mapped = {
     .id_ = start_id,
@@ -23,14 +23,14 @@ void Slab::InitMetadataSlab(SlabId start_id, uint32_t n_pages) {
   };
 }
 
-SlabId Slab::StartId() const {
+PageId Slab::StartId() const {
   CK_ASSERT(type_ != SlabType::kUnmapped);
   return mapped.id_;
 }
 
-SlabId Slab::EndId() const {
+PageId Slab::EndId() const {
   CK_ASSERT(type_ != SlabType::kUnmapped);
-  return mapped.id_ + Pages();
+  return mapped.id_ + Pages() - 1;
 }
 
 uint32_t Slab::Pages() const {
