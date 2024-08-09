@@ -14,13 +14,22 @@ class FreeSinglePageSlab {
     return next_free_;
   }
 
+  FreeSinglePageSlab* PrevFree() {
+    return prev_free_;
+  }
+
+  const FreeSinglePageSlab* PrevFree() const {
+    return prev_free_;
+  }
+
   void SetNextFree(FreeSinglePageSlab* next_free) {
     next_free_ = next_free;
   }
 
  private:
-  // For free single-page slabs, we have a singly-linked list of free slabs.
+  // For free single-page slabs, we have a doubly-linked list of free slabs.
   FreeSinglePageSlab* next_free_;
+  FreeSinglePageSlab* prev_free_;
 };
 
 // Free multi-page slabs are kept in a red-black tree in sorted order by size.

@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-#include "src/ckmalloc/slab_id.h"
+#include "src/ckmalloc/page_id.h"
 
 namespace ckmalloc {
 
@@ -27,16 +27,18 @@ enum class SlabType {
 // Slab metadata class, which is stored separately from the slab it describes,
 // in a metadata slab.
 class Slab {
+  friend class SlabManagerTest;
+
  public:
-  void InitFreeSlab(SlabId start_id, uint32_t n_pages);
+  void InitFreeSlab(PageId start_id, uint32_t n_pages);
 
-  void InitMetadataSlab(SlabId start_id, uint32_t n_pages);
+  void InitMetadataSlab(PageId start_id, uint32_t n_pages);
 
-  // Returns the `SlabId` of the first page in this slab.
-  SlabId StartId() const;
+  // Returns the `PageId` of the first page in this slab.
+  PageId StartId() const;
 
-  // Returns the `SlabId` of the last page in this slab.
-  SlabId EndId() const;
+  // Returns the `PageId` of the last page in this slab.
+  PageId EndId() const;
 
   SlabType Type() const {
     return type_;
@@ -47,15 +49,16 @@ class Slab {
   uint32_t Pages() const;
 
  private:
+  Slab() {}
+
   SlabType type_;
 
   union {
     struct {
-      uint32_t n_pages_;
     } unmapped;
 
     struct {
-      SlabId id_;
+      PageId id_;
       uint32_t n_pages_;
 
       union {
