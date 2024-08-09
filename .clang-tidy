@@ -102,6 +102,7 @@ Checks: >
   -readability-redundant-declaration,
   -readability-avoid-return-with-void-value,
   -readability-function-cognitive-complexity,
+  -bugprone-assignment-in-if-condition,
   -bugprone-narrowing-conversions,
   -bugprone-easily-swappable-parameters,
   -bugprone-inc-dec-in-conditions,

@@ -46,12 +46,37 @@ class SlabManagerImpl {
   void Free(Slab* slab);
 
  private:
+  // Returns the `PageId` of the end of the heap (i.e. one page past the last
+  // allocated slab).
+  PageId HeapEndPageId();
+
+  // Returns the slab metadata for the rightmost slab, i.e. the slab with
+  // highest start `PageId`. Should only be called if the heap is not empty.
+  Slab* LastSlab();
+
   // Finds a region of memory to return for `Alloc`, returning the `PageId` of
   // the beginning of the region and a `Slab` metadata object that may be used
   // to hold metadata for this region. This method will not increase the size of
   // the heap, and may return `std::nullopt` if there was no memory region large
   // enough for this allocation already available.
   std::optional<std::pair<PageId, Slab*>> DoAllocWithoutSbrk(uint32_t n_pages);
+
+  // Tries to allocate `n_pages` at the end of the heap, which should increase
+  // the size of the heap. This should be called if allocating within the heap
+  // has already failed.
+  std::optional<std::pair<PageId, Slab*>> AllocEndWithSbrk(uint32_t n_pages);
+
+  // Inserts a single-page free slab into the slab freelist.
+  void InsertSinglePageFreeSlab(FreeSinglePageSlab* slab_start);
+
+  // Inserts a multi-page free slab into the freelist.
+  void InsertMultiPageFreeSlab(FreeMultiPageSlab* slab_start, uint32_t n_pages);
+
+  // Given a `Slab` metadata object to use, a start `PageId`, and number of
+  // pages, initializes the `Slab` metadata to describe this region as free, and
+  // inserts it into the necessary data structures to track this free region.
+  // This does not coalesce with neighbors.
+  void FreeRegion(Slab* slab, PageId start_id, uint32_t n_pages);
 
   // Removes a single-page free slab from the slab freelist, allowing it to be
   // allocated or merged into another slab.
@@ -109,36 +134,16 @@ PageId SlabManagerImpl<MetadataAlloc>::PageIdFromPtr(const void* ptr) const {
 template <MetadataAllocInterface MetadataAlloc>
 std::optional<std::pair<PageId, Slab*>> SlabManagerImpl<MetadataAlloc>::Alloc(
     uint32_t n_pages, SlabType slab_type) {
-  auto result = DoAllocWithoutSbrk(n_pages);
-  PageId start_id = PageId::Zero();
-  Slab* slab;
-  if (result.has_value()) {
-    start_id = result.value().first;
-    slab = result.value().second;
-    // No need to allocate entries in the slab map, this will have been done
-    // already when this memory was first allocated with `sbrk`.
-  } else {
-    size_t requested_size = static_cast<size_t>(n_pages) * kPageSize;
-    void* slab_start = heap_->sbrk(requested_size);
-    if (slab_start == nullptr) {
-      return std::nullopt;
-    }
-
-    start_id = PageIdFromPtr(slab_start);
-    slab = MetadataAlloc::SlabAlloc();
-    if (slab == nullptr) {
-      return std::nullopt;
-    }
-
-    auto result = slab_map_->AllocatePath(start_id, start_id + n_pages - 1);
-    if (!result.ok()) {
-      // TODO return option in slab_map_->AllocatePath()?
-      std::cerr << "Failed to allocate slab map: " << result << std::endl;
-      return std::nullopt;
-    }
-  }
-
   CK_ASSERT(slab_type != SlabType::kUnmapped && slab_type != SlabType::kFree);
+
+  auto result = OptionalOrElse(DoAllocWithoutSbrk(n_pages), [this, n_pages]() {
+    return AllocEndWithSbrk(n_pages);
+  });
+  if (!result.has_value()) {
+    return std::nullopt;
+  }
+  auto [start_id, slab] = std::move(result.value());
+
   switch (slab_type) {
     case SlabType::kSmall: {
       slab->InitSmallSlab(start_id, n_pages);
@@ -183,38 +188,29 @@ void SlabManagerImpl<MetadataAlloc>::Free(Slab* slab) {
     }
   }
 
-  PageId end_id = slab->EndId();
   {
-    Slab* next_slab = slab_map_->FindSlab(end_id + 1);
+    Slab* next_slab = slab_map_->FindSlab(slab->EndId() + 1);
     if (next_slab != nullptr && next_slab->Type() == SlabType::kFree) {
-      end_id = next_slab->EndId();
       n_pages += next_slab->Pages();
       RemoveFreeSlab(next_slab);
       MetadataAlloc::SlabFree(next_slab);
     }
   }
 
-  slab->InitFreeSlab(start_id, n_pages);
-  // We only need to map this slab to the first and last page of the slab, since
-  // those will be the only pages queried from this method, and no
-  // user-allocated data lives within a free slab.
-  slab_map_->Insert(start_id, slab);
-  slab_map_->Insert(end_id, slab);
+  FreeRegion(slab, start_id, n_pages);
+}
 
-  void* slab_start = PageStartFromId(start_id);
-  if (n_pages == 1) {
-    auto* slab = new (slab_start) FreeSinglePageSlab();
-    single_page_freelist_.InsertFront(slab);
-  } else {
-    auto* slab = new (slab_start) FreeMultiPageSlab(n_pages);
-    multi_page_free_slabs_.Insert(slab);
-    // Rb biases toward inserting to the right, so if slab == smallest already,
-    // it will certainly not be inserted before it in the tree.
-    if (smallest_multi_page_ == nullptr || *slab < *smallest_multi_page_) {
-      smallest_multi_page_ = slab;
-    }
-    CK_ASSERT(multi_page_free_slabs_.Prev(smallest_multi_page_) == nullptr);
-  }
+template <MetadataAllocInterface MetadataAlloc>
+PageId SlabManagerImpl<MetadataAlloc>::HeapEndPageId() {
+  ptrdiff_t diff = static_cast<const uint8_t*>(heap_->End()) -
+                   static_cast<uint8_t*>(heap_start_);
+  return PageId(static_cast<uint32_t>(diff / kPageSize));
+}
+
+template <MetadataAllocInterface MetadataAlloc>
+Slab* SlabManagerImpl<MetadataAlloc>::LastSlab() {
+  CK_ASSERT(heap_->Size() != 0);
+  return slab_map_->FindSlab(HeapEndPageId() - 1);
 }
 
 template <MetadataAllocInterface MetadataAlloc>
@@ -249,16 +245,98 @@ SlabManagerImpl<MetadataAlloc>::DoAllocWithoutSbrk(uint32_t n_pages) {
   uint32_t actual_pages = slab_start->Pages();
   CK_ASSERT(actual_pages >= n_pages);
   if (actual_pages != n_pages) {
-    // TODO: free can be simpler, check next to see if is free, if so merge
-    // with it. Otherwise do this but no need to coalesce.
+    // This region was already free, so we know the next adjacent slab cannot be
+    // free, and we are about to allocate the region before it, so we never need
+    // to coalesce here.
     Slab* remainder = MetadataAlloc::SlabAlloc();
-    // TODO: This does not work
-    remainder->InitFreeSlab(page_id + n_pages, actual_pages - n_pages);
-    Free(remainder);
+    if (remainder == nullptr) {
+      // We have to put `slab_start` back into the multi-page free slabs tree to
+      // avoid invalidating the heap.
+      InsertMultiPageFreeSlab(slab_start, actual_pages);
+      return std::nullopt;
+    }
+    FreeRegion(remainder, page_id + n_pages, actual_pages - n_pages);
   }
 
   Slab* slab = slab_map_->FindSlab(page_id);
   return std::make_pair(page_id, slab);
+}
+
+template <MetadataAllocInterface MetadataAlloc>
+std::optional<std::pair<PageId, Slab*>>
+SlabManagerImpl<MetadataAlloc>::AllocEndWithSbrk(uint32_t n_pages) {
+  // If we have allocated anything, check if the last slab is free. If so, we
+  // can use it and only allocate the difference past the end of the heap.
+  Slab* slab;
+  size_t required_size = n_pages * kPageSize;
+  PageId start_id = PageId::Zero();
+  // The `PageId` of where newly allocated memory willl start.
+  PageId new_memory_id = HeapEndPageId();
+  if (heap_->Size() != 0 && (slab = LastSlab())->Type() == SlabType::kFree) {
+    required_size -= slab->Pages() * kPageSize;
+    start_id = slab->StartId();
+  } else {
+    slab = MetadataAlloc::SlabAlloc();
+    if (slab == nullptr) {
+      return std::nullopt;
+    }
+    start_id = new_memory_id;
+  }
+
+  void* slab_start = heap_->sbrk(required_size);
+  if (slab_start == nullptr) {
+    return std::nullopt;
+  }
+
+  auto result = slab_map_->AllocatePath(new_memory_id, start_id + n_pages - 1);
+  if (!result.ok()) {
+    // TODO return option in slab_map_->AllocatePath()?
+    std::cerr << "Failed to allocate slab map: " << result << std::endl;
+    return std::nullopt;
+  }
+
+  return std::make_pair(start_id, slab);
+}
+
+template <MetadataAllocInterface MetadataAlloc>
+void SlabManagerImpl<MetadataAlloc>::InsertSinglePageFreeSlab(
+    FreeSinglePageSlab* slab_start) {
+  single_page_freelist_.InsertFront(slab_start);
+}
+
+template <MetadataAllocInterface MetadataAlloc>
+void SlabManagerImpl<MetadataAlloc>::InsertMultiPageFreeSlab(
+    FreeMultiPageSlab* slab_start, uint32_t n_pages) {
+  auto* slab = new (slab_start) FreeMultiPageSlab(n_pages);
+  multi_page_free_slabs_.Insert(slab);
+  // Rb biases toward inserting to the right, so if slab == smallest already,
+  // it will certainly not be inserted before it in the tree.
+  if (smallest_multi_page_ == nullptr || *slab < *smallest_multi_page_) {
+    smallest_multi_page_ = slab;
+  }
+  CK_ASSERT(multi_page_free_slabs_.Prev(smallest_multi_page_) == nullptr);
+}
+
+template <MetadataAllocInterface MetadataAlloc>
+void SlabManagerImpl<MetadataAlloc>::FreeRegion(Slab* slab, PageId start_id,
+                                                uint32_t n_pages) {
+  PageId end_id = start_id + n_pages - 1;
+
+  slab->InitFreeSlab(start_id, n_pages);
+  // We only need to map this slab to the first and last page of the slab, since
+  // those will be the only pages queried from this method, and no
+  // user-allocated data lives within a free slab.
+  slab_map_->Insert(start_id, slab);
+  slab_map_->Insert(end_id, slab);
+
+  void* slab_start = PageStartFromId(start_id);
+  if (n_pages == 1) {
+    auto* slab = new (slab_start) FreeSinglePageSlab();
+    InsertSinglePageFreeSlab(slab);
+  } else {
+    auto* slab = new (slab_start) FreeMultiPageSlab(n_pages);
+    InsertMultiPageFreeSlab(slab, n_pages);
+  }
 }
 
 template <MetadataAllocInterface MetadataAlloc>
