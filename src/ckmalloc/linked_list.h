@@ -1,13 +1,18 @@
 #pragma once
 
 #include <cstddef>
+#include <type_traits>
 
 #include "src/ckmalloc/util.h"
+
 namespace ckmalloc {
 
 class LinkedListNode {
   template <typename T>
   friend class LinkedList;
+
+  template <typename T>
+  friend class LinkedListIterator;
 
  public:
   LinkedListNode() = default;
@@ -38,8 +43,56 @@ class LinkedListNode {
 };
 
 template <typename T>
+class LinkedListIterator {
+  template <typename U>
+  friend class LinkedList;
+
+ public:
+  using value_type = std::remove_reference_t<T>;
+  using node_type = std::conditional_t<std::is_const_v<value_type>,
+                                       const LinkedListNode, LinkedListNode>;
+
+  LinkedListIterator(const LinkedListIterator&) = default;
+
+  bool operator==(const LinkedListIterator& it) const {
+    return node_ == it.node_;
+  }
+  bool operator!=(const LinkedListIterator& it) const {
+    return !(*this == it);
+  }
+
+  value_type& operator*() const {
+    return *static_cast<value_type*>(node_);
+  }
+  value_type* operator->() const {
+    return static_cast<value_type*>(node_);
+  }
+
+  LinkedListIterator& operator++() {
+    node_ = node_->next_;
+    return *this;
+  }
+  LinkedListIterator operator++(int) {
+    LinkedListIterator copy = *this;
+    node_ = node_->next_;
+    return copy;
+  }
+
+ private:
+  explicit LinkedListIterator(node_type& node) : node_(&node) {}
+
+  node_type* node_;
+};
+
+template <typename T>
 class LinkedList {
  public:
+  using value_type = T;
+  using reference = T&;
+  using const_reference = const T&;
+  using iterator = LinkedListIterator<reference>;
+  using const_iterator = LinkedListIterator<const_reference>;
+
   LinkedList() : sentinel_(&sentinel_, &sentinel_) {}
 
   // Disallow copy/move construction/assignment, since list nodes will point
@@ -57,54 +110,29 @@ class LinkedList {
     return size_;
   }
 
-  class Iterator {
-    friend LinkedList;
-
-   public:
-    Iterator(const Iterator&) = default;
-
-    bool operator==(const Iterator& it) const {
-      return node_ == it.node_;
-    }
-    bool operator!=(const Iterator& it) const {
-      return !(*this == it);
-    }
-
-    T* operator*() const {
-      return static_cast<T*>(node_);
-    }
-
-    Iterator operator++() {
-      node_ = node_->next_;
-      return *this;
-    }
-    Iterator operator++(int) {
-      Iterator copy = *this;
-      node_ = node_->next_;
-      return copy;
-    }
-
-   private:
-    explicit Iterator(LinkedListNode* node) : node_(node) {}
-
-    LinkedListNode* node_;
-  };
-
-  Iterator begin() {
-    return Iterator(Front());
+  iterator begin() {
+    return LinkedListIterator<reference>(*sentinel_.next_);
   }
 
-  Iterator end() {
-    return Iterator(&sentinel_);
+  const_iterator begin() const {
+    return LinkedListIterator<const_reference>(*sentinel_.next_);
+  }
+
+  iterator end() {
+    return LinkedListIterator<reference>(sentinel_);
+  }
+
+  const_iterator end() const {
+    return LinkedListIterator<const_reference>(sentinel_);
   }
 
   void InsertFront(T* item) {
-    item->InsertAfter(&sentinel_);
+    item->InsertAfter(sentinel_);
     size_++;
   }
 
   void InsertBack(T* item) {
-    item->InsertBefore(&sentinel_);
+    item->InsertBefore(sentinel_);
     size_++;
   }
 
@@ -134,12 +162,12 @@ class LinkedList {
     return static_cast<T*>(last);
   }
 
-  void InsertAfter(Iterator it, T* item) {
-    static_cast<LinkedListNode*>(item)->InsertAfter(it.node_);
+  void InsertAfter(iterator it, T* item) {
+    static_cast<LinkedListNode*>(item)->InsertAfter(*it.node_);
     size_++;
   }
 
-  void Remove(Iterator it) {
+  void Remove(iterator it) {
     it.node_->Remove();
     size_--;
   }
@@ -148,5 +176,16 @@ class LinkedList {
   LinkedListNode sentinel_;
   size_t size_ = 0;
 };
+
+template <typename T1, typename T2>
+bool operator==(const LinkedListIterator<T1>& it1,
+                const LinkedListIterator<T2>& it2) {
+  return it1.node_ == it2.node_;
+}
+template <typename T1, typename T2>
+bool operator!=(const LinkedListIterator<T1>& it1,
+                const LinkedListIterator<T2>& it2) {
+  return !(it1 == it2);
+}
 
 }  // namespace ckmalloc
