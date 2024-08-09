@@ -388,4 +388,34 @@ TEST_F(SlabManagerTest, FreeTwice) {
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
+TEST_F(SlabManagerTest, CoalesceBehind) {
+  ASSERT_OK_AND_DEFINE(Slab*, slab1, AllocateSlab(3));
+  ASSERT_OK_AND_DEFINE(Slab*, slab2, AllocateSlab(5));
+  ASSERT_THAT(FreeSlab(slab2), IsOk());
+  EXPECT_THAT(ValidateHeap(), IsOk());
+  ASSERT_THAT(FreeSlab(slab1), IsOk());
+  EXPECT_THAT(ValidateHeap(), IsOk());
+}
+
+TEST_F(SlabManagerTest, CoalesceAhead) {
+  ASSERT_OK_AND_DEFINE(Slab*, slab1, AllocateSlab(2));
+  ASSERT_OK_AND_DEFINE(Slab*, slab2, AllocateSlab(5));
+  ASSERT_THAT(FreeSlab(slab1), IsOk());
+  EXPECT_THAT(ValidateHeap(), IsOk());
+  ASSERT_THAT(FreeSlab(slab2), IsOk());
+  EXPECT_THAT(ValidateHeap(), IsOk());
+}
+
+TEST_F(SlabManagerTest, CoalesceBothDirections) {
+  ASSERT_OK_AND_DEFINE(Slab*, slab1, AllocateSlab(2));
+  ASSERT_OK_AND_DEFINE(Slab*, slab2, AllocateSlab(1));
+  ASSERT_OK_AND_DEFINE(Slab*, slab3, AllocateSlab(3));
+  ASSERT_THAT(FreeSlab(slab1), IsOk());
+  EXPECT_THAT(ValidateHeap(), IsOk());
+  ASSERT_THAT(FreeSlab(slab3), IsOk());
+  EXPECT_THAT(ValidateHeap(), IsOk());
+  ASSERT_THAT(FreeSlab(slab2), IsOk());
+  EXPECT_THAT(ValidateHeap(), IsOk());
+}
+
 }  // namespace ckmalloc
