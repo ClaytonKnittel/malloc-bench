@@ -434,4 +434,29 @@ TEST_F(SlabManagerTest, ExtendHeapWithFreeAtEnd) {
   EXPECT_EQ(Heap().Size(), 3 * kPageSize);
 }
 
+TEST_F(SlabManagerTest, BestFit) {
+  ASSERT_OK_AND_DEFINE(Slab*, slab1, AllocateSlab(3));
+  ASSERT_THAT(AllocateSlab(1).status(), IsOk());
+  ASSERT_OK_AND_DEFINE(Slab*, slab3, AllocateSlab(6));
+  ASSERT_THAT(AllocateSlab(1).status(), IsOk());
+  ASSERT_OK_AND_DEFINE(Slab*, slab5, AllocateSlab(4));
+  ASSERT_THAT(AllocateSlab(1).status(), IsOk());
+  ASSERT_OK_AND_DEFINE(Slab*, slab7, AllocateSlab(8));
+  PageId slab5_start = slab5->StartId();
+
+  // Free all the larger slabs, which should have alternatively fill the heap.
+  ASSERT_THAT(FreeSlab(slab1), IsOk());
+  ASSERT_THAT(FreeSlab(slab3), IsOk());
+  ASSERT_THAT(FreeSlab(slab5), IsOk());
+  ASSERT_THAT(FreeSlab(slab7), IsOk());
+  EXPECT_THAT(ValidateHeap(), IsOk());
+  // There should now be free slabs of size 3, 4, 6, and 8.
+
+  ASSERT_OK_AND_DEFINE(Slab*, slab8, AllocateSlab(4));
+
+  // We should have found the perfect fit, which used to be slab 5.
+  EXPECT_EQ(slab8->StartId(), slab5_start);
+  EXPECT_EQ(Heap().Size(), 24 * kPageSize);
+}
+
 }  // namespace ckmalloc
