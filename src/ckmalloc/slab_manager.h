@@ -237,7 +237,10 @@ SlabManagerImpl<MetadataAlloc>::DoAllocWithoutSbrk(uint32_t n_pages) {
           return slab.Pages() >= n_pages;
         });
   }
-  CK_ASSERT(slab_start != nullptr);
+  if (slab_start == nullptr) {
+    // No slabs large enough were found.
+    return std::nullopt;
+  }
 
   RemoveMultiPageFreeSlab(slab_start);
 
@@ -275,6 +278,9 @@ SlabManagerImpl<MetadataAlloc>::AllocEndWithSbrk(uint32_t n_pages) {
   if (heap_->Size() != 0 && (slab = LastSlab())->Type() == SlabType::kFree) {
     required_size -= slab->Pages() * kPageSize;
     start_id = slab->StartId();
+
+    // We will be taking `slab`, so remove it from its freelist.
+    RemoveFreeSlab(slab);
   } else {
     slab = MetadataAlloc::SlabAlloc();
     if (slab == nullptr) {
