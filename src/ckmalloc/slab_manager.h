@@ -213,7 +213,7 @@ void SlabManagerImpl<MetadataAlloc>::Free(Slab* slab) {
     if (smallest_multi_page_ == nullptr || *slab < *smallest_multi_page_) {
       smallest_multi_page_ = slab;
     }
-    CK_ASSERT(smallest_multi_page_->Prev() == nullptr);
+    CK_ASSERT(multi_page_free_slabs_.Prev(smallest_multi_page_) == nullptr);
   }
 }
 
@@ -271,11 +271,12 @@ template <MetadataAllocInterface MetadataAlloc>
 void SlabManagerImpl<MetadataAlloc>::RemoveMultiPageFreeSlab(
     FreeMultiPageSlab* slab_start) {
   if (slab_start == smallest_multi_page_) {
-    smallest_multi_page_ = static_cast<FreeMultiPageSlab*>(slab_start->Next());
+    smallest_multi_page_ = static_cast<FreeMultiPageSlab*>(
+        multi_page_free_slabs_.Next(slab_start));
   }
   multi_page_free_slabs_.Remove(slab_start);
   CK_ASSERT(smallest_multi_page_ == nullptr ||
-            smallest_multi_page_->Prev() == nullptr);
+            multi_page_free_slabs_.Prev(smallest_multi_page_) == nullptr);
 }
 
 template <MetadataAllocInterface MetadataAlloc>

@@ -2,15 +2,15 @@
 
 #include <cstddef>
 #include <functional>
-#include <optional>
-
-#include "src/ckmalloc/util.h"
 
 namespace ckmalloc {
 
 class RbNode {
   template <typename T, typename Cmp>
   friend class RbTree;
+
+  template <typename T>
+  friend class RbTreeIterator;
 
  public:
   RbNode() = default;
@@ -37,46 +37,6 @@ class RbNode {
 
   bool IsBlack() const {
     return !red_;
-  }
-
-  RbNode* Next() {
-    return const_cast<RbNode*>(static_cast<const RbNode*>(this)->Next());
-  }
-
-  const RbNode* Next() const {
-    if (right_ != nullptr) {
-      return right_->LeftmostChild();
-    }
-
-    const RbNode* node = this;
-    const RbNode* prev = nullptr;
-    while (node != nullptr && node->right_ == prev) {
-      prev = node;
-      node = node->parent_;
-    }
-    return node;
-  }
-
-  RbNode* Prev() {
-    return const_cast<RbNode*>(static_cast<const RbNode*>(this)->Prev());
-  }
-
-  const RbNode* Prev() const {
-    if (left_ != nullptr) {
-      return left_->RightmostChild();
-    }
-
-    const RbNode* node = this;
-    const RbNode* prev = nullptr;
-    while (node != nullptr && node->left_ == prev) {
-      prev = node;
-      node = node->parent_;
-    }
-    return node;
-  }
-
-  const RbNode* LeftmostChild() const {
-    return left_ != nullptr ? left_->LeftmostChild() : this;
   }
 
  private:
@@ -144,7 +104,47 @@ class RbNode {
   // `parent_` or `new_child` may be null. This does not modify `this`.
   void DetachParent(RbNode* new_child) const;
 
+  RbNode* Next() {
+    return const_cast<RbNode*>(static_cast<const RbNode*>(this)->Next());
+  }
+
+  const RbNode* Next() const {
+    if (right_ != nullptr) {
+      return right_->LeftmostChild();
+    }
+
+    const RbNode* node = this;
+    const RbNode* prev = nullptr;
+    while (node != nullptr && node->right_ == prev) {
+      prev = node;
+      node = node->parent_;
+    }
+    return node;
+  }
+
+  RbNode* Prev() {
+    return const_cast<RbNode*>(static_cast<const RbNode*>(this)->Prev());
+  }
+
+  const RbNode* Prev() const {
+    if (left_ != nullptr) {
+      return left_->RightmostChild();
+    }
+
+    const RbNode* node = this;
+    const RbNode* prev = nullptr;
+    while (node != nullptr && node->left_ == prev) {
+      prev = node;
+      node = node->parent_;
+    }
+    return node;
+  }
+
   RbNode* LeftmostChild() {
+    return left_ != nullptr ? left_->LeftmostChild() : this;
+  }
+
+  const RbNode* LeftmostChild() const {
     return left_ != nullptr ? left_->LeftmostChild() : this;
   }
 
@@ -216,6 +216,8 @@ class RbTreeIterator {
 
 template <typename T, typename Cmp = std::less<T>>
 class RbTree {
+  friend class RedBlackTreeTest;
+
  public:
   using value_type = T;
   using reference = T&;
@@ -231,14 +233,6 @@ class RbTree {
   RbTree(RbTree<T, Cmp>&&) = delete;
   RbTree<T, Cmp>& operator=(const RbTree<T, Cmp>&) = delete;
   RbTree<T, Cmp>& operator=(RbTree<T, Cmp>&&) = delete;
-
-  const RbNode* RootSentinel() const {
-    return &root_;
-  }
-
-  const RbNode* Root() const {
-    return root_.Left();
-  }
 
   bool Empty() const {
     return size_ == 0;
@@ -262,6 +256,26 @@ class RbTree {
 
   const_iterator end() const {
     return RbTreeIterator<const_reference>(root_);
+  }
+
+  T* Next(T* item) {
+    RbNode* next = static_cast<RbNode*>(item)->Next();
+    return next != RootSentinel() ? static_cast<T*>(next) : nullptr;
+  }
+
+  const T* Next(const T* item) const {
+    const RbNode* next = static_cast<const RbNode*>(item)->Next();
+    return next != RootSentinel() ? static_cast<const T*>(next) : nullptr;
+  }
+
+  T* Prev(T* item) {
+    RbNode* prev = static_cast<RbNode*>(item)->Prev();
+    return prev != nullptr ? static_cast<T*>(prev) : nullptr;
+  }
+
+  const T* Prev(const T* item) const {
+    const RbNode* prev = static_cast<const RbNode*>(item)->Prev();
+    return prev != nullptr ? static_cast<const T*>(prev) : nullptr;
   }
 
   void Insert(T* item) {
@@ -313,6 +327,14 @@ class RbTree {
 
  private:
   RbNode* Root() {
+    return root_.Left();
+  }
+
+  const RbNode* RootSentinel() const {
+    return &root_;
+  }
+
+  const RbNode* Root() const {
     return root_.Left();
   }
 
