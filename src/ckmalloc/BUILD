@@ -56,6 +56,16 @@ cc_library(
     ],
 )
 
+cc_test(
+    name = "linked_list_test",
+    srcs = ["linked_list_test.cc"],
+    deps = [
+        ":linked_list",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
 cc_library(
     name = "metadata_manager",
     srcs = ["metadata_manager.cc"],
