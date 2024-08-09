@@ -5,6 +5,7 @@
 
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/free_slab.h"
+#include "src/ckmalloc/linked_list.h"
 #include "src/ckmalloc/page_id.h"
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/slab_map.h"
@@ -26,7 +27,7 @@ class SlabManagerImpl {
   void* SlabStartFromId(PageId page_id) const;
 
   // Returns the `PageId` for the slab containing `ptr`.
-  PageId PageIdFromPtr(void* ptr) const;
+  PageId PageIdFromPtr(const void* ptr) const;
 
   // Allocates `n_pages` contiguous pages, returning the `PageId` of the first
   // page in the slab, and an allocated uninitialized `Slab` metadata for this
@@ -51,7 +52,7 @@ class SlabManagerImpl {
   SlabMapImpl<MetadataAlloc>* slab_map_;
 
   // Single-page slabs are kept in a singly-linked freelist.
-  FreeSinglePageSlab* single_page_freelist_ = nullptr;
+  LinkedList<FreeSinglePageSlab> single_page_freelist_;
 
   // Multi-page slabs are kept in a red-black tree sorted by size.
   SlabRbTree multi_page_free_slabs_;
@@ -73,20 +74,19 @@ void* SlabManagerImpl<MetadataAlloc>::SlabStartFromId(PageId page_id) const {
 }
 
 template <MetadataAllocInterface MetadataAlloc>
-PageId SlabManagerImpl<MetadataAlloc>::PageIdFromPtr(void* ptr) const {
+PageId SlabManagerImpl<MetadataAlloc>::PageIdFromPtr(const void* ptr) const {
   CK_ASSERT(heap_start_ == heap_->Start());
   CK_ASSERT(ptr >= heap_->Start() && ptr < heap_->End());
   ptrdiff_t diff =
-      static_cast<uint8_t*>(ptr) - static_cast<uint8_t*>(heap_start_);
+      static_cast<const uint8_t*>(ptr) - static_cast<uint8_t*>(heap_start_);
   return PageId(static_cast<uint32_t>(diff / kPageSize));
 }
 
 template <MetadataAllocInterface MetadataAlloc>
 std::optional<std::pair<PageId, Slab*>> SlabManagerImpl<MetadataAlloc>::Alloc(
     uint32_t n_pages) {
-  if (n_pages == 1 && single_page_freelist_ != nullptr) {
-    FreeSinglePageSlab* slab_start = single_page_freelist_;
-    single_page_freelist_ = slab_start->NextFree();
+  if (n_pages == 1 && !single_page_freelist_.Empty()) {
+    FreeSinglePageSlab* slab_start = single_page_freelist_.PopFront();
 
     PageId page_id = PageIdFromPtr(slab_start);
     Slab* slab = slab_map_->FindSlab(page_id);
@@ -180,8 +180,7 @@ void SlabManagerImpl<MetadataAlloc>::Free(Slab* slab) {
   void* slab_start = SlabStartFromId(start_id);
   if (n_pages == 1) {
     auto* slab = new (slab_start) FreeSinglePageSlab();
-    slab->SetNextFree(single_page_freelist_);
-    single_page_freelist_ = slab;
+    single_page_freelist_.InsertFront(slab);
   } else {
     auto* slab = new (slab_start) FreeMultiPageSlab(n_pages);
     multi_page_free_slabs_.Insert(slab);
