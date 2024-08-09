@@ -13,11 +13,14 @@ namespace ckmalloc {
 
 template <MetadataAllocInterface MetadataAlloc>
 class MetadataManagerImpl {
+  friend class MetadataManagerTest;
+
  public:
-  explicit MetadataManagerImpl(PageId first_slab,
-                               SlabMapImpl<MetadataAlloc>* slab_map,
+  explicit MetadataManagerImpl(SlabMapImpl<MetadataAlloc>* slab_map,
                                SlabManagerImpl<MetadataAlloc>* slab_manager)
-      : last_(first_slab), slab_map_(slab_map), slab_manager_(slab_manager) {}
+      : last_(PageId::Zero()),
+        slab_map_(slab_map),
+        slab_manager_(slab_manager) {}
 
   // Allocates `size` bytes aligned to `alignment` and returns a pointer to the
   // beginning of that region. This memory cannot be released back to the
@@ -39,7 +42,11 @@ class MetadataManagerImpl {
   void* slab_start_;
   // The offset in bytes that the next piece of metadata should be allocated
   // from `last_`.
-  uint32_t alloc_offset_ = 0;
+  //
+  // Initializing this to kPageSize tricks the manager into
+  // thinking the last allocated slab is full, even though we have not allocated
+  // any slabs on initialization yet.
+  uint32_t alloc_offset_ = kPageSize;
 
   SlabMapImpl<MetadataAlloc>* slab_map_;
 
@@ -55,6 +62,7 @@ template <MetadataAllocInterface MetadataAlloc>
 void* MetadataManagerImpl<MetadataAlloc>::Alloc(size_t size, size_t alignment) {
   // Alignment must be a power of two.
   CK_ASSERT((alignment & (alignment - 1)) == 0);
+  CK_ASSERT(alignment <= kPageSize);
   // Size must already be aligned to `alignment`.
   CK_ASSERT((size & (alignment - 1)) == 0);
 
@@ -62,7 +70,7 @@ void* MetadataManagerImpl<MetadataAlloc>::Alloc(size_t size, size_t alignment) {
   auto align_mask = static_cast<uintptr_t>(alignment) - 1;
   uintptr_t aligned_end = (current_end + align_mask) & ~align_mask;
 
-  if (size > kPageSize || size > kPageSize - aligned_end) {
+  if (aligned_end + size > kPageSize) {
     uint32_t n_pages = (size + kPageSize - 1) / kPageSize;
     auto result = slab_manager_->Alloc(n_pages, SlabType::kMetadata);
     if (!result.has_value()) {

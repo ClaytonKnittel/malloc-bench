@@ -6,6 +6,7 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/str_format.h"
 #include "gtest/gtest.h"
+#include "util/absl_util.h"
 #include "util/gtest_util.h"
 
 #include "src/ckmalloc/common.h"
@@ -13,6 +14,8 @@
 #include "src/ckmalloc/page_id.h"
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/testlib.h"
+#include "src/ckmalloc/util.h"
+#include "src/rng.h"
 
 namespace ckmalloc {
 
@@ -22,7 +25,8 @@ class SlabManagerTest : public CkMallocTest {
  public:
   static constexpr size_t kNumPages = 64;
 
-  SlabManagerTest() : heap_(kNumPages), slab_manager_(&heap_, &slab_map_) {}
+  SlabManagerTest()
+      : heap_(kNumPages), slab_manager_(&heap_, &slab_map_), rng_(1027, 3) {}
 
   TestHeap& Heap() {
     return heap_;
@@ -38,59 +42,23 @@ class SlabManagerTest : public CkMallocTest {
 
   absl::Status ValidateHeap();
 
-  absl::StatusOr<Slab*> AllocateSlab(uint32_t n_pages) {
-    // Arbitrarily make all allocated slabs metadata slabs. Their actual type
-    // doesn't matter, `SlabManager` only cares about free vs. not free.
-    auto result = slab_manager_.Alloc(n_pages, SlabType::kMetadata);
-    if (!result.has_value()) {
-      return nullptr;
-    }
-    auto [start_id, slab] = std::move(result.value());
-    PageId end_id = start_id + n_pages - 1;
+  absl::StatusOr<Slab*> AllocateSlab(uint32_t n_pages);
 
-    if (end_id >= HeapEnd()) {
-      return absl::FailedPreconditionError(absl::StrFormat(
-          "Allocated slab past end of heap: %v - %v extends beyond page %v",
-          start_id, end_id, HeapEnd() - 1));
-    }
-    for (const auto& [slab, _] : allocated_slabs_) {
-      if (start_id <= slab->EndId() && end_id >= slab->StartId()) {
-        return absl::FailedPreconditionError(absl::StrFormat(
-            "Allocated slab from page %v to %v, which overlaps with %v",
-            start_id, end_id, *slab));
-      }
-    }
-
-    // Make a copy of this slab's metadata to ensure it does not get dirtied.
-    Slab copy;
-    copy.InitMetadataSlab(start_id, n_pages);
-    auto [it, inserted] = allocated_slabs_.insert({ slab, copy });
-    if (!inserted) {
-      return absl::FailedPreconditionError(
-          absl::StrFormat("Unexpected double-alloc of slab metadata %v", slab));
-    }
-
-    return slab;
-  }
-
-  absl::Status FreeSlab(Slab* slab) {
-    auto it = allocated_slabs_.find(slab);
-    if (it == allocated_slabs_.end()) {
-      return absl::FailedPreconditionError(
-          absl::StrFormat("Unexpected free of unallocated slab %v", *slab));
-    }
-    allocated_slabs_.erase(it);
-    slab_manager_.Free(slab);
-    return absl::OkStatus();
-  }
+  absl::Status FreeSlab(Slab* slab);
 
  private:
+  void FillMagic(Slab* slab, uint64_t magic);
+
+  absl::Status CheckMagic(Slab* slab, uint64_t magic);
+
   TestHeap heap_;
   TestSlabMap slab_map_;
   TestSlabManager slab_manager_;
+  util::Rng rng_;
 
-  // Maps allocated slabs to a copy of their metadata.
-  absl::flat_hash_map<Slab*, Slab> allocated_slabs_;
+  // Maps allocated slabs to a copy of their metadata and the magic number
+  // copied into the whole slab.
+  absl::flat_hash_map<Slab*, std::pair<Slab, uint64_t>> allocated_slabs_;
 };
 
 absl::Status SlabManagerTest::ValidateHeap() {
@@ -161,13 +129,19 @@ absl::Status SlabManagerTest::ValidateHeap() {
           return absl::FailedPreconditionError(
               absl::StrFormat("Encountered unallocated slab: %v", *slab));
         }
-        if (slab->Type() != it->second.Type() ||
-            slab->StartId() != it->second.StartId() ||
-            slab->Pages() != it->second.Pages()) {
+
+        const Slab& slab_copy = it->second.first;
+        uint64_t magic = it->second.second;
+
+        if (slab->Type() != slab_copy.Type() ||
+            slab->StartId() != slab_copy.StartId() ||
+            slab->Pages() != slab_copy.Pages()) {
           return absl::FailedPreconditionError(absl::StrFormat(
               "Allocated slab metadata was dirtied: found %v, expected %v",
-              *slab, it->second));
+              *slab, slab_copy));
         }
+
+        RETURN_IF_ERROR(CheckMagic(slab, magic));
 
         for (PageId page_id = slab->StartId(); page_id <= slab->EndId();
              ++page_id) {
@@ -296,6 +270,92 @@ absl::Status SlabManagerTest::ValidateHeap() {
         "Free single-page slabs + free multi-page slabs != free slabs "
         "encountered when iterating over the heap: %zu + %zu != %" PRIu32 "",
         single_page_slabs.size(), multi_page_slabs.size(), free_slabs));
+  }
+
+  return absl::OkStatus();
+}
+
+absl::StatusOr<Slab*> SlabManagerTest::AllocateSlab(uint32_t n_pages) {
+  // Arbitrarily make all allocated slabs metadata slabs. Their actual type
+  // doesn't matter, `SlabManager` only cares about free vs. not free.
+  auto result = slab_manager_.Alloc(n_pages, SlabType::kMetadata);
+  if (!result.has_value()) {
+    return nullptr;
+  }
+  auto [start_id, slab] = std::move(result.value());
+  PageId end_id = start_id + n_pages - 1;
+
+  if (end_id >= HeapEnd()) {
+    return absl::FailedPreconditionError(absl::StrFormat(
+        "Allocated slab past end of heap: %v - %v extends beyond page %v",
+        start_id, end_id, HeapEnd() - 1));
+  }
+  for (const auto& [slab, _] : allocated_slabs_) {
+    if (start_id <= slab->EndId() && end_id >= slab->StartId()) {
+      return absl::FailedPreconditionError(absl::StrFormat(
+          "Allocated slab from page %v to %v, which overlaps with %v", start_id,
+          end_id, *slab));
+    }
+  }
+
+  uint64_t magic = rng_.GenRand64();
+  FillMagic(slab, magic);
+
+  // Make a copy of this slab's metadata to ensure it does not get dirtied.
+  Slab copy;
+  copy.InitMetadataSlab(start_id, n_pages);
+  auto [it, inserted] = allocated_slabs_.insert({ slab, { copy, magic } });
+  if (!inserted) {
+    return absl::FailedPreconditionError(
+        absl::StrFormat("Unexpected double-alloc of slab metadata %v", slab));
+  }
+
+  return slab;
+}
+
+absl::Status SlabManagerTest::FreeSlab(Slab* slab) {
+  auto it = allocated_slabs_.find(slab);
+  if (it == allocated_slabs_.end()) {
+    return absl::FailedPreconditionError(
+        absl::StrFormat("Unexpected free of unallocated slab %v", *slab));
+  }
+
+  RETURN_IF_ERROR(CheckMagic(slab, it->second.second));
+
+  allocated_slabs_.erase(it);
+  slab_manager_.Free(slab);
+  return absl::OkStatus();
+}
+
+void SlabManagerTest::FillMagic(Slab* slab, uint64_t magic) {
+  CK_ASSERT(slab->Type() == SlabType::kMetadata);
+  auto* start = reinterpret_cast<uint64_t*>(
+      slab_manager_.PageStartFromId(slab->StartId()));
+  auto* end = reinterpret_cast<uint64_t*>(
+      static_cast<uint8_t*>(slab_manager_.PageStartFromId(slab->EndId())) +
+      kPageSize);
+
+  for (; start != end; start++) {
+    *start = magic;
+  }
+}
+
+absl::Status SlabManagerTest::CheckMagic(Slab* slab, uint64_t magic) {
+  CK_ASSERT(slab->Type() == SlabType::kMetadata);
+  auto* start = reinterpret_cast<uint64_t*>(
+      slab_manager_.PageStartFromId(slab->StartId()));
+  auto* end = reinterpret_cast<uint64_t*>(
+      static_cast<uint8_t*>(slab_manager_.PageStartFromId(slab->EndId())) +
+      kPageSize);
+
+  for (; start != end; start++) {
+    if (*start != magic) {
+      auto* begin = reinterpret_cast<uint64_t*>(
+          slab_manager_.PageStartFromId(slab->StartId()));
+      return absl::FailedPreconditionError(absl::StrFormat(
+          "Allocated metadata slab %v was dirtied starting from offset %zu",
+          *slab, (start - begin) * sizeof(uint64_t)));
+    }
   }
 
   return absl::OkStatus();

@@ -8,12 +8,12 @@ cc_binary(
         ":correctness_checker",
         ":perftest",
         ":tracefile_reader",
-        "@cc-util//util:absl_util",
         ":utiltest",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/flags:parse",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/strings",
+        "@cc-util//util:absl_util",
         "@cc-util//util:gtest_util",
     ],
 )
@@ -29,10 +29,10 @@ cc_library(
         ":allocator_interface",
         ":singleton_heap",
         ":tracefile_reader",
-        "@cc-util//util:absl_util",
         "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/time",
+        "@cc-util//util:absl_util",
         "@cc-util//util:gtest_util",
     ],
 )
@@ -48,9 +48,9 @@ cc_library(
         ":allocator_interface",
         ":singleton_heap",
         ":tracefile_reader",
-        "@cc-util//util:absl_util",
         "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/status:statusor",
+        "@cc-util//util:absl_util",
         "@cc-util//util:gtest_util",
     ],
 )
@@ -72,12 +72,12 @@ cc_library(
         ":rng",
         ":singleton_heap",
         ":tracefile_reader",
-        "@cc-util//util:absl_util",
         "@abseil-cpp//absl/container:btree",
         "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",
+        "@cc-util//util:absl_util",
         "@cc-util//util:gtest_util",
     ],
 )
@@ -132,9 +132,9 @@ cc_library(
     srcs = ["tracefile_reader.cc"],
     hdrs = ["tracefile_reader.h"],
     deps = [
-        "@cc-util//util:absl_util",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
+        "@cc-util//util:absl_util",
         "@cc-util//util:gtest_util",
     ],
 )
@@ -142,6 +142,7 @@ cc_library(
 cc_library(
     name = "rng",
     hdrs = ["rng.h"],
+    visibility = ["//src:__subpackages__"],
     deps = [
         "@abseil-cpp//absl/status:statusor",
     ],
