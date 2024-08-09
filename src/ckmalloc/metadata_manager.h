@@ -48,7 +48,7 @@ class MetadataManagerImpl {
   SlabManagerImpl<MetadataAlloc>* slab_manager_;
 
   // The head of a singly-linked list of free slabs.
-  Slab* last_free_slab_;
+  Slab* last_free_slab_ = nullptr;
 };
 
 template <MetadataAllocInterface MetadataAlloc>
