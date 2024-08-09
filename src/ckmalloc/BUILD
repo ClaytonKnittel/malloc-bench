@@ -69,7 +69,6 @@ cc_test(
 
 cc_library(
     name = "metadata_manager",
-    srcs = ["metadata_manager.cc"],
     hdrs = ["metadata_manager.h"],
     deps = [
         ":common",
