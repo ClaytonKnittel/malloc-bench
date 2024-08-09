@@ -2,10 +2,9 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 
-#include "absl/status/status.h"
-#include "absl/status/statusor.h"
-#include "util/absl_util.h"
+#include "util/std_util.h"
 
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/page_id.h"
@@ -34,8 +33,8 @@ class SlabMapImpl {
   Slab* FindSlab(PageId page_id) const;
 
   // Ensures that the slab map has allocated the necessary nodes for an entry
-  // between start and end page id's.
-  absl::Status AllocatePath(PageId start_id, PageId end_id);
+  // between start and end page id's. If any allocation fails, returns `false`.
+  bool AllocatePath(PageId start_id, PageId end_id);
 
   // Inserts an association from `page_id` to `slab`.
   void Insert(PageId page_id, Slab* slab);
@@ -69,11 +68,13 @@ class SlabMapImpl {
       return leaves_[idx];
     }
 
-    absl::StatusOr<Leaf*> GetOrAllocateLeaf(size_t idx);
+    std::optional<Leaf*> GetOrAllocateLeaf(size_t idx);
 
    private:
     Leaf* leaves_[kNodeSize] = {};
   };
+
+  std::optional<int> DoAllocatePath(PageId start_id, PageId end_id);
 
   template <typename T>
   static T* Allocate() {
@@ -99,7 +100,7 @@ class SlabMapImpl {
     return nodes_[idx];
   }
 
-  absl::StatusOr<Node*> GetOrAllocateNode(size_t idx);
+  std::optional<Node*> GetOrAllocateNode(size_t idx);
 
   Node* nodes_[kRootSize] = {};
 };
@@ -124,24 +125,8 @@ Slab* SlabMapImpl<MetadataAlloc>::FindSlab(PageId page_id) const {
 }
 
 template <MetadataAllocInterface MetadataAlloc>
-absl::Status SlabMapImpl<MetadataAlloc>::AllocatePath(PageId start_id,
-                                                      PageId end_id) {
-  auto root_idxs = std::make_pair(RootIdx(start_id), RootIdx(end_id));
-  auto middle_idxs = std::make_pair(MiddleIdx(start_id), MiddleIdx(end_id));
-
-  for (size_t root_idx = root_idxs.first; root_idx <= root_idxs.second;
-       root_idx++) {
-    DEFINE_OR_RETURN(Node*, node, GetOrAllocateNode(root_idx));
-    for (size_t middle_idx =
-             (root_idx != root_idxs.first ? 0 : middle_idxs.first);
-         middle_idx <=
-         (root_idx != root_idxs.second ? kNodeSize - 1 : middle_idxs.second);
-         middle_idx++) {
-      RETURN_IF_ERROR(node->GetOrAllocateLeaf(middle_idx).status());
-    }
-  }
-
-  return absl::OkStatus();
+bool SlabMapImpl<MetadataAlloc>::AllocatePath(PageId start_id, PageId end_id) {
+  return DoAllocatePath(start_id, end_id).has_value();
 }
 
 template <MetadataAllocInterface MetadataAlloc>
@@ -183,12 +168,33 @@ void SlabMapImpl<MetadataAlloc>::InsertRange(PageId start_id, PageId end_id,
 }
 
 template <MetadataAllocInterface MetadataAlloc>
-absl::StatusOr<typename SlabMapImpl<MetadataAlloc>::Leaf*>
+std::optional<int> SlabMapImpl<MetadataAlloc>::DoAllocatePath(PageId start_id,
+                                                              PageId end_id) {
+  auto root_idxs = std::make_pair(RootIdx(start_id), RootIdx(end_id));
+  auto middle_idxs = std::make_pair(MiddleIdx(start_id), MiddleIdx(end_id));
+
+  for (size_t root_idx = root_idxs.first; root_idx <= root_idxs.second;
+       root_idx++) {
+    DEFINE_OR_RETURN_OPT(Node*, node, GetOrAllocateNode(root_idx));
+    for (size_t middle_idx =
+             (root_idx != root_idxs.first ? 0 : middle_idxs.first);
+         middle_idx <=
+         (root_idx != root_idxs.second ? kNodeSize - 1 : middle_idxs.second);
+         middle_idx++) {
+      RETURN_IF_NULL(node->GetOrAllocateLeaf(middle_idx));
+    }
+  }
+
+  return 0;
+}
+
+template <MetadataAllocInterface MetadataAlloc>
+std::optional<typename SlabMapImpl<MetadataAlloc>::Leaf*>
 SlabMapImpl<MetadataAlloc>::Node::GetOrAllocateLeaf(size_t idx) {
   if (leaves_[idx] == nullptr) {
     leaves_[idx] = Allocate<Leaf>();
     if (leaves_[idx] == nullptr) {
-      return absl::ResourceExhaustedError("Out of memory");
+      return std::nullopt;
     }
   }
 
@@ -196,12 +202,12 @@ SlabMapImpl<MetadataAlloc>::Node::GetOrAllocateLeaf(size_t idx) {
 }
 
 template <MetadataAllocInterface MetadataAlloc>
-absl::StatusOr<typename SlabMapImpl<MetadataAlloc>::Node*>
+std::optional<typename SlabMapImpl<MetadataAlloc>::Node*>
 SlabMapImpl<MetadataAlloc>::GetOrAllocateNode(size_t idx) {
   if (nodes_[idx] == nullptr) {
     nodes_[idx] = Allocate<Node>();
     if (nodes_[idx] == nullptr) {
-      return absl::ResourceExhaustedError("Out of memory");
+      return std::nullopt;
     }
   }
 
