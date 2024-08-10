@@ -87,6 +87,8 @@ class Slab {
         struct {
         } small;
         struct {
+          // Tracks the total number of allocated bytes in this block.
+          uint64_t allocated_bytes_;
         } large;
       };
     } mapped;
