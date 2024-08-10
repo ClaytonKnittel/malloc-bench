@@ -12,17 +12,22 @@
 namespace ckmalloc {
 
 template <MetadataAllocInterface MetadataAlloc>
-class MetadataManager {
- public:
-  explicit MetadataManager(PageId first_slab,
-                           SlabMapImpl<MetadataAlloc>* slab_map,
-                           SlabManagerImpl<MetadataAlloc>* slab_manager)
-      : last_(first_slab), slab_map_(slab_map), slab_manager_(slab_manager) {}
+class MetadataManagerImpl {
+  friend class MetadataManagerTest;
 
-  // Allocate a new generic metadata which cannot be freed and constructs it,
-  // passing `args` to the constructor.
-  template <typename T, typename... Args>
-  T* New(Args... args);
+ public:
+  explicit MetadataManagerImpl(SlabMapImpl<MetadataAlloc>* slab_map,
+                               SlabManagerImpl<MetadataAlloc>* slab_manager)
+      : last_(PageId::Zero()),
+        slab_map_(slab_map),
+        slab_manager_(slab_manager) {}
+
+  // Allocates `size` bytes aligned to `alignment` and returns a pointer to the
+  // beginning of that region. This memory cannot be released back to the
+  // metadata manager.
+  //
+  // If out of memory, `nullptr` is returned.
+  void* Alloc(size_t size, size_t alignment = 1);
 
   // Allocate a new slab metadata and return a pointer to it uninitialized.
   Slab* NewSlabMeta();
@@ -32,18 +37,16 @@ class MetadataManager {
   void FreeSlabMeta(Slab* slab);
 
  private:
-  // Allocates `size` bytes aligned to `alignment` and returns a pointer to the
-  // beginning of that region.
-  //
-  // If out of memory, `nullptr` is returned.
-  void* Alloc(size_t size, size_t alignment = 1);
-
   // The most recently allocated metadata slab.
   PageId last_;
   void* slab_start_;
   // The offset in bytes that the next piece of metadata should be allocated
   // from `last_`.
-  uint32_t alloc_offset_ = 0;
+  //
+  // Initializing this to kPageSize tricks the manager into
+  // thinking the last allocated slab is full, even though we have not allocated
+  // any slabs on initialization yet.
+  uint32_t alloc_offset_ = kPageSize;
 
   SlabMapImpl<MetadataAlloc>* slab_map_;
 
@@ -52,24 +55,14 @@ class MetadataManager {
   SlabManagerImpl<MetadataAlloc>* slab_manager_;
 
   // The head of a singly-linked list of free slabs.
-  Slab* last_free_slab_;
+  Slab* last_free_slab_ = nullptr;
 };
 
 template <MetadataAllocInterface MetadataAlloc>
-template <typename T, typename... Args>
-T* MetadataManager<MetadataAlloc>::New(Args... args) {
-  void* ptr = Alloc(sizeof(T), alignof(T));
-  if (ptr == nullptr) {
-    return nullptr;
-  }
-
-  return new (ptr) T(std::forward<Args>(args)...);
-}
-
-template <MetadataAllocInterface MetadataAlloc>
-void* MetadataManager<MetadataAlloc>::Alloc(size_t size, size_t alignment) {
+void* MetadataManagerImpl<MetadataAlloc>::Alloc(size_t size, size_t alignment) {
   // Alignment must be a power of two.
   CK_ASSERT((alignment & (alignment - 1)) == 0);
+  CK_ASSERT(alignment <= kPageSize);
   // Size must already be aligned to `alignment`.
   CK_ASSERT((size & (alignment - 1)) == 0);
 
@@ -77,7 +70,7 @@ void* MetadataManager<MetadataAlloc>::Alloc(size_t size, size_t alignment) {
   auto align_mask = static_cast<uintptr_t>(alignment) - 1;
   uintptr_t aligned_end = (current_end + align_mask) & ~align_mask;
 
-  if (size > kPageSize || size > kPageSize - aligned_end) {
+  if (aligned_end + size > kPageSize) {
     uint32_t n_pages = (size + kPageSize - 1) / kPageSize;
     auto result = slab_manager_->Alloc(n_pages, SlabType::kMetadata);
     if (!result.has_value()) {
@@ -103,5 +96,24 @@ void* MetadataManager<MetadataAlloc>::Alloc(size_t size, size_t alignment) {
   CK_ASSERT(alloc_offset_ <= kPageSize);
   return alloc_start;
 }
+
+template <MetadataAllocInterface MetadataAlloc>
+Slab* MetadataManagerImpl<MetadataAlloc>::NewSlabMeta() {
+  if (last_free_slab_ != nullptr) {
+    Slab* slab = last_free_slab_;
+    last_free_slab_ = last_free_slab_->NextUnmappedSlab();
+    return slab;
+  }
+
+  return reinterpret_cast<Slab*>(Alloc(sizeof(Slab), alignof(Slab)));
+}
+
+template <MetadataAllocInterface MetadataAlloc>
+void MetadataManagerImpl<MetadataAlloc>::FreeSlabMeta(Slab* slab) {
+  slab->InitUnmappedSlab(last_free_slab_);
+  last_free_slab_ = slab;
+}
+
+using MetadataManager = MetadataManagerImpl<GlobalMetadataAlloc>;
 
 }  // namespace ckmalloc

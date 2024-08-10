@@ -30,6 +30,8 @@ class Slab {
   friend class SlabManagerTest;
 
  public:
+  void InitUnmappedSlab(Slab* next_unmapped = nullptr);
+
   void InitFreeSlab(PageId start_id, uint32_t n_pages);
 
   void InitMetadataSlab(PageId start_id, uint32_t n_pages);
@@ -37,6 +39,11 @@ class Slab {
   void InitSmallSlab(PageId start_id, uint32_t n_pages);
 
   void InitLargeSlab(PageId start_id, uint32_t n_pages);
+
+  // Returns the next unmapped slab in the freelist.
+  Slab* NextUnmappedSlab();
+
+  void SetNextUnmappedSlab(Slab* next_unmapped);
 
   // Returns the `PageId` of the first page in this slab.
   PageId StartId() const;
@@ -59,6 +66,9 @@ class Slab {
 
   union {
     struct {
+      // Unmapped slabs are held in a singly-linked freelist managed by the
+      // metadata manager.
+      Slab* next_unmapped_;
     } unmapped;
 
     struct {
