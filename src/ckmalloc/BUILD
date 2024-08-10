@@ -98,8 +98,11 @@ cc_library(
     srcs = ["metadata_manager_test_fixture.cc"],
     hdrs = ["metadata_manager_test_fixture.h"],
     deps = [
+        ":metadata_manager",
+        ":slab",
         ":slab_manager_test_fixture",
         ":testlib",
+        ":util",
         "//src:rng",
         "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/status",
