@@ -5,6 +5,13 @@
 
 namespace ckmalloc {
 
+void Slab::InitUnmappedSlab(Slab* next_unmapped) {
+  type_ = SlabType::kUnmapped;
+  unmapped = {
+    .next_unmapped_ = next_unmapped,
+  };
+}
+
 void Slab::InitFreeSlab(PageId start_id, uint32_t n_pages) {
   type_ = SlabType::kFree;
   mapped = {
@@ -31,6 +38,16 @@ void Slab::InitSmallSlab(PageId start_id, uint32_t n_pages) {
 void Slab::InitLargeSlab(PageId start_id, uint32_t n_pages) {
   type_ = SlabType::kLarge;
   // TODO
+}
+
+Slab* Slab::NextUnmappedSlab() {
+  CK_ASSERT(type_ == SlabType::kUnmapped);
+  return unmapped.next_unmapped_;
+}
+
+void Slab::SetNextUnmappedSlab(Slab* next_unmapped) {
+  CK_ASSERT(type_ == SlabType::kUnmapped);
+  unmapped.next_unmapped_ = next_unmapped;
 }
 
 PageId Slab::StartId() const {
