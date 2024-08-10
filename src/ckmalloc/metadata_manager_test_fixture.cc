@@ -6,16 +6,15 @@
 #include "util/absl_util.h"
 
 #include "src/ckmalloc/slab.h"
-#include "src/ckmalloc/slab_manager_test_fixture.h"
 #include "src/ckmalloc/testlib.h"
 #include "src/ckmalloc/util.h"
 #include "src/rng.h"
 
 namespace ckmalloc {
 
-using TestMetadataManager = MetadataManagerTest::TestMetadataManager;
+using TestMetadataManager = MetadataManagerFixture::TestMetadataManager;
 
-TestMetadataManager::TestMetadataManager(MetadataManagerTest* test_fixture,
+TestMetadataManager::TestMetadataManager(MetadataManagerFixture* test_fixture,
                                          TestSlabMap* slab_map,
                                          TestSlabManager* slab_manager)
     : test_fixture_(test_fixture), metadata_manager_(slab_map, slab_manager) {}
@@ -57,10 +56,10 @@ void TestMetadataManager::FreeSlabMeta(Slab* slab) {
   return metadata_manager_.FreeSlabMeta(slab);
 }
 
-absl::StatusOr<size_t> MetadataManagerTest::SlabMetaFreelistLength() const {
+absl::StatusOr<size_t> MetadataManagerFixture::SlabMetaFreelistLength() const {
   constexpr size_t kMaxReasonableLength = 10000;
   size_t length = 0;
-  for (Slab* free_slab = metadata_manager_.Underlying().last_free_slab_;
+  for (Slab* free_slab = MetadataManager().Underlying().last_free_slab_;
        free_slab != nullptr && length < kMaxReasonableLength;
        free_slab = free_slab->NextUnmappedSlab(), length++)
     ;
@@ -71,9 +70,9 @@ absl::StatusOr<size_t> MetadataManagerTest::SlabMetaFreelistLength() const {
              : absl::StatusOr<size_t>(length);
 }
 
-absl::StatusOr<void*> MetadataManagerTest::Alloc(size_t size,
-                                                 size_t alignment) {
-  void* result = metadata_manager_.Alloc(size, alignment);
+absl::StatusOr<void*> MetadataManagerFixture::Alloc(size_t size,
+                                                    size_t alignment) {
+  void* result = MetadataManager().Alloc(size, alignment);
   if (result == nullptr) {
     return nullptr;
   }
@@ -82,8 +81,8 @@ absl::StatusOr<void*> MetadataManagerTest::Alloc(size_t size,
   return result;
 }
 
-absl::StatusOr<Slab*> MetadataManagerTest::NewSlabMeta() {
-  Slab* slab = metadata_manager_.NewSlabMeta();
+absl::StatusOr<Slab*> MetadataManagerFixture::NewSlabMeta() {
+  Slab* slab = MetadataManager().NewSlabMeta();
   if (slab == nullptr) {
     return nullptr;
   }
@@ -92,7 +91,7 @@ absl::StatusOr<Slab*> MetadataManagerTest::NewSlabMeta() {
   return slab;
 }
 
-absl::Status MetadataManagerTest::FreeSlabMeta(Slab* slab) {
+absl::Status MetadataManagerFixture::FreeSlabMeta(Slab* slab) {
   auto alloc_it = allocated_blocks_.find(slab);
   CK_ASSERT(alloc_it != allocated_blocks_.end());
   if (alloc_it->second != sizeof(Slab)) {
@@ -107,12 +106,13 @@ absl::Status MetadataManagerTest::FreeSlabMeta(Slab* slab) {
   RETURN_IF_ERROR(CheckMagic(slab, sizeof(Slab), magic_it->second));
   block_magics_.erase(magic_it);
 
-  metadata_manager_.FreeSlabMeta(slab);
+  MetadataManager().FreeSlabMeta(slab);
   return absl::OkStatus();
 }
 
 /* static */
-void MetadataManagerTest::FillMagic(void* block, size_t size, uint64_t magic) {
+void MetadataManagerFixture::FillMagic(void* block, size_t size,
+                                       uint64_t magic) {
   uint8_t* start = reinterpret_cast<uint8_t*>(block);
 
   for (size_t i = 0; i < size; i++) {
@@ -122,8 +122,8 @@ void MetadataManagerTest::FillMagic(void* block, size_t size, uint64_t magic) {
 }
 
 /* static */
-absl::Status MetadataManagerTest::CheckMagic(void* block, size_t size,
-                                             uint64_t magic) {
+absl::Status MetadataManagerFixture::CheckMagic(void* block, size_t size,
+                                                uint64_t magic) {
   uint8_t* start = reinterpret_cast<uint8_t*>(block);
 
   for (size_t i = 0; i < size; i++) {
@@ -139,9 +139,7 @@ absl::Status MetadataManagerTest::CheckMagic(void* block, size_t size,
   return absl::OkStatus();
 }
 
-absl::Status MetadataManagerTest::ValidateHeap() {
-  RETURN_IF_ERROR(SlabManagerTest::ValidateHeap());
-
+absl::Status MetadataManagerFixture::ValidateHeap() {
   for (const auto& [block, magic] : block_magics_) {
     auto it = allocated_blocks_.find(block);
     CK_ASSERT(it != allocated_blocks_.end());
@@ -150,7 +148,7 @@ absl::Status MetadataManagerTest::ValidateHeap() {
 
   constexpr size_t kMaxReasonableFreedSlabMetas = 10000;
   size_t n_free_slab_meta = 0;
-  for (const Slab* slab = metadata_manager_.Underlying().last_free_slab_;
+  for (const Slab* slab = MetadataManager().Underlying().last_free_slab_;
        slab != nullptr && n_free_slab_meta < kMaxReasonableFreedSlabMetas;
        slab = slab->NextUnmappedSlab()) {
     if (!freed_slab_metadata_.contains(slab)) {
@@ -177,8 +175,9 @@ absl::Status MetadataManagerTest::ValidateHeap() {
   return absl::OkStatus();
 }
 
-absl::Status MetadataManagerTest::TraceBlockAllocation(void* block, size_t size,
-                                                       size_t alignment) {
+absl::Status MetadataManagerFixture::TraceBlockAllocation(void* block,
+                                                          size_t size,
+                                                          size_t alignment) {
   // Check that the pointer is aligned relative to the heap start. The heap will
   // be page-aligned in production, but may not be in tests.
   if (((reinterpret_cast<intptr_t>(block) -

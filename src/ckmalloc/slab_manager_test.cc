@@ -12,6 +12,8 @@ namespace ckmalloc {
 
 using util::IsOk;
 
+class SlabManagerTest : public testing::Test, public SlabManagerFixture {};
+
 TEST_F(SlabManagerTest, HeapStartIsPageIdZero) {
   ASSERT_THAT(AllocateSlab(1), IsOk());
   EXPECT_EQ(SlabManager().PageIdFromPtr(Heap().Start()), PageId(0));
