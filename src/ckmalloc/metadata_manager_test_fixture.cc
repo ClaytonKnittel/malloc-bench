@@ -5,6 +5,7 @@
 #include "absl/status/statusor.h"
 #include "util/absl_util.h"
 
+#include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/slab_manager_test_fixture.h"
 #include "src/ckmalloc/testlib.h"
 #include "src/ckmalloc/util.h"
@@ -33,10 +34,26 @@ void* TestMetadataManager::Alloc(size_t size, size_t alignment) {
 }
 
 Slab* TestMetadataManager::NewSlabMeta() {
-  return metadata_manager_.NewSlabMeta();
+  Slab* slab = metadata_manager_.NewSlabMeta();
+
+  auto [it, inserted] =
+      test_fixture_->allocated_blocks_.insert({ slab, sizeof(Slab) });
+  CK_ASSERT(inserted);
+
+  // Erase this slab metadata from the freed set if it was there.
+  test_fixture_->freed_slab_metadata_.erase(slab);
+
+  return slab;
 }
 
 void TestMetadataManager::FreeSlabMeta(Slab* slab) {
+  auto it = test_fixture_->allocated_blocks_.find(slab);
+  CK_ASSERT(it != test_fixture_->allocated_blocks_.end());
+  test_fixture_->allocated_blocks_.erase(it);
+
+  auto [_, inserted] = test_fixture_->freed_slab_metadata_.insert(slab);
+  CK_ASSERT(inserted);
+
   return metadata_manager_.FreeSlabMeta(slab);
 }
 
@@ -61,45 +78,37 @@ absl::StatusOr<void*> MetadataManagerTest::Alloc(size_t size,
     return nullptr;
   }
 
-  // Check that the pointer is aligned relative to the heap start. The heap will
-  // be page-aligned in production, but may not be in tests.
-  if (((reinterpret_cast<intptr_t>(result) -
-        reinterpret_cast<intptr_t>(Heap().Start())) &
-       (alignment - 1)) != 0) {
-    return absl::FailedPreconditionError(
-        absl::StrFormat("Pointer returned from Alloc not aligned properly: "
-                        "pointer %p, size %zu, alignment %zu",
-                        result, size, alignment));
-  }
-
-  if (result < Heap().Start() ||
-      static_cast<uint8_t*>(result) + size > Heap().End()) {
-    return absl::FailedPreconditionError(
-        absl::StrFormat("Block allocated outside range of heap: returned %p of "
-                        "size %zu, heap ranges from %p to %p",
-                        result, size, Heap().Start(), Heap().End()));
-  }
-
-  for (const auto& [ptr, ptr_size] : allocated_blocks_) {
-    // Don't check for collision with ourselves.
-    if (ptr == result) {
-      continue;
-    }
-
-    if (ptr < static_cast<uint8_t*>(result) + size &&
-        result < static_cast<uint8_t*>(ptr) + ptr_size) {
-      return absl::FailedPreconditionError(absl::StrFormat(
-          "Allocated block overlaps with already allocated block: returned %p "
-          "of size %zu, overlaps with %p of size %zu",
-          result, size, ptr, ptr_size));
-    }
-  }
-
-  uint64_t magic = rng_.GenRand64();
-  FillMagic(result, size, magic);
-  block_magics_.insert({ result, magic });
-
+  RETURN_IF_ERROR(TraceBlockAllocation(result, size, alignment));
   return result;
+}
+
+absl::StatusOr<Slab*> MetadataManagerTest::NewSlabMeta() {
+  Slab* slab = metadata_manager_.NewSlabMeta();
+  if (slab == nullptr) {
+    return nullptr;
+  }
+
+  RETURN_IF_ERROR(TraceBlockAllocation(slab, sizeof(Slab), alignof(Slab)));
+  return slab;
+}
+
+absl::Status MetadataManagerTest::FreeSlabMeta(Slab* slab) {
+  auto alloc_it = allocated_blocks_.find(slab);
+  CK_ASSERT(alloc_it != allocated_blocks_.end());
+  if (alloc_it->second != sizeof(Slab)) {
+    return absl::FailedPreconditionError(
+        absl::StrFormat("Slab block in allocated blocks map not the correct "
+                        "size: %v, expected block size %zu, found size %zu",
+                        *slab, sizeof(Slab), alloc_it->second));
+  }
+
+  auto magic_it = block_magics_.find(slab);
+  CK_ASSERT(magic_it != block_magics_.end());
+  RETURN_IF_ERROR(CheckMagic(slab, sizeof(Slab), magic_it->second));
+  block_magics_.erase(magic_it);
+
+  metadata_manager_.FreeSlabMeta(slab);
+  return absl::OkStatus();
 }
 
 /* static */
@@ -138,6 +147,75 @@ absl::Status MetadataManagerTest::ValidateHeap() {
     CK_ASSERT(it != allocated_blocks_.end());
     RETURN_IF_ERROR(CheckMagic(block, it->second, magic));
   }
+
+  constexpr size_t kMaxReasonableFreedSlabMetas = 10000;
+  size_t n_free_slab_meta = 0;
+  for (const Slab* slab = metadata_manager_.Underlying().last_free_slab_;
+       slab != nullptr && n_free_slab_meta < kMaxReasonableFreedSlabMetas;
+       slab = slab->NextUnmappedSlab()) {
+    if (!freed_slab_metadata_.contains(slab)) {
+      return absl::FailedPreconditionError(absl::StrFormat(
+          "Encountered freed slab metadata in freelist which should not be: %v",
+          *slab));
+    }
+
+    if (slab->Type() != SlabType::kUnmapped) {
+      return absl::FailedPreconditionError(absl::StrFormat(
+          "Expected slab metadata in freelist to be unmapped, found %v",
+          *slab));
+    }
+
+    n_free_slab_meta++;
+  }
+
+  if (n_free_slab_meta == kMaxReasonableFreedSlabMetas) {
+    return absl::FailedPreconditionError(absl::StrFormat(
+        "Detected cycle in slab metadata freelist after searching %zu elements",
+        n_free_slab_meta));
+  }
+
+  return absl::OkStatus();
+}
+
+absl::Status MetadataManagerTest::TraceBlockAllocation(void* block, size_t size,
+                                                       size_t alignment) {
+  // Check that the pointer is aligned relative to the heap start. The heap will
+  // be page-aligned in production, but may not be in tests.
+  if (((reinterpret_cast<intptr_t>(block) -
+        reinterpret_cast<intptr_t>(Heap().Start())) &
+       (alignment - 1)) != 0) {
+    return absl::FailedPreconditionError(
+        absl::StrFormat("Pointer returned from Alloc not aligned properly: "
+                        "pointer %p, size %zu, alignment %zu",
+                        block, size, alignment));
+  }
+
+  if (block < Heap().Start() ||
+      static_cast<uint8_t*>(block) + size > Heap().End()) {
+    return absl::FailedPreconditionError(
+        absl::StrFormat("Block allocated outside range of heap: returned %p of "
+                        "size %zu, heap ranges from %p to %p",
+                        block, size, Heap().Start(), Heap().End()));
+  }
+
+  for (const auto& [ptr, ptr_size] : allocated_blocks_) {
+    // Don't check for collision with ourselves.
+    if (ptr == block) {
+      continue;
+    }
+
+    if (ptr < static_cast<uint8_t*>(block) + size &&
+        block < static_cast<uint8_t*>(ptr) + ptr_size) {
+      return absl::FailedPreconditionError(absl::StrFormat(
+          "Allocated block overlaps with already allocated block: returned %p "
+          "of size %zu, overlaps with %p of size %zu",
+          block, size, ptr, ptr_size));
+    }
+  }
+
+  uint64_t magic = rng_.GenRand64();
+  FillMagic(block, size, magic);
+  block_magics_.insert({ block, magic });
 
   return absl::OkStatus();
 }

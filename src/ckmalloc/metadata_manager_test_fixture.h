@@ -1,6 +1,7 @@
 #pragma once
 
 #include "absl/container/flat_hash_map.h"
+#include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 
@@ -55,12 +56,20 @@ class MetadataManagerTest : public SlabManagerTest {
 
   absl::StatusOr<void*> Alloc(size_t size, size_t alignment = 1);
 
+  absl::StatusOr<Slab*> NewSlabMeta();
+
+  absl::Status FreeSlabMeta(Slab* slab);
+
   static void FillMagic(void* block, size_t size, uint64_t magic);
   static absl::Status CheckMagic(void* block, size_t size, uint64_t magic);
 
   absl::Status ValidateHeap() override;
 
  private:
+  // Validates a newly-allocated block, and writes over its data with magic
+  // bytes.
+  absl::Status TraceBlockAllocation(void* block, size_t size, size_t alignment);
+
   TestMetadataManager metadata_manager_;
 
   util::Rng rng_;
@@ -68,6 +77,9 @@ class MetadataManagerTest : public SlabManagerTest {
   // Maps allocations to their sizes and the magic numbers that they are filled
   // with.
   absl::flat_hash_map<void*, size_t> allocated_blocks_;
+
+  // A set of all the freed slab metadata.
+  absl::flat_hash_set<Slab*> freed_slab_metadata_;
 
   // Maps allocations to the magic numbers that they are filled with. This is
   // only done for allocations made directly through
