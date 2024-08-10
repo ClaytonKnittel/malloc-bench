@@ -10,6 +10,14 @@ cc_library(
 )
 
 cc_library(
+    name = "block",
+    srcs = ["block.cc"],
+    hdrs = ["block.h"],
+    deps = [
+    ],
+)
+
+cc_library(
     name = "common",
     hdrs = ["common.h"],
     deps = [
