@@ -145,16 +145,16 @@ SlabManagerImpl<MetadataAlloc, SlabMap>::Alloc(uint32_t n_pages,
   auto [start_id, slab] = std::move(result);
 
   switch (slab_type) {
+    case SlabType::kMetadata: {
+      slab->InitMetadataSlab(start_id, n_pages);
+      break;
+    }
     case SlabType::kSmall: {
       slab->InitSmallSlab(start_id, n_pages);
       break;
     }
     case SlabType::kLarge: {
       slab->InitLargeSlab(start_id, n_pages);
-      break;
-    }
-    case SlabType::kMetadata: {
-      slab->InitMetadataSlab(start_id, n_pages);
       break;
     }
     case SlabType::kUnmapped:
