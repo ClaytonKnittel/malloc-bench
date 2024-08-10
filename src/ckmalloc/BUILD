@@ -169,10 +169,24 @@ cc_test(
     srcs = ["slab_manager_test.cc"],
     deps = [
         ":common",
+        ":page_id",
+        ":slab",
+        ":slab_manager_test_fixture",
+        "@cc-util//util:gtest_util",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "slab_manager_test_fixture",
+    srcs = ["slab_manager_test_fixture.cc"],
+    hdrs = ["slab_manager_test_fixture.h"],
+    deps = [
+        ":common",
         ":free_slab",
         ":page_id",
         ":slab",
-        ":slab_manager",
         ":testlib",
         ":util",
         "//src:rng",
@@ -182,9 +196,6 @@ cc_test(
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings:str_format",
         "@cc-util//util:absl_util",
-        "@cc-util//util:gtest_util",
-        "@googletest//:gtest",
-        "@googletest//:gtest_main",
     ],
 )
 
