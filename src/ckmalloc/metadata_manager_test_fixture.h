@@ -48,15 +48,16 @@ class MetadataManagerFixture : public CkMallocTest {
   };
 
   MetadataManagerFixture(
-      std::shared_ptr<TestHeap> heap, std::shared_ptr<TestSlabMap> slab_map,
+      std::shared_ptr<TestHeap> heap,
+      const std::shared_ptr<TestSlabMap>& slab_map,
       std::shared_ptr<SlabManagerFixture> slab_manager_test_fixture,
-      std::shared_ptr<TestSlabManager> slab_manager,
-      std::shared_ptr<TestMetadataManager> metadata_manager)
+      const std::shared_ptr<TestSlabManager>& slab_manager)
       : heap_(std::move(heap)),
         slab_map_(std::move(slab_map)),
         slab_manager_test_fixture_(std::move(slab_manager_test_fixture)),
-        slab_manager_(std::move(slab_manager)),
-        metadata_manager_(std::move(metadata_manager)),
+        slab_manager_(slab_manager),
+        metadata_manager_(std::make_shared<TestMetadataManager>(
+            this, slab_map.get(), slab_manager.get())),
         rng_(2021, 5) {}
 
   MetadataManagerFixture()
@@ -113,10 +114,8 @@ class MetadataManagerFixture : public CkMallocTest {
       const std::shared_ptr<TestSlabMap>& slab_map,
       const std::pair<std::shared_ptr<SlabManagerFixture>,
                       std::shared_ptr<TestSlabManager>>& slab_managers)
-      : MetadataManagerFixture(
-            heap, slab_map, slab_managers.first, slab_managers.second,
-            std::make_shared<TestMetadataManager>(
-                this, slab_map.get(), slab_managers.second.get())) {}
+      : MetadataManagerFixture(heap, slab_map, slab_managers.first,
+                               slab_managers.second) {}
 
   // Validates a newly-allocated block, and writes over its data with magic
   // bytes.
