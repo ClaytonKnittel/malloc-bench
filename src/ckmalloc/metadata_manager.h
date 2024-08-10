@@ -11,13 +11,12 @@
 
 namespace ckmalloc {
 
-template <MetadataAllocInterface MetadataAlloc>
+template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
 class MetadataManagerImpl {
   friend class MetadataManagerTest;
 
  public:
-  explicit MetadataManagerImpl(SlabMapImpl<MetadataAlloc>* slab_map,
-                               SlabManagerImpl<MetadataAlloc>* slab_manager)
+  explicit MetadataManagerImpl(SlabMap* slab_map, SlabManager* slab_manager)
       : last_(PageId::Zero()),
         slab_map_(slab_map),
         slab_manager_(slab_manager) {}
@@ -48,18 +47,19 @@ class MetadataManagerImpl {
   // any slabs on initialization yet.
   uint32_t alloc_offset_ = kPageSize;
 
-  SlabMapImpl<MetadataAlloc>* slab_map_;
+  SlabMap* slab_map_;
 
   // The slab manager which is used to allocate more metadata slabs if
   // necessary.
-  SlabManagerImpl<MetadataAlloc>* slab_manager_;
+  SlabManager* slab_manager_;
 
   // The head of a singly-linked list of free slabs.
   Slab* last_free_slab_ = nullptr;
 };
 
-template <MetadataAllocInterface MetadataAlloc>
-void* MetadataManagerImpl<MetadataAlloc>::Alloc(size_t size, size_t alignment) {
+template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
+void* MetadataManagerImpl<SlabMap, SlabManager>::Alloc(size_t size,
+                                                       size_t alignment) {
   // Alignment must be a power of two.
   CK_ASSERT((alignment & (alignment - 1)) == 0);
   CK_ASSERT(alignment <= kPageSize);
@@ -98,8 +98,8 @@ void* MetadataManagerImpl<MetadataAlloc>::Alloc(size_t size, size_t alignment) {
   return alloc_start;
 }
 
-template <MetadataAllocInterface MetadataAlloc>
-Slab* MetadataManagerImpl<MetadataAlloc>::NewSlabMeta() {
+template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
+Slab* MetadataManagerImpl<SlabMap, SlabManager>::NewSlabMeta() {
   if (last_free_slab_ != nullptr) {
     Slab* slab = last_free_slab_;
     last_free_slab_ = last_free_slab_->NextUnmappedSlab();
@@ -109,12 +109,12 @@ Slab* MetadataManagerImpl<MetadataAlloc>::NewSlabMeta() {
   return reinterpret_cast<Slab*>(Alloc(sizeof(Slab), alignof(Slab)));
 }
 
-template <MetadataAllocInterface MetadataAlloc>
-void MetadataManagerImpl<MetadataAlloc>::FreeSlabMeta(Slab* slab) {
+template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
+void MetadataManagerImpl<SlabMap, SlabManager>::FreeSlabMeta(Slab* slab) {
   slab->InitUnmappedSlab(last_free_slab_);
   last_free_slab_ = slab;
 }
 
-using MetadataManager = MetadataManagerImpl<GlobalMetadataAlloc>;
+using MetadataManager = MetadataManagerImpl<SlabMap, SlabManager>;
 
 }  // namespace ckmalloc

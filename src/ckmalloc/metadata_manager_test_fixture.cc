@@ -5,6 +5,7 @@
 #include "absl/status/statusor.h"
 #include "util/absl_util.h"
 
+#include "src/ckmalloc/slab_manager_test_fixture.h"
 #include "src/ckmalloc/testlib.h"
 #include "src/rng.h"
 
@@ -34,7 +35,7 @@ absl::StatusOr<void*> MetadataManagerTest::Alloc(size_t size,
   // Check that the pointer is aligned relative to the heap start. The heap will
   // be page-aligned in production, but may not be in tests.
   if (((reinterpret_cast<intptr_t>(result) -
-        reinterpret_cast<intptr_t>(heap_.Start())) &
+        reinterpret_cast<intptr_t>(Heap().Start())) &
        (alignment - 1)) != 0) {
     return absl::FailedPreconditionError(
         absl::StrFormat("Pointer returned from Alloc not aligned properly: "
@@ -42,12 +43,12 @@ absl::StatusOr<void*> MetadataManagerTest::Alloc(size_t size,
                         result, size, alignment));
   }
 
-  if (result < heap_.Start() ||
-      static_cast<uint8_t*>(result) + size > heap_.End()) {
+  if (result < Heap().Start() ||
+      static_cast<uint8_t*>(result) + size > Heap().End()) {
     return absl::FailedPreconditionError(
         absl::StrFormat("Block allocated outside range of heap: returned %p of "
                         "size %zu, heap ranges from %p to %p",
-                        result, size, heap_.Start(), heap_.End()));
+                        result, size, Heap().Start(), Heap().End()));
   }
 
   for (const auto& [ptr, meta] : allocated_blocks_) {
@@ -97,11 +98,7 @@ absl::Status MetadataManagerTest::CheckMagic(void* block, size_t size,
 }
 
 absl::Status MetadataManagerTest::ValidateHeap() {
-  if (Heap().Size() % kPageSize != 0) {
-    return absl::FailedPreconditionError(absl::StrFormat(
-        "Expected heap size to be a multiple of page size, but was %zu",
-        Heap().Size()));
-  }
+  RETURN_IF_ERROR(SlabManagerTest::ValidateHeap());
 
   for (const auto& [block, meta] : allocated_blocks_) {
     const auto& [size, magic] = meta;
