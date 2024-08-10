@@ -1,5 +1,8 @@
+#include <algorithm>
 #include <cstdint>
+#include <random>
 
+#include "gmock/gmock.h"
 #include "util/gtest_util.h"
 
 #include "src/ckmalloc/common.h"
@@ -8,6 +11,7 @@
 
 namespace ckmalloc {
 
+using testing::UnorderedElementsAreArray;
 using util::IsOk;
 using util::IsOkAndHolds;
 
@@ -136,6 +140,72 @@ TEST_F(MetadataManagerTest, AllocateSlabMeta) {
   ASSERT_OK_AND_DEFINE(Slab*, slab, NewSlabMeta());
   EXPECT_EQ(slab, Heap().Start());
   EXPECT_THAT(ValidateHeap(), IsOk());
+}
+
+TEST_F(MetadataManagerTest, AllocateSlabMetaTwice) {
+  ASSERT_OK_AND_DEFINE(Slab*, s1, NewSlabMeta());
+  ASSERT_THAT(FreeSlabMeta(s1), IsOk());
+  EXPECT_THAT(ValidateHeap(), IsOk());
+
+  ASSERT_OK_AND_DEFINE(Slab*, s2, NewSlabMeta());
+  EXPECT_EQ(s2, Heap().Start());
+  EXPECT_THAT(ValidateHeap(), IsOk());
+}
+
+TEST_F(MetadataManagerTest, AllocateSlabMetaWithNormalAllocation) {
+  static_assert(sizeof(Slab) > 1, "Test only meaningful if sizeof(Slab) > 1");
+
+  ASSERT_THAT(Alloc(kPageSize - 1).status(), IsOk());
+  ASSERT_OK_AND_DEFINE(Slab*, s1, NewSlabMeta());
+  EXPECT_THAT(ValidateHeap(), IsOk());
+  // The new slab should have been placed at the beginning of the second page.
+  EXPECT_EQ(s1, SlabManager().PageStartFromId(PageId(1)));
+}
+
+TEST_F(MetadataManagerTest, SlabMetaFreelistBeforeNewAlloc) {
+  constexpr size_t kNumSlabs = 20;
+
+  // Allocate a bunch of slabs.
+  std::vector<Slab*> slabs;
+  slabs.reserve(kNumSlabs);
+  for (size_t i = 0; i < kNumSlabs; i++) {
+    ASSERT_OK_AND_DEFINE(Slab*, slab, NewSlabMeta());
+    ASSERT_THAT(ValidateHeap(), IsOk());
+    slabs.push_back(slab);
+  }
+
+  // Free all of the slabs in random order.
+  std::random_device rd;
+  std::mt19937 g(rd());
+  std::shuffle(slabs.begin(), slabs.end(), rd);
+
+  for (Slab* slab : slabs) {
+    ASSERT_THAT(FreeSlabMeta(slab), IsOk());
+  }
+
+  // Allocate that many new slabs.
+  std::vector<Slab*> new_slabs;
+  new_slabs.reserve(kNumSlabs);
+  for (size_t i = 0; i < kNumSlabs; i++) {
+    ASSERT_OK_AND_DEFINE(Slab*, slab, NewSlabMeta());
+    ASSERT_THAT(ValidateHeap(), IsOk());
+    new_slabs.push_back(slab);
+  }
+
+  // Every new allocation should have come from a previous allocation.
+  EXPECT_THAT(new_slabs, UnorderedElementsAreArray(slabs));
+}
+
+TEST_F(MetadataManagerTest, InterleaveSlabAllocAndAlloc) {
+  ASSERT_OK_AND_DEFINE(Slab*, s1, NewSlabMeta());
+  ASSERT_THAT(FreeSlabMeta(s1), IsOk());
+
+  ASSERT_OK_AND_DEFINE(void*, value, Alloc(sizeof(Slab), alignof(Slab)));
+  EXPECT_NE(value, s1);
+
+  ASSERT_OK_AND_DEFINE(Slab*, s2, NewSlabMeta());
+  EXPECT_THAT(ValidateHeap(), IsOk());
+  EXPECT_EQ(s2, s1);
 }
 
 }  // namespace ckmalloc
