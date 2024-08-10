@@ -13,7 +13,7 @@ namespace ckmalloc {
 
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
 class MetadataManagerImpl {
-  friend class MetadataManagerTest;
+  friend class MetadataManagerFixture;
 
  public:
   explicit MetadataManagerImpl(SlabMap* slab_map, SlabManager* slab_manager)

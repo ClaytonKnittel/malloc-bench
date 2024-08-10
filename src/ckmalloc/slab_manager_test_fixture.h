@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <memory>
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/status/status.h"
@@ -15,7 +16,7 @@
 
 namespace ckmalloc {
 
-class SlabManagerTest : public CkMallocTest {
+class SlabManagerFixture : public CkMallocTest {
  public:
   static constexpr size_t kNumPages = 64;
 
@@ -23,7 +24,7 @@ class SlabManagerTest : public CkMallocTest {
    public:
     using SlabManagerT = SlabManagerImpl<TestGlobalMetadataAlloc, TestSlabMap>;
 
-    TestSlabManager(class SlabManagerTest* test_fixture, TestHeap* heap,
+    TestSlabManager(class SlabManagerFixture* test_fixture, TestHeap* heap,
                     TestSlabMap* slab_map);
 
     SlabManagerT& Underlying() {
@@ -40,31 +41,41 @@ class SlabManagerTest : public CkMallocTest {
     void Free(Slab* slab);
 
    private:
-    class SlabManagerTest* test_fixture_;
+    class SlabManagerFixture* test_fixture_;
     SlabManagerT slab_manager_;
   };
 
-  explicit SlabManagerTest(size_t n_pages)
-      : heap_(n_pages),
-        slab_manager_(this, &heap_, &slab_map_),
+  SlabManagerFixture(std::shared_ptr<TestHeap> heap,
+                     std::shared_ptr<TestSlabMap> slab_map,
+                     std::shared_ptr<TestSlabManager> slab_manager)
+      : heap_(std::move(heap)),
+        slab_map_(std::move(slab_map)),
+        slab_manager_(std::move(slab_manager)),
         rng_(1027, 3) {}
 
-  SlabManagerTest() : SlabManagerTest(kNumPages) {}
+  SlabManagerFixture()
+      : SlabManagerFixture(std::make_shared<TestHeap>(kNumPages),
+                           std::make_shared<TestSlabMap>()) {}
+
+  static std::pair<std::shared_ptr<SlabManagerFixture>,
+                   std::shared_ptr<TestSlabManager>>
+  InitializeTest(const std::shared_ptr<TestHeap>& heap,
+                 const std::shared_ptr<TestSlabMap>& slab_map);
 
   TestHeap& Heap() {
-    return heap_;
+    return *heap_;
   }
 
   TestSlabMap& SlabMap() {
-    return slab_map_;
+    return *slab_map_;
   }
 
   TestSlabManager& SlabManager() {
-    return slab_manager_;
+    return *slab_manager_;
   }
 
   PageId HeapEnd() const {
-    return PageId(heap_.Size() / kPageSize);
+    return PageId(heap_->Size() / kPageSize);
   }
 
   absl::Status ValidateHeap() override;
@@ -74,13 +85,21 @@ class SlabManagerTest : public CkMallocTest {
   absl::Status FreeSlab(Slab* slab);
 
  private:
+  // Only used for initializing `TestSlabManager` via the default constructor,
+  // which needs the heap and slab_map to have been defined already.
+  SlabManagerFixture(const std::shared_ptr<TestHeap>& heap,
+                     const std::shared_ptr<TestSlabMap>& slab_map)
+      : SlabManagerFixture(heap, slab_map,
+                           std::make_shared<TestSlabManager>(this, heap.get(),
+                                                             slab_map.get())) {}
+
   void FillMagic(Slab* slab, uint64_t magic);
 
   absl::Status CheckMagic(Slab* slab, uint64_t magic);
 
-  TestHeap heap_;
-  TestSlabMap slab_map_;
-  TestSlabManager slab_manager_;
+  std::shared_ptr<TestHeap> heap_;
+  std::shared_ptr<TestSlabMap> slab_map_;
+  std::shared_ptr<TestSlabManager> slab_manager_;
   util::Rng rng_;
 
   // Maps allocated slabs to a copy of their metadata.
