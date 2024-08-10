@@ -97,6 +97,10 @@ class CkMallocTest : public ::testing::Test {
   ~CkMallocTest() override {
     TestGlobalMetadataAlloc::ClearAllAllocs();
   }
+
+  // Performs comprehensive validation checks on the heap. May be called
+  // frequently in tests to verify the heap remains in a consistent state.
+  virtual absl::Status ValidateHeap() = 0;
 };
 
 }  // namespace ckmalloc
