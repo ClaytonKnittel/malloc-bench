@@ -98,6 +98,7 @@ cc_library(
     srcs = ["metadata_manager_test_fixture.cc"],
     hdrs = ["metadata_manager_test_fixture.h"],
     deps = [
+        ":slab_manager_test_fixture",
         ":testlib",
         "//src:rng",
         "@abseil-cpp//absl/container:flat_hash_map",
@@ -184,9 +185,9 @@ cc_library(
     hdrs = ["slab_manager_test_fixture.h"],
     deps = [
         ":common",
-        ":free_slab",
         ":page_id",
         ":slab",
+        ":slab_manager",
         ":testlib",
         ":util",
         "//src:rng",
@@ -218,6 +219,7 @@ cc_test(
         ":page_id",
         ":slab_map",
         ":testlib",
+        "@abseil-cpp//absl/status",
         "@cc-util//util:gtest_util",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
@@ -246,10 +248,8 @@ cc_library(
     hdrs = ["testlib.h"],
     deps = [
         ":common",
-        ":metadata_manager",
         ":page_id",
         ":slab",
-        ":slab_manager",
         ":slab_map",
         "//src:heap_interface",
         "@abseil-cpp//absl/strings:str_format",

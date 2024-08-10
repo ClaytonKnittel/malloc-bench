@@ -4,28 +4,20 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 
+#include "src/ckmalloc/slab_manager_test_fixture.h"
 #include "src/ckmalloc/testlib.h"
 #include "src/rng.h"
 
 namespace ckmalloc {
 
-class MetadataManagerTest : public CkMallocTest {
+class MetadataManagerTest : public SlabManagerTest {
  public:
   static constexpr size_t kNumPages = 64;
 
   MetadataManagerTest()
-      : heap_(kNumPages),
-        slab_manager_(&heap_, &slab_map_),
-        metadata_manager_(&slab_map_, &slab_manager_),
+      : SlabManagerTest(kNumPages),
+        metadata_manager_(&SlabMap(), &SlabManager()),
         rng_(2021, 5) {}
-
-  TestHeap& Heap() {
-    return heap_;
-  }
-
-  TestSlabManager& SlabManager() {
-    return slab_manager_;
-  }
 
   TestMetadataManager& MetadataManager() {
     return metadata_manager_;
@@ -41,9 +33,6 @@ class MetadataManagerTest : public CkMallocTest {
   absl::Status ValidateHeap() override;
 
  private:
-  TestHeap heap_;
-  TestSlabMap slab_map_;
-  TestSlabManager slab_manager_;
   TestMetadataManager metadata_manager_;
 
   util::Rng rng_;
