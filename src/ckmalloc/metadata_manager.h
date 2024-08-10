@@ -39,7 +39,7 @@ class MetadataManagerImpl {
  private:
   // The most recently allocated metadata slab.
   PageId last_;
-  void* slab_start_;
+
   // The offset in bytes that the next piece of metadata should be allocated
   // from `last_`.
   //
@@ -91,7 +91,8 @@ void* MetadataManagerImpl<MetadataAlloc>::Alloc(size_t size, size_t alignment) {
     return slab_manager_->PageStartFromId(page_id);
   }
 
-  void* alloc_start = static_cast<uint8_t*>(slab_start_) + aligned_end;
+  void* slab_start = slab_manager_->PageStartFromId(last_);
+  void* alloc_start = static_cast<uint8_t*>(slab_start) + aligned_end;
   alloc_offset_ = aligned_end + size;
   CK_ASSERT(alloc_offset_ <= kPageSize);
   return alloc_start;
