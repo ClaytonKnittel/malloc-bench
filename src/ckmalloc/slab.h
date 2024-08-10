@@ -44,6 +44,9 @@ class Slab {
   // Returns the next unmapped slab in the freelist.
   Slab* NextUnmappedSlab();
 
+  // Returns the next unmapped slab in the freelist.
+  const Slab* NextUnmappedSlab() const;
+
   void SetNextUnmappedSlab(Slab* next_unmapped);
 
   // Returns the `PageId` of the first page in this slab.

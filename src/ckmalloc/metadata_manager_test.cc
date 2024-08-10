@@ -16,12 +16,12 @@ TEST_F(MetadataManagerTest, TestEmpty) {
   EXPECT_THAT(SlabMetaFreelistLength(), IsOkAndHolds(0));
 }
 
-TEST_F(MetadataManagerTest, TestAllocOnce) {
+TEST_F(MetadataManagerTest, AllocateOnce) {
   ASSERT_OK_AND_DEFINE(void*, value, Alloc(16));
   EXPECT_EQ(value, Heap().Start());
 }
 
-TEST_F(MetadataManagerTest, TestAllocAdjacent) {
+TEST_F(MetadataManagerTest, AllocateAdjacent) {
   ASSERT_OK_AND_DEFINE(void*, v1, Alloc(7));
   ASSERT_OK_AND_DEFINE(void*, v2, Alloc(41));
   ASSERT_OK_AND_DEFINE(void*, v3, Alloc(60));
@@ -31,7 +31,7 @@ TEST_F(MetadataManagerTest, TestAllocAdjacent) {
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
-TEST_F(MetadataManagerTest, TestAllocAligned) {
+TEST_F(MetadataManagerTest, AllocateAligned) {
   ASSERT_OK_AND_DEFINE(void*, v1, Alloc(7));
   // Should range from 8 - 55 (inclusive)
   ASSERT_OK_AND_DEFINE(void*, v2, Alloc(48, 8));
@@ -43,13 +43,13 @@ TEST_F(MetadataManagerTest, TestAllocAligned) {
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
-TEST_F(MetadataManagerTest, TestLarge) {
+TEST_F(MetadataManagerTest, AllocateLarge) {
   ASSERT_OK_AND_DEFINE(void*, value, Alloc(kPageSize));
   EXPECT_EQ(value, Heap().Start());
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
-TEST_F(MetadataManagerTest, TestExtraLarge) {
+TEST_F(MetadataManagerTest, AllocateExtraLarge) {
   ASSERT_OK_AND_DEFINE(void*, value, Alloc(11 * kPageSize));
   EXPECT_EQ(value, Heap().Start());
   EXPECT_THAT(ValidateHeap(), IsOk());
@@ -130,6 +130,12 @@ TEST_F(MetadataManagerTest, AllocateWithOtherAllocators) {
   EXPECT_EQ(v2, SlabManager().PageStartFromId(PageId(2)));
   EXPECT_THAT(ValidateHeap(), IsOk());
   EXPECT_EQ(Heap().Size(), 3 * kPageSize);
+}
+
+TEST_F(MetadataManagerTest, AllocateSlabMeta) {
+  ASSERT_OK_AND_DEFINE(Slab*, slab, NewSlabMeta());
+  EXPECT_EQ(slab, Heap().Start());
+  EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
 }  // namespace ckmalloc

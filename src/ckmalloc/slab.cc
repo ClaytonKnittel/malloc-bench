@@ -53,6 +53,11 @@ Slab* Slab::NextUnmappedSlab() {
   return unmapped.next_unmapped_;
 }
 
+const Slab* Slab::NextUnmappedSlab() const {
+  CK_ASSERT(type_ == SlabType::kUnmapped);
+  return unmapped.next_unmapped_;
+}
+
 void Slab::SetNextUnmappedSlab(Slab* next_unmapped) {
   CK_ASSERT(type_ == SlabType::kUnmapped);
   unmapped.next_unmapped_ = next_unmapped;
