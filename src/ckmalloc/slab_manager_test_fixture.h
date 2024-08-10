@@ -62,12 +62,24 @@ class SlabManagerFixture : public CkMallocTest {
   InitializeTest(const std::shared_ptr<TestHeap>& heap,
                  const std::shared_ptr<TestSlabMap>& slab_map);
 
+  std::shared_ptr<TestHeap> HeapPtr() {
+    return heap_;
+  }
+
   TestHeap& Heap() {
     return *heap_;
   }
 
+  std::shared_ptr<TestSlabMap> SlabMapPtr() {
+    return slab_map_;
+  }
+
   TestSlabMap& SlabMap() {
     return *slab_map_;
+  }
+
+  std::shared_ptr<TestSlabManager>& SlabManagerPtr() {
+    return slab_manager_;
   }
 
   TestSlabManager& SlabManager() {
