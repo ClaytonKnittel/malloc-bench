@@ -26,7 +26,7 @@ class SlabManagerTest : public CkMallocTest {
     TestSlabManager(class SlabManagerTest* test_fixture, TestHeap* heap,
                     TestSlabMap* slab_map);
 
-    SlabManagerT& UnderlyingMgr() {
+    SlabManagerT& Underlying() {
       return slab_manager_;
     }
 
