@@ -80,6 +80,17 @@ cc_library(
     ],
 )
 
+cc_test(
+    name = "metadata_manager_test",
+    srcs = ["metadata_manager_test.cc"],
+    deps = [
+        ":metadata_manager",
+        "@cc-util//util:gtest_util",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
 cc_library(
     name = "page_id",
     hdrs = ["page_id.h"],
@@ -147,11 +158,14 @@ cc_test(
         ":slab",
         ":slab_manager",
         ":testlib",
+        ":util",
+        "//src:rng",
         "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/container:flat_hash_set",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings:str_format",
+        "@cc-util//util:absl_util",
         "@cc-util//util:gtest_util",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
@@ -205,6 +219,7 @@ cc_library(
     hdrs = ["testlib.h"],
     deps = [
         ":common",
+        ":metadata_manager",
         ":page_id",
         ":slab",
         ":slab_manager",
