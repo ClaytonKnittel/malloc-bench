@@ -32,12 +32,20 @@ void Slab::InitMetadataSlab(PageId start_id, uint32_t n_pages) {
 
 void Slab::InitSmallSlab(PageId start_id, uint32_t n_pages) {
   type_ = SlabType::kSmall;
-  // TODO
+  mapped = {
+    .id_ = start_id,
+    .n_pages_ = n_pages,
+    .small = {},
+  };
 }
 
 void Slab::InitLargeSlab(PageId start_id, uint32_t n_pages) {
   type_ = SlabType::kLarge;
-  // TODO
+  mapped = {
+    .id_ = start_id,
+    .n_pages_ = n_pages,
+    .large = {},
+  };
 }
 
 Slab* Slab::NextUnmappedSlab() {
