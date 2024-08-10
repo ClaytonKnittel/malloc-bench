@@ -133,9 +133,6 @@ absl::Status MetadataManagerTest::CheckMagic(void* block, size_t size,
 absl::Status MetadataManagerTest::ValidateHeap() {
   RETURN_IF_ERROR(SlabManagerTest::ValidateHeap());
 
-  for (const auto& [block, size] : allocated_blocks_) {
-  }
-
   for (const auto& [block, magic] : block_magics_) {
     auto it = allocated_blocks_.find(block);
     CK_ASSERT(it != allocated_blocks_.end());
