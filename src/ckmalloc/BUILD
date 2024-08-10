@@ -224,7 +224,6 @@ cc_test(
         ":slab_map",
         ":testlib",
         "@abseil-cpp//absl/status",
-        "@cc-util//util:gtest_util",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
@@ -257,7 +256,6 @@ cc_library(
         ":slab_map",
         "//src:heap_interface",
         "@abseil-cpp//absl/strings:str_format",
-        "@googletest//:gtest",
     ],
 )
 

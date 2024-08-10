@@ -1,5 +1,7 @@
 #include "src/ckmalloc/slab_manager_test_fixture.h"
 
+#include <memory>
+
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
@@ -16,10 +18,10 @@
 
 namespace ckmalloc {
 
-using TestSlabManager = SlabManagerTest::TestSlabManager;
+using TestSlabManager = SlabManagerFixture::TestSlabManager;
 
-TestSlabManager::TestSlabManager(SlabManagerTest* test_fixture, TestHeap* heap,
-                                 TestSlabMap* slab_map)
+TestSlabManager::TestSlabManager(SlabManagerFixture* test_fixture,
+                                 TestHeap* heap, TestSlabMap* slab_map)
     : test_fixture_(test_fixture), slab_manager_(heap, slab_map) {}
 
 void* TestSlabManager::PageStartFromId(PageId page_id) const {
@@ -54,7 +56,23 @@ void TestSlabManager::Free(Slab* slab) {
   slab_manager_.Free(slab);
 }
 
-absl::Status SlabManagerTest::ValidateHeap() {
+/* static */
+std::pair<std::shared_ptr<SlabManagerFixture>, std::shared_ptr<TestSlabManager>>
+SlabManagerFixture::InitializeTest(
+    const std::shared_ptr<TestHeap>& heap,
+    const std::shared_ptr<TestSlabMap>& slab_map) {
+  void* slab_mgr_memory = operator new(sizeof(TestSlabManager));
+  std::shared_ptr<TestSlabManager> slab_manager(
+      reinterpret_cast<TestSlabManager*>(slab_mgr_memory));
+  auto test_fixture =
+      std::make_shared<SlabManagerFixture>(heap, slab_map, slab_manager);
+  new (slab_mgr_memory)
+      TestSlabManager(test_fixture.get(), heap.get(), slab_map.get());
+
+  return std::make_pair(test_fixture, slab_manager);
+}
+
+absl::Status SlabManagerFixture::ValidateHeap() {
   if (Heap().Size() % kPageSize != 0) {
     return absl::FailedPreconditionError(absl::StrFormat(
         "Expected heap size to be a multiple of page size, but was %zu",
@@ -69,7 +87,7 @@ absl::Status SlabManagerTest::ValidateHeap() {
   uint32_t free_slabs = 0;
   uint32_t allocated_slabs = 0;
   while (page < end) {
-    Slab* slab = slab_map_.FindSlab(page);
+    Slab* slab = SlabMap().FindSlab(page);
     if (slab == nullptr) {
       return absl::FailedPreconditionError(
           absl::StrFormat("Unexpected `nullptr` slab map entry after end of "
@@ -104,8 +122,8 @@ absl::Status SlabManagerTest::ValidateHeap() {
               absl::StrFormat("Unexpected two adjacent free slabs: %v and %v",
                               *previous_slab, *slab));
         }
-        Slab* first_page_slab = slab_map_.FindSlab(slab->StartId());
-        Slab* last_page_slab = slab_map_.FindSlab(slab->EndId());
+        Slab* first_page_slab = SlabMap().FindSlab(slab->StartId());
+        Slab* last_page_slab = SlabMap().FindSlab(slab->EndId());
         if (first_page_slab != slab || last_page_slab != slab) {
           return absl::FailedPreconditionError(absl::StrFormat(
               "Start and end pages of free slab do not map to the correct "
@@ -147,7 +165,7 @@ absl::Status SlabManagerTest::ValidateHeap() {
 
         for (PageId page_id = slab->StartId(); page_id <= slab->EndId();
              ++page_id) {
-          Slab* mapped_slab = slab_map_.FindSlab(page_id);
+          Slab* mapped_slab = SlabMap().FindSlab(page_id);
           if (mapped_slab != slab) {
             return absl::FailedPreconditionError(
                 absl::StrFormat("Internal page %v of %v does not map to the "
@@ -176,9 +194,9 @@ absl::Status SlabManagerTest::ValidateHeap() {
   // Validate the single-page freelist.
   absl::flat_hash_set<Slab*> single_page_slabs;
   for (const FreeSinglePageSlab& slab_start :
-       slab_manager_.Underlying().single_page_freelist_) {
-    PageId start_id = slab_manager_.PageIdFromPtr(&slab_start);
-    Slab* slab = slab_map_.FindSlab(start_id);
+       SlabManager().Underlying().single_page_freelist_) {
+    PageId start_id = SlabManager().PageIdFromPtr(&slab_start);
+    Slab* slab = SlabMap().FindSlab(start_id);
     if (slab == nullptr) {
       return absl::FailedPreconditionError(
           absl::StrFormat("Unexpected `nullptr` slab map entry in single-page "
@@ -211,16 +229,16 @@ absl::Status SlabManagerTest::ValidateHeap() {
 
   // Validate the multi-page freelist.
   absl::flat_hash_set<Slab*> multi_page_slabs;
-  if (slab_manager_.Underlying().smallest_multi_page_ != nullptr &&
-      slab_manager_.Underlying().multi_page_free_slabs_.Empty()) {
+  if (SlabManager().Underlying().smallest_multi_page_ != nullptr &&
+      SlabManager().Underlying().multi_page_free_slabs_.Empty()) {
     return absl::FailedPreconditionError(
         "Unexpected non-null smallest multi-page cache while "
         "multi-page slabs tree is empty");
   }
   for (const FreeMultiPageSlab& slab_start :
-       slab_manager_.Underlying().multi_page_free_slabs_) {
-    PageId start_id = slab_manager_.PageIdFromPtr(&slab_start);
-    Slab* slab = slab_map_.FindSlab(start_id);
+       SlabManager().Underlying().multi_page_free_slabs_) {
+    PageId start_id = SlabManager().PageIdFromPtr(&slab_start);
+    Slab* slab = SlabMap().FindSlab(start_id);
     if (slab == nullptr) {
       return absl::FailedPreconditionError(
           absl::StrFormat("Unexpected `nullptr` slab map entry in multi-page "
@@ -246,11 +264,11 @@ absl::Status SlabManagerTest::ValidateHeap() {
     }
 
     if (multi_page_slabs.empty()) {
-      if (slab_manager_.Underlying().smallest_multi_page_ != &slab_start) {
+      if (SlabManager().Underlying().smallest_multi_page_ != &slab_start) {
         return absl::FailedPreconditionError(absl::StrFormat(
             "smallest multi-page cache does not equal the first slab in the "
             "multi-page slab tree: %p (cache) vs. %v",
-            slab_manager_.Underlying().smallest_multi_page_, *slab));
+            SlabManager().Underlying().smallest_multi_page_, *slab));
       }
     }
 
@@ -271,10 +289,10 @@ absl::Status SlabManagerTest::ValidateHeap() {
   return absl::OkStatus();
 }
 
-absl::StatusOr<Slab*> SlabManagerTest::AllocateSlab(uint32_t n_pages) {
+absl::StatusOr<Slab*> SlabManagerFixture::AllocateSlab(uint32_t n_pages) {
   // Arbitrarily make all allocated slabs metadata slabs. Their actual type
   // doesn't matter, `SlabManager` only cares about free vs. not free.
-  auto result = slab_manager_.Alloc(n_pages, SlabType::kMetadata);
+  auto result = SlabManager().Alloc(n_pages, SlabType::kMetadata);
   if (!result.has_value()) {
     return nullptr;
   }
@@ -309,7 +327,7 @@ absl::StatusOr<Slab*> SlabManagerTest::AllocateSlab(uint32_t n_pages) {
   return slab;
 }
 
-absl::Status SlabManagerTest::FreeSlab(Slab* slab) {
+absl::Status SlabManagerFixture::FreeSlab(Slab* slab) {
   auto it = slab_magics_.find(slab);
   if (it == slab_magics_.end()) {
     return absl::FailedPreconditionError(
@@ -319,16 +337,16 @@ absl::Status SlabManagerTest::FreeSlab(Slab* slab) {
   RETURN_IF_ERROR(CheckMagic(slab, it->second));
 
   slab_magics_.erase(it);
-  slab_manager_.Free(slab);
+  SlabManager().Free(slab);
   return absl::OkStatus();
 }
 
-void SlabManagerTest::FillMagic(Slab* slab, uint64_t magic) {
+void SlabManagerFixture::FillMagic(Slab* slab, uint64_t magic) {
   CK_ASSERT(slab->Type() == SlabType::kMetadata);
   auto* start = reinterpret_cast<uint64_t*>(
-      slab_manager_.PageStartFromId(slab->StartId()));
+      SlabManager().PageStartFromId(slab->StartId()));
   auto* end = reinterpret_cast<uint64_t*>(
-      static_cast<uint8_t*>(slab_manager_.PageStartFromId(slab->EndId())) +
+      static_cast<uint8_t*>(SlabManager().PageStartFromId(slab->EndId())) +
       kPageSize);
 
   for (; start != end; start++) {
@@ -336,18 +354,18 @@ void SlabManagerTest::FillMagic(Slab* slab, uint64_t magic) {
   }
 }
 
-absl::Status SlabManagerTest::CheckMagic(Slab* slab, uint64_t magic) {
+absl::Status SlabManagerFixture::CheckMagic(Slab* slab, uint64_t magic) {
   CK_ASSERT(slab->Type() == SlabType::kMetadata);
   auto* start = reinterpret_cast<uint64_t*>(
-      slab_manager_.PageStartFromId(slab->StartId()));
+      SlabManager().PageStartFromId(slab->StartId()));
   auto* end = reinterpret_cast<uint64_t*>(
-      static_cast<uint8_t*>(slab_manager_.PageStartFromId(slab->EndId())) +
+      static_cast<uint8_t*>(SlabManager().PageStartFromId(slab->EndId())) +
       kPageSize);
 
   for (; start != end; start++) {
     if (*start != magic) {
       auto* begin = reinterpret_cast<uint64_t*>(
-          slab_manager_.PageStartFromId(slab->StartId()));
+          SlabManager().PageStartFromId(slab->StartId()));
       return absl::FailedPreconditionError(absl::StrFormat(
           "Allocated metadata slab %v was dirtied starting from offset %zu",
           *slab, (start - begin) * sizeof(uint64_t)));

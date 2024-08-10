@@ -2,16 +2,13 @@
 
 #include "absl/status/status.h"
 #include "gtest/gtest.h"
-#include "util/gtest_util.h"
 
 #include "src/ckmalloc/page_id.h"
 #include "src/ckmalloc/testlib.h"
 
 namespace ckmalloc {
 
-using util::IsOk;
-
-class SlabMapTest : public CkMallocTest {
+class SlabMapTest : public testing::Test, public CkMallocTest {
  public:
   TestSlabMap& SlabMap() {
     return slab_map_;
