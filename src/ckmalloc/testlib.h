@@ -4,7 +4,6 @@
 #include <cstddef>
 
 #include "absl/strings/str_format.h"
-#include "gtest/gtest.h"
 
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/page_id.h"
@@ -88,9 +87,9 @@ class TestHeap : public bench::Heap {
   uint8_t memory_region_[kMaxHeapSize];
 };
 
-class CkMallocTest : public ::testing::Test {
+class CkMallocTest {
  public:
-  ~CkMallocTest() override {
+  virtual ~CkMallocTest() {
     TestGlobalMetadataAlloc::ClearAllAllocs();
   }
 
