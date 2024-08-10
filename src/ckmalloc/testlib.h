@@ -7,10 +7,8 @@
 #include "gtest/gtest.h"
 
 #include "src/ckmalloc/common.h"
-#include "src/ckmalloc/metadata_manager.h"
 #include "src/ckmalloc/page_id.h"
 #include "src/ckmalloc/slab.h"
-#include "src/ckmalloc/slab_manager.h"
 #include "src/ckmalloc/slab_map.h"
 #include "src/heap_interface.h"
 
@@ -27,8 +25,9 @@ class TestGlobalMetadataAlloc {
 };
 
 using TestSlabMap = SlabMapImpl<TestGlobalMetadataAlloc>;
-using TestSlabManager = SlabManagerImpl<TestGlobalMetadataAlloc>;
-using TestMetadataManager = MetadataManagerImpl<TestGlobalMetadataAlloc>;
+// using TestSlabManager = SlabManagerImpl<TestGlobalMetadataAlloc,
+// TestSlabMap>; using TestMetadataManager = MetadataManagerImpl<TestSlabMap,
+// TestSlabManager>;
 
 template <typename Sink>
 void AbslStringify(Sink& sink, const PageId& page_id) {

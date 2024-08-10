@@ -1,5 +1,6 @@
 #include "src/ckmalloc/slab_map.h"
 
+#include "absl/status/status.h"
 #include "gtest/gtest.h"
 #include "util/gtest_util.h"
 
@@ -14,6 +15,10 @@ class SlabMapTest : public CkMallocTest {
  public:
   TestSlabMap& SlabMap() {
     return slab_map_;
+  }
+
+  absl::Status ValidateHeap() override {
+    return absl::OkStatus();
   }
 
  private:
