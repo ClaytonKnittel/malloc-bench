@@ -121,6 +121,7 @@ TEST_F(MetadataManagerTest, AllocateWithOtherAllocators) {
   // Allocate a phony slab right after the one just allocated.
   auto res = SlabManager().Alloc(1, SlabType::kSmall);
   ASSERT_TRUE(res.has_value());
+  EXPECT_THAT(ValidateHeap(), IsOk());
   EXPECT_EQ(res.value().first, PageId(1));
 
   // Allocate another slab-sized metadata alloc.

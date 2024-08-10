@@ -78,7 +78,8 @@ absl::Status SlabManagerTest::ValidateHeap() {
     }
     if (page != slab->StartId()) {
       return absl::FailedPreconditionError(absl::StrFormat(
-          "Expected start of slab at page %v, found %v", page, *slab));
+          "Slab metadata incorrect, start of slab should be page %v, found %v",
+          page, *slab));
     }
     if (slab->Pages() > static_cast<uint32_t>(end - page)) {
       return absl::FailedPreconditionError(absl::StrFormat(
@@ -175,7 +176,7 @@ absl::Status SlabManagerTest::ValidateHeap() {
   // Validate the single-page freelist.
   absl::flat_hash_set<Slab*> single_page_slabs;
   for (const FreeSinglePageSlab& slab_start :
-       slab_manager_.UnderlyingMgr().single_page_freelist_) {
+       slab_manager_.Underlying().single_page_freelist_) {
     PageId start_id = slab_manager_.PageIdFromPtr(&slab_start);
     Slab* slab = slab_map_.FindSlab(start_id);
     if (slab == nullptr) {
@@ -210,14 +211,14 @@ absl::Status SlabManagerTest::ValidateHeap() {
 
   // Validate the multi-page freelist.
   absl::flat_hash_set<Slab*> multi_page_slabs;
-  if (slab_manager_.UnderlyingMgr().smallest_multi_page_ != nullptr &&
-      slab_manager_.UnderlyingMgr().multi_page_free_slabs_.Empty()) {
+  if (slab_manager_.Underlying().smallest_multi_page_ != nullptr &&
+      slab_manager_.Underlying().multi_page_free_slabs_.Empty()) {
     return absl::FailedPreconditionError(
         "Unexpected non-null smallest multi-page cache while "
         "multi-page slabs tree is empty");
   }
   for (const FreeMultiPageSlab& slab_start :
-       slab_manager_.UnderlyingMgr().multi_page_free_slabs_) {
+       slab_manager_.Underlying().multi_page_free_slabs_) {
     PageId start_id = slab_manager_.PageIdFromPtr(&slab_start);
     Slab* slab = slab_map_.FindSlab(start_id);
     if (slab == nullptr) {
@@ -245,11 +246,11 @@ absl::Status SlabManagerTest::ValidateHeap() {
     }
 
     if (multi_page_slabs.empty()) {
-      if (slab_manager_.UnderlyingMgr().smallest_multi_page_ != &slab_start) {
+      if (slab_manager_.Underlying().smallest_multi_page_ != &slab_start) {
         return absl::FailedPreconditionError(absl::StrFormat(
             "smallest multi-page cache does not equal the first slab in the "
             "multi-page slab tree: %p (cache) vs. %v",
-            slab_manager_.UnderlyingMgr().smallest_multi_page_, *slab));
+            slab_manager_.Underlying().smallest_multi_page_, *slab));
       }
     }
 
