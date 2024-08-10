@@ -15,11 +15,11 @@ namespace ckmalloc {
 
 // The leaf size should be roughly the square root of heap size / page size.
 // Round down the leaf sizes so they are smaller.
-constexpr uint32_t kNodeShift = (kHeapSizeShift - kPageShift + 2) / 3;
+constexpr uint32_t kLeafShift = (kHeapSizeShift - kPageShift + 1) / 2;
 // The number of pages in the leaf nodes of the slab map.
-constexpr size_t kNodeSize = 1 << kNodeShift;
+constexpr size_t kLeafSize = 1 << kLeafShift;
 
-constexpr uint32_t kRootShift = kHeapSizeShift - kPageShift - 2 * kNodeShift;
+constexpr uint32_t kRootShift = kHeapSizeShift - kPageShift - kLeafShift;
 // The length of the root node in the slab map.
 constexpr size_t kRootSize = 1 << kRootShift;
 
@@ -47,7 +47,7 @@ class SlabMapImpl {
   class Leaf {
    public:
     Slab* operator[](size_t idx) const {
-      CK_ASSERT(idx < kNodeSize);
+      CK_ASSERT(idx < kLeafSize);
       return slabs_[idx];
     }
 
@@ -56,22 +56,7 @@ class SlabMapImpl {
     }
 
    private:
-    Slab* slabs_[kNodeSize] = {};
-  };
-
-  class Node {
-    friend class SlabMapTest;
-
-   public:
-    Leaf* operator[](size_t idx) const {
-      CK_ASSERT(idx < kNodeSize);
-      return leaves_[idx];
-    }
-
-    std::optional<Leaf*> GetOrAllocateLeaf(size_t idx);
-
-   private:
-    Leaf* leaves_[kNodeSize] = {};
+    Slab* slabs_[kLeafSize] = {};
   };
 
   std::optional<int> DoAllocatePath(PageId start_id, PageId end_id);
@@ -84,39 +69,29 @@ class SlabMapImpl {
   }
 
   static size_t RootIdx(PageId page_id) {
-    return page_id.Idx() / (kNodeSize * kNodeSize);
-  }
-
-  static size_t MiddleIdx(PageId page_id) {
-    return (page_id.Idx() / kNodeSize) % kNodeSize;
+    return page_id.Idx() / kLeafSize;
   }
 
   static size_t LeafIdx(PageId page_id) {
-    return page_id.Idx() % kNodeSize;
+    return page_id.Idx() % kLeafSize;
   }
 
-  Node* operator[](size_t idx) const {
+  Leaf* operator[](size_t idx) const {
     CK_ASSERT(idx < kRootSize);
-    return nodes_[idx];
+    return leaves_[idx];
   }
 
-  std::optional<Node*> GetOrAllocateNode(size_t idx);
+  std::optional<Leaf*> GetOrAllocateLeaf(size_t idx);
 
-  Node* nodes_[kRootSize] = {};
+  Leaf* leaves_[kRootSize] = {};
 };
 
 template <MetadataAllocInterface MetadataAlloc>
 Slab* SlabMapImpl<MetadataAlloc>::FindSlab(PageId page_id) const {
   size_t root_idx = RootIdx(page_id);
-  size_t middle_idx = MiddleIdx(page_id);
   size_t leaf_idx = LeafIdx(page_id);
 
-  Node* node = (*this)[root_idx];
-  if (node == nullptr) {
-    return nullptr;
-  }
-
-  Leaf* leaf = (*node)[middle_idx];
+  Leaf* leaf = (*this)[root_idx];
   if (leaf == nullptr) {
     return nullptr;
   }
@@ -131,8 +106,7 @@ bool SlabMapImpl<MetadataAlloc>::AllocatePath(PageId start_id, PageId end_id) {
 
 template <MetadataAllocInterface MetadataAlloc>
 void SlabMapImpl<MetadataAlloc>::Insert(PageId page_id, Slab* slab) {
-  Node& node = *(*this)[RootIdx(page_id)];
-  Leaf& leaf = *node[MiddleIdx(page_id)];
+  Leaf& leaf = *(*this)[RootIdx(page_id)];
   leaf.SetLeaf(LeafIdx(page_id), slab);
 }
 
@@ -140,29 +114,16 @@ template <MetadataAllocInterface MetadataAlloc>
 void SlabMapImpl<MetadataAlloc>::InsertRange(PageId start_id, PageId end_id,
                                              Slab* slab) {
   auto root_idxs = std::make_pair(RootIdx(start_id), RootIdx(end_id));
-  auto middle_idxs = std::make_pair(MiddleIdx(start_id), MiddleIdx(end_id));
   auto leaf_idxs = std::make_pair(LeafIdx(start_id), LeafIdx(end_id));
 
   for (size_t root_idx = root_idxs.first; root_idx <= root_idxs.second;
        root_idx++) {
-    Node& node = *(*this)[root_idx];
-    for (size_t middle_idx =
-             (root_idx != root_idxs.first ? 0 : middle_idxs.first);
-         middle_idx <=
-         (root_idx != root_idxs.second ? kNodeSize - 1 : middle_idxs.second);
-         middle_idx++) {
-      Leaf& leaf = *node[middle_idx];
-      for (size_t leaf_idx =
-               (root_idx != root_idxs.first || middle_idx != middle_idxs.first
-                    ? 0
-                    : leaf_idxs.first);
-           leaf_idx <=
-           (root_idx != root_idxs.second || middle_idx != middle_idxs.second
-                ? kNodeSize - 1
-                : leaf_idxs.second);
-           leaf_idx++) {
-        leaf.SetLeaf(leaf_idx, slab);
-      }
+    Leaf& leaf = *(*this)[root_idx];
+    for (size_t leaf_idx = (root_idx != root_idxs.first ? 0 : leaf_idxs.first);
+         leaf_idx <=
+         (root_idx != root_idxs.second ? kLeafSize - 1 : leaf_idxs.second);
+         leaf_idx++) {
+      leaf.SetLeaf(leaf_idx, slab);
     }
   }
 }
@@ -171,18 +132,10 @@ template <MetadataAllocInterface MetadataAlloc>
 std::optional<int> SlabMapImpl<MetadataAlloc>::DoAllocatePath(PageId start_id,
                                                               PageId end_id) {
   auto root_idxs = std::make_pair(RootIdx(start_id), RootIdx(end_id));
-  auto middle_idxs = std::make_pair(MiddleIdx(start_id), MiddleIdx(end_id));
 
   for (size_t root_idx = root_idxs.first; root_idx <= root_idxs.second;
        root_idx++) {
-    DEFINE_OR_RETURN_OPT(Node*, node, GetOrAllocateNode(root_idx));
-    for (size_t middle_idx =
-             (root_idx != root_idxs.first ? 0 : middle_idxs.first);
-         middle_idx <=
-         (root_idx != root_idxs.second ? kNodeSize - 1 : middle_idxs.second);
-         middle_idx++) {
-      RETURN_IF_NULL(node->GetOrAllocateLeaf(middle_idx));
-    }
+    RETURN_IF_NULL(GetOrAllocateLeaf(root_idx));
   }
 
   return 0;
@@ -190,7 +143,7 @@ std::optional<int> SlabMapImpl<MetadataAlloc>::DoAllocatePath(PageId start_id,
 
 template <MetadataAllocInterface MetadataAlloc>
 std::optional<typename SlabMapImpl<MetadataAlloc>::Leaf*>
-SlabMapImpl<MetadataAlloc>::Node::GetOrAllocateLeaf(size_t idx) {
+SlabMapImpl<MetadataAlloc>::GetOrAllocateLeaf(size_t idx) {
   if (leaves_[idx] == nullptr) {
     leaves_[idx] = Allocate<Leaf>();
     if (leaves_[idx] == nullptr) {
@@ -199,19 +152,6 @@ SlabMapImpl<MetadataAlloc>::Node::GetOrAllocateLeaf(size_t idx) {
   }
 
   return leaves_[idx];
-}
-
-template <MetadataAllocInterface MetadataAlloc>
-std::optional<typename SlabMapImpl<MetadataAlloc>::Node*>
-SlabMapImpl<MetadataAlloc>::GetOrAllocateNode(size_t idx) {
-  if (nodes_[idx] == nullptr) {
-    nodes_[idx] = Allocate<Node>();
-    if (nodes_[idx] == nullptr) {
-      return std::nullopt;
-    }
-  }
-
-  return nodes_[idx];
 }
 
 using SlabMap = SlabMapImpl<GlobalMetadataAlloc>;
