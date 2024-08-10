@@ -85,17 +85,25 @@ cc_test(
     srcs = ["metadata_manager_test.cc"],
     deps = [
         ":common",
-        ":metadata_manager",
+        ":metadata_manager_test_fixture",
         ":slab",
+        "@cc-util//util:gtest_util",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "metadata_manager_test_fixture",
+    srcs = ["metadata_manager_test_fixture.cc"],
+    hdrs = ["metadata_manager_test_fixture.h"],
+    deps = [
         ":testlib",
         "//src:rng",
         "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@cc-util//util:absl_util",
-        "@cc-util//util:gtest_util",
-        "@googletest//:gtest",
-        "@googletest//:gtest_main",
     ],
 )
 
