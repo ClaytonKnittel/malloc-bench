@@ -6,6 +6,7 @@
 
 namespace ckmalloc {
 
+// The slab types are the possible variant types of slabs.
 enum class SlabType {
   // The slab metadata is free and in the metadata freelist. It is not managing
   // any allocated slab and can be claimed for a new slab.

@@ -10,7 +10,7 @@ namespace ckmalloc {
 constexpr uint32_t kMaxPageIdx = 1 << (kHeapSizeShift - kPageShift);
 
 class PageId {
-  template <MetadataAllocInterface MetadataAlloc>
+  template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
   friend class SlabManagerImpl;
 
   template <MetadataAllocInterface MetadataAlloc>

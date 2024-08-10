@@ -88,6 +88,7 @@ Checks: >
   -misc-const-correctness,
   -misc-include-cleaner,
   -modernize-return-braced-init-list,
+  -modernize-use-auto,
   -modernize-use-trailing-return-type,
   -modernize-concat-nested-namespaces,
   -modernize-use-nodiscard,
