@@ -25,9 +25,6 @@ class TestGlobalMetadataAlloc {
 };
 
 using TestSlabMap = SlabMapImpl<TestGlobalMetadataAlloc>;
-// using TestSlabManager = SlabManagerImpl<TestGlobalMetadataAlloc,
-// TestSlabMap>; using TestMetadataManager = MetadataManagerImpl<TestSlabMap,
-// TestSlabManager>;
 
 template <typename Sink>
 void AbslStringify(Sink& sink, const PageId& page_id) {
