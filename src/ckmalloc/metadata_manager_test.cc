@@ -15,6 +15,9 @@ using testing::UnorderedElementsAreArray;
 using util::IsOk;
 using util::IsOkAndHolds;
 
+class MetadataManagerTest : public testing::Test,
+                            public MetadataManagerFixture {};
+
 TEST_F(MetadataManagerTest, TestEmpty) {
   EXPECT_THAT(ValidateHeap(), IsOk());
   EXPECT_THAT(SlabMetaFreelistLength(), IsOkAndHolds(0));
