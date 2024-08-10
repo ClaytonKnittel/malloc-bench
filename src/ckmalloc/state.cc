@@ -41,9 +41,6 @@ State* State::Instance() {
 
 State::State(bench::Heap* heap)
     : slab_manager_(heap, &slab_map_),
-      metadata_manager_(PageId::Zero(), &slab_map_, &slab_manager_) {
-  // Allocate a single metadata slab.
-  slab_manager_.Alloc(1, SlabType::kMetadata);
-}
+      metadata_manager_(&slab_map_, &slab_manager_) {}
 
 }  // namespace ckmalloc
