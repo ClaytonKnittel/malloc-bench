@@ -4,13 +4,15 @@
 
 #include "src/jsmalloc/allocator.h"
 #include "src/jsmalloc/blocks/block.h"
+#include "src/jsmalloc/blocks/free_block_allocator.h"
 
 namespace jsmalloc {
 namespace blocks {
 
 TEST(TestLargeBlock, FromDataPtr) {
   BigStackAllocator allocator;
-  LargeBlock* block = LargeBlock::New(allocator, 50);
+  FreeBlockAllocator free_block_allocator(allocator);
+  LargeBlock* block = LargeBlock::New(free_block_allocator, 50);
   void* ptr = block->Data();
   auto* block_from_ptr = reinterpret_cast<LargeBlock*>(BlockHeader::FromDataPtr(ptr));
   EXPECT_EQ(block, block_from_ptr);
@@ -18,7 +20,8 @@ TEST(TestLargeBlock, FromDataPtr) {
 
 TEST(TestLargeBlock, ComputesSize) {
   BigStackAllocator allocator;
-  LargeBlock* large_block = LargeBlock::New(allocator, 100);
+  FreeBlockAllocator free_block_allocator(allocator);
+  LargeBlock* large_block = LargeBlock::New(free_block_allocator, 100);
   auto* block = reinterpret_cast<BlockHeader*>(large_block);
 
   EXPECT_GT(block->BlockSize(), 100);

@@ -62,8 +62,6 @@ static constexpr uint32_t SizeClass(uint32_t data_size) {
   return cls;
 }
 
-
-
 static_assert(SizeClass(SmallBlockAllocator::kMaxDataSize) + 1 ==
               SmallBlockAllocator::kSizeClasses);
 
@@ -102,8 +100,7 @@ SmallBlock::List& SmallBlockAllocator::SmallBlockList(size_t data_size) {
 
 SmallBlock* SmallBlockAllocator::NewSmallBlock(size_t data_size) {
   uint32_t size_class = small::SizeClass(data_size);
-  FreeBlockAllocatorAdaptor adapter(allocator_);
-  return SmallBlock::New(adapter, small::DataSizeForSizeClass(size_class),
+  return SmallBlock::New(allocator_, small::DataSizeForSizeClass(size_class),
                          small::BinCountForSizeClass(size_class));
 }
 

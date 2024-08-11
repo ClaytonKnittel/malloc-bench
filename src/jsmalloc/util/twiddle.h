@@ -1,5 +1,4 @@
 
-#include <bit>
 #include <cstdint>
 
 #include "src/jsmalloc/util/assert.h"

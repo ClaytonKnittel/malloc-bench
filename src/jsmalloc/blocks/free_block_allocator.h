@@ -33,25 +33,5 @@ class FreeBlockAllocator {
   FreeBlock::List free_blocks_;
 };
 
-/**
- * Adapts FreeBlockAllocator so it can be used where an Allocator is needed.
- */
-class FreeBlockAllocatorAdaptor : public Allocator {
- public:
-  explicit FreeBlockAllocatorAdaptor(FreeBlockAllocator& allocator)
-      : allocator_(allocator){};
-
-  void* Allocate(size_t size) override {
-    return static_cast<void*>(allocator_.Allocate(size));
-  }
-
-  void Free(void* ptr) override {
-    allocator_.Free(static_cast<BlockHeader*>(ptr));
-  }
-
- private:
-  FreeBlockAllocator& allocator_;
-};
-
 }  // namespace blocks
 }  // namespace jsmalloc
