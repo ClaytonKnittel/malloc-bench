@@ -307,11 +307,8 @@ SlabManagerImpl<MetadataAlloc, SlabMap>::AllocEndWithSbrk(uint32_t n_pages) {
   PageId start_id = PageId::Zero();
   // The `PageId` of where newly allocated memory willl start.
   PageId new_memory_id = HeapEndPageId();
-  // We need to check that LastSlab() != nullptr here for the special case that
-  // the metadata manager is allocating a second slab to hold a new slab
-  // metadata object for a newly allocated metadata slab. The metadata manager
-  // can't finish initializing the metadata slab until it has a slab metadata
-  // object for it, meaning it's entry in the slab map may still be null.
+  // We need to check that LastSlab() != nullptr here since metadata slabs do
+  // not have metadata.
   if (HeapSize() != 0 && (slab = LastSlab()) != nullptr &&
       slab->Type() == SlabType::kFree) {
     FreeSlab* free_slab = slab->ToFree();
