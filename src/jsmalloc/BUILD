@@ -22,6 +22,7 @@ cc_library(
         "//src/jsmalloc/blocks:small_block_allocator",
         "//src/jsmalloc/collections:intrusive_linked_list",
         "//src/jsmalloc/util:assert",
+        "//src/jsmalloc/util:twiddle",
         "//src/jsmalloc/util:math",
     ],
 )

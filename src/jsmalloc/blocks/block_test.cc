@@ -6,10 +6,10 @@ namespace jsmalloc {
 namespace blocks {
 
 TEST(TestBlockHeader, Initialization) {
-  BlockHeader metadata(120, BlockKind::kSmall);
+  BlockHeader header(120, BlockKind::kSmall);
 
-  EXPECT_EQ(metadata.BlockSize(), 120);
-  EXPECT_EQ(metadata.Kind(), BlockKind::kSmall);
+  EXPECT_EQ(header.BlockSize(), 120);
+  EXPECT_EQ(header.Kind(), BlockKind::kSmall);
 }
 
 TEST(TestBlockHeader, LargeData) {
@@ -17,10 +17,10 @@ TEST(TestBlockHeader, LargeData) {
   large_size &= ~0b111;
   BlockKind kind = BlockKind::kBeginOrEnd;
 
-  BlockHeader metadata(large_size, kind);
+  BlockHeader header(large_size, kind);
 
-  EXPECT_EQ(metadata.BlockSize(), large_size);
-  EXPECT_EQ(metadata.Kind(), kind);
+  EXPECT_EQ(header.BlockSize(), large_size);
+  EXPECT_EQ(header.Kind(), kind);
 }
 
 }  // namespace blocks
