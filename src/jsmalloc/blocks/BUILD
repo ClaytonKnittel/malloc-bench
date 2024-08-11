@@ -7,6 +7,7 @@ cc_library(
         "//src/jsmalloc/collections:intrusive_linked_list",
         "//src/jsmalloc/util:assert",
         "//src/jsmalloc/util:math",
+        "//src/jsmalloc/util:twiddle",
     ],
 )
 

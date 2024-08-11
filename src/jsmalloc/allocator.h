@@ -1,11 +1,10 @@
 #pragma once
 
 #include <cstddef>
-#include <vector>
 
 #include "src/heap_interface.h"
 #include "src/jsmalloc/util/assert.h"
-#include "src/jsmalloc/util/math.h"
+#include "src/jsmalloc/util/twiddle.h"
 
 namespace jsmalloc {
 
@@ -31,10 +30,6 @@ class HeapAllocator : public Allocator {
   bench::Heap& heap_;
 };
 
-inline uint32_t PtrValue(void* ptr) {
-  return reinterpret_cast<uint8_t*>(ptr) - static_cast<uint8_t*>(nullptr);
-}
-
 /**
  * Allocator for testing.
  */
@@ -48,7 +43,7 @@ class StackAllocator : public Allocator {
       return nullptr;
     }
     // Ensure we give out 16-byte aligned addresses.
-    uint32_t initial_offset = 16 - (PtrValue(this) % 16);
+    uint32_t initial_offset = 16 - (twiddle::PtrValue(this) % 16);
     void* ptr = static_cast<void*>(&data_[end_ + initial_offset]);
     end_ += size;
     return ptr;
