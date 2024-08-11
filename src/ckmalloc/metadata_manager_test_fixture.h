@@ -40,7 +40,7 @@ class MetadataManagerFixture : public CkMallocTest {
 
     Slab* NewSlabMeta();
 
-    void FreeSlabMeta(Slab* slab);
+    void FreeSlabMeta(MappedSlab* slab);
 
    private:
     class MetadataManagerFixture* test_fixture_;

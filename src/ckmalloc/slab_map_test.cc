@@ -27,7 +27,7 @@ TEST_F(SlabMapTest, TestEmpty) {
 }
 
 TEST_F(SlabMapTest, TestInsertZero) {
-  Slab* test_slab = reinterpret_cast<Slab*>(0x1230);
+  MappedSlab* test_slab = reinterpret_cast<MappedSlab*>(0x1230);
 
   EXPECT_TRUE(SlabMap().AllocatePath(PageId::Zero(), PageId::Zero()));
   SlabMap().Insert(PageId::Zero(), test_slab);
@@ -35,7 +35,7 @@ TEST_F(SlabMapTest, TestInsertZero) {
 }
 
 TEST_F(SlabMapTest, TestInsert) {
-  Slab* test_slab = reinterpret_cast<Slab*>(0x5010203040);
+  MappedSlab* test_slab = reinterpret_cast<MappedSlab*>(0x5010203040);
 
   PageId id = PageId(12 + 2 * kLeafSize);
   EXPECT_TRUE(SlabMap().AllocatePath(id, id));
@@ -47,7 +47,7 @@ TEST_F(SlabMapTest, TestInsert) {
 }
 
 TEST_F(SlabMapTest, TestAssignRange) {
-  Slab* test_slab = reinterpret_cast<Slab*>(0x123456789abcd0);
+  MappedSlab* test_slab = reinterpret_cast<MappedSlab*>(0x123456789abcd0);
 
   constexpr uint32_t kStartIdx = 20 + 10 * kLeafSize;
   constexpr uint32_t kEndIdx = 2 + 15 * kLeafSize;
@@ -69,7 +69,7 @@ TEST_F(SlabMapTest, TestAssignRange) {
 }
 
 TEST_F(SlabMapTest, TestInsertRange) {
-  Slab* test_slab = reinterpret_cast<Slab*>(0x123456789abcd0);
+  MappedSlab* test_slab = reinterpret_cast<MappedSlab*>(0x123456789abcd0);
 
   constexpr uint32_t kStartIdx = 20 + 5 * kLeafSize;
   constexpr uint32_t kEndIdx = 2 + 15 * kLeafSize;

@@ -30,33 +30,33 @@ class SlabMapImpl {
  public:
   // Returns the slab metadata for a given slab id. Returns `nullptr` if no
   // metadata has ever been allocated for this slab id.
-  Slab* FindSlab(PageId page_id) const;
+  MappedSlab* FindSlab(PageId page_id) const;
 
   // Ensures that the slab map has allocated the necessary nodes for an entry
   // between start and end page id's. If any allocation fails, returns `false`.
   bool AllocatePath(PageId start_id, PageId end_id);
 
   // Inserts an association from `page_id` to `slab`.
-  void Insert(PageId page_id, Slab* slab);
+  void Insert(PageId page_id, MappedSlab* slab);
 
   // Inserts an association from all pages between start_id and end_id
   // (inclusive) to `slab`.
-  void InsertRange(PageId start_id, PageId end_id, Slab* slab);
+  void InsertRange(PageId start_id, PageId end_id, MappedSlab* slab);
 
  private:
   class Leaf {
    public:
-    Slab* operator[](size_t idx) const {
+    MappedSlab* operator[](size_t idx) const {
       CK_ASSERT(idx < kLeafSize);
       return slabs_[idx];
     }
 
-    void SetLeaf(size_t idx, Slab* slab) {
+    void SetLeaf(size_t idx, MappedSlab* slab) {
       slabs_[idx] = slab;
     }
 
    private:
-    Slab* slabs_[kLeafSize] = {};
+    MappedSlab* slabs_[kLeafSize] = {};
   };
 
   std::optional<int> DoAllocatePath(PageId start_id, PageId end_id);
@@ -87,7 +87,7 @@ class SlabMapImpl {
 };
 
 template <MetadataAllocInterface MetadataAlloc>
-Slab* SlabMapImpl<MetadataAlloc>::FindSlab(PageId page_id) const {
+MappedSlab* SlabMapImpl<MetadataAlloc>::FindSlab(PageId page_id) const {
   size_t root_idx = RootIdx(page_id);
   size_t leaf_idx = LeafIdx(page_id);
 
@@ -105,14 +105,14 @@ bool SlabMapImpl<MetadataAlloc>::AllocatePath(PageId start_id, PageId end_id) {
 }
 
 template <MetadataAllocInterface MetadataAlloc>
-void SlabMapImpl<MetadataAlloc>::Insert(PageId page_id, Slab* slab) {
+void SlabMapImpl<MetadataAlloc>::Insert(PageId page_id, MappedSlab* slab) {
   Leaf& leaf = *(*this)[RootIdx(page_id)];
   leaf.SetLeaf(LeafIdx(page_id), slab);
 }
 
 template <MetadataAllocInterface MetadataAlloc>
 void SlabMapImpl<MetadataAlloc>::InsertRange(PageId start_id, PageId end_id,
-                                             Slab* slab) {
+                                             MappedSlab* slab) {
   auto root_idxs = std::make_pair(RootIdx(start_id), RootIdx(end_id));
   auto leaf_idxs = std::make_pair(LeafIdx(start_id), LeafIdx(end_id));
 
