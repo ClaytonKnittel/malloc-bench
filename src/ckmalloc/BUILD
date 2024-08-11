@@ -213,7 +213,6 @@ cc_library(
     deps = [
         ":common",
         ":page_id",
-        ":slab",
         ":util",
         "@cc-util//util:std_util",
     ],
@@ -224,6 +223,7 @@ cc_test(
     srcs = ["slab_map_test.cc"],
     deps = [
         ":page_id",
+        ":slab",
         ":slab_map",
         ":testlib",
         "@abseil-cpp//absl/status",
