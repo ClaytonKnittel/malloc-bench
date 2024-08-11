@@ -51,7 +51,7 @@ class SlabManagerImpl {
 
   // Returns the slab metadata for the rightmost slab, i.e. the slab with
   // highest start `PageId`. Should only be called if the heap is not empty.
-  Slab* LastSlab();
+  MappedSlab* LastSlab();
 
   // Finds a region of memory to return for `Alloc`, returning the `PageId` of
   // the beginning of the region and a `Slab` metadata object that may be used
@@ -183,7 +183,7 @@ void SlabManagerImpl<MetadataAlloc, SlabMap>::Free(AllocatedSlab* slab) {
 
   PageId start_id = slab->StartId();
   if (start_id != PageId::Zero()) {
-    Slab* prev_slab = slab_map_->FindSlab(start_id - 1);
+    MappedSlab* prev_slab = slab_map_->FindSlab(start_id - 1);
     if (prev_slab != nullptr && prev_slab->Type() == SlabType::kFree) {
       FreeSlab* prev_free_slab = prev_slab->ToFree();
       start_id = prev_free_slab->StartId();
@@ -194,7 +194,7 @@ void SlabManagerImpl<MetadataAlloc, SlabMap>::Free(AllocatedSlab* slab) {
   }
 
   {
-    Slab* next_slab = slab_map_->FindSlab(slab->EndId() + 1);
+    MappedSlab* next_slab = slab_map_->FindSlab(slab->EndId() + 1);
     if (next_slab != nullptr && next_slab->Type() == SlabType::kFree) {
       FreeSlab* next_free_slab = next_slab->ToFree();
       n_pages += next_free_slab->Pages();
@@ -214,7 +214,7 @@ PageId SlabManagerImpl<MetadataAlloc, SlabMap>::HeapEndPageId() {
 }
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
-Slab* SlabManagerImpl<MetadataAlloc, SlabMap>::LastSlab() {
+MappedSlab* SlabManagerImpl<MetadataAlloc, SlabMap>::LastSlab() {
   CK_ASSERT(heap_->Size() != 0);
   return slab_map_->FindSlab(HeapEndPageId() - 1);
 }
