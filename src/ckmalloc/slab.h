@@ -2,6 +2,7 @@
 
 #include <cstdint>
 
+#include "src/ckmalloc/block.h"
 #include "src/ckmalloc/page_id.h"
 
 namespace ckmalloc {
@@ -173,6 +174,11 @@ class LargeSlab : public AllocatedSlab {
   const class MetadataSlab* ToMetadata() const = delete;
   class SmallSlab* ToSmall() = delete;
   const class SmallSlab* ToSmall() const = delete;
+
+  // Given an allocation request for `user_size` bytes, returns the number of
+  // pages of the minimum-sized slab that could fit a block large enough to
+  // satisfy this allocation.
+  static uint32_t NPagesForBlock(size_t user_size);
 };
 
 // The sizes of all subtypes of slab must be equal.

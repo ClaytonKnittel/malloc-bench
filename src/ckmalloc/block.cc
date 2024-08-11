@@ -1,5 +1,9 @@
 #include "src/ckmalloc/block.h"
 
+#include "src/ckmalloc/common.h"
+#include "src/ckmalloc/linked_list.h"
+#include "src/ckmalloc/util.h"
+
 namespace ckmalloc {
 
 constexpr size_t HeaderOffset() {
@@ -9,41 +13,76 @@ constexpr size_t HeaderOffset() {
 #pragma clang diagnostic pop
 }
 
+constexpr bool UserDataOffsetValid() {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Winvalid-offsetof"
+  return offsetof(AllocatedBlock, data_) == AllocatedBlock::kMetadataOverhead;
+#pragma clang diagnostic pop
+}
+
 static_assert(HeaderOffset() == 0, "FreeBlock header offset must be 0");
 static_assert(sizeof(FreeBlock) <= 24,
               "FreeBlock size is larger than 24 bytes");
+static_assert(
+    UserDataOffsetValid(),
+    "User data region starts at the incorrect offset in allocated blocks.");
+
+/* static */
+uint64_t Block::BlockSizeForUserSize(size_t user_size) {
+  return std::max(AlignUp(user_size + kMetadataOverhead, kDefaultAlignment),
+                  kMinBlockSize);
+}
+
+FreeBlock* Block::InitFree(uint64_t size,
+                           LinkedList<FreeBlock>& free_block_list,
+                           bool is_end_of_slab) {
+  CK_ASSERT(size >= kMinBlockSize);
+  CK_ASSERT(IsAligned(size, kDefaultAlignment));
+  // Prev free is never true for free blocks, so we will not set that.
+  header_ = size | kFreeBitMask;
+  if (!is_end_of_slab) {
+    WriteFooterAndPrevFree();
+  }
+
+  FreeBlock* free_block = ToFree();
+  free_block_list.InsertFront(free_block);
+  return free_block;
+}
+
+AllocatedBlock* Block::InitAllocated(uint64_t size, bool prev_free) {
+  CK_ASSERT(size >= kMinBlockSize);
+  CK_ASSERT(IsAligned(size, kDefaultAlignment));
+  header_ = size | (prev_free ? kPrevFreeBitMask : 0);
+  return ToAllocated();
+}
 
 uint64_t Block::Size() const {
   return header_ & kSizeMask;
 }
 
 void Block::SetSize(uint64_t size) {
+  CK_ASSERT(size >= kMinBlockSize);
+  CK_ASSERT(IsAligned(size, kDefaultAlignment));
   CK_ASSERT(size == (size & kSizeMask));
   header_ = size | (header_ & ~kSizeMask);
+}
+
+uint64_t Block::UserDataSize() const {
+  return Size() - kMetadataOverhead;
 }
 
 bool Block::Free() const {
   return (header_ & kFreeBitMask) != 0;
 }
 
-void Block::MarkFree(bool is_end_of_slab) {
-  header_ |= kFreeBitMask;
-  if (!is_end_of_slab) {
-    uint64_t size = Size();
-    Block* next = NextAdjacentBlock();
-    // Write our footer at the end of this block.
-    next->SetPrevFree(true);
-    next->SetPrevSize(size);
-  }
-}
-
-void Block::MarkAllocated() {
-  header_ &= ~kFreeBitMask;
-}
-
 FreeBlock* Block::ToFree() {
   CK_ASSERT(Free());
   return static_cast<FreeBlock*>(this);
+}
+
+AllocatedBlock* Block::ToAllocated() {
+  CK_ASSERT(!Free());
+  return static_cast<AllocatedBlock*>(this);
 }
 
 Block* Block::NextAdjacentBlock() {
@@ -84,6 +123,39 @@ uint64_t Block::PrevSize() const {
 
 void Block::SetPrevSize(uint64_t size) {
   *(&header_ - 1) = size;
+}
+
+void Block::WriteFooterAndPrevFree() {
+  uint64_t size = Size();
+  Block* next = NextAdjacentBlock();
+  // Write our footer at the end of this block.
+  next->SetPrevFree(true);
+  next->SetPrevSize(size);
+}
+
+AllocatedBlock* FreeBlock::MarkAllocated() {
+  // Remove ourselves from the freelist we are in.
+  LinkedListNode::Remove();
+
+  // Clear the free bit.
+  header_ &= ~kFreeBitMask;
+  return ToAllocated();
+}
+
+void* AllocatedBlock::UserDataPtr() {
+  return data_;
+}
+
+FreeBlock* AllocatedBlock::MarkFree(LinkedList<FreeBlock>& free_block_list,
+                                    bool is_end_of_slab) {
+  header_ |= kFreeBitMask;
+  if (!is_end_of_slab) {
+    WriteFooterAndPrevFree();
+  }
+
+  FreeBlock* free_block = ToFree();
+  free_block_list.InsertFront(free_block);
+  return free_block;
 }
 
 }  // namespace ckmalloc
