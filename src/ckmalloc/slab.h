@@ -35,7 +35,7 @@ class Slab {
   // Initializes this slab to the given slab sub-type, returning a pointer to
   // `this` down-cast to the specialized type.
   template <typename S, typename... Args>
-  S* Init(Args...);
+  S* Init(Args...) = delete;
 
   SlabType Type() const {
     return type_;
@@ -200,12 +200,12 @@ static_assert(sizeof(Slab) == sizeof(LargeSlab),
 template <>
 UnmappedSlab* Slab::Init(UnmappedSlab* next_unmapped);
 template <>
-FreeSlab* Slab::Init(uint32_t n_pages, PageId start_id);
+FreeSlab* Slab::Init(PageId start_id, uint32_t n_pages);
 template <>
-MetadataSlab* Slab::Init(uint32_t n_pages, PageId start_id);
+MetadataSlab* Slab::Init(PageId start_id, uint32_t n_pages);
 template <>
-SmallSlab* Slab::Init(uint32_t n_pages, PageId start_id);
+SmallSlab* Slab::Init(PageId start_id, uint32_t n_pages);
 template <>
-LargeSlab* Slab::Init(uint32_t n_pages, PageId start_id);
+LargeSlab* Slab::Init(PageId start_id, uint32_t n_pages);
 
 }  // namespace ckmalloc
