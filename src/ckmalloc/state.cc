@@ -26,6 +26,8 @@ void* GlobalMetadataAlloc::Alloc(size_t size, size_t alignment) {
 /* static */
 State* State::InitializeWithEmptyHeap(bench::Heap* heap) {
   CK_ASSERT(heap->Size() == 0);
+  static_assert(sizeof(State) <= kPageSize,
+                "sizeof(State) is larger than page size");
   // Allocate a metadata slab and place ourselves at the beginning of it.
   void* heap_start = heap->sbrk(kPageSize);
   auto* state = new (heap_start) State(heap);
