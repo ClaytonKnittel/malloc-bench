@@ -5,7 +5,8 @@
 
 namespace ckmalloc {
 
-UnmappedSlab* Slab::InitUnmappedSlab(UnmappedSlab* next) {
+template <>
+UnmappedSlab* Slab::Init(UnmappedSlab* next) {
   type_ = SlabType::kUnmapped;
   unmapped = {
     .next_ = next,
@@ -14,7 +15,8 @@ UnmappedSlab* Slab::InitUnmappedSlab(UnmappedSlab* next) {
   return static_cast<UnmappedSlab*>(this);
 }
 
-FreeSlab* Slab::InitFreeSlab(PageId start_id, uint32_t n_pages) {
+template <>
+FreeSlab* Slab::Init(PageId start_id, uint32_t n_pages) {
   type_ = SlabType::kFree;
   mapped = {
     .id_ = start_id,
@@ -25,7 +27,8 @@ FreeSlab* Slab::InitFreeSlab(PageId start_id, uint32_t n_pages) {
   return static_cast<FreeSlab*>(this);
 }
 
-MetadataSlab* Slab::InitMetadataSlab(PageId start_id, uint32_t n_pages) {
+template <>
+MetadataSlab* Slab::Init(PageId start_id, uint32_t n_pages) {
   type_ = SlabType::kMetadata;
   mapped = {
     .id_ = start_id,
@@ -36,7 +39,8 @@ MetadataSlab* Slab::InitMetadataSlab(PageId start_id, uint32_t n_pages) {
   return static_cast<MetadataSlab*>(this);
 }
 
-SmallSlab* Slab::InitSmallSlab(PageId start_id, uint32_t n_pages) {
+template <>
+SmallSlab* Slab::Init(PageId start_id, uint32_t n_pages) {
   type_ = SlabType::kSmall;
   mapped = {
     .id_ = start_id,
@@ -47,7 +51,8 @@ SmallSlab* Slab::InitSmallSlab(PageId start_id, uint32_t n_pages) {
   return static_cast<SmallSlab*>(this);
 }
 
-LargeSlab* Slab::InitLargeSlab(PageId start_id, uint32_t n_pages) {
+template <>
+LargeSlab* Slab::Init(PageId start_id, uint32_t n_pages) {
   type_ = SlabType::kLarge;
   mapped = {
     .id_ = start_id,

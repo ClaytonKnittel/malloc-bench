@@ -43,19 +43,20 @@ concept SlabMapInterface =
       { slab_map.InsertRange(page_id, page_id, slab) } -> std::same_as<void>;
     };
 
-using SlabMgrAllocResult = std::pair<class PageId, class AllocatedSlab*>;
-
 template <typename T>
-concept SlabManagerInterface = requires(
-    const T const_slab_mgr, T slab_mgr, class PageId page_id, const void* ptr,
-    uint32_t n_pages, SlabType slab_type, class AllocatedSlab* slab) {
-  { const_slab_mgr.PageStartFromId(page_id) } -> std::convertible_to<void*>;
-  { const_slab_mgr.PageIdFromPtr(ptr) } -> std::convertible_to<class PageId>;
-  {
-    slab_mgr.Alloc(n_pages, slab_type)
-  } -> std::convertible_to<std::optional<SlabMgrAllocResult>>;
-  { slab_mgr.Free(slab) } -> std::same_as<void>;
-};
+concept SlabManagerInterface =
+    requires(const T const_slab_mgr, T slab_mgr, class PageId page_id,
+             const void* ptr, uint32_t n_pages, class AllocatedSlab* slab) {
+      { const_slab_mgr.PageStartFromId(page_id) } -> std::convertible_to<void*>;
+      {
+        const_slab_mgr.PageIdFromPtr(ptr)
+      } -> std::convertible_to<class PageId>;
+      {
+        slab_mgr.template Alloc<class FreeSlab>(n_pages)
+      } -> std::convertible_to<
+          std::optional<std::pair<class PageId, class FreeSlab*>>>;
+      { slab_mgr.Free(slab) } -> std::same_as<void>;
+    };
 
 // This is defined in `state.cc` to avoid circular dependencies.
 class GlobalMetadataAlloc {

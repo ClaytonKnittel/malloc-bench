@@ -31,21 +31,10 @@ class Slab {
   friend class SlabManagerTest;
 
  public:
-  // Returns a pointer to `this` which has been down-cast to `UnmappedSlab`.
-  class UnmappedSlab* InitUnmappedSlab(
-      class UnmappedSlab* next_unmapped = nullptr);
-
-  // Returns a pointer to `this` which has been down-cast to `FreeSlab`.
-  class FreeSlab* InitFreeSlab(PageId start_id, uint32_t n_pages);
-
-  // Returns a pointer to `this` which has been down-cast to `MetadataSlab`.
-  class MetadataSlab* InitMetadataSlab(PageId start_id, uint32_t n_pages);
-
-  // Returns a pointer to `this` which has been down-cast to `SmallSlab`.
-  class SmallSlab* InitSmallSlab(PageId start_id, uint32_t n_pages);
-
-  // Returns a pointer to `this` which has been down-cast to `LargeSlab`.
-  class LargeSlab* InitLargeSlab(PageId start_id, uint32_t n_pages);
+  // Initializes this slab to the given slab sub-type, returning a pointer to
+  // `this` down-cast to the specialized type.
+  template <typename S, typename... Args>
+  S* Init(Args...);
 
   SlabType Type() const {
     return type_;
@@ -201,5 +190,16 @@ static_assert(sizeof(Slab) == sizeof(SmallSlab),
               "Slab subtype sizes must be equal, SmallSlab different.");
 static_assert(sizeof(Slab) == sizeof(LargeSlab),
               "Slab subtype sizes must be equal, LargeSlab different.");
+
+template <>
+UnmappedSlab* Slab::Init(UnmappedSlab* next_unmapped);
+template <>
+FreeSlab* Slab::Init(uint32_t n_pages, PageId start_id);
+template <>
+MetadataSlab* Slab::Init(uint32_t n_pages, PageId start_id);
+template <>
+SmallSlab* Slab::Init(uint32_t n_pages, PageId start_id);
+template <>
+LargeSlab* Slab::Init(uint32_t n_pages, PageId start_id);
 
 }  // namespace ckmalloc

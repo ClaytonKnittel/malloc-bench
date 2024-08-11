@@ -72,7 +72,7 @@ void* MetadataManagerImpl<SlabMap, SlabManager>::Alloc(size_t size,
 
   if (aligned_end + size > kPageSize) {
     uint32_t n_pages = (size + kPageSize - 1) / kPageSize;
-    auto result = slab_manager_->Alloc(n_pages, SlabType::kMetadata);
+    auto result = slab_manager_->template Alloc<MetadataSlab>(n_pages);
     if (!result.has_value()) {
       return nullptr;
     }
@@ -111,7 +111,7 @@ Slab* MetadataManagerImpl<SlabMap, SlabManager>::NewSlabMeta() {
 
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
 void MetadataManagerImpl<SlabMap, SlabManager>::FreeSlabMeta(MappedSlab* slab) {
-  slab->InitUnmappedSlab(last_free_slab_);
+  slab->Init<UnmappedSlab>(last_free_slab_);
   last_free_slab_ = static_cast<Slab*>(slab)->ToUnmapped();
 }
 
