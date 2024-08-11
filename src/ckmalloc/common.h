@@ -53,13 +53,8 @@ concept SlabManagerInterface = requires(
   { const_slab_mgr.PageStartFromId(page_id) } -> std::convertible_to<void*>;
   { const_slab_mgr.PageIdFromPtr(ptr) } -> std::convertible_to<class PageId>;
   {
-    slab_mgr.template Alloc<class FreeSlab>(n_pages)
-  } -> std::convertible_to<
-      std::optional<std::pair<class PageId, class FreeSlab*>>>;
-  {
-    slab_mgr.template Alloc<class MetadataSlab>(n_pages)
-  } -> std::convertible_to<
-      std::optional<std::pair<class PageId, class MetadataSlab*>>>;
+    slab_mgr.Alloc(n_pages)
+  } -> std::convertible_to<std::optional<std::pair<class PageId, class Slab*>>>;
   {
     slab_mgr.template Alloc<class SmallSlab>(n_pages)
   } -> std::convertible_to<

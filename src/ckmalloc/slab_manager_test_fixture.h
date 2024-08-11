@@ -35,6 +35,8 @@ class SlabManagerFixture : public CkMallocTest {
 
     PageId PageIdFromPtr(const void* ptr) const;
 
+    std::optional<std::pair<PageId, Slab*>> Alloc(uint32_t n_pages);
+
     template <typename S, typename... Args>
     std::optional<std::pair<PageId, S*>> Alloc(uint32_t n_pages, Args...);
 
@@ -135,8 +137,11 @@ std::optional<std::pair<PageId, S*>> SlabManagerFixture::TestSlabManager::Alloc(
   DEFINE_OR_RETURN_OPT(
       AllocResult, result,
       slab_manager_.template Alloc<S>(n_pages, std::forward<Args>(args)...));
-  HandleAlloc(result.second);
-  return result;
+  auto [page_id, slab] = result;
+
+  // Allocated slabs must map every page to their metadata.
+  HandleAlloc(slab);
+  return std::make_pair(page_id, slab);
 }
 
 }  // namespace ckmalloc

@@ -67,12 +67,12 @@ void* MetadataManagerImpl<SlabMap, SlabManager>::Alloc(size_t size,
   CK_ASSERT((size & (alignment - 1)) == 0);
 
   auto current_end = static_cast<uintptr_t>(alloc_offset_);
-  auto align_mask = static_cast<uintptr_t>(alignment) - 1;
-  uintptr_t aligned_end = (current_end + align_mask) & ~align_mask;
+  uintptr_t aligned_end = AlignUp(current_end, alignment);
 
   if (aligned_end + size > kPageSize) {
     uint32_t n_pages = (size + kPageSize - 1) / kPageSize;
-    auto result = slab_manager_->template Alloc<MetadataSlab>(n_pages);
+    std::optional<std::pair<PageId, Slab*>> result =
+        slab_manager_->Alloc(n_pages);
     if (!result.has_value()) {
       return nullptr;
     }
@@ -87,6 +87,22 @@ void* MetadataManagerImpl<SlabMap, SlabManager>::Alloc(size_t size,
       last_ = page_id + n_pages - 1;
       alloc_offset_ = kPageSize - remaining_space;
     }
+
+    // If no slab metadata could be allocated, try fitting it in the current
+    // allocated slab. if there is not enough room, we will need to allocate
+    // another metadata slab.
+    if (slab == nullptr) {
+      // We can safely make a recursive alloc call here. If we don't have enough
+      // space in the current slab being allocated from, this will allocate a
+      // new slab, which will certainly have enough space to allocate another
+      // two slab metadata.
+      slab = reinterpret_cast<Slab*>(Alloc(sizeof(Slab), alignof(Slab)));
+      if (slab == nullptr) {
+        return nullptr;
+      }
+    }
+
+    slab->template Init<MetadataSlab>(page_id, n_pages);
 
     return slab_manager_->PageStartFromId(page_id);
   }
