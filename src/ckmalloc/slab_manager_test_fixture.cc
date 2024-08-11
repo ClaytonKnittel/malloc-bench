@@ -32,6 +32,13 @@ PageId TestSlabManager::PageIdFromPtr(const void* ptr) const {
   return slab_manager_.PageIdFromPtr(ptr);
 }
 
+std::optional<std::pair<PageId, Slab*>> TestSlabManager::Alloc(
+    uint32_t n_pages) {
+  using AllocResult = std::pair<PageId, Slab*>;
+  DEFINE_OR_RETURN_OPT(AllocResult, result, slab_manager_.Alloc(n_pages));
+  return result;
+}
+
 void TestSlabManager::Free(AllocatedSlab* slab) {
   auto it = test_fixture_->allocated_slabs_.find(slab);
   CK_ASSERT(it != test_fixture_->allocated_slabs_.end());
@@ -295,9 +302,9 @@ absl::Status SlabManagerFixture::ValidateHeap() {
 
 absl::StatusOr<AllocatedSlab*> SlabManagerFixture::AllocateSlab(
     uint32_t n_pages) {
-  // Arbitrarily make all allocated slabs metadata slabs. Their actual type
-  // doesn't matter, `SlabManager` only cares about free vs. not free.
-  auto result = SlabManager().template Alloc<MetadataSlab>(n_pages);
+  // Arbitrarily make all allocated slabs large slabs. Their actual type doesn't
+  // matter, `SlabManager` only cares about free vs. not free.
+  auto result = SlabManager().template Alloc<LargeSlab>(n_pages);
   if (!result.has_value()) {
     return nullptr;
   }
@@ -347,7 +354,7 @@ absl::Status SlabManagerFixture::FreeSlab(AllocatedSlab* slab) {
 }
 
 void SlabManagerFixture::FillMagic(AllocatedSlab* slab, uint64_t magic) {
-  CK_ASSERT(slab->Type() == SlabType::kMetadata);
+  CK_ASSERT(slab->Type() == SlabType::kLarge);
   auto* start = reinterpret_cast<uint64_t*>(
       SlabManager().PageStartFromId(slab->StartId()));
   auto* end = reinterpret_cast<uint64_t*>(
@@ -361,7 +368,7 @@ void SlabManagerFixture::FillMagic(AllocatedSlab* slab, uint64_t magic) {
 
 absl::Status SlabManagerFixture::CheckMagic(AllocatedSlab* slab,
                                             uint64_t magic) {
-  CK_ASSERT(slab->Type() == SlabType::kMetadata);
+  CK_ASSERT(slab->Type() == SlabType::kLarge);
   auto* start = reinterpret_cast<uint64_t*>(
       SlabManager().PageStartFromId(slab->StartId()));
   auto* end = reinterpret_cast<uint64_t*>(

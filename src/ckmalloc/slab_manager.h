@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <optional>
+#include <type_traits>
 #include <utility>
 
 #include "util/std_util.h"
@@ -17,6 +18,19 @@
 
 namespace ckmalloc {
 
+template <typename>
+struct IsAllocInitializableHelper : public std::false_type {};
+
+template <>
+struct IsAllocInitializableHelper<SmallSlab> : public std::true_type {};
+
+template <>
+struct IsAllocInitializableHelper<LargeSlab> : public std::true_type {};
+
+template <typename S>
+inline constexpr bool kIsAllocInitializable =
+    IsAllocInitializableHelper<S>::value;
+
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
 class SlabManagerImpl {
   friend class SlabManagerFixture;
@@ -31,11 +45,17 @@ class SlabManagerImpl {
   PageId PageIdFromPtr(const void* ptr) const;
 
   // Allocates `n_pages` contiguous pages, returning the `PageId` of the first
-  // page in the slab, and an allocated a `Slab` metadata and initializing it
-  // based on `slab_type` for this range of pages, if there was availability,
-  // otherwise returning `nullopt`. If something was allocated, the SlabMap will
-  // have been updated to map all pages within the alloc to the returned Slab
-  // metadata.
+  // page in the slab, and potentially returning an allocated a `Slab` metadata
+  // without initializing it. If there was no availability, it returns
+  // `nullopt`. This method will not attempt to allocate slab metadata, so if
+  // there was no extra slab metadata relinquished by changes made to the heap,
+  // the slab metadata pointer returned will be null and the user has to
+  // allocate slab metadata. This is to prevent a recursive cycle when
+  // allocating a metdata slab, which is where slab metadata are allocated.
+  std::optional<std::pair<PageId, Slab*>> Alloc(uint32_t n_pages);
+
+  // Allocates `n_pages` contiguous pages and initializes a slab metadata for
+  // that region.
   template <typename S, typename... Args>
   std::optional<std::pair<PageId, S*>> Alloc(uint32_t n_pages, Args...);
 
@@ -137,27 +157,33 @@ PageId SlabManagerImpl<MetadataAlloc, SlabMap>::PageIdFromPtr(
 }
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
+std::optional<std::pair<PageId, Slab*>>
+SlabManagerImpl<MetadataAlloc, SlabMap>::Alloc(uint32_t n_pages) {
+  return OptionalOrElse<std::pair<PageId, Slab*>>(
+      DoAllocWithoutSbrk(n_pages),
+      [this, n_pages]() { return AllocEndWithSbrk(n_pages); });
+}
+
+template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
 template <typename S, typename... Args>
 std::optional<std::pair<PageId, S*>>
 SlabManagerImpl<MetadataAlloc, SlabMap>::Alloc(uint32_t n_pages, Args... args) {
+  static_assert(kIsAllocInitializable<S>,
+                "You may only directly allocate non-metadata slabs.");
   using AllocResult = std::pair<PageId, Slab*>;
-  DEFINE_OR_RETURN_OPT(AllocResult, result,
-                       OptionalOrElse<std::pair<PageId, Slab*>>(
-                           DoAllocWithoutSbrk(n_pages), [this, n_pages]() {
-                             return AllocEndWithSbrk(n_pages);
-                           }));
-  auto [page_id, slab] = std::move(result);
 
-  // TODO have this method return PageId only, caller needs to call slab->Init,
-  // or allocate new slab metadata if it's nullptr. Maybe slab initialization
-  // functions should also insert those slabs into the slab map, rather than
-  // doing it here. Makes sense b/c free slabs don't need to initialize the
-  // whole range, only first and last.
+  DEFINE_OR_RETURN_OPT(AllocResult, result, Alloc(n_pages));
+  auto [page_id, slab] = std::move(result);
+  if (slab == nullptr) {
+    slab = MetadataAlloc::SlabAlloc();
+    if (slab == nullptr) {
+      // TODO: clean up uninitialized allocated memory.
+      return std::nullopt;
+    }
+  }
+
   S* initialized_slab =
       slab->Init<S>(page_id, n_pages, std::forward<Args>(args)...);
-
-  // Allocated slabs must map every page to their metadata.
-  slab_map_->InsertRange(page_id, page_id + n_pages - 1, initialized_slab);
   return std::make_pair(page_id, initialized_slab);
 }
 
