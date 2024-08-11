@@ -32,28 +32,19 @@ PageId TestSlabManager::PageIdFromPtr(const void* ptr) const {
   return slab_manager_.PageIdFromPtr(ptr);
 }
 
-std::optional<SlabMgrAllocResult> TestSlabManager::Alloc(uint32_t n_pages,
-                                                         SlabType slab_type) {
-  auto result = slab_manager_.Alloc(n_pages, slab_type);
-  if (!result.has_value()) {
-    return std::nullopt;
-  }
-  auto [start_id, slab] = std::move(result.value());
-
-  // Make a copy of this slab's metadata to ensure it does not get dirtied.
-  AllocatedSlab copy = *slab;
-  auto [it, inserted] = test_fixture_->allocated_slabs_.insert({ slab, copy });
-  CK_ASSERT(inserted);
-
-  return std::make_pair(start_id, slab);
-}
-
 void TestSlabManager::Free(AllocatedSlab* slab) {
   auto it = test_fixture_->allocated_slabs_.find(slab);
   CK_ASSERT(it != test_fixture_->allocated_slabs_.end());
 
   test_fixture_->allocated_slabs_.erase(it);
   slab_manager_.Free(slab);
+}
+
+void TestSlabManager::HandleAlloc(AllocatedSlab* slab) {
+  // Make a copy of this slab's metadata to ensure it does not get dirtied.
+  AllocatedSlab copy = *slab;
+  auto [it, inserted] = test_fixture_->allocated_slabs_.insert({ slab, copy });
+  CK_ASSERT(inserted);
 }
 
 /* static */
@@ -302,7 +293,7 @@ absl::StatusOr<AllocatedSlab*> SlabManagerFixture::AllocateSlab(
     uint32_t n_pages) {
   // Arbitrarily make all allocated slabs metadata slabs. Their actual type
   // doesn't matter, `SlabManager` only cares about free vs. not free.
-  auto result = SlabManager().Alloc(n_pages, SlabType::kMetadata);
+  auto result = SlabManager().template Alloc<MetadataSlab>(n_pages);
   if (!result.has_value()) {
     return nullptr;
   }
