@@ -21,8 +21,6 @@ class SlabManagerFixture : public CkMallocTest {
   static constexpr size_t kNumPages = 64;
 
   class TestSlabManager {
-    friend class MetadataManagerFixture;
-
    public:
     using SlabManagerT = SlabManagerImpl<TestGlobalMetadataAlloc, TestSlabMap>;
 
