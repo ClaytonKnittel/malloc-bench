@@ -32,7 +32,7 @@ constexpr uint32_t kMaxDataSizePerSizeClass[] = {
  *
  * Start is inclusive, end is inclusive.
  * ——————————————————————
- * | bucket | start-end |
+ * |  class | start-end |
  * |      0 |      0-12 |
  * |      1 |     13-28 |
  * |      2 |     29-44 |
@@ -82,10 +82,7 @@ constexpr uint32_t BinCountForSizeClass(uint32_t size_class) {
 }
 
 /**
- * Returns the number of bins to use in a SmallBlock for a given size_class.
- *
- * This is just a heuristic that seeks to make the total size of every
- * SmallBlock about 2KB.
+ * Returns the data size allocable by a SmallBlock with the given size class.
  */
 constexpr uint32_t DataSizeForSizeClass(uint32_t size_class) {
   return kMaxDataSizePerSizeClass[size_class];
