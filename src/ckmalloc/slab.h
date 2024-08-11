@@ -16,9 +16,6 @@ enum class SlabType {
   // This slab metadata is managing a free slab.
   kFree,
 
-  // This slab metadata is managing a metadata slab.
-  kMetadata,
-
   // This slab metadata is managing a small block slab.
   kSmall,
 
@@ -53,9 +50,6 @@ class Slab {
   class AllocatedSlab* ToAllocated();
   const class AllocatedSlab* ToAllocated() const;
 
-  class MetadataSlab* ToMetadata();
-  const class MetadataSlab* ToMetadata() const;
-
   class SmallSlab* ToSmall();
   const class SmallSlab* ToSmall() const;
 
@@ -82,8 +76,6 @@ class Slab {
         struct {
         } free;
         struct {
-        } metadata;
-        struct {
         } small;
         struct {
           // Tracks the total number of allocated bytes in this block.
@@ -102,8 +94,6 @@ class UnmappedSlab : public Slab {
   const class FreeSlab* ToFree() const = delete;
   class AllocatedSlab* ToAllocated() = delete;
   const class AllocatedSlab* ToAllocated() const = delete;
-  class MetadataSlab* ToMetadata() = delete;
-  const class MetadataSlab* ToMetadata() const = delete;
   class SmallSlab* ToSmall() = delete;
   const class SmallSlab* ToSmall() const = delete;
   class LargeSlab* ToLarge() = delete;
@@ -138,8 +128,6 @@ class FreeSlab : public MappedSlab {
  public:
   class AllocatedSlab* ToAllocated() = delete;
   const class AllocatedSlab* ToAllocated() const = delete;
-  class MetadataSlab* ToMetadata() = delete;
-  const class MetadataSlab* ToMetadata() const = delete;
   class SmallSlab* ToSmall() = delete;
   const class SmallSlab* ToSmall() const = delete;
   class LargeSlab* ToLarge() = delete;
@@ -152,26 +140,14 @@ class AllocatedSlab : public MappedSlab {
   const class FreeSlab* ToFree() const = delete;
 };
 
-class MetadataSlab : public AllocatedSlab {
- public:
-  class SmallSlab* ToSmall() = delete;
-  const class SmallSlab* ToSmall() const = delete;
-  class LargeSlab* ToLarge() = delete;
-  const class LargeSlab* ToLarge() const = delete;
-};
-
 class SmallSlab : public AllocatedSlab {
  public:
-  class MetadataSlab* ToMetadata() = delete;
-  const class MetadataSlab* ToMetadata() const = delete;
   class LargeSlab* ToLarge() = delete;
   const class LargeSlab* ToLarge() const = delete;
 };
 
 class LargeSlab : public AllocatedSlab {
  public:
-  class MetadataSlab* ToMetadata() = delete;
-  const class MetadataSlab* ToMetadata() const = delete;
   class SmallSlab* ToSmall() = delete;
   const class SmallSlab* ToSmall() const = delete;
 
@@ -190,8 +166,6 @@ static_assert(sizeof(Slab) == sizeof(FreeSlab),
               "Slab subtype sizes must be equal, FreeSlab different.");
 static_assert(sizeof(Slab) == sizeof(AllocatedSlab),
               "Slab subtype sizes must be equal, AllocatedSlab different.");
-static_assert(sizeof(Slab) == sizeof(MetadataSlab),
-              "Slab subtype sizes must be equal, MetadataSlab different.");
 static_assert(sizeof(Slab) == sizeof(SmallSlab),
               "Slab subtype sizes must be equal, SmallSlab different.");
 static_assert(sizeof(Slab) == sizeof(LargeSlab),
@@ -201,8 +175,6 @@ template <>
 UnmappedSlab* Slab::Init(UnmappedSlab* next_unmapped);
 template <>
 FreeSlab* Slab::Init(PageId start_id, uint32_t n_pages);
-template <>
-MetadataSlab* Slab::Init(PageId start_id, uint32_t n_pages);
 template <>
 SmallSlab* Slab::Init(PageId start_id, uint32_t n_pages);
 template <>

@@ -77,6 +77,11 @@ void* MetadataManagerImpl<SlabMap, SlabManager>::Alloc(size_t size,
       return nullptr;
     }
     auto [page_id, slab] = std::move(result.value());
+    // If we got a slab metadata object back, return it to the freelist since we
+    // don't annotate metadata slabs with metadata.
+    if (slab != nullptr) {
+      FreeSlabMeta(static_cast<MappedSlab*>(slab));
+    }
 
     // Decide whether to switch to allocating from this new slab, or stick with
     // the old one. We choose the one with more remaining space.
@@ -87,26 +92,6 @@ void* MetadataManagerImpl<SlabMap, SlabManager>::Alloc(size_t size,
       last_ = page_id + n_pages - 1;
       alloc_offset_ = kPageSize - remaining_space;
     }
-
-    // If no slab metadata could be allocated, try fitting it in the current
-    // allocated slab. if there is not enough room, we will need to allocate
-    // another metadata slab.
-    if (slab == nullptr) {
-      // We can safely make a recursive alloc call here. If we don't have enough
-      // space in the current slab being allocated from, this will allocate a
-      // new slab, which will certainly have enough space to allocate another
-      // two slab metadata.
-      // TODO: do this allocation somewhere else? So metadata test fixture can
-      // hook in it's impl of Alloc here.
-      slab = reinterpret_cast<Slab*>(Alloc(sizeof(Slab), alignof(Slab)));
-      if (slab == nullptr) {
-        return nullptr;
-      }
-    }
-
-    MetadataSlab* metadata_slab =
-        slab->template Init<MetadataSlab>(page_id, n_pages);
-    slab_map_->InsertRange(page_id, page_id + n_pages - 1, metadata_slab);
 
     return slab_manager_->PageStartFromId(page_id);
   }

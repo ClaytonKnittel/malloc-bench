@@ -29,18 +29,6 @@ FreeSlab* Slab::Init(PageId start_id, uint32_t n_pages) {
 }
 
 template <>
-MetadataSlab* Slab::Init(PageId start_id, uint32_t n_pages) {
-  type_ = SlabType::kMetadata;
-  mapped = {
-    .id_ = start_id,
-    .n_pages_ = n_pages,
-    .metadata = {},
-  };
-
-  return static_cast<MetadataSlab*>(this);
-}
-
-template <>
 SmallSlab* Slab::Init(PageId start_id, uint32_t n_pages) {
   type_ = SlabType::kSmall;
   mapped = {
@@ -96,25 +84,13 @@ const FreeSlab* Slab::ToFree() const {
 }
 
 AllocatedSlab* Slab::ToAllocated() {
-  CK_ASSERT(Type() == SlabType::kMetadata || Type() == SlabType::kSmall ||
-            Type() == SlabType::kLarge);
-  return static_cast<MetadataSlab*>(this);
+  CK_ASSERT(Type() == SlabType::kSmall || Type() == SlabType::kLarge);
+  return static_cast<AllocatedSlab*>(this);
 }
 
 const AllocatedSlab* Slab::ToAllocated() const {
-  CK_ASSERT(Type() == SlabType::kMetadata || Type() == SlabType::kSmall ||
-            Type() == SlabType::kLarge);
-  return static_cast<const MetadataSlab*>(this);
-}
-
-MetadataSlab* Slab::ToMetadata() {
-  CK_ASSERT(Type() == SlabType::kMetadata);
-  return static_cast<MetadataSlab*>(this);
-}
-
-const MetadataSlab* Slab::ToMetadata() const {
-  CK_ASSERT(Type() == SlabType::kMetadata);
-  return static_cast<const MetadataSlab*>(this);
+  CK_ASSERT(Type() == SlabType::kSmall || Type() == SlabType::kLarge);
+  return static_cast<const AllocatedSlab*>(this);
 }
 
 SmallSlab* Slab::ToSmall() {
@@ -169,7 +145,7 @@ uint32_t MappedSlab::Pages() const {
 
 /* static */
 uint32_t LargeSlab::NPagesForBlock(size_t user_size) {
-  return AlignUp(
+  return AlignUp<uint32_t>(
       user_size + Block::kFirstBlockInSlabOffset + Block::kMetadataOverhead,
       kPageSize);
 }
