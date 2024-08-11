@@ -13,7 +13,7 @@ class SentinelBlock {
 
  private:
   BlockHeader header_;
-  uint8_t alignment_[12];
+  [[maybe_unused]] uint8_t alignment_[12];
 };
 
 static_assert(sizeof(SentinelBlock) % 16 == 0);
