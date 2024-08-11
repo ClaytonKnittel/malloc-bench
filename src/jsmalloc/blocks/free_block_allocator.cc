@@ -14,11 +14,18 @@ FreeBlockAllocator::FreeBlockAllocator(Allocator& allocator)
 FreeBlock* FreeBlockAllocator::Allocate(size_t size) {
   DCHECK_EQ(size % 16, 0);
 
+  FreeBlock* best_fit = nullptr;
   for (auto& free_block : free_blocks_) {
     if (!free_block.CanMarkUsed(size)) {
       continue;
     }
+    if (best_fit == nullptr || best_fit->BlockSize() >= free_block.BlockSize()) {
+      best_fit = &free_block;
+    }
+  }
 
+  if (best_fit != nullptr) {
+    FreeBlock& free_block = *best_fit;
     free_blocks_.remove(free_block);
     FreeBlock* remainder = free_block.MarkUsed(size);
 
