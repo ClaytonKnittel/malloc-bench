@@ -56,4 +56,11 @@ constexpr T AlignUp(T val, T alignment) {
   return (val + alignment - 1) & ~(alignment - 1);
 }
 
+template <typename T>
+requires std::is_integral_v<T>
+constexpr T CeilDiv(T val, T quotient) {
+  CK_ASSERT(quotient > 0);
+  return (val + quotient - 1) / quotient;
+}
+
 }  // namespace ckmalloc
