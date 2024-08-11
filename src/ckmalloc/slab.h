@@ -186,4 +186,20 @@ class LargeSlab : public AllocatedSlab {
   const class SmallSlab* ToSmall() const = delete;
 };
 
+// The sizes of all subtypes of slab must be equal.
+static_assert(sizeof(Slab) == sizeof(UnmappedSlab),
+              "Slab subtype sizes must be equal, UnmappedSlab different.");
+static_assert(sizeof(Slab) == sizeof(MappedSlab),
+              "Slab subtype sizes must be equal, MappedSlab different.");
+static_assert(sizeof(Slab) == sizeof(FreeSlab),
+              "Slab subtype sizes must be equal, FreeSlab different.");
+static_assert(sizeof(Slab) == sizeof(AllocatedSlab),
+              "Slab subtype sizes must be equal, AllocatedSlab different.");
+static_assert(sizeof(Slab) == sizeof(MetadataSlab),
+              "Slab subtype sizes must be equal, MetadataSlab different.");
+static_assert(sizeof(Slab) == sizeof(SmallSlab),
+              "Slab subtype sizes must be equal, SmallSlab different.");
+static_assert(sizeof(Slab) == sizeof(LargeSlab),
+              "Slab subtype sizes must be equal, LargeSlab different.");
+
 }  // namespace ckmalloc
