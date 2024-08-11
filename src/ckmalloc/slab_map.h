@@ -14,7 +14,7 @@
 namespace ckmalloc {
 
 // The leaf size should be roughly the square root of heap size / page size.
-// Round down the leaf sizes so they are smaller.
+// Round up so the leaf sizes are larger.
 constexpr uint32_t kLeafShift = (kHeapSizeShift - kPageShift + 1) / 2;
 // The number of pages in the leaf nodes of the slab map.
 constexpr size_t kLeafSize = 1 << kLeafShift;
