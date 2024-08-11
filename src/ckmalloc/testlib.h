@@ -16,7 +16,7 @@ namespace ckmalloc {
 class TestGlobalMetadataAlloc {
  public:
   static Slab* SlabAlloc();
-  static void SlabFree(Slab* slab);
+  static void SlabFree(MappedSlab* slab);
   static void* Alloc(size_t size, size_t alignment);
 
   // Test-only function to delete memory allocted by `Alloc`.
@@ -58,8 +58,14 @@ void AbslStringify(Sink& sink, SlabType slab_type) {
 
 template <typename Sink>
 void AbslStringify(Sink& sink, const Slab& slab) {
-  absl::Format(&sink, "Slab: [type=%v, pages=%" PRIu32 ", start_id=%v]",
-               slab.Type(), slab.Pages(), slab.StartId());
+  if (slab.Type() == SlabType::kUnmapped) {
+    absl::Format(&sink, "Unmapped slab metadata!");
+  } else {
+    const MappedSlab& mapped_slab = *slab.ToMapped();
+    absl::Format(&sink, "Slab: [type=%v, pages=%" PRIu32 ", start_id=%v]",
+                 mapped_slab.Type(), mapped_slab.Pages(),
+                 mapped_slab.StartId());
+  }
 }
 
 template <typename Sink>

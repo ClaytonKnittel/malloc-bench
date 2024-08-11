@@ -22,7 +22,7 @@ Slab* TestGlobalMetadataAlloc::SlabAlloc() {
 #endif
 }
 
-void TestGlobalMetadataAlloc::SlabFree(Slab* slab) {
+void TestGlobalMetadataAlloc::SlabFree(MappedSlab* slab) {
 #ifdef __cpp_aligned_new
   ::operator delete(slab, static_cast<std::align_val_t>(alignof(Slab)));
 #else
