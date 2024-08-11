@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "src/ckmalloc/common.h"
 #include "src/ckmalloc/linked_list.h"
 #include "src/ckmalloc/util.h"
 
@@ -11,25 +12,50 @@ namespace ckmalloc {
 // Blocks contain metadata regarding both free and allocated regions of memory
 // from large slabs.
 class Block {
+  friend class AllocatedBlock;
+
   friend constexpr size_t HeaderOffset();
 
  public:
+  // The number of bytes of metadata at the beginning of this block which can
+  // never be allocated to the user.
+  static constexpr uint64_t kMetadataOverhead = sizeof(uint64_t);
+
+  // The number of bytes to offset the first block in a large slab so that the
+  // user-allocatable regions of blocks in the slab align to the required
+  // alignment.
+  static constexpr uint64_t kFirstBlockInSlabOffset =
+      kDefaultAlignment - kMetadataOverhead;
+
+  static const uint64_t kMinBlockSize;
+
+  // Returns the minimum block size such that `UserDataSize()` is >=
+  // `user_size`.
+  static uint64_t BlockSizeForUserSize(size_t user_size);
+
+  // Initializes an uninitialized block to free with given size, inserting it
+  // into the given freelist.
+  class FreeBlock* InitFree(uint64_t size,
+                            LinkedList<FreeBlock>& free_block_list,
+                            bool is_end_of_slab = false);
+
+  // Initializes an uninitialized block to allocated with given size and
+  // prev_free bit set accordingly.
+  class AllocatedBlock* InitAllocated(uint64_t size, bool prev_free);
+
+  // Returns the size of this block including metadata.
   uint64_t Size() const;
 
   void SetSize(uint64_t size);
 
+  // Returns the size of user-allocatable space in this block.
+  uint64_t UserDataSize() const;
+
   bool Free() const;
 
-  // Marks this block as free, writing the footer to the end of the block and
-  // setting the "prev free" bit of the next adjacent block.
-  //
-  // If `is_end_of_slab` is true, this block is at the end of the slab, and no
-  // footer will be written.
-  void MarkFree(bool is_end_of_slab = false);
-
-  void MarkAllocated();
-
   class FreeBlock* ToFree();
+
+  class AllocatedBlock* ToAllocated();
 
   Block* NextAdjacentBlock();
   const Block* NextAdjacentBlock() const;
@@ -37,7 +63,7 @@ class Block {
   Block* PrevAdjacentBlock();
   const Block* PrevAdjacentBlock() const;
 
- private:
+ protected:
   bool PrevFree() const;
 
   void SetPrevFree(bool free);
@@ -51,6 +77,9 @@ class Block {
   // previous block.
   void SetPrevSize(uint64_t size);
 
+  // Writes the footer of this block and the prev_free bit of the next block.
+  void WriteFooterAndPrevFree();
+
   static constexpr uint64_t kFreeBitMask = 0x1;
   static constexpr uint64_t kPrevFreeBitMask = 0x2;
 
@@ -61,6 +90,57 @@ class Block {
   uint64_t header_;
 };
 
-class FreeBlock : public Block, public LinkedListNode {};
+class FreeBlock : public Block, public LinkedListNode {
+ public:
+  // You can't initialize already-initialized blocks.
+  class FreeBlock* InitFree(uint64_t size,
+                            LinkedList<FreeBlock>& free_block_list,
+                            bool is_end_of_slab = false) = delete;
+  class AllocatedBlock* InitAllocated(uint64_t size) = delete;
+
+  // Free blocks are free by definition.
+  bool Free() const = delete;
+
+  // This method marks this block as allocated, removes it from the free list it
+  // is in, and returns a pointer to `this` down-cast to `AllocatedBlock`, now
+  // that the block has been allocated.
+  class AllocatedBlock* MarkAllocated();
+};
+
+class AllocatedBlock : public Block {
+  friend constexpr bool UserDataOffsetValid();
+
+ public:
+  // You can't initialize already-initialized blocks.
+  FreeBlock* InitFree(uint64_t size, LinkedList<FreeBlock>& free_block_list,
+                      bool is_end_of_slab = false) = delete;
+  class AllocatedBlock* InitAllocated(uint64_t size) = delete;
+
+  // Allocated blocks are not free by definition.
+  bool Free() const = delete;
+
+  // Returns a pointer to the beginning of the user-allocatable region of memory
+  // in this block.
+  void* UserDataPtr();
+
+  // Marks this block as free, inserting it into the given free block list and
+  // writing the footer to the end of the block and setting the "prev free" bit
+  // of the next adjacent block.
+  //
+  // If `is_end_of_slab` is true, this block is at the end of the slab, and no
+  // footer will be written.
+  //
+  // This method returns a pointer to `this` down-cast to `FreeBlock`, now that
+  // the block has been freed.
+  class FreeBlock* MarkFree(LinkedList<FreeBlock>& free_block_list,
+                            bool is_end_of_slab = false);
+
+ private:
+  // The beginning of user-allocatable space in this block.
+  uint8_t data_[0];
+};
+
+constexpr uint64_t Block::kMinBlockSize =
+    AlignUp(sizeof(FreeBlock), kDefaultAlignment);
 
 }  // namespace ckmalloc

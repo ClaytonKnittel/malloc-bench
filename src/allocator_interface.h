@@ -3,11 +3,15 @@
 #include <cstring>
 
 #include "src/ckmalloc/ckmalloc.h"
+#include "src/ckmalloc/state.h"
+#include "src/singleton_heap.h"
 
 namespace bench {
 
 // Called before any allocations are made.
-inline void initialize_heap() {}
+inline void initialize_heap() {
+  ckmalloc::State::InitializeWithEmptyHeap(SingletonHeap::GlobalInstance());
+}
 
 inline void* malloc(size_t size) {
   return ckmalloc::malloc(size);
