@@ -35,12 +35,14 @@ class SlabManagerFixture : public CkMallocTest {
 
     PageId PageIdFromPtr(const void* ptr) const;
 
-    std::optional<SlabMgrAllocResult> Alloc(uint32_t n_pages,
-                                            SlabType slab_type);
+    template <typename S, typename... Args>
+    std::optional<std::pair<PageId, S*>> Alloc(uint32_t n_pages, Args...);
 
     void Free(AllocatedSlab* slab);
 
    private:
+    void HandleAlloc(AllocatedSlab* slab);
+
     class SlabManagerFixture* test_fixture_;
     SlabManagerT slab_manager_;
   };
@@ -123,5 +125,16 @@ class SlabManagerFixture : public CkMallocTest {
   // will write to the allocated slabs.
   absl::flat_hash_map<AllocatedSlab*, uint64_t> slab_magics_;
 };
+
+template <typename S, typename... Args>
+std::optional<std::pair<PageId, S*>> SlabManagerFixture::TestSlabManager::Alloc(
+    uint32_t n_pages, Args... args) {
+  using AllocResult = std::pair<PageId, S*>;
+  DEFINE_OR_RETURN_OPT(
+      AllocResult, result,
+      slab_manager_.template Alloc<S>(n_pages, std::forward<Args>(args)...));
+  HandleAlloc(result.second);
+  return result;
+}
 
 }  // namespace ckmalloc
