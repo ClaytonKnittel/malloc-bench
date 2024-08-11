@@ -55,6 +55,18 @@ concept SlabManagerInterface =
         slab_mgr.template Alloc<class FreeSlab>(n_pages)
       } -> std::convertible_to<
           std::optional<std::pair<class PageId, class FreeSlab*>>>;
+      {
+        slab_mgr.template Alloc<class MetadataSlab>(n_pages)
+      } -> std::convertible_to<
+          std::optional<std::pair<class PageId, class MetadataSlab*>>>;
+      {
+        slab_mgr.template Alloc<class SmallSlab>(n_pages)
+      } -> std::convertible_to<
+          std::optional<std::pair<class PageId, class SmallSlab*>>>;
+      {
+        slab_mgr.template Alloc<class LargeSlab>(n_pages)
+      } -> std::convertible_to<
+          std::optional<std::pair<class PageId, class LargeSlab*>>>;
       { slab_mgr.Free(slab) } -> std::same_as<void>;
     };
 
