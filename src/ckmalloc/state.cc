@@ -24,7 +24,7 @@ void* GlobalMetadataAlloc::Alloc(size_t size, size_t alignment) {
 }
 
 /* static */
-State* State::InitializeWithEmptyAlloc(bench::Heap* heap) {
+State* State::InitializeWithEmptyHeap(bench::Heap* heap) {
   CK_ASSERT(heap->Size() == 0);
   // Allocate a metadata slab and place ourselves at the beginning of it.
   void* heap_start = heap->sbrk(kPageSize);
@@ -40,6 +40,7 @@ State* State::Instance() {
 
 State::State(bench::Heap* heap)
     : slab_manager_(heap, &slab_map_),
-      metadata_manager_(&slab_map_, &slab_manager_) {}
+      metadata_manager_(&slab_map_, &slab_manager_),
+      freelist_(&slab_map_, &slab_manager_) {}
 
 }  // namespace ckmalloc
