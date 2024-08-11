@@ -245,8 +245,7 @@ PageId SlabManagerImpl<MetadataAlloc, SlabMap>::HeapEndPageId() {
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
 MappedSlab* SlabManagerImpl<MetadataAlloc, SlabMap>::LastSlab() {
   CK_ASSERT(HeapSize() != 0);
-  MappedSlab* slab = slab_map_->FindSlab(HeapEndPageId() - 1);
-  return slab;
+  return slab_map_->FindSlab(HeapEndPageId() - 1);
 }
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>

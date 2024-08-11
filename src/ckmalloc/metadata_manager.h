@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstddef>
-#include <functional>
 
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/page_id.h"

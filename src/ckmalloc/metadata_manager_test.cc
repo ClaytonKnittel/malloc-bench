@@ -13,7 +13,6 @@
 #include "src/ckmalloc/metadata_manager_test_fixture.h"
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/slab_manager_test_fixture.h"
-#include "src/ckmalloc/util.h"
 
 namespace ckmalloc {
 
