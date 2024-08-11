@@ -4,8 +4,7 @@ cc_library(
     hdrs = ["ckmalloc.h"],
     visibility = ["//visibility:public"],
     deps = [
-        ":allocator",
-        "//src:singleton_heap",
+        ":state",
     ],
 )
 
@@ -26,33 +25,21 @@ cc_library(
 )
 
 cc_library(
-    name = "allocator",
-    srcs = ["allocator.cc"],
-    hdrs = ["allocator.h"],
-    deps = [
-        ":util",
-        "//src:heap_interface",
-    ],
-)
-
-cc_test(
-    name = "allocator_test",
-    srcs = ["allocator_test.cc"],
-    deps = [
-        ":allocator",
-        ":util",
-        "//src:sim_heap",
-        "@googletest//:gtest",
-        "@googletest//:gtest_main",
-    ],
-)
-
-cc_library(
     name = "free_slab",
     hdrs = ["free_slab.h"],
     deps = [
         ":linked_list",
         ":red_black_tree",
+    ],
+)
+
+cc_library(
+    name = "freelist",
+    hdrs = ["freelist.h"],
+    deps = [
+        ":common",
+        ":slab_manager",
+        ":slab_map",
     ],
 )
 
@@ -246,6 +233,7 @@ cc_library(
     hdrs = ["state.h"],
     deps = [
         ":common",
+        ":freelist",
         ":metadata_manager",
         ":slab",
         ":slab_manager",
