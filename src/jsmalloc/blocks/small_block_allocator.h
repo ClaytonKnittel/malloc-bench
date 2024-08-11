@@ -2,7 +2,6 @@
 
 #include <cstddef>
 
-#include "src/jsmalloc/allocator.h"
 #include "src/jsmalloc/blocks/free_block_allocator.h"
 #include "src/jsmalloc/blocks/small_block.h"
 
@@ -12,15 +11,15 @@ namespace blocks {
 /**
  * A malloc that only services small sizes of data.
  */
-class SmallBlockAllocator : public Allocator {
+class SmallBlockAllocator {
  public:
   explicit SmallBlockAllocator(FreeBlockAllocator& allocator);
 
   /** Allocates a chunk of user data from a SmallBlock. */
-  void* Allocate(size_t size) override;
+  void* Allocate(size_t size);
 
   /** Frees a chunk of user data from its SmallBlock. */
-  void Free(void* ptr) override;
+  void Free(void* ptr);
 
   /** The maximum data size serviced by `SmallBlockAllocator`. */
   static constexpr int kMaxDataSize = 252;
