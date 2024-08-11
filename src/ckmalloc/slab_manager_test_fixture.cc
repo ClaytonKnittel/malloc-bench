@@ -40,6 +40,10 @@ void TestSlabManager::Free(AllocatedSlab* slab) {
   slab_manager_.Free(slab);
 }
 
+Block* TestSlabManager::FirstBlockInLargeSlab(LargeSlab* slab) {
+  return slab_manager_.FirstBlockInLargeSlab(slab);
+}
+
 void TestSlabManager::HandleAlloc(AllocatedSlab* slab) {
   // Make a copy of this slab's metadata to ensure it does not get dirtied.
   AllocatedSlab copy = *slab;

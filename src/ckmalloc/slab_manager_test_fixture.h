@@ -40,6 +40,8 @@ class SlabManagerFixture : public CkMallocTest {
 
     void Free(AllocatedSlab* slab);
 
+    Block* FirstBlockInLargeSlab(LargeSlab* slab);
+
    private:
     void HandleAlloc(AllocatedSlab* slab);
 
