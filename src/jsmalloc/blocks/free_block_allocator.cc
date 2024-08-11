@@ -21,7 +21,10 @@ FreeBlock* FreeBlockAllocator::Allocate(size_t size) {
 
     free_blocks_.remove(free_block);
     FreeBlock* remainder = free_block.ResizeTo(size);
-    if (remainder != nullptr) {
+
+    // Don't bother storing tiny blocks in the free list,
+    // since they'll probably never be used.
+    if (remainder != nullptr && remainder->BlockSize() >= 256) {
       free_blocks_.insert_back(*remainder);
     }
     return &free_block;

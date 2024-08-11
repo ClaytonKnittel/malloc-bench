@@ -30,29 +30,28 @@ FreeBlock* FreeBlock::New(Allocator& allocator, size_t size) {
 }
 
 bool FreeBlock::CanResizeTo(size_t new_block_size) const {
-  bool exact_match = BlockSize() == new_block_size;
+  bool this_block_ok =
+      BlockSize() >= new_block_size && new_block_size >= kMinFreeBlockSize;
 
-  bool block_has_enough_space = BlockSize() >= new_block_size;
-  bool new_block_big_enough = new_block_size >= kMinFreeBlockSize;
-  bool remainder_big_enough =
-      (BlockSize() - new_block_size) >= kMinFreeBlockSize;
+  size_t next_block_size = BlockSize() - new_block_size;
+  bool next_block_ok =
+      next_block_size == 0 || next_block_size >= kMinFreeBlockSize;
 
-  return exact_match || (block_has_enough_space && new_block_big_enough &&
-                         remainder_big_enough);
+  return this_block_ok && next_block_ok;
 }
 
 FreeBlock* FreeBlock::ResizeTo(size_t new_block_size) {
   DCHECK_TRUE(CanResizeTo(new_block_size));
 
-  size_t split_block_size = BlockSize() - new_block_size;
-  if (split_block_size == 0) {
+  size_t next_block_size = BlockSize() - new_block_size;
+  if (next_block_size == 0) {
     return nullptr;
   }
 
   new (this) FreeBlock(new_block_size);
 
-  void* split_block_ptr = reinterpret_cast<uint8_t*>(this) + new_block_size;
-  return new (split_block_ptr) FreeBlock(split_block_size);
+  void* next_block_ptr = twiddle::AddPtrOffset<void*>(this, new_block_size);
+  return new (next_block_ptr) FreeBlock(next_block_size);
 }
 
 size_t FreeBlock::BlockSize() const {
