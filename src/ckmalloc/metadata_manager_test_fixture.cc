@@ -29,6 +29,13 @@ void* TestMetadataManager::Alloc(size_t size, size_t alignment) {
       test_fixture_->allocated_blocks_.insert({ block, size });
   CK_ASSERT(inserted);
 
+  // If this allocation cause allocation of a new slab metadata, we will need
+  // to track that in allocated blocks.
+  PageId page_id = test_fixture_->SlabManager().PageIdFromPtr(block);
+  MappedSlab* slab = test_fixture_->SlabMap().FindSlab(page_id);
+  EnsureMetadataMapped(block);
+  EnsureMetadataMapped(slab);
+
   return block;
 }
 
@@ -55,6 +62,19 @@ void TestMetadataManager::FreeSlabMeta(MappedSlab* slab) {
   auto [_, inserted] = test_fixture_->freed_slab_metadata_.insert(
       static_cast<Slab*>(slab)->ToUnmapped());
   CK_ASSERT(inserted);
+}
+
+void TestMetadataManager::EnsureMetadataMapped(void* ptr) {
+  PageId page_id = test_fixture_->SlabManager().PageIdFromPtr(ptr);
+  MappedSlab* slab = test_fixture_->SlabMap().FindSlab(page_id);
+  auto [it, inserted] =
+      test_fixture_->allocated_blocks_.insert({ slab, sizeof(Slab) });
+  if (inserted) {
+    // If this triggered allocation of a new metadata slab, we need to record
+    // that in the slab manager.
+    test_fixture_->slab_manager_test_fixture_->SlabManager().HandleAlloc(
+        slab->ToAllocated());
+  }
 }
 
 absl::StatusOr<size_t> MetadataManagerFixture::SlabMetaFreelistLength() const {

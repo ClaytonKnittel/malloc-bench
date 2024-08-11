@@ -58,11 +58,11 @@ concept SlabManagerInterface = requires(
   {
     slab_mgr.template Alloc<class SmallSlab>(n_pages)
   } -> std::convertible_to<
-      std::optional<std::pair<class PageId, class SmallSlab*>>>;
+        std::optional<std::pair<class PageId, class SmallSlab*>>>;
   {
     slab_mgr.template Alloc<class LargeSlab>(n_pages)
   } -> std::convertible_to<
-      std::optional<std::pair<class PageId, class LargeSlab*>>>;
+        std::optional<std::pair<class PageId, class LargeSlab*>>>;
   { slab_mgr.Free(slab) } -> std::same_as<void>;
   {
     slab_mgr.FirstBlockInLargeSlab(large_slab)

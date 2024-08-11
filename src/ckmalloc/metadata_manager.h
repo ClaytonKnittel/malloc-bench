@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <functional>
 
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/page_id.h"
@@ -92,12 +93,14 @@ void* MetadataManagerImpl<SlabMap, SlabManager>::Alloc(size_t size,
     // allocated slab. if there is not enough room, we will need to allocate
     // another metadata slab.
     if (slab == nullptr) {
+      slab_map_->AllocatePath(page_id, page_id + n_pages - 1);
+      slab_map_->Insert(page_id, nullptr);
+      slab_map_->Insert(page_id + n_pages - 1, nullptr);
+
       // We can safely make a recursive alloc call here. If we don't have enough
       // space in the current slab being allocated from, this will allocate a
       // new slab, which will certainly have enough space to allocate another
       // two slab metadata.
-      // TODO: do this allocation somewhere else? So metadata test fixture can
-      // hook in it's impl of Alloc here.
       slab = reinterpret_cast<Slab*>(Alloc(sizeof(Slab), alignof(Slab)));
       if (slab == nullptr) {
         return nullptr;

@@ -87,6 +87,7 @@ cc_test(
         ":metadata_manager_test_fixture",
         ":slab",
         ":slab_manager_test_fixture",
+        ":util",
         "@abseil-cpp//absl/status",
         "@cc-util//util:absl_util",
         "@cc-util//util:gtest_util",

@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <random>
@@ -12,6 +13,7 @@
 #include "src/ckmalloc/metadata_manager_test_fixture.h"
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/slab_manager_test_fixture.h"
+#include "src/ckmalloc/util.h"
 
 namespace ckmalloc {
 
@@ -73,7 +75,9 @@ TEST_F(MetadataManagerTest, AllocateAdjacent) {
   ASSERT_OK_AND_DEFINE(void*, v1, Fixture().Alloc(7));
   ASSERT_OK_AND_DEFINE(void*, v2, Fixture().Alloc(41));
   ASSERT_OK_AND_DEFINE(void*, v3, Fixture().Alloc(60));
-  EXPECT_EQ(reinterpret_cast<uint8_t*>(v2) - reinterpret_cast<uint8_t*>(v1), 7);
+
+  EXPECT_EQ(reinterpret_cast<uint8_t*>(v2) - reinterpret_cast<uint8_t*>(v1),
+            AlignUp<size_t>(7, alignof(Slab)) + sizeof(Slab));
   EXPECT_EQ(reinterpret_cast<uint8_t*>(v3) - reinterpret_cast<uint8_t*>(v2),
             41);
   EXPECT_THAT(ValidateHeap(), IsOk());
@@ -81,13 +85,16 @@ TEST_F(MetadataManagerTest, AllocateAdjacent) {
 
 TEST_F(MetadataManagerTest, AllocateAligned) {
   ASSERT_OK_AND_DEFINE(void*, v1, Fixture().Alloc(7));
-  // Should range from 8 - 55 (inclusive)
   ASSERT_OK_AND_DEFINE(void*, v2, Fixture().Alloc(48, 8));
-  // Should range from 64 - 127 (inclusive)
   ASSERT_OK_AND_DEFINE(void*, v3, Fixture().Alloc(64, 64));
-  EXPECT_EQ(reinterpret_cast<uint8_t*>(v2) - reinterpret_cast<uint8_t*>(v1), 8);
+
+  EXPECT_EQ(reinterpret_cast<uint8_t*>(v2) - reinterpret_cast<uint8_t*>(v1),
+            AlignUp<size_t>(8, alignof(Slab)) + sizeof(Slab));
+
+  ptrdiff_t v2_offset =
+      static_cast<uint8_t*>(v2) - static_cast<uint8_t*>(Heap().Start());
   EXPECT_EQ(reinterpret_cast<uint8_t*>(v3) - reinterpret_cast<uint8_t*>(v2),
-            56);
+            64 + AlignUp<size_t>(v2_offset, 64) - v2_offset);
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 

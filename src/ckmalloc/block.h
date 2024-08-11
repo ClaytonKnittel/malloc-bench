@@ -141,6 +141,6 @@ class AllocatedBlock : public Block {
 };
 
 constexpr uint64_t Block::kMinBlockSize =
-    AlignUp(sizeof(FreeBlock), kDefaultAlignment);
+    AlignUp<uint64_t>(sizeof(FreeBlock), kDefaultAlignment);
 
 }  // namespace ckmalloc
