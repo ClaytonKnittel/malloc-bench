@@ -40,12 +40,16 @@ enum class BlockKind {
 class BlockHeader {
  public:
   BlockHeader(uint32_t size, BlockKind kind);
+  BlockHeader(uint32_t size, BlockKind kind, bool prev_block_is_free);
 
   /** The total size of the block. */
   uint32_t BlockSize() const;
 
   /** The kind of the block. */
   BlockKind Kind() const;
+
+  /** The kind of the block. */
+  bool PrevBlockIsFree() const;
 
   /** Whether this block has the correct magic value (debug only). */
   bool IsValid() const;
@@ -56,6 +60,7 @@ class BlockHeader {
  private:
   void SetBlockSize(uint32_t size);
   void SetKind(BlockKind kind);
+  void SetPrevBlockIsFree(bool value);
 
   uint32_t data_;
 

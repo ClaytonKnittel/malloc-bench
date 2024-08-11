@@ -25,6 +25,25 @@ constexpr uint32_t GetBits(uint32_t src, uint32_t start, uint32_t end) {
   return src;
 }
 
+template <typename T, int Start, int End>
+class BitRangeAccessor {
+ public:
+  static T Mask() {
+    return ((1 << (End - Start)) - 1) << Start;
+  }
+
+  static T Get(T src) {
+    return (Mask() & src) >> Start;
+  }
+
+  static T Set(T dst, T src) {
+    DCHECK_EQ((src & (Mask() >> Start)), src);
+    dst &= ~Mask();
+    dst |= src << Start;
+    return dst;
+  }
+};
+
 inline uint64_t PtrValue(void* ptr) {
   return reinterpret_cast<uint8_t*>(ptr) - static_cast<uint8_t*>(nullptr);
 }
