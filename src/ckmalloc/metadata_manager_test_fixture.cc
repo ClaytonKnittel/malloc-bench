@@ -45,21 +45,22 @@ Slab* TestMetadataManager::NewSlabMeta() {
   return slab;
 }
 
-void TestMetadataManager::FreeSlabMeta(Slab* slab) {
+void TestMetadataManager::FreeSlabMeta(MappedSlab* slab) {
   auto it = test_fixture_->allocated_blocks_.find(slab);
   CK_ASSERT(it != test_fixture_->allocated_blocks_.end());
   test_fixture_->allocated_blocks_.erase(it);
 
-  auto [_, inserted] = test_fixture_->freed_slab_metadata_.insert(slab);
-  CK_ASSERT(inserted);
+  metadata_manager_.FreeSlabMeta(slab);
 
-  return metadata_manager_.FreeSlabMeta(slab);
+  auto [_, inserted] = test_fixture_->freed_slab_metadata_.insert(
+      static_cast<Slab*>(slab)->ToUnmapped());
+  CK_ASSERT(inserted);
 }
 
 absl::StatusOr<size_t> MetadataManagerFixture::SlabMetaFreelistLength() const {
   constexpr size_t kMaxReasonableLength = 10000;
   size_t length = 0;
-  for (Slab* free_slab = MetadataManager().Underlying().last_free_slab_;
+  for (UnmappedSlab* free_slab = MetadataManager().Underlying().last_free_slab_;
        free_slab != nullptr && length < kMaxReasonableLength;
        free_slab = free_slab->NextUnmappedSlab(), length++)
     ;
@@ -106,7 +107,7 @@ absl::Status MetadataManagerFixture::FreeSlabMeta(Slab* slab) {
   RETURN_IF_ERROR(CheckMagic(slab, sizeof(Slab), magic_it->second));
   block_magics_.erase(magic_it);
 
-  MetadataManager().FreeSlabMeta(slab);
+  MetadataManager().FreeSlabMeta(slab->ToMapped());
   return absl::OkStatus();
 }
 
@@ -148,7 +149,8 @@ absl::Status MetadataManagerFixture::ValidateHeap() {
 
   constexpr size_t kMaxReasonableFreedSlabMetas = 10000;
   size_t n_free_slab_meta = 0;
-  for (const Slab* slab = MetadataManager().Underlying().last_free_slab_;
+  for (const UnmappedSlab* slab =
+           MetadataManager().Underlying().last_free_slab_;
        slab != nullptr && n_free_slab_meta < kMaxReasonableFreedSlabMetas;
        slab = slab->NextUnmappedSlab()) {
     if (!freed_slab_metadata_.contains(slab)) {

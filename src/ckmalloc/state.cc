@@ -2,7 +2,6 @@
 
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/metadata_manager.h"
-#include "src/ckmalloc/page_id.h"
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/slab_manager.h"
 #include "src/ckmalloc/util.h"
@@ -16,7 +15,7 @@ Slab* GlobalMetadataAlloc::SlabAlloc() {
   return State::Instance()->MetadataManager()->NewSlabMeta();
 }
 
-void GlobalMetadataAlloc::SlabFree(Slab* slab) {
+void GlobalMetadataAlloc::SlabFree(MappedSlab* slab) {
   State::Instance()->MetadataManager()->FreeSlabMeta(slab);
 }
 

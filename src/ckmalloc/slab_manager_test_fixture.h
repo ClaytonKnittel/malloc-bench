@@ -38,7 +38,7 @@ class SlabManagerFixture : public CkMallocTest {
     std::optional<SlabMgrAllocResult> Alloc(uint32_t n_pages,
                                             SlabType slab_type);
 
-    void Free(Slab* slab);
+    void Free(AllocatedSlab* slab);
 
    private:
     class SlabManagerFixture* test_fixture_;
@@ -92,9 +92,9 @@ class SlabManagerFixture : public CkMallocTest {
 
   absl::Status ValidateHeap() override;
 
-  absl::StatusOr<Slab*> AllocateSlab(uint32_t n_pages);
+  absl::StatusOr<AllocatedSlab*> AllocateSlab(uint32_t n_pages);
 
-  absl::Status FreeSlab(Slab* slab);
+  absl::Status FreeSlab(AllocatedSlab* slab);
 
  private:
   // Only used for initializing `TestSlabManager` via the default constructor,
@@ -105,9 +105,9 @@ class SlabManagerFixture : public CkMallocTest {
                            std::make_shared<TestSlabManager>(this, heap.get(),
                                                              slab_map.get())) {}
 
-  void FillMagic(Slab* slab, uint64_t magic);
+  void FillMagic(AllocatedSlab* slab, uint64_t magic);
 
-  absl::Status CheckMagic(Slab* slab, uint64_t magic);
+  absl::Status CheckMagic(AllocatedSlab* slab, uint64_t magic);
 
   std::shared_ptr<TestHeap> heap_;
   std::shared_ptr<TestSlabMap> slab_map_;
@@ -115,13 +115,13 @@ class SlabManagerFixture : public CkMallocTest {
   util::Rng rng_;
 
   // Maps allocated slabs to a copy of their metadata.
-  absl::flat_hash_map<Slab*, Slab> allocated_slabs_;
+  absl::flat_hash_map<AllocatedSlab*, AllocatedSlab> allocated_slabs_;
 
   // Maps allocated slabs to a copy of their magic number which is copied into
   // the whole slab. This is only used when slabs are allocated through the
   // `SlabManagerTestFixture` interface, since other tests that use this fixture
   // will write to the allocated slabs.
-  absl::flat_hash_map<Slab*, uint64_t> slab_magics_;
+  absl::flat_hash_map<AllocatedSlab*, uint64_t> slab_magics_;
 };
 
 }  // namespace ckmalloc

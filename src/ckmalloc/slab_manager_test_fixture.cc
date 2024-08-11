@@ -41,14 +41,14 @@ std::optional<SlabMgrAllocResult> TestSlabManager::Alloc(uint32_t n_pages,
   auto [start_id, slab] = std::move(result.value());
 
   // Make a copy of this slab's metadata to ensure it does not get dirtied.
-  Slab copy = *slab;
+  AllocatedSlab copy = *slab;
   auto [it, inserted] = test_fixture_->allocated_slabs_.insert({ slab, copy });
   CK_ASSERT(inserted);
 
   return std::make_pair(start_id, slab);
 }
 
-void TestSlabManager::Free(Slab* slab) {
+void TestSlabManager::Free(AllocatedSlab* slab) {
   auto it = test_fixture_->allocated_slabs_.find(slab);
   CK_ASSERT(it != test_fixture_->allocated_slabs_.end());
 
@@ -87,7 +87,7 @@ absl::Status SlabManagerFixture::ValidateHeap() {
   uint32_t free_slabs = 0;
   uint32_t allocated_slabs = 0;
   while (page < end) {
-    Slab* slab = SlabMap().FindSlab(page);
+    MappedSlab* slab = SlabMap().FindSlab(page);
     if (slab == nullptr) {
       return absl::FailedPreconditionError(
           absl::StrFormat("Unexpected `nullptr` slab map entry after end of "
@@ -138,39 +138,40 @@ absl::Status SlabManagerFixture::ValidateHeap() {
       case SlabType::kMetadata:
       case SlabType::kSmall:
       case SlabType::kLarge: {
-        auto it = allocated_slabs_.find(slab);
+        AllocatedSlab* allocated_slab = slab->ToAllocated();
+        auto it = allocated_slabs_.find(allocated_slab);
         if (it == allocated_slabs_.end()) {
           return absl::FailedPreconditionError(
               absl::StrFormat("Encountered unallocated slab: %v", *slab));
         }
 
-        const Slab& slab_copy = it->second;
+        const AllocatedSlab& slab_copy = it->second;
 
-        if (slab->Type() != slab_copy.Type() ||
-            slab->StartId() != slab_copy.StartId() ||
-            slab->Pages() != slab_copy.Pages()) {
+        if (allocated_slab->Type() != slab_copy.Type() ||
+            allocated_slab->StartId() != slab_copy.StartId() ||
+            allocated_slab->Pages() != slab_copy.Pages()) {
           return absl::FailedPreconditionError(absl::StrFormat(
               "Allocated slab metadata was dirtied: found %v, expected %v",
-              *slab, slab_copy));
+              *allocated_slab, slab_copy));
         }
 
         // Magic values are only used for allocations done through the slab
         // manager interface, since any other test which uses this fixture will
         // want to write to the allocated slabs.
-        auto magic_it = slab_magics_.find(slab);
+        auto magic_it = slab_magics_.find(allocated_slab);
         if (magic_it != slab_magics_.end()) {
           uint64_t magic = magic_it->second;
-          RETURN_IF_ERROR(CheckMagic(slab, magic));
+          RETURN_IF_ERROR(CheckMagic(allocated_slab, magic));
         }
 
-        for (PageId page_id = slab->StartId(); page_id <= slab->EndId();
-             ++page_id) {
+        for (PageId page_id = allocated_slab->StartId();
+             page_id <= allocated_slab->EndId(); ++page_id) {
           Slab* mapped_slab = SlabMap().FindSlab(page_id);
-          if (mapped_slab != slab) {
+          if (mapped_slab != allocated_slab) {
             return absl::FailedPreconditionError(
                 absl::StrFormat("Internal page %v of %v does not map to the "
                                 "correct slab metadata: %v",
-                                page_id, *slab, mapped_slab));
+                                page_id, *allocated_slab, mapped_slab));
           }
         }
 
@@ -196,7 +197,7 @@ absl::Status SlabManagerFixture::ValidateHeap() {
   for (const FreeSinglePageSlab& slab_start :
        SlabManager().Underlying().single_page_freelist_) {
     PageId start_id = SlabManager().PageIdFromPtr(&slab_start);
-    Slab* slab = SlabMap().FindSlab(start_id);
+    MappedSlab* slab = SlabMap().FindSlab(start_id);
     if (slab == nullptr) {
       return absl::FailedPreconditionError(
           absl::StrFormat("Unexpected `nullptr` slab map entry in single-page "
@@ -238,7 +239,7 @@ absl::Status SlabManagerFixture::ValidateHeap() {
   for (const FreeMultiPageSlab& slab_start :
        SlabManager().Underlying().multi_page_free_slabs_) {
     PageId start_id = SlabManager().PageIdFromPtr(&slab_start);
-    Slab* slab = SlabMap().FindSlab(start_id);
+    MappedSlab* slab = SlabMap().FindSlab(start_id);
     if (slab == nullptr) {
       return absl::FailedPreconditionError(
           absl::StrFormat("Unexpected `nullptr` slab map entry in multi-page "
@@ -289,7 +290,8 @@ absl::Status SlabManagerFixture::ValidateHeap() {
   return absl::OkStatus();
 }
 
-absl::StatusOr<Slab*> SlabManagerFixture::AllocateSlab(uint32_t n_pages) {
+absl::StatusOr<AllocatedSlab*> SlabManagerFixture::AllocateSlab(
+    uint32_t n_pages) {
   // Arbitrarily make all allocated slabs metadata slabs. Their actual type
   // doesn't matter, `SlabManager` only cares about free vs. not free.
   auto result = SlabManager().Alloc(n_pages, SlabType::kMetadata);
@@ -327,7 +329,7 @@ absl::StatusOr<Slab*> SlabManagerFixture::AllocateSlab(uint32_t n_pages) {
   return slab;
 }
 
-absl::Status SlabManagerFixture::FreeSlab(Slab* slab) {
+absl::Status SlabManagerFixture::FreeSlab(AllocatedSlab* slab) {
   auto it = slab_magics_.find(slab);
   if (it == slab_magics_.end()) {
     return absl::FailedPreconditionError(
@@ -341,7 +343,7 @@ absl::Status SlabManagerFixture::FreeSlab(Slab* slab) {
   return absl::OkStatus();
 }
 
-void SlabManagerFixture::FillMagic(Slab* slab, uint64_t magic) {
+void SlabManagerFixture::FillMagic(AllocatedSlab* slab, uint64_t magic) {
   CK_ASSERT(slab->Type() == SlabType::kMetadata);
   auto* start = reinterpret_cast<uint64_t*>(
       SlabManager().PageStartFromId(slab->StartId()));
@@ -354,7 +356,8 @@ void SlabManagerFixture::FillMagic(Slab* slab, uint64_t magic) {
   }
 }
 
-absl::Status SlabManagerFixture::CheckMagic(Slab* slab, uint64_t magic) {
+absl::Status SlabManagerFixture::CheckMagic(AllocatedSlab* slab,
+                                            uint64_t magic) {
   CK_ASSERT(slab->Type() == SlabType::kMetadata);
   auto* start = reinterpret_cast<uint64_t*>(
       SlabManager().PageStartFromId(slab->StartId()));

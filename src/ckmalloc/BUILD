@@ -247,7 +247,6 @@ cc_library(
     deps = [
         ":common",
         ":metadata_manager",
-        ":page_id",
         ":slab",
         ":slab_manager",
         ":slab_map",
