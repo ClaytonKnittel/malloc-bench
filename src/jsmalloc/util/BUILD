@@ -1,4 +1,3 @@
-
 cc_library(
     name = "math",
     hdrs = ["math.h"],
@@ -8,8 +7,8 @@ cc_library(
 cc_library(
     name = "assert",
     hdrs = ["assert.h"],
+    visibility = ["//visibility:public"],
     deps = [
         "@abseil-cpp//absl/strings",
     ],
-    visibility = ["//visibility:public"],
 )
