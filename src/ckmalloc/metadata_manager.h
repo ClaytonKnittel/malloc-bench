@@ -96,13 +96,17 @@ void* MetadataManagerImpl<SlabMap, SlabManager>::Alloc(size_t size,
       // space in the current slab being allocated from, this will allocate a
       // new slab, which will certainly have enough space to allocate another
       // two slab metadata.
+      // TODO: do this allocation somewhere else? So metadata test fixture can
+      // hook in it's impl of Alloc here.
       slab = reinterpret_cast<Slab*>(Alloc(sizeof(Slab), alignof(Slab)));
       if (slab == nullptr) {
         return nullptr;
       }
     }
 
-    slab->template Init<MetadataSlab>(page_id, n_pages);
+    MetadataSlab* metadata_slab =
+        slab->template Init<MetadataSlab>(page_id, n_pages);
+    slab_map_->InsertRange(page_id, page_id + n_pages - 1, metadata_slab);
 
     return slab_manager_->PageStartFromId(page_id);
   }
