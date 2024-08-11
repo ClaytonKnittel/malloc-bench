@@ -4,6 +4,7 @@
 #include "gtest/gtest.h"
 
 #include "src/ckmalloc/page_id.h"
+#include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/testlib.h"
 
 namespace ckmalloc {
