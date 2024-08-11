@@ -33,7 +33,7 @@ class MetadataManagerImpl {
 
   // Frees a slab metadata. This freed slab can be returned from
   // `NewSlabMeta()`.
-  void FreeSlabMeta(Slab* slab);
+  void FreeSlabMeta(MappedSlab* slab);
 
  private:
   // The most recently allocated metadata slab.
@@ -54,7 +54,7 @@ class MetadataManagerImpl {
   SlabManager* slab_manager_;
 
   // The head of a singly-linked list of free slabs.
-  Slab* last_free_slab_ = nullptr;
+  UnmappedSlab* last_free_slab_ = nullptr;
 };
 
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
@@ -110,9 +110,9 @@ Slab* MetadataManagerImpl<SlabMap, SlabManager>::NewSlabMeta() {
 }
 
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
-void MetadataManagerImpl<SlabMap, SlabManager>::FreeSlabMeta(Slab* slab) {
+void MetadataManagerImpl<SlabMap, SlabManager>::FreeSlabMeta(MappedSlab* slab) {
   slab->InitUnmappedSlab(last_free_slab_);
-  last_free_slab_ = slab;
+  last_free_slab_ = static_cast<Slab*>(slab)->ToUnmapped();
 }
 
 using MetadataManager = MetadataManagerImpl<SlabMap, SlabManager>;
