@@ -8,7 +8,6 @@
 
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/page_id.h"
-#include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/util.h"
 
 namespace ckmalloc {
@@ -22,6 +21,8 @@ constexpr size_t kLeafSize = 1 << kLeafShift;
 constexpr uint32_t kRootShift = kHeapSizeShift - kPageShift - kLeafShift;
 // The length of the root node in the slab map.
 constexpr size_t kRootSize = 1 << kRootShift;
+
+class MappedSlab;
 
 template <MetadataAllocInterface MetadataAlloc>
 class SlabMapImpl {
