@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <random>
@@ -73,6 +74,7 @@ TEST_F(MetadataManagerTest, AllocateAdjacent) {
   ASSERT_OK_AND_DEFINE(void*, v1, Fixture().Alloc(7));
   ASSERT_OK_AND_DEFINE(void*, v2, Fixture().Alloc(41));
   ASSERT_OK_AND_DEFINE(void*, v3, Fixture().Alloc(60));
+
   EXPECT_EQ(reinterpret_cast<uint8_t*>(v2) - reinterpret_cast<uint8_t*>(v1), 7);
   EXPECT_EQ(reinterpret_cast<uint8_t*>(v3) - reinterpret_cast<uint8_t*>(v2),
             41);
@@ -85,6 +87,7 @@ TEST_F(MetadataManagerTest, AllocateAligned) {
   ASSERT_OK_AND_DEFINE(void*, v2, Fixture().Alloc(48, 8));
   // Should range from 64 - 127 (inclusive)
   ASSERT_OK_AND_DEFINE(void*, v3, Fixture().Alloc(64, 64));
+
   EXPECT_EQ(reinterpret_cast<uint8_t*>(v2) - reinterpret_cast<uint8_t*>(v1), 8);
   EXPECT_EQ(reinterpret_cast<uint8_t*>(v3) - reinterpret_cast<uint8_t*>(v2),
             56);
