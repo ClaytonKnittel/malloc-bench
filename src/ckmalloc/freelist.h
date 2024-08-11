@@ -2,6 +2,7 @@
 
 #include <cstddef>
 
+#include "src/ckmalloc/block.h"
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/slab_manager.h"
 #include "src/ckmalloc/slab_map.h"
@@ -21,7 +22,7 @@ class FreelistImpl {
 
   // Re-allocates a region of memory to be `size` bytes long, returning a
   // pointer to the beginning of the new region and copying the data from `ptr`
-  // over. If the returned pointer may equal the `ptr` argument. If `size` is
+  // over. The returned pointer may equal the `ptr` argument. If `size` is
   // larger than the previous size of the region starting at `ptr`, the
   // remaining data after the size of the previous region is uninitialized, and
   // if `size` is smaller, the data is truncated.
@@ -35,6 +36,8 @@ class FreelistImpl {
   SlabMap* slab_map_;
 
   SlabManager* slab_manager_;
+
+  FreeBlock* free_blocks_;
 };
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap,

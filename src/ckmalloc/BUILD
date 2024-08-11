@@ -13,6 +13,8 @@ cc_library(
     srcs = ["block.cc"],
     hdrs = ["block.h"],
     deps = [
+        ":linked_list",
+        ":util",
     ],
 )
 
@@ -37,6 +39,7 @@ cc_library(
     name = "freelist",
     hdrs = ["freelist.h"],
     deps = [
+        ":block",
         ":common",
         ":slab_manager",
         ":slab_map",
