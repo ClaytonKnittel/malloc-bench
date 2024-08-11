@@ -184,6 +184,7 @@ SlabManagerImpl<MetadataAlloc, SlabMap>::Alloc(uint32_t n_pages, Args... args) {
 
   S* initialized_slab =
       slab->Init<S>(page_id, n_pages, std::forward<Args>(args)...);
+  slab_map_->InsertRange(page_id, page_id + n_pages - 1, initialized_slab);
   return std::make_pair(page_id, initialized_slab);
 }
 
