@@ -36,10 +36,8 @@ class SlabManagerImpl {
   // otherwise returning `nullopt`. If something was allocated, the SlabMap will
   // have been updated to map all pages within the alloc to the returned Slab
   // metadata.
-  //
-  // TODO: specialize implementations to each slab type. Return types will be
-  // different too.
-  std::optional<SlabMgrAllocResult> Alloc(uint32_t n_pages, SlabType slab_type);
+  template <typename S, typename... Args>
+  std::optional<std::pair<PageId, S*>> Alloc(uint32_t n_pages, Args...);
 
   // Frees the slab and takes ownership of the `Slab` metadata object.
   void Free(AllocatedSlab* slab);
@@ -134,42 +132,23 @@ PageId SlabManagerImpl<MetadataAlloc, SlabMap>::PageIdFromPtr(
 }
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
-std::optional<SlabMgrAllocResult>
-SlabManagerImpl<MetadataAlloc, SlabMap>::Alloc(uint32_t n_pages,
-                                               SlabType slab_type) {
-  CK_ASSERT(slab_type != SlabType::kUnmapped && slab_type != SlabType::kFree);
-
+template <typename S, typename... Args>
+std::optional<std::pair<PageId, S*>>
+SlabManagerImpl<MetadataAlloc, SlabMap>::Alloc(uint32_t n_pages, Args... args) {
   using AllocResult = std::pair<PageId, Slab*>;
   DEFINE_OR_RETURN_OPT(AllocResult, result,
-                       OptionalOrElse<AllocResult>(
+                       OptionalOrElse<std::pair<PageId, Slab*>>(
                            DoAllocWithoutSbrk(n_pages), [this, n_pages]() {
                              return AllocEndWithSbrk(n_pages);
                            }));
-  auto [start_id, slab] = std::move(result);
+  auto [page_id, slab] = std::move(result);
 
-  AllocatedSlab* allocated_slab;
-  switch (slab_type) {
-    case SlabType::kMetadata: {
-      allocated_slab = slab->InitMetadataSlab(start_id, n_pages);
-      break;
-    }
-    case SlabType::kSmall: {
-      allocated_slab = slab->InitSmallSlab(start_id, n_pages);
-      break;
-    }
-    case SlabType::kLarge: {
-      allocated_slab = slab->InitLargeSlab(start_id, n_pages);
-      break;
-    }
-    case SlabType::kUnmapped:
-    case SlabType::kFree: {
-      CK_UNREACHABLE();
-    }
-  }
+  S* initialized_slab =
+      slab->Init<S>(page_id, n_pages, std::forward<Args>(args)...);
 
   // Allocated slabs must map every page to their metadata.
-  slab_map_->InsertRange(start_id, start_id + n_pages - 1, allocated_slab);
-  return std::make_pair(start_id, allocated_slab);
+  slab_map_->InsertRange(page_id, page_id + n_pages - 1, initialized_slab);
+  return std::make_pair(page_id, initialized_slab);
 }
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
@@ -333,7 +312,7 @@ void SlabManagerImpl<MetadataAlloc, SlabMap>::FreeRegion(Slab* slab,
                                                          uint32_t n_pages) {
   PageId end_id = start_id + n_pages - 1;
 
-  FreeSlab* free_slab = slab->InitFreeSlab(start_id, n_pages);
+  FreeSlab* free_slab = slab->Init<FreeSlab>(start_id, n_pages);
   // We only need to map this slab to the first and last page of the slab, since
   // those will be the only pages queried from this method, and no
   // user-allocated data lives within a free slab.
