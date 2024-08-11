@@ -148,6 +148,11 @@ SlabManagerImpl<MetadataAlloc, SlabMap>::Alloc(uint32_t n_pages, Args... args) {
                            }));
   auto [page_id, slab] = std::move(result);
 
+  // TODO have this method return PageId only, caller needs to call slab->Init,
+  // or allocate new slab metadata if it's nullptr. Maybe slab initialization
+  // functions should also insert those slabs into the slab map, rather than
+  // doing it here. Makes sense b/c free slabs don't need to initialize the
+  // whole range, only first and last.
   S* initialized_slab =
       slab->Init<S>(page_id, n_pages, std::forward<Args>(args)...);
 
@@ -248,23 +253,19 @@ SlabManagerImpl<MetadataAlloc, SlabMap>::DoAllocWithoutSbrk(uint32_t n_pages) {
   RemoveMultiPageFreeSlab(slab_start);
 
   PageId page_id = PageIdFromPtr(slab_start);
+  MappedSlab* slab = slab_map_->FindSlab(page_id);
   uint32_t actual_pages = slab_start->Pages();
   CK_ASSERT(actual_pages >= n_pages);
   if (actual_pages != n_pages) {
     // This region was already free, so we know the next adjacent slab cannot be
     // free, and we are about to allocate the region before it, so we never need
     // to coalesce here.
-    Slab* remainder = MetadataAlloc::SlabAlloc();
-    if (remainder == nullptr) {
-      // We have to put `slab_start` back into the multi-page free slabs tree to
-      // avoid invalidating the heap.
-      InsertMultiPageFreeSlab(slab_start, actual_pages);
-      return std::nullopt;
-    }
-    FreeRegion(remainder, page_id + n_pages, actual_pages - n_pages);
+    FreeRegion(slab, page_id + n_pages, actual_pages - n_pages);
+    // We have used the slab metadata for this new free region, so we will need
+    // to allocate our own later.
+    slab = nullptr;
   }
 
-  MappedSlab* slab = slab_map_->FindSlab(page_id);
   return std::make_pair(page_id, slab);
 }
 
@@ -286,10 +287,7 @@ SlabManagerImpl<MetadataAlloc, SlabMap>::AllocEndWithSbrk(uint32_t n_pages) {
     // We will be taking `slab`, so remove it from its freelist.
     RemoveFreeSlab(free_slab);
   } else {
-    slab = MetadataAlloc::SlabAlloc();
-    if (slab == nullptr) {
-      return std::nullopt;
-    }
+    slab = nullptr;
     start_id = new_memory_id;
   }
 
