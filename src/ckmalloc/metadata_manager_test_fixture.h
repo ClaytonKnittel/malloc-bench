@@ -43,10 +43,6 @@ class MetadataManagerFixture : public CkMallocTest {
     void FreeSlabMeta(MappedSlab* slab);
 
    private:
-    // Ensures that the slab metadata containing `ptr` is tracked by
-    // `allocated_blocks_` in the test fixture.
-    void EnsureMetadataMapped(void* ptr);
-
     class MetadataManagerFixture* test_fixture_;
     MetadataManagerT metadata_manager_;
   };

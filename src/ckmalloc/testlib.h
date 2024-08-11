@@ -41,10 +41,6 @@ void AbslStringify(Sink& sink, SlabType slab_type) {
       sink.Append("kFree");
       break;
     }
-    case SlabType::kMetadata: {
-      sink.Append("kMetadata");
-      break;
-    }
     case SlabType::kSmall: {
       sink.Append("kSmall");
       break;

@@ -91,10 +91,9 @@ absl::Status SlabManagerFixture::ValidateHeap() {
   while (page < end) {
     MappedSlab* slab = SlabMap().FindSlab(page);
     if (slab == nullptr) {
-      return absl::FailedPreconditionError(
-          absl::StrFormat("Unexpected `nullptr` slab map entry after end of "
-                          "previous slab, at page %v",
-                          page));
+      // This must be a metadata slab.
+      page += 1;
+      continue;
     }
     if (page != slab->StartId()) {
       return absl::FailedPreconditionError(absl::StrFormat(
@@ -137,7 +136,6 @@ absl::Status SlabManagerFixture::ValidateHeap() {
         free_slabs++;
         break;
       }
-      case SlabType::kMetadata:
       case SlabType::kSmall:
       case SlabType::kLarge: {
         AllocatedSlab* allocated_slab = slab->ToAllocated();
