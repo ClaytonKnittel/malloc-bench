@@ -13,15 +13,15 @@ inline void initialize_heap() {
 }
 
 inline void* malloc(size_t size) {
-  return jsmalloc::malloc(*SingletonHeap::GlobalInstance(), size);
+  return jsmalloc::malloc(size);
 }
 
 inline void* calloc(size_t nmemb, size_t size) {
-  return jsmalloc::calloc(*SingletonHeap::GlobalInstance(), nmemb, size);
+  return jsmalloc::calloc(nmemb, size);
 }
 
 inline void* realloc(void* ptr, size_t size) {
-  return jsmalloc::realloc(*SingletonHeap::GlobalInstance(), ptr, size);
+  return jsmalloc::realloc(ptr, size);
 }
 
 inline void free(void* ptr) {

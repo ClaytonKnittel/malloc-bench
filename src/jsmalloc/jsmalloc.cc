@@ -4,8 +4,11 @@
 #include <cstddef>
 
 #include "src/heap_interface.h"
-#include "src/jsmalloc/block.h"
-#include "src/jsmalloc/mallocator.h"
+#include "src/jsmalloc/allocator.h"
+#include "src/jsmalloc/blocks/block.h"
+#include "src/jsmalloc/blocks/free_block_allocator.h"
+#include "src/jsmalloc/blocks/large_block_allocator.h"
+#include "src/jsmalloc/blocks/small_block_allocator.h"
 #include "src/jsmalloc/util/assert.h"
 #include "src/jsmalloc/util/math.h"
 
@@ -13,51 +16,21 @@ namespace jsmalloc {
 
 namespace {
 
-class HeapMetadata {
+class HeapGlobals {
  public:
-  LargeBlock::FreeList large_block_free_list;
-  MultiSmallBlockFreeList small_block_free_list;
+  explicit HeapGlobals(bench::Heap& heap)
+      : heap_allocator_(&heap),
+        free_block_allocator_(heap_allocator_),
+        large_block_allocator_(free_block_allocator_),
+        small_block_allocator_(free_block_allocator_) {}
+
+  HeapAllocator heap_allocator_;
+  blocks::FreeBlockAllocator free_block_allocator_;
+  blocks::LargeBlockAllocator large_block_allocator_;
+  blocks::SmallBlockAllocator small_block_allocator_;
 };
 
-HeapMetadata* heap_metadata = nullptr;
-
-void* malloc_large_block(bench::Heap& heap, size_t size) {
-  for (LargeBlock& free_block : heap_metadata->large_block_free_list) {
-    if (free_block.DataSize() >= size) {
-      heap_metadata->large_block_free_list.remove(free_block);
-      return free_block.Alloc();
-    }
-  }
-
-  HeapMallocator mallocator(&heap);
-  LargeBlock* block = LargeBlock::New(&mallocator, size);
-  if (block == nullptr) {
-    return nullptr;
-  }
-  return block->Alloc();
-}
-
-void* malloc_small_block(bench::Heap& heap, size_t size) {
-  SmallBlock::FreeList& free_list =
-      heap_metadata->small_block_free_list.Find(size);
-  if (free_list.size() > 0) {
-    SmallBlock* block = free_list.front();
-    void* ptr = block->Alloc();
-    if (!block->CanAlloc()) {
-      free_list.remove(*block);
-    }
-    return ptr;
-  }
-
-  HeapMallocator mallocator(&heap);
-  SmallBlock* block = MultiSmallBlockFreeList::Create(&mallocator, size);
-  if (block == nullptr) {
-    return nullptr;
-  }
-  void* ptr = block->Alloc();
-  heap_metadata->small_block_free_list.EnsureContains(*block);
-  return ptr;
-}
+HeapGlobals* heap_globals = nullptr;
 
 }  // namespace
 
@@ -68,23 +41,22 @@ void* sbrk_16b(bench::Heap& heap, size_t size) {
 
 // Called before any allocations are made.
 void initialize_heap(bench::Heap& heap) {
-  heap_metadata = new (sbrk_16b(heap, math::round_16b(sizeof(HeapMetadata))))
-      HeapMetadata();
+  heap_globals = new (sbrk_16b(heap, math::round_16b(sizeof(HeapGlobals))))
+      HeapGlobals(heap);
 }
 
-void* malloc(bench::Heap& heap, size_t size) {
+void* malloc(size_t size) {
   if (size == 0) {
     return nullptr;
   }
-
-  if (size > kMaxSmallBlockDataSize) {
-    return malloc_large_block(heap, size);
+  if (size <= blocks::SmallBlockAllocator::kMaxDataSize) {
+    return heap_globals->small_block_allocator_.Allocate(size);
   }
-  return malloc_small_block(heap, size);
+  return heap_globals->large_block_allocator_.Allocate(size);
 }
 
-void* calloc(bench::Heap& heap, size_t nmemb, size_t size) {
-  void* ptr = malloc(heap, nmemb * size);
+void* calloc(size_t nmemb, size_t size) {
+  void* ptr = malloc(nmemb * size);
   if (ptr == nullptr) {
     return nullptr;
   }
@@ -92,8 +64,8 @@ void* calloc(bench::Heap& heap, size_t nmemb, size_t size) {
   return ptr;
 }
 
-void* realloc(bench::Heap& heap, void* ptr, size_t size) {
-  void* new_ptr = malloc(heap, size);
+void* realloc(void* ptr, size_t size) {
+  void* new_ptr = malloc(size);
   if (new_ptr == nullptr) {
     return nullptr;
   }
@@ -108,16 +80,11 @@ void free(void* ptr) {
   if (ptr == nullptr) {
     return;
   }
-
-  auto* block_header = BlockFromDataPointer(ptr);
-  if (block_header->kind == BlockKind::kLargeBlock) {
-    auto* block = reinterpret_cast<LargeBlock*>(block_header);
-    block->Free(ptr);
-    heap_metadata->large_block_free_list.insert_back(*block);
-  } else if (block_header->kind == BlockKind::kSmallBlock) {
-    auto* block = reinterpret_cast<SmallBlock*>(block_header);
-    block->Free(ptr);
-    heap_metadata->small_block_free_list.EnsureContains(*block);
+  blocks::BlockHeader* hdr = blocks::BlockHeader::FromDataPtr(ptr);
+  if (hdr->Kind() == blocks::BlockKind::kLarge) {
+    heap_globals->large_block_allocator_.Free(ptr);
+  } else if (hdr->Kind() == blocks::BlockKind::kSmall) {
+    heap_globals->small_block_allocator_.Free(ptr);
   }
 }
 
