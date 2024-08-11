@@ -16,6 +16,10 @@ constexpr uint32_t kHeapSizeShift = 29;
 // NOLINTNEXTLINE(google-readability-casting)
 static_assert(bench::SingletonHeap::kHeapSize == (size_t(1) << kHeapSizeShift));
 
+// The largest user-request size which will be allocated in small slabs. Any
+// size larger will go in large blocks.
+static constexpr size_t kMaxSmallSize = 128;
+
 // Forward declarations for concepts (to prevent circular dependencies):
 enum class SlabType;
 

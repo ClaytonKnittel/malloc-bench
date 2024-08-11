@@ -1,38 +1,14 @@
 #include "src/ckmalloc/ckmalloc.h"
 
 #include <cstddef>
-#include <new>
+#include <cstring>
 
-#include "src/ckmalloc/allocator.h"
-#include "src/singleton_heap.h"
+#include "src/ckmalloc/state.h"
 
 namespace ckmalloc {
 
-namespace {
-
-constexpr size_t kAlignment = 16;
-
-Allocator alloc = []() {
-  return Allocator(bench::SingletonHeap::GlobalInstance());
-}();
-
-// Rounds a size up to the largest size which is treated equally as this one.
-size_t AlignSize(size_t size) {
-  if (size <= 8) {
-    return 8;
-  }
-  return (size + kAlignment - 1) & ~(kAlignment - 1);
-}
-
-// Returns the alignment that should be used for a given size.
-size_t AlignmentForSize(size_t size) {
-  return size <= 8 ? 8 : 16;
-}
-
-}  // namespace
-
 void* malloc(size_t size) {
-  return alloc.Alloc(AlignSize(size), AlignmentForSize(size));
+  return State::Instance()->Freelist()->Alloc(size);
 }
 
 void* calloc(size_t nmemb, size_t size) {
@@ -44,13 +20,11 @@ void* calloc(size_t nmemb, size_t size) {
 }
 
 void* realloc(void* ptr, size_t size) {
-  void* new_ptr = malloc(size);
-  if (new_ptr != nullptr) {
-    memcpy(new_ptr, ptr, size);
-  }
-  return new_ptr;
+  return State::Instance()->Freelist()->Realloc(ptr, size);
 }
 
-void free(void* ptr) {}
+void free(void* ptr) {
+  State::Instance()->Freelist()->Free(ptr);
+}
 
 }  // namespace ckmalloc
