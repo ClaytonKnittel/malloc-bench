@@ -167,7 +167,7 @@ TEST_F(MetadataManagerTest, AllocateWithOtherAllocators) {
   ASSERT_THAT(Fixture().Alloc(kPageSize).status(), IsOk());
 
   // Allocate a phony slab right after the one just allocated.
-  auto res = SlabManager().Alloc(1, SlabType::kSmall);
+  auto res = SlabManager().template Alloc<SmallSlab>(1);
   ASSERT_TRUE(res.has_value());
   EXPECT_THAT(ValidateHeap(), IsOk());
   EXPECT_EQ(res.value().first, PageId(1));
