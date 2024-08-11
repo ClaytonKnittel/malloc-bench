@@ -79,10 +79,10 @@ absl::Status SlabManagerFixture::ValidateHeap() {
         Heap().Size()));
   }
 
-  absl::flat_hash_set<Slab*> visited_slabs;
+  absl::flat_hash_set<MappedSlab*> visited_slabs;
   PageId page = PageId::Zero();
   PageId end = HeapEnd();
-  Slab* previous_slab = nullptr;
+  MappedSlab* previous_slab = nullptr;
   bool previous_was_free = false;
   uint32_t free_slabs = 0;
   uint32_t allocated_slabs = 0;
@@ -122,8 +122,8 @@ absl::Status SlabManagerFixture::ValidateHeap() {
               absl::StrFormat("Unexpected two adjacent free slabs: %v and %v",
                               *previous_slab, *slab));
         }
-        Slab* first_page_slab = SlabMap().FindSlab(slab->StartId());
-        Slab* last_page_slab = SlabMap().FindSlab(slab->EndId());
+        MappedSlab* first_page_slab = SlabMap().FindSlab(slab->StartId());
+        MappedSlab* last_page_slab = SlabMap().FindSlab(slab->EndId());
         if (first_page_slab != slab || last_page_slab != slab) {
           return absl::FailedPreconditionError(absl::StrFormat(
               "Start and end pages of free slab do not map to the correct "
@@ -166,7 +166,7 @@ absl::Status SlabManagerFixture::ValidateHeap() {
 
         for (PageId page_id = allocated_slab->StartId();
              page_id <= allocated_slab->EndId(); ++page_id) {
-          Slab* mapped_slab = SlabMap().FindSlab(page_id);
+          MappedSlab* mapped_slab = SlabMap().FindSlab(page_id);
           if (mapped_slab != allocated_slab) {
             return absl::FailedPreconditionError(
                 absl::StrFormat("Internal page %v of %v does not map to the "
@@ -193,7 +193,7 @@ absl::Status SlabManagerFixture::ValidateHeap() {
   }
 
   // Validate the single-page freelist.
-  absl::flat_hash_set<Slab*> single_page_slabs;
+  absl::flat_hash_set<class FreeSlab*> single_page_slabs;
   for (const FreeSinglePageSlab& slab_start :
        SlabManager().Underlying().single_page_freelist_) {
     PageId start_id = SlabManager().PageIdFromPtr(&slab_start);
@@ -203,6 +203,10 @@ absl::Status SlabManagerFixture::ValidateHeap() {
           absl::StrFormat("Unexpected `nullptr` slab map entry in single-page "
                           "freelist, at page %v",
                           page));
+    }
+    if (slab->Type() != SlabType::kFree) {
+      return absl::FailedPreconditionError(absl::StrFormat(
+          "Unexpeted non-free slab in single-page slab freelist: %v", *slab));
     }
     if (slab->StartId() != start_id) {
       return absl::FailedPreconditionError(
@@ -221,15 +225,15 @@ absl::Status SlabManagerFixture::ValidateHeap() {
                           "heap in single-page freelist: %v",
                           *slab));
     }
-    if (single_page_slabs.contains(slab)) {
+    if (single_page_slabs.contains(slab->ToFree())) {
       return absl::FailedPreconditionError(absl::StrFormat(
           "Detected cycle in single-page freelist at %v", *slab));
     }
-    single_page_slabs.insert(slab);
+    single_page_slabs.insert(slab->ToFree());
   }
 
   // Validate the multi-page freelist.
-  absl::flat_hash_set<Slab*> multi_page_slabs;
+  absl::flat_hash_set<class FreeSlab*> multi_page_slabs;
   if (SlabManager().Underlying().smallest_multi_page_ != nullptr &&
       SlabManager().Underlying().multi_page_free_slabs_.Empty()) {
     return absl::FailedPreconditionError(
@@ -245,6 +249,10 @@ absl::Status SlabManagerFixture::ValidateHeap() {
           absl::StrFormat("Unexpected `nullptr` slab map entry in multi-page "
                           "free-tree, at page %v",
                           page));
+    }
+    if (slab->Type() != SlabType::kFree) {
+      return absl::FailedPreconditionError(absl::StrFormat(
+          "Unexpeted non-free slab in single-page slab freelist: %v", *slab));
     }
     if (slab->StartId() != start_id) {
       return absl::FailedPreconditionError(
@@ -273,11 +281,11 @@ absl::Status SlabManagerFixture::ValidateHeap() {
       }
     }
 
-    if (multi_page_slabs.contains(slab)) {
+    if (multi_page_slabs.contains(slab->ToFree())) {
       return absl::FailedPreconditionError(absl::StrFormat(
           "Detected cycle in multi-page free-tree at %v", *slab));
     }
-    multi_page_slabs.insert(slab);
+    multi_page_slabs.insert(slab->ToFree());
   }
 
   if (single_page_slabs.size() + multi_page_slabs.size() != free_slabs) {
