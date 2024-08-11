@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cstddef>
 #include <type_traits>
 
 #include "src/ckmalloc/util.h"
@@ -21,6 +20,12 @@ class LinkedListNode {
   LinkedListNode(const LinkedListNode&) = delete;
   LinkedListNode(LinkedListNode&&) = delete;
 
+  // Linked list nodes can remove themselves.
+  void Remove() const;
+
+ private:
+  LinkedListNode(LinkedListNode* next, LinkedListNode* prev);
+
   const LinkedListNode* Next() const {
     return next_;
   }
@@ -29,14 +34,9 @@ class LinkedListNode {
     return prev_;
   }
 
- private:
-  LinkedListNode(LinkedListNode* next, LinkedListNode* prev);
-
   void InsertAfter(LinkedListNode& node);
 
   void InsertBefore(LinkedListNode& node);
-
-  void Remove() const;
 
   LinkedListNode* next_ = nullptr;
   LinkedListNode* prev_ = nullptr;
@@ -107,11 +107,7 @@ class LinkedList {
   }
 
   bool Empty() const {
-    return size_ == 0;
-  }
-
-  size_t Size() const {
-    return size_;
+    return sentinel_.next_ == &sentinel_;
   }
 
   iterator begin() {
@@ -132,12 +128,10 @@ class LinkedList {
 
   void InsertFront(T* item) {
     item->InsertAfter(sentinel_);
-    size_++;
   }
 
   void InsertBack(T* item) {
     item->InsertBefore(sentinel_);
-    size_++;
   }
 
   T* Front() const {
@@ -149,7 +143,6 @@ class LinkedList {
     LinkedListNode* first = sentinel_.next_;
     CK_ASSERT(first != &sentinel_);
     first->Remove();
-    size_--;
     return static_cast<T*>(first);
   }
 
@@ -162,28 +155,23 @@ class LinkedList {
     LinkedListNode* last = sentinel_.prev_;
     CK_ASSERT(last != &sentinel_);
     last->Remove();
-    size_--;
     return static_cast<T*>(last);
   }
 
   void InsertAfter(iterator it, T* item) {
     static_cast<LinkedListNode*>(item)->InsertAfter(*it.node_);
-    size_++;
   }
 
   void Remove(T* item) {
     static_cast<LinkedListNode*>(item)->Remove();
-    size_--;
   }
 
   void Remove(iterator it) {
     it.node_->Remove();
-    size_--;
   }
 
  private:
   LinkedListNode sentinel_;
-  size_t size_ = 0;
 };
 
 template <typename T1, typename T2>

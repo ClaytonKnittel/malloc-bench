@@ -1,5 +1,6 @@
 #include "src/ckmalloc/slab.h"
 
+#include "src/ckmalloc/block.h"
 #include "src/ckmalloc/page_id.h"
 #include "src/ckmalloc/util.h"
 
@@ -60,7 +61,8 @@ LargeSlab* Slab::Init(PageId start_id, uint32_t n_pages) {
     .large = {},
   };
 
-  return static_cast<LargeSlab*>(this);
+  LargeSlab* slab = static_cast<LargeSlab*>(this);
+  return slab;
 }
 
 UnmappedSlab* Slab::ToUnmapped() {
@@ -163,6 +165,13 @@ PageId MappedSlab::EndId() const {
 uint32_t MappedSlab::Pages() const {
   CK_ASSERT(type_ != SlabType::kUnmapped);
   return mapped.n_pages_;
+}
+
+/* static */
+uint32_t LargeSlab::NPagesForBlock(size_t user_size) {
+  return AlignUp(
+      user_size + Block::kFirstBlockInSlabOffset + Block::kMetadataOverhead,
+      kPageSize);
 }
 
 }  // namespace ckmalloc

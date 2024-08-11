@@ -1,7 +1,5 @@
 #include "src/ckmalloc/linked_list.h"
 
-#include <type_traits>
-
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
@@ -19,7 +17,6 @@ struct Item : public LinkedListNode {
 TEST_F(LinkedListTest, TestEmpty) {
   LinkedList<Item> list;
   EXPECT_TRUE(list.Empty());
-  EXPECT_EQ(list.Size(), 0);
   EXPECT_EQ(list.Front(), nullptr);
   EXPECT_EQ(list.Back(), nullptr);
 }
@@ -29,7 +26,6 @@ TEST_F(LinkedListTest, OneItem) {
   Item item = { .val = 10 };
   list.InsertFront(&item);
   EXPECT_FALSE(list.Empty());
-  EXPECT_EQ(list.Size(), 1);
   EXPECT_EQ(list.Front(), &item);
   EXPECT_EQ(list.Back(), &item);
 }
@@ -45,7 +41,6 @@ TEST_F(LinkedListTest, InsertFront) {
   list.InsertFront(&items[1]);
   list.InsertFront(&items[2]);
   EXPECT_FALSE(list.Empty());
-  EXPECT_EQ(list.Size(), 3);
   EXPECT_EQ(list.Front(), &items[2]);
   EXPECT_EQ(list.Back(), &items[0]);
 
@@ -64,7 +59,6 @@ TEST_F(LinkedListTest, InsertBack) {
   list.InsertBack(&items[1]);
   list.InsertBack(&items[2]);
   EXPECT_FALSE(list.Empty());
-  EXPECT_EQ(list.Size(), 3);
   EXPECT_EQ(list.Front(), &items[0]);
   EXPECT_EQ(list.Back(), &items[2]);
 
@@ -87,7 +81,6 @@ TEST_F(LinkedListTest, InsertAfter) {
   auto it = list.begin();
   ++it;
   list.InsertAfter(it, &items[3]);
-  EXPECT_EQ(list.Size(), 4);
 
   EXPECT_THAT(list, ElementsAre(Field(&Item ::val, 10), Field(&Item ::val, 20),
                                 Field(&Item::val, 40), Field(&Item ::val, 30)));
@@ -106,7 +99,6 @@ TEST_F(LinkedListTest, Remove) {
 
   list.Remove(list.begin());
   list.Remove(++list.begin());
-  EXPECT_EQ(list.Size(), 3);
 
   EXPECT_THAT(list, ElementsAre(Field(&Item ::val, 20), Field(&Item ::val, 40),
                                 Field(&Item ::val, 50)));

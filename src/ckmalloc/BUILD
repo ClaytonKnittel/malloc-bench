@@ -13,6 +13,7 @@ cc_library(
     srcs = ["block.cc"],
     hdrs = ["block.h"],
     deps = [
+        ":common",
         ":linked_list",
         ":util",
     ],
@@ -149,6 +150,7 @@ cc_library(
     srcs = ["slab.cc"],
     hdrs = ["slab.h"],
     deps = [
+        ":block",
         ":page_id",
         ":util",
     ],

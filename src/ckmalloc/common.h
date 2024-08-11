@@ -8,6 +8,9 @@
 
 namespace ckmalloc {
 
+// The alignment of all allocations above the default alignment threshold.
+static constexpr uint64_t kDefaultAlignment = 16;
+
 static constexpr uint32_t kPageShift = 12;
 // The size of slabs in bytes.
 static constexpr size_t kPageSize = 1 << kPageShift;
@@ -44,31 +47,32 @@ concept SlabMapInterface =
     };
 
 template <typename T>
-concept SlabManagerInterface =
-    requires(const T const_slab_mgr, T slab_mgr, class PageId page_id,
-             const void* ptr, uint32_t n_pages, class AllocatedSlab* slab) {
-      { const_slab_mgr.PageStartFromId(page_id) } -> std::convertible_to<void*>;
-      {
-        const_slab_mgr.PageIdFromPtr(ptr)
-      } -> std::convertible_to<class PageId>;
-      {
-        slab_mgr.template Alloc<class FreeSlab>(n_pages)
-      } -> std::convertible_to<
-          std::optional<std::pair<class PageId, class FreeSlab*>>>;
-      {
-        slab_mgr.template Alloc<class MetadataSlab>(n_pages)
-      } -> std::convertible_to<
-          std::optional<std::pair<class PageId, class MetadataSlab*>>>;
-      {
-        slab_mgr.template Alloc<class SmallSlab>(n_pages)
-      } -> std::convertible_to<
-          std::optional<std::pair<class PageId, class SmallSlab*>>>;
-      {
-        slab_mgr.template Alloc<class LargeSlab>(n_pages)
-      } -> std::convertible_to<
-          std::optional<std::pair<class PageId, class LargeSlab*>>>;
-      { slab_mgr.Free(slab) } -> std::same_as<void>;
-    };
+concept SlabManagerInterface = requires(
+    const T const_slab_mgr, T slab_mgr, class PageId page_id, const void* ptr,
+    uint32_t n_pages, class AllocatedSlab* slab, class LargeSlab* large_slab) {
+  { const_slab_mgr.PageStartFromId(page_id) } -> std::convertible_to<void*>;
+  { const_slab_mgr.PageIdFromPtr(ptr) } -> std::convertible_to<class PageId>;
+  {
+    slab_mgr.template Alloc<class FreeSlab>(n_pages)
+  } -> std::convertible_to<
+      std::optional<std::pair<class PageId, class FreeSlab*>>>;
+  {
+    slab_mgr.template Alloc<class MetadataSlab>(n_pages)
+  } -> std::convertible_to<
+      std::optional<std::pair<class PageId, class MetadataSlab*>>>;
+  {
+    slab_mgr.template Alloc<class SmallSlab>(n_pages)
+  } -> std::convertible_to<
+      std::optional<std::pair<class PageId, class SmallSlab*>>>;
+  {
+    slab_mgr.template Alloc<class LargeSlab>(n_pages)
+  } -> std::convertible_to<
+      std::optional<std::pair<class PageId, class LargeSlab*>>>;
+  { slab_mgr.Free(slab) } -> std::same_as<void>;
+  {
+    slab_mgr.FirstBlockInLargeSlab(large_slab)
+  } -> std::convertible_to<class Block*>;
+};
 
 // This is defined in `state.cc` to avoid circular dependencies.
 class GlobalMetadataAlloc {
