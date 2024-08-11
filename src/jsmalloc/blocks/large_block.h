@@ -2,7 +2,7 @@
 
 #include <cstddef>
 
-#include "src/jsmalloc/allocator.h"
+#include "src/jsmalloc/blocks/free_block_allocator.h"
 #include "src/jsmalloc/blocks/block.h"
 
 namespace jsmalloc {
@@ -15,7 +15,7 @@ class LargeBlock {
 
  public:
   /** Allocates and returns a new LargeBlock. */
-  static LargeBlock* New(Allocator& allocator, size_t data_size);
+  static LargeBlock* New(FreeBlockAllocator& allocator, size_t data_size);
 
   /** Returns this block's size. */
   size_t BlockSize() const;
@@ -27,7 +27,7 @@ class LargeBlock {
   void* Data();
 
  private:
-  explicit LargeBlock(size_t block_size);
+  explicit LargeBlock(size_t block_size, bool prev_block_is_free);
 
   BlockHeader header_;
   [[maybe_unused]] uint8_t alignment_[8];

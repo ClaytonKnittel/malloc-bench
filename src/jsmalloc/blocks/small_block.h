@@ -4,6 +4,7 @@
 
 #include "src/jsmalloc/allocator.h"
 #include "src/jsmalloc/blocks/block.h"
+#include "src/jsmalloc/blocks/free_block_allocator.h"
 #include "src/jsmalloc/collections/intrusive_linked_list.h"
 
 namespace jsmalloc {
@@ -19,7 +20,7 @@ class SmallBlock {
    * Allocates and returns a new SmallBlock that
    * can lease out data_size byte chunks.
    */
-  static SmallBlock* New(Allocator& allocator, size_t data_size,
+  static SmallBlock* New(FreeBlockAllocator& allocator, size_t data_size,
                          size_t bin_count);
 
   /** Frees the memory associated with the provided data pointer. */
@@ -48,7 +49,7 @@ class SmallBlock {
   };
 
  private:
-  SmallBlock(size_t block_size, size_t data_size, size_t bin_count);
+  SmallBlock(size_t block_size, bool prev_block_is_free, size_t data_size, size_t bin_count);
   size_t BinSize() const;
   int FreeBinIndex() const;
   void MarkBinFree(int index);

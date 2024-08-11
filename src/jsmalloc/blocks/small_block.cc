@@ -3,8 +3,9 @@
 #include <bit>
 #include <cstddef>
 
-#include "src/jsmalloc/allocator.h"
 #include "src/jsmalloc/blocks/block.h"
+#include "src/jsmalloc/blocks/free_block.h"
+#include "src/jsmalloc/blocks/free_block_allocator.h"
 #include "src/jsmalloc/util/assert.h"
 #include "src/jsmalloc/util/math.h"
 
@@ -16,16 +17,17 @@ class SmallBlockHelper {
   static_assert(offsetof(SmallBlock::Bin, data_) % 16 == 4);
 };
 
-SmallBlock* SmallBlock::New(Allocator& allocator, size_t data_size,
+SmallBlock* SmallBlock::New(FreeBlockAllocator& allocator, size_t data_size,
                             size_t bin_count) {
   size_t block_size =
       math::round_16b(offsetof(SmallBlock, bins_) +
                       (offsetof(Bin, data_) + data_size) * bin_count);
-  void* ptr = allocator.Allocate(block_size);
-  if (ptr == nullptr) {
+  FreeBlock* block = allocator.Allocate(block_size);
+  if (block == nullptr) {
     return nullptr;
   }
-  return new (ptr) SmallBlock(block_size, data_size, bin_count);
+  return new (block) SmallBlock(block_size, block->Header()->PrevBlockIsFree(),
+                                data_size, bin_count);
 }
 
 size_t SmallBlock::BlockSize() const {
@@ -89,8 +91,9 @@ size_t SmallBlock::DataSize() const {
   return data_size_;
 }
 
-SmallBlock::SmallBlock(size_t block_size, size_t data_size, size_t bin_count)
-    : header_(block_size, BlockKind::kSmall),
+SmallBlock::SmallBlock(size_t block_size, bool prev_block_is_free,
+                       size_t data_size, size_t bin_count)
+    : header_(block_size, BlockKind::kSmall, prev_block_is_free),
       data_size_(data_size),
       bin_count_(bin_count),
       free_bins_bitset_(static_cast<uint64_t>(~0) >>

@@ -8,6 +8,7 @@
 #include "src/jsmalloc/blocks/block.h"
 #include "src/jsmalloc/blocks/free_block_allocator.h"
 #include "src/jsmalloc/blocks/large_block_allocator.h"
+#include "src/jsmalloc/blocks/sentinel_block_allocator.h"
 #include "src/jsmalloc/blocks/small_block_allocator.h"
 #include "src/jsmalloc/util/assert.h"
 #include "src/jsmalloc/util/math.h"
@@ -20,11 +21,17 @@ class HeapGlobals {
  public:
   explicit HeapGlobals(bench::Heap& heap)
       : heap_allocator_(&heap),
-        free_block_allocator_(heap_allocator_),
+        sentinel_block_allocator_(heap_allocator_),
+        free_block_allocator_(sentinel_block_allocator_),
         large_block_allocator_(free_block_allocator_),
         small_block_allocator_(free_block_allocator_) {}
 
+  void Start() {
+    sentinel_block_allocator_.Start();
+  }
+
   HeapAllocator heap_allocator_;
+  blocks::SentinelBlockAllocator sentinel_block_allocator_;
   blocks::FreeBlockAllocator free_block_allocator_;
   blocks::LargeBlockAllocator large_block_allocator_;
   blocks::SmallBlockAllocator small_block_allocator_;
@@ -43,6 +50,7 @@ void* sbrk_16b(bench::Heap& heap, size_t size) {
 void initialize_heap(bench::Heap& heap) {
   heap_globals = new (sbrk_16b(heap, math::round_16b(sizeof(HeapGlobals))))
       HeapGlobals(heap);
+  heap_globals->Start();
 }
 
 void* malloc(size_t size) {

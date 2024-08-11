@@ -9,28 +9,34 @@
 namespace jsmalloc {
 namespace blocks {
 
+class FreeBlock;
+struct FreeBlockFooter {
+  FreeBlock* block;
+};
+
 /**
  * A free block.
  */
 class FreeBlock {
  public:
-  /** Marks the provided block as free. */
-  static FreeBlock* Claim(BlockHeader* block);
-
   /** Creates a new free block. */
   static FreeBlock* New(Allocator& allocator, size_t size);
 
+  /** Marks the provided block as free. */
+  static FreeBlock* MarkFree(BlockHeader* block);
+
   /**
-   * Resizes this block and returns a newly shared `FreeBlock`, if created.
+   * Marks this block as used.
    *
+   * Resizes this block and returns a newly sharded `FreeBlock`, if created.
    * Returns nullptr if no new free block was created.
    */
-  FreeBlock* ResizeTo(size_t new_block_size);
+  FreeBlock* MarkUsed(size_t new_block_size);
 
   /**
    * Whether `Resize` can be called.
    */
-  bool CanResizeTo(size_t new_block_size) const;
+  bool CanMarkUsed(size_t new_block_size) const;
 
   /**
    * The size of this free block.
@@ -39,13 +45,22 @@ class FreeBlock {
 
   BlockHeader* Header();
 
+  /** Consumes the next block. */
+  FreeBlock* NextBlockIfFree();
+
+  /** Returns the previous block, if free. */
+  FreeBlock* PrevBlockIfFree();
+
+  /** Consumes the next block. */
+  void ConsumeNextBlock();
+
   class List : public IntrusiveLinkedList<FreeBlock> {
    public:
     List() : IntrusiveLinkedList<FreeBlock>(&FreeBlock::list_node_){};
   };
 
  private:
-  explicit FreeBlock(size_t block_size);
+  FreeBlock(size_t size, bool prev_block_is_free);
 
   BlockHeader header_;
   IntrusiveLinkedList<FreeBlock>::Node list_node_;

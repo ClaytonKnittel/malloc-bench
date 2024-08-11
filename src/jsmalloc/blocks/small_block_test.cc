@@ -5,13 +5,15 @@
 #include "gtest/gtest.h"
 
 #include "src/jsmalloc/allocator.h"
+#include "src/jsmalloc/blocks/free_block_allocator.h"
 
 namespace jsmalloc {
 namespace blocks {
 
 TEST(TestSmallBlock, FullLifecycle) {
   BigStackAllocator allocator;
-  SmallBlock* block = SmallBlock::New(allocator, 12, 32);
+  FreeBlockAllocator free_block_allocator(allocator);
+  SmallBlock* block = SmallBlock::New(free_block_allocator, 12, 32);
 
   EXPECT_TRUE(block->IsEmpty());
 
@@ -33,7 +35,8 @@ TEST(TestSmallBlock, FullLifecycle) {
 
 TEST(TestSmallBlock, ReportsSize) {
   BigStackAllocator allocator;
-  SmallBlock* block = SmallBlock::New(allocator, 12, 32);
+  FreeBlockAllocator free_block_allocator(allocator);
+  SmallBlock* block = SmallBlock::New(free_block_allocator, 12, 32);
 
   EXPECT_GT(block->BlockSize(), 12 * 32);
   EXPECT_EQ(block->DataSize(), 12);
@@ -41,7 +44,8 @@ TEST(TestSmallBlock, ReportsSize) {
 
 TEST(TestSmallBlock, FromDataPointer) {
   BigStackAllocator allocator;
-  SmallBlock* block = SmallBlock::New(allocator, 12, 20);
+  FreeBlockAllocator free_block_allocator(allocator);
+  SmallBlock* block = SmallBlock::New(free_block_allocator, 12, 20);
 
   std::vector<void*> ptrs;
   while (!block->IsFull()) {

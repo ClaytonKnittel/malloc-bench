@@ -39,7 +39,6 @@ enum class BlockKind {
  */
 class BlockHeader {
  public:
-  BlockHeader(uint32_t size, BlockKind kind);
   BlockHeader(uint32_t size, BlockKind kind, bool prev_block_is_free);
 
   /** The total size of the block. */
@@ -56,6 +55,9 @@ class BlockHeader {
 
   /** Returns the block containing the provided data pointer. */
   static BlockHeader* FromDataPtr(void* ptr);
+
+  /** Sets `PrevBlockIsFree` for the next block on the heap. */
+  void SignalFreeToNextBlock(bool free);
 
  private:
   void SetBlockSize(uint32_t size);

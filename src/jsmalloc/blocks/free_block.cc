@@ -11,14 +11,10 @@ namespace jsmalloc {
 namespace blocks {
 namespace {
 
-constexpr size_t kMinFreeBlockSize = math::round_16b(sizeof(FreeBlock));
+constexpr size_t kMinFreeBlockSize =
+    math::round_16b(sizeof(FreeBlock) + sizeof(FreeBlockFooter));
 
 }  // namespace
-
-FreeBlock* FreeBlock::Claim(BlockHeader* block_header) {
-  DCHECK_TRUE(block_header->BlockSize() >= kMinFreeBlockSize);
-  return new (block_header) FreeBlock(block_header->BlockSize());
-}
 
 FreeBlock* FreeBlock::New(Allocator& allocator, size_t size) {
   DCHECK_TRUE(size >= kMinFreeBlockSize);
@@ -26,10 +22,44 @@ FreeBlock* FreeBlock::New(Allocator& allocator, size_t size) {
   if (ptr == nullptr) {
     return nullptr;
   }
-  return new (ptr) FreeBlock(size);
+  // TODO(jtstogel): properly set prev_block_is_free here.
+  return new (ptr) FreeBlock(size, false);
 }
 
-bool FreeBlock::CanResizeTo(size_t new_block_size) const {
+FreeBlock* FreeBlock::MarkFree(BlockHeader* block_header) {
+  DCHECK_TRUE(block_header->BlockSize() >= kMinFreeBlockSize);
+  block_header->SignalFreeToNextBlock(true);
+  return new (block_header)
+      FreeBlock(block_header->BlockSize(), block_header->PrevBlockIsFree());
+}
+
+/** Consumes the next block. */
+FreeBlock* FreeBlock::NextBlockIfFree() {
+  auto* next = twiddle::AddPtrOffset<BlockHeader>(this, this->BlockSize());
+  if (next->Kind() == BlockKind::kFree) {
+    return reinterpret_cast<FreeBlock*>(next);
+  }
+  return nullptr;
+}
+
+/** Returns the previous block, if free. */
+FreeBlock* FreeBlock::PrevBlockIfFree() {
+  if (!Header()->PrevBlockIsFree()) {
+    return nullptr;
+  }
+  auto* footer = reinterpret_cast<FreeBlockFooter*>(this) - 1;
+  return footer->block;
+}
+
+/** Consumes the next block. */
+void FreeBlock::ConsumeNextBlock() {
+  auto* next = twiddle::AddPtrOffset<BlockHeader>(this, this->BlockSize());
+  DCHECK_EQ(next->Kind(), BlockKind::kFree);
+  new (this)
+      FreeBlock(BlockSize() + next->BlockSize(), Header()->PrevBlockIsFree());
+}
+
+bool FreeBlock::CanMarkUsed(size_t new_block_size) const {
   bool this_block_ok =
       BlockSize() >= new_block_size && new_block_size >= kMinFreeBlockSize;
 
@@ -40,18 +70,20 @@ bool FreeBlock::CanResizeTo(size_t new_block_size) const {
   return this_block_ok && next_block_ok;
 }
 
-FreeBlock* FreeBlock::ResizeTo(size_t new_block_size) {
-  DCHECK_TRUE(CanResizeTo(new_block_size));
+FreeBlock* FreeBlock::MarkUsed(size_t new_block_size) {
+  DCHECK_TRUE(CanMarkUsed(new_block_size));
 
   size_t next_block_size = BlockSize() - new_block_size;
   if (next_block_size == 0) {
+    this->Header()->SignalFreeToNextBlock(false);
     return nullptr;
   }
 
-  new (this) FreeBlock(new_block_size);
+  new (this) FreeBlock(new_block_size, this->Header()->PrevBlockIsFree());
 
   void* next_block_ptr = twiddle::AddPtrOffset<void*>(this, new_block_size);
-  return new (next_block_ptr) FreeBlock(next_block_size);
+  return new (next_block_ptr)
+      FreeBlock(next_block_size, /*prev_block_is_free=*/false);
 }
 
 size_t FreeBlock::BlockSize() const {
@@ -62,7 +94,12 @@ BlockHeader* FreeBlock::Header() {
   return &header_;
 }
 
-FreeBlock::FreeBlock(size_t size) : header_(size, BlockKind::kFree) {}
+FreeBlock::FreeBlock(size_t size, bool prev_block_is_free)
+    : header_(size, BlockKind::kFree, prev_block_is_free) {
+  auto* footer = twiddle::AddPtrOffset<FreeBlockFooter>(
+      this, size - sizeof(FreeBlockFooter));
+  footer->block = this;
+}
 
 }  // namespace blocks
 }  // namespace jsmalloc

@@ -3,6 +3,8 @@
 #include <cstddef>
 
 #include "src/jsmalloc/blocks/block.h"
+#include "src/jsmalloc/blocks/free_block.h"
+#include "src/jsmalloc/blocks/free_block_allocator.h"
 #include "src/jsmalloc/util/assert.h"
 #include "src/jsmalloc/util/math.h"
 
@@ -17,8 +19,8 @@ class LargeBlockHelper {
   }
 };
 
-LargeBlock::LargeBlock(size_t block_size)
-    : header_(block_size, BlockKind::kLarge) {
+LargeBlock::LargeBlock(size_t block_size, bool prev_block_is_free)
+    : header_(block_size, BlockKind::kLarge, prev_block_is_free) {
   data_preamble_.offset = offsetof(LargeBlock, data_);
 }
 
@@ -34,16 +36,16 @@ void* LargeBlock::Data() {
   return static_cast<void*>(data_);
 }
 
-LargeBlock* LargeBlock::New(Allocator& allocator, size_t data_size) {
+LargeBlock* LargeBlock::New(FreeBlockAllocator& allocator, size_t data_size) {
   size_t block_size = offsetof(LargeBlock, data_) + math::round_16b(data_size);
   DCHECK_EQ(block_size % 16, 0);
 
-  void* ptr = allocator.Allocate(block_size);
-  if (ptr == nullptr) {
+  FreeBlock* block = allocator.Allocate(block_size);
+  if (block == nullptr) {
     return nullptr;
   }
 
-  return new (ptr) LargeBlock(block_size);
+  return new (block) LargeBlock(block_size, block->Header()->PrevBlockIsFree());
 }
 
 }  // namespace blocks

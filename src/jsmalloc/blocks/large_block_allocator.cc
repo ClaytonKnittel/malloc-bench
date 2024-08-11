@@ -14,8 +14,7 @@ LargeBlockAllocator::LargeBlockAllocator(FreeBlockAllocator& allocator)
 
 /** Allocates a chunk of user data from a `LargeBlock`. */
 void* LargeBlockAllocator::Allocate(size_t size) {
-  FreeBlockAllocatorAdaptor adapter(allocator_);
-  LargeBlock* block = LargeBlock::New(adapter, size);
+  LargeBlock* block = LargeBlock::New(allocator_, size);
   if (block == nullptr) {
     return nullptr;
   }

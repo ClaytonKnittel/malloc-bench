@@ -22,9 +22,6 @@ BlockHeader::BlockHeader(uint32_t size, BlockKind kind, bool prev_block_is_free)
   SetPrevBlockIsFree(prev_block_is_free);
 }
 
-BlockHeader::BlockHeader(uint32_t size, BlockKind kind)
-    : BlockHeader(size, kind, false) {}
-
 uint32_t BlockHeader::BlockSize() const {
   DCHECK_TRUE(IsValid());
   return BlockSizeAccessor::Get(data_) << 4;
@@ -61,6 +58,14 @@ BlockHeader* BlockHeader::FromDataPtr(void* ptr) {
       ptr, -DataPreambleFromDataPtr(ptr)->offset);
   DCHECK_TRUE(block->IsValid());
   return block;
+}
+
+void BlockHeader::SignalFreeToNextBlock(bool free) {
+  if (Kind() == BlockKind::kBeginOrEnd) {
+    return;
+  }
+  auto* next = twiddle::AddPtrOffset<BlockHeader>(this, BlockSize());
+  next->SetPrevBlockIsFree(free);
 }
 
 bool BlockHeader::IsValid() const {

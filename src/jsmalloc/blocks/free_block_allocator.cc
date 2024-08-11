@@ -15,12 +15,12 @@ FreeBlock* FreeBlockAllocator::Allocate(size_t size) {
   DCHECK_EQ(size % 16, 0);
 
   for (auto& free_block : free_blocks_) {
-    if (!free_block.CanResizeTo(size)) {
+    if (!free_block.CanMarkUsed(size)) {
       continue;
     }
 
     free_blocks_.remove(free_block);
-    FreeBlock* remainder = free_block.ResizeTo(size);
+    FreeBlock* remainder = free_block.MarkUsed(size);
 
     // Don't bother storing tiny blocks in the free list,
     // since they'll probably never be used.
@@ -34,7 +34,26 @@ FreeBlock* FreeBlockAllocator::Allocate(size_t size) {
 }
 
 void FreeBlockAllocator::Free(BlockHeader* block) {
-  free_blocks_.insert_back(*FreeBlock::Claim(block));
+  FreeBlock* free_block = FreeBlock::MarkFree(block);
+
+  FreeBlock* next_free_block = free_block->NextBlockIfFree();
+  if (next_free_block != nullptr) {
+    if (free_blocks_.contains(*next_free_block)) {
+      free_blocks_.remove(*next_free_block);
+    }
+    free_block->ConsumeNextBlock();
+  }
+
+  FreeBlock* prev_free_block = free_block->PrevBlockIfFree();
+  if (prev_free_block != nullptr) {
+    if (free_blocks_.contains(*prev_free_block)) {
+      free_blocks_.remove(*prev_free_block);
+    }
+    prev_free_block->ConsumeNextBlock();
+    free_block = prev_free_block;    
+  }
+
+  free_blocks_.insert_front(*free_block);
 }
 
 }  // namespace blocks
