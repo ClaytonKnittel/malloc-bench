@@ -8,6 +8,9 @@
 namespace ckmalloc {
 
 void* malloc(size_t size) {
+  if (size == 0) {
+    return nullptr;
+  }
   return State::Instance()->Freelist()->Alloc(size);
 }
 
@@ -20,10 +23,17 @@ void* calloc(size_t nmemb, size_t size) {
 }
 
 void* realloc(void* ptr, size_t size) {
+  CK_ASSERT_NE(size, 0);
+  if (ptr == nullptr) {
+    return malloc(size);
+  }
   return State::Instance()->Freelist()->Realloc(ptr, size);
 }
 
 void free(void* ptr) {
+  if (ptr == nullptr) {
+    return;
+  }
   State::Instance()->Freelist()->Free(ptr);
 }
 

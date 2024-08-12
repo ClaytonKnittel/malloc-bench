@@ -86,7 +86,10 @@ void* FreelistImpl<MetadataAlloc, SlabMap, SlabManager>::Realloc(
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap,
           SlabManagerInterface SlabManager>
-void FreelistImpl<MetadataAlloc, SlabMap, SlabManager>::Free(void* ptr) {}
+void FreelistImpl<MetadataAlloc, SlabMap, SlabManager>::Free(void* ptr) {
+  AllocatedBlock* block = AllocatedBlock::FromUserDataPtr(ptr);
+  block->MarkFree(free_blocks_);
+}
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap,
           SlabManagerInterface SlabManager>
