@@ -11,7 +11,7 @@ void* malloc(size_t size) {
   if (size == 0) {
     return nullptr;
   }
-  return State::Instance()->Freelist()->Alloc(size);
+  return State::Instance()->MainAllocator()->Alloc(size);
 }
 
 void* calloc(size_t nmemb, size_t size) {
@@ -27,14 +27,14 @@ void* realloc(void* ptr, size_t size) {
   if (ptr == nullptr) {
     return malloc(size);
   }
-  return State::Instance()->Freelist()->Realloc(ptr, size);
+  return State::Instance()->MainAllocator()->Realloc(ptr, size);
 }
 
 void free(void* ptr) {
   if (ptr == nullptr) {
     return;
   }
-  State::Instance()->Freelist()->Free(ptr);
+  State::Instance()->MainAllocator()->Free(ptr);
 }
 
 }  // namespace ckmalloc
