@@ -43,6 +43,6 @@ State* State::Instance() {
 State::State(bench::Heap* heap)
     : slab_manager_(heap, &slab_map_),
       metadata_manager_(&slab_map_, &slab_manager_),
-      freelist_(&slab_map_, &slab_manager_) {}
+      main_allocator_(&slab_map_, &slab_manager_) {}
 
 }  // namespace ckmalloc

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "src/ckmalloc/freelist.h"
+#include "src/ckmalloc/main_allocator.h"
 #include "src/ckmalloc/metadata_manager.h"
 #include "src/ckmalloc/slab_manager.h"
 #include "src/ckmalloc/slab_map.h"
@@ -29,8 +29,8 @@ class State {
     return &metadata_manager_;
   }
 
-  Freelist* Freelist() {
-    return &freelist_;
+  MainAllocator* MainAllocator() {
+    return &main_allocator_;
   }
 
  private:
@@ -43,7 +43,7 @@ class State {
   ckmalloc::SlabMap slab_map_;
   ckmalloc::SlabManager slab_manager_;
   ckmalloc::MetadataManager metadata_manager_;
-  ckmalloc::Freelist freelist_;
+  ckmalloc::MainAllocator main_allocator_;
 };
 
 }  // namespace ckmalloc
