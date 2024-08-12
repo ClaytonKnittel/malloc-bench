@@ -160,6 +160,7 @@ cc_library(
     name = "slab_manager",
     hdrs = ["slab_manager.h"],
     deps = [
+        ":block",
         ":common",
         ":free_slab",
         ":linked_list",
