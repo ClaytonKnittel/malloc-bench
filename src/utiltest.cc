@@ -41,8 +41,10 @@ absl::StatusOr<double> MeasureUtilization(const std::string& tracefile) {
       case TraceLine::Op::kRealloc: {
         void* new_ptr =
             realloc(id_to_ptrs[line->input_ptr].first, line->input_size);
-        total_allocated_bytes -= id_to_ptrs[line->input_ptr].second;
-        id_to_ptrs.erase(line->input_ptr);
+        if (line->input_ptr != nullptr) {
+          total_allocated_bytes -= id_to_ptrs[line->input_ptr].second;
+          id_to_ptrs.erase(line->input_ptr);
+        }
         total_allocated_bytes += line->input_size;
         id_to_ptrs[line->result] = { new_ptr, line->input_size };
         break;
