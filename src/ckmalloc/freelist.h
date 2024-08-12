@@ -27,8 +27,8 @@ class Freelist {
   // second free. The allocated block will be at least `block_size` large, and
   // the second may be null if this method decides to keep this block intact.
   // `block_size` must not be larger than the block's current size.
-  std::pair<AllocatedBlock*, FreeBlock*> Split(FreeBlock* block,
-                                               uint64_t block_size);
+  std::pair<AllocatedBlock*, Block*> Split(FreeBlock* block,
+                                           uint64_t block_size);
 
   // Marks this block as free, inserting it into the given free block list and
   // writing the footer to the end of the block and setting the "prev free" bit

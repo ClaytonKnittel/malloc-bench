@@ -29,18 +29,23 @@ static_assert(sizeof(FreeBlock) <= 24,
 static_assert(
     UserDataOffsetValid(),
     "User data region starts at the incorrect offset in allocated blocks.");
-
-/* static */
-uint64_t Block::BlockSizeForUserSize(size_t user_size) {
-  return std::max(AlignUp(user_size + kMetadataOverhead, kDefaultAlignment),
-                  kMinBlockSize);
-}
+static_assert(sizeof(UntrackedBlock) + sizeof(uint64_t) <= Block::kMinBlockSize,
+              "Untracked blocks + footers must be <= min block size");
 
 AllocatedBlock* Block::InitAllocated(uint64_t size, bool prev_free) {
-  CK_ASSERT_GE(size, kMinBlockSize);
+  CK_ASSERT_GE(size, kMinLargeSize);
   CK_ASSERT_TRUE(IsAligned(size, kDefaultAlignment));
   header_ = size | (prev_free ? kPrevFreeBitMask : 0);
   return ToAllocated();
+}
+
+UntrackedBlock* Block::InitUntracked(uint64_t size) {
+  CK_ASSERT_GE(size, kMinBlockSize);
+  CK_ASSERT_LT(size, kMinLargeSize);
+  CK_ASSERT_TRUE(IsAligned(size, kDefaultAlignment));
+  header_ = size | kFreeBitMask;
+  WriteFooterAndPrevFree();
+  return ToUntracked();
 }
 
 void Block::InitPhonyHeader(bool prev_free) {
@@ -51,14 +56,8 @@ uint64_t Block::Size() const {
   return header_ & kSizeMask;
 }
 
-void Block::SetSize(uint64_t size) {
-  CK_ASSERT_GE(size, kMinBlockSize);
-  CK_ASSERT_TRUE(IsAligned(size, kDefaultAlignment));
-  CK_ASSERT_EQ(size, (size & kSizeMask));
-  header_ = size | (header_ & ~kSizeMask);
-}
-
 uint64_t Block::UserDataSize() const {
+  CK_ASSERT_GE(Size(), kMinLargeSize);
   return Size() - kMetadataOverhead;
 }
 
@@ -66,14 +65,26 @@ bool Block::Free() const {
   return (header_ & kFreeBitMask) != 0;
 }
 
+bool Block::IsUntrackedSize() const {
+  return IsUntrackedSize(Size());
+}
+
 FreeBlock* Block::ToFree() {
   CK_ASSERT_TRUE(Free());
+  CK_ASSERT_GE(Size(), kMinLargeSize);
   return static_cast<FreeBlock*>(this);
 }
 
 AllocatedBlock* Block::ToAllocated() {
   CK_ASSERT_FALSE(Free());
+  CK_ASSERT_GE(Size(), kMinLargeSize);
   return static_cast<AllocatedBlock*>(this);
+}
+
+UntrackedBlock* Block::ToUntracked() {
+  CK_ASSERT_TRUE(Free());
+  CK_ASSERT_LT(Size(), kMinLargeSize);
+  return static_cast<UntrackedBlock*>(this);
 }
 
 Block* Block::NextAdjacentBlock() {
@@ -95,6 +106,13 @@ const Block* Block::PrevAdjacentBlock() const {
   CK_ASSERT_TRUE(PrevFree());
   return reinterpret_cast<const Block*>(reinterpret_cast<const uint8_t*>(this) -
                                         PrevSize());
+}
+
+void Block::SetSize(uint64_t size) {
+  CK_ASSERT_GE(size, kMinBlockSize);
+  CK_ASSERT_TRUE(IsAligned(size, kDefaultAlignment));
+  CK_ASSERT_EQ(size, (size & kSizeMask));
+  header_ = size | (header_ & ~kSizeMask);
 }
 
 bool Block::PrevFree() const {
