@@ -97,9 +97,9 @@ FreelistImpl<MetadataAlloc, SlabMap, SlabManager>::MakeBlockFromFreelist(
     return nullptr;
   }
 
-  AllocatedBlock* allocated = free_block->MarkAllocated();
-  // TODO: split.
-  return allocated;
+  auto [allocated_block, remainder_block] =
+      free_block->Split(Block::BlockSizeForUserSize(user_size), free_blocks_);
+  return allocated_block;
 }
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap,
@@ -133,7 +133,9 @@ FreelistImpl<MetadataAlloc, SlabMap, SlabManager>::AllocLargeSlabAndMakeBlock(
       slab_manager_->FirstBlockInLargeSlab(slab)->InitAllocated(block_size,
                                                                 false);
   block->NextAdjacentBlock()->InitFree(
-      n_pages * kPageSize - block_size - Block::kFirstBlockInSlabOffset,
+      AlignDown(
+          n_pages * kPageSize - block_size - Block::kFirstBlockInSlabOffset,
+          kDefaultAlignment),
       free_blocks_);
 
   return block;

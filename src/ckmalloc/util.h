@@ -46,7 +46,14 @@ template <typename T>
 requires std::is_integral_v<T>
 constexpr bool IsAligned(T val, T alignment) {
   CK_ASSERT((alignment & (alignment - 1)) == 0);
-  return (val & ~(alignment - 1)) == 0;
+  return (val & (alignment - 1)) == 0;
+}
+
+template <typename T>
+requires std::is_integral_v<T>
+constexpr T AlignDown(T val, T alignment) {
+  CK_ASSERT((alignment & (alignment - 1)) == 0);
+  return val & ~(alignment - 1);
 }
 
 template <typename T>

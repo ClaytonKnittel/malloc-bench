@@ -105,6 +105,13 @@ class FreeBlock : public Block, public LinkedListNode {
   // is in, and returns a pointer to `this` down-cast to `AllocatedBlock`, now
   // that the block has been allocated.
   class AllocatedBlock* MarkAllocated();
+
+  // Splits this block into two blocks, allocating the first and keeping the
+  // second free. The allocated block will be at least `block_size` large, and
+  // the second may be null if this method decides to keep this block intact.
+  // `block_size` must not be larger than the block's current size.
+  std::pair<class AllocatedBlock*, class FreeBlock*> Split(
+      uint64_t block_size, LinkedList<class FreeBlock>& free_block_list);
 };
 
 class AllocatedBlock : public Block {
