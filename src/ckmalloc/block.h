@@ -5,7 +5,6 @@
 
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/linked_list.h"
-#include "src/ckmalloc/util.h"
 
 namespace ckmalloc {
 
@@ -29,15 +28,24 @@ class Block {
   static constexpr uint64_t kFirstBlockInSlabOffset =
       kDefaultAlignment - kMetadataOverhead;
 
-  static const uint64_t kMinBlockSize;
+  static constexpr uint64_t kMinBlockSize = kDefaultAlignment;
+
+  // The smallest size of large blocks which will be tracked in the freelist.
+  // Sizes smaller than this go in small slabs, and having a heterogenous list
+  // of free blocks for small size classes is extra overhead we want to avoid.
+  static const size_t kMinLargeSize;
 
   // Returns the minimum block size such that `UserDataSize()` is >=
   // `user_size`.
-  static uint64_t BlockSizeForUserSize(size_t user_size);
+  static constexpr uint64_t BlockSizeForUserSize(size_t user_size);
 
   // Initializes an uninitialized block to allocated with given size and
   // prev_free bit set accordingly.
   class AllocatedBlock* InitAllocated(uint64_t size, bool prev_free);
+
+  // Initializes an untracked block with given size, which is a free block not
+  // tracked in the freelist..
+  class UntrackedBlock* InitUntracked(uint64_t size);
 
   // Initializes this block to a phony header, which is placed in the last 8
   // bytes of large slabs. This is a header with size 0 which will always remain
@@ -48,16 +56,24 @@ class Block {
   // Returns the size of this block including metadata.
   uint64_t Size() const;
 
-  void SetSize(uint64_t size);
-
   // Returns the size of user-allocatable space in this block.
   uint64_t UserDataSize() const;
 
   bool Free() const;
 
+  // If true, this block size is not large enough to hold large block
+  // allocations, and should not be allocated or placed in the freelist.
+  static constexpr bool IsUntrackedSize(uint64_t size);
+
+  // If true, this block is not large enough to hold large block allocations,
+  // and should not be allocated or placed in the freelist.
+  bool IsUntrackedSize() const;
+
   class FreeBlock* ToFree();
 
   class AllocatedBlock* ToAllocated();
+
+  class UntrackedBlock* ToUntracked();
 
   Block* NextAdjacentBlock();
   const Block* NextAdjacentBlock() const;
@@ -66,6 +82,8 @@ class Block {
   const Block* PrevAdjacentBlock() const;
 
  private:
+  void SetSize(uint64_t size);
+
   bool PrevFree() const;
 
   void SetPrevFree(bool free);
@@ -95,9 +113,8 @@ class Block {
 class FreeBlock : public Block, public LinkedListNode {
  public:
   // You can't initialize already-initialized blocks.
-  class FreeBlock* InitFree(uint64_t size,
-                            LinkedList<FreeBlock>& free_block_list) = delete;
   class AllocatedBlock* InitAllocated(uint64_t size) = delete;
+  class UntrackedBlock* InitUntracked(uint64_t size) = delete;
   void InitPhonyHeader(bool prev_free) = delete;
 
   // Free blocks are free by definition.
@@ -109,9 +126,8 @@ class AllocatedBlock : public Block {
 
  public:
   // You can't initialize already-initialized blocks.
-  FreeBlock* InitFree(uint64_t size,
-                      LinkedList<FreeBlock>& free_block_list) = delete;
   class AllocatedBlock* InitAllocated(uint64_t size) = delete;
+  class UntrackedBlock* InitUntracked(uint64_t size) = delete;
   void InitPhonyHeader(bool prev_free) = delete;
 
   // Allocated blocks are not free by definition.
@@ -130,7 +146,32 @@ class AllocatedBlock : public Block {
   uint8_t data_[0];
 };
 
-constexpr uint64_t Block::kMinBlockSize =
-    AlignUp<uint64_t>(sizeof(FreeBlock), kDefaultAlignment);
+// Untracked blocks are free blocks that aren't in the freelist to avoid having
+// heterogenous freelists for small size classes.
+class UntrackedBlock : public Block {
+ public:
+  // You can't initialize already-initialized blocks.
+  class AllocatedBlock* InitAllocated(uint64_t size) = delete;
+  class UntrackedBlock* InitUntracked(uint64_t size) = delete;
+  void InitPhonyHeader(bool prev_free) = delete;
+
+  // Untracked blocks are free by definition.
+  bool Free() const = delete;
+};
+
+/* static */
+constexpr uint64_t Block::BlockSizeForUserSize(size_t user_size) {
+  // TODO revert
+  // return AlignUp(user_size + kMetadataOverhead, kDefaultAlignment);
+  return std::max(AlignUp(user_size + kMetadataOverhead, kDefaultAlignment),
+                  kMinBlockSize + 16);
+}
+
+/* static */
+constexpr bool Block::IsUntrackedSize(uint64_t size) {
+  return size < kMinLargeSize;
+}
+
+constexpr size_t Block::kMinLargeSize = BlockSizeForUserSize(kMaxSmallSize + 1);
 
 }  // namespace ckmalloc

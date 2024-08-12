@@ -117,17 +117,14 @@ MainAllocatorImpl<MetadataAlloc, SlabMap,
   uint64_t block_size = Block::BlockSizeForUserSize(user_size);
   CK_ASSERT_LE(block_size, slab->MaxBlockSize());
 
-  uint64_t remainder_size = AlignDown(
-      n_pages * kPageSize - block_size - Block::kFirstBlockInSlabOffset,
-      kDefaultAlignment);
+  uint64_t remainder_size = slab->MaxBlockSize() - block_size;
+  CK_ASSERT_TRUE(IsAligned(remainder_size, kDefaultAlignment));
 
   if (remainder_size < Block::kMinBlockSize) {
     block_size += remainder_size;
     remainder_size = 0;
   }
-  CK_ASSERT_LE(block_size,
-               AlignDown(n_pages * kPageSize - Block::kFirstBlockInSlabOffset,
-                         kDefaultAlignment));
+  CK_ASSERT_LE(block_size, slab->MaxBlockSize());
 
   AllocatedBlock* block =
       slab_manager_->FirstBlockInLargeSlab(slab)->InitAllocated(block_size,
@@ -140,10 +137,11 @@ MainAllocatorImpl<MetadataAlloc, SlabMap,
 
   if (remainder_size != 0) {
     Block* next_adjacent = block->NextAdjacentBlock();
-    freelist_.InitFree(next_adjacent,
-                       AlignDown(n_pages * kPageSize - block_size -
-                                     Block::kFirstBlockInSlabOffset,
-                                 kDefaultAlignment));
+    if (Block::IsUntrackedSize(remainder_size)) {
+      next_adjacent->InitUntracked(remainder_size);
+    } else {
+      freelist_.InitFree(next_adjacent, remainder_size);
+    }
 
     slab_end_header = next_adjacent->NextAdjacentBlock();
     slab_end_header->InitPhonyHeader(/*prev_free=*/true);

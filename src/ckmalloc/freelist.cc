@@ -6,18 +6,23 @@
 namespace ckmalloc {
 
 FreeBlock* Freelist::FindFree(size_t user_size) {
+  FreeBlock* best = nullptr;
   for (FreeBlock& block : free_blocks_) {
     // Take the first block that fits.
     if (block.UserDataSize() >= user_size) {
-      return &block;
+      if (best == nullptr) {
+        best = &block;
+      } else {
+        return &block;
+      }
     }
   }
 
-  return nullptr;
+  return best;
 }
 
 FreeBlock* Freelist::InitFree(Block* block, uint64_t size) {
-  CK_ASSERT_GE(size, Block::kMinBlockSize);
+  CK_ASSERT_GE(size, Block::kMinLargeSize);
   CK_ASSERT_TRUE(IsAligned(size, kDefaultAlignment));
   // Prev free is never true for free blocks, so we will not set that.
   block->header_ = size | Block::kFreeBitMask;
@@ -39,8 +44,8 @@ AllocatedBlock* Freelist::MarkAllocated(FreeBlock* block) {
   return block->ToAllocated();
 }
 
-std::pair<AllocatedBlock*, FreeBlock*> Freelist::Split(FreeBlock* block,
-                                                       uint64_t block_size) {
+std::pair<AllocatedBlock*, Block*> Freelist::Split(FreeBlock* block,
+                                                   uint64_t block_size) {
   uint64_t size = block->Size();
   CK_ASSERT_LE(block_size, size);
 
@@ -54,28 +59,34 @@ std::pair<AllocatedBlock*, FreeBlock*> Freelist::Split(FreeBlock* block,
   AllocatedBlock* allocated_block = MarkAllocated(block);
 
   Block* remainder_block = allocated_block->NextAdjacentBlock();
-  FreeBlock* remainder_free_block = InitFree(remainder_block, remainder);
-
-  return std::make_pair(allocated_block, remainder_free_block);
+  if (Block::IsUntrackedSize(remainder)) {
+    remainder_block->InitUntracked(remainder);
+  } else {
+    InitFree(remainder_block, remainder);
+  }
+  return std::make_pair(allocated_block, remainder_block);
 }
 
 FreeBlock* Freelist::MarkFree(AllocatedBlock* block) {
   uint64_t size = block->Size();
   Block* block_start = block;
   if (block->PrevFree()) {
-    FreeBlock* prev = block->PrevAdjacentBlock()->ToFree();
+    Block* prev = block->PrevAdjacentBlock();
     CK_ASSERT_EQ(prev->Size(), block->PrevSize());
     size += block->PrevSize();
 
-    RemoveBlock(prev);
+    if (!prev->IsUntrackedSize()) {
+      RemoveBlock(prev->ToFree());
+    }
     block_start = prev;
   }
-  Block* next_block = block->NextAdjacentBlock();
-  if (next_block->Free()) {
-    FreeBlock* next = next_block->ToFree();
+  Block* next = block->NextAdjacentBlock();
+  if (next->Free()) {
     size += next->Size();
 
-    RemoveBlock(next);
+    if (!next->IsUntrackedSize()) {
+      RemoveBlock(next->ToFree());
+    }
   }
 
   block_start->SetSize(size);
