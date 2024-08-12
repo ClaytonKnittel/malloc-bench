@@ -34,15 +34,12 @@ uint64_t Block::BlockSizeForUserSize(size_t user_size) {
 }
 
 FreeBlock* Block::InitFree(uint64_t size,
-                           LinkedList<FreeBlock>& free_block_list,
-                           bool is_end_of_slab) {
+                           LinkedList<FreeBlock>& free_block_list) {
   CK_ASSERT_GE(size, kMinBlockSize);
   CK_ASSERT_TRUE(IsAligned(size, kDefaultAlignment));
   // Prev free is never true for free blocks, so we will not set that.
   header_ = size | kFreeBitMask;
-  if (!is_end_of_slab) {
-    WriteFooterAndPrevFree();
-  }
+  WriteFooterAndPrevFree();
 
   FreeBlock* free_block = ToFree();
   free_block_list.InsertFront(free_block);
@@ -54,6 +51,10 @@ AllocatedBlock* Block::InitAllocated(uint64_t size, bool prev_free) {
   CK_ASSERT_TRUE(IsAligned(size, kDefaultAlignment));
   header_ = size | (prev_free ? kPrevFreeBitMask : 0);
   return ToAllocated();
+}
+
+void Block::InitPhonyHeader(bool prev_free) {
+  header_ = prev_free ? kPrevFreeBitMask : 0;
 }
 
 uint64_t Block::Size() const {
@@ -167,12 +168,9 @@ void* AllocatedBlock::UserDataPtr() {
   return data_;
 }
 
-FreeBlock* AllocatedBlock::MarkFree(LinkedList<FreeBlock>& free_block_list,
-                                    bool is_end_of_slab) {
+FreeBlock* AllocatedBlock::MarkFree(LinkedList<FreeBlock>& free_block_list) {
   header_ |= kFreeBitMask;
-  if (!is_end_of_slab) {
-    WriteFooterAndPrevFree();
-  }
+  WriteFooterAndPrevFree();
 
   FreeBlock* free_block = ToFree();
   free_block_list.InsertFront(free_block);
