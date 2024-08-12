@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <ostream>
 #include <type_traits>
 
 #include "src/ckmalloc/page_id.h"
@@ -34,6 +35,8 @@ enum class SlabType {
   // This slab is managing a large block slab.
   kLarge,
 };
+
+std::ostream& operator<<(std::ostream& ostr, SlabType slab_type);
 
 // Slab metadata class, which is stored separately from the slab it describes,
 // in a metadata slab.
