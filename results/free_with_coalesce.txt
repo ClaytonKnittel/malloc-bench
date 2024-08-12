@@ -1,0 +1,41 @@
+-------------------------------------------------------------------------
+| trace                         | correct? | mega ops / s | utilization |
+-------------------------------------------------------------------------
+| traces/bdd-aa32.trace         |        Y |        134.1 |       69.7% |
+| traces/bdd-aa4.trace          |        Y |        162.0 |       61.4% |
+| traces/bdd-ma4.trace          |        Y |        152.3 |       69.1% |
+| traces/bdd-nq7.trace          |        Y |        136.3 |       70.4% |
+| traces/cbit-abs.trace         |        Y |        102.2 |       54.0% |
+| traces/cbit-parity.trace      |        Y |         66.2 |       53.3% |
+| traces/cbit-satadd.trace      |        Y |         68.3 |       57.3% |
+| traces/cbit-xyz.trace         |        Y |         89.4 |       49.7% |
+|*traces/ngram-fox1.trace       |        Y |        151.3 |       21.3% |
+| traces/ngram-gulliver1.trace  |        Y |        138.2 |       35.2% |
+| traces/ngram-gulliver2.trace  |        Y |        132.1 |       37.3% |
+| traces/ngram-moby1.trace      |        Y |        135.3 |       34.4% |
+| traces/ngram-shake1.trace     |        Y |        131.9 |       33.6% |
+| traces/onoro.trace            |        N |              |             |
+| traces/onoro-cc.trace         |        Y |        200.3 |       74.7% |
+| traces/server.trace           |        Y |        135.2 |       49.4% |
+|*traces/simple.trace           |        Y |         79.0 |       14.4% |
+|*traces/simple_calloc.trace    |        Y |        204.8 |       83.5% |
+|*traces/simple_realloc.trace   |        Y |         77.9 |       82.0% |
+| traces/syn-array.trace        |        Y |          2.0 |       68.4% |
+|*traces/syn-array-short.trace  |        Y |         93.1 |       64.2% |
+| traces/syn-mix.trace          |        Y |          9.3 |       66.9% |
+| traces/syn-mix-realloc.trace  |        Y |         22.6 |       48.3% |
+|*traces/syn-mix-short.trace    |        Y |        116.2 |       40.2% |
+| traces/syn-string.trace       |        Y |         34.9 |       64.7% |
+|*traces/syn-string-short.trace |        Y |        116.1 |       21.1% |
+| traces/syn-struct.trace       |        Y |         37.7 |       65.5% |
+|*traces/syn-struct-short.trace |        Y |        127.7 |       20.8% |
+|*traces/test.trace             |        Y |         98.3 |       64.9% |
+|*traces/test-zero.trace        |        N |              |             |
+-------------------------------------------------------------------------
+* = ignored for scoring
+
+Summary:
+All correct? N
+Average utilization: 56.0%
+Average mega ops / s: 69.2
+Score: 0%
