@@ -151,6 +151,7 @@ cc_library(
     hdrs = ["slab.h"],
     deps = [
         ":block",
+        ":common",
         ":page_id",
         ":util",
     ],

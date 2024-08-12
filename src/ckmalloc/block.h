@@ -36,12 +36,17 @@ class Block {
   // Initializes an uninitialized block to free with given size, inserting it
   // into the given freelist.
   class FreeBlock* InitFree(uint64_t size,
-                            LinkedList<FreeBlock>& free_block_list,
-                            bool is_end_of_slab = false);
+                            LinkedList<FreeBlock>& free_block_list);
 
   // Initializes an uninitialized block to allocated with given size and
   // prev_free bit set accordingly.
   class AllocatedBlock* InitAllocated(uint64_t size, bool prev_free);
+
+  // Initializes this block to a phony header, which is placed in the last 8
+  // bytes of large slabs. This is a header with size 0 which will always remain
+  // "allocated", tricking blocks into not trying to coalesce with their next
+  // adjacent neighbor if they are at the end of a slab.
+  void InitPhonyHeader(bool prev_free);
 
   // Returns the size of this block including metadata.
   uint64_t Size() const;
@@ -94,9 +99,9 @@ class FreeBlock : public Block, public LinkedListNode {
  public:
   // You can't initialize already-initialized blocks.
   class FreeBlock* InitFree(uint64_t size,
-                            LinkedList<FreeBlock>& free_block_list,
-                            bool is_end_of_slab = false) = delete;
+                            LinkedList<FreeBlock>& free_block_list) = delete;
   class AllocatedBlock* InitAllocated(uint64_t size) = delete;
+  void InitPhonyHeader(bool prev_free) = delete;
 
   // Free blocks are free by definition.
   bool Free() const = delete;
@@ -119,9 +124,10 @@ class AllocatedBlock : public Block {
 
  public:
   // You can't initialize already-initialized blocks.
-  FreeBlock* InitFree(uint64_t size, LinkedList<FreeBlock>& free_block_list,
-                      bool is_end_of_slab = false) = delete;
+  FreeBlock* InitFree(uint64_t size,
+                      LinkedList<FreeBlock>& free_block_list) = delete;
   class AllocatedBlock* InitAllocated(uint64_t size) = delete;
+  void InitPhonyHeader(bool prev_free) = delete;
 
   // Allocated blocks are not free by definition.
   bool Free() const = delete;
@@ -134,13 +140,9 @@ class AllocatedBlock : public Block {
   // writing the footer to the end of the block and setting the "prev free" bit
   // of the next adjacent block.
   //
-  // If `is_end_of_slab` is true, this block is at the end of the slab, and no
-  // footer will be written.
-  //
   // This method returns a pointer to `this` down-cast to `FreeBlock`, now that
   // the block has been freed.
-  class FreeBlock* MarkFree(LinkedList<FreeBlock>& free_block_list,
-                            bool is_end_of_slab = false);
+  class FreeBlock* MarkFree(LinkedList<FreeBlock>& free_block_list);
 
  private:
   // The beginning of user-allocatable space in this block.
