@@ -14,6 +14,7 @@ namespace ckmalloc {
 class Block {
   friend class AllocatedBlock;
   friend class FreeBlock;
+  friend class Freelist;
 
   friend constexpr size_t HeaderOffset();
 
@@ -33,11 +34,6 @@ class Block {
   // Returns the minimum block size such that `UserDataSize()` is >=
   // `user_size`.
   static uint64_t BlockSizeForUserSize(size_t user_size);
-
-  // Initializes an uninitialized block to free with given size, inserting it
-  // into the given freelist.
-  class FreeBlock* InitFree(uint64_t size,
-                            LinkedList<FreeBlock>& free_block_list);
 
   // Initializes an uninitialized block to allocated with given size and
   // prev_free bit set accordingly.
@@ -106,18 +102,6 @@ class FreeBlock : public Block, public LinkedListNode {
 
   // Free blocks are free by definition.
   bool Free() const = delete;
-
-  // This method marks this block as allocated, removes it from the free list it
-  // is in, and returns a pointer to `this` down-cast to `AllocatedBlock`, now
-  // that the block has been allocated.
-  class AllocatedBlock* MarkAllocated();
-
-  // Splits this block into two blocks, allocating the first and keeping the
-  // second free. The allocated block will be at least `block_size` large, and
-  // the second may be null if this method decides to keep this block intact.
-  // `block_size` must not be larger than the block's current size.
-  std::pair<class AllocatedBlock*, class FreeBlock*> Split(
-      uint64_t block_size, LinkedList<class FreeBlock>& free_block_list);
 };
 
 class AllocatedBlock : public Block {
@@ -140,14 +124,6 @@ class AllocatedBlock : public Block {
   // Given a user data pointer, returns the allocated block containing this
   // pointer.
   static AllocatedBlock* FromUserDataPtr(void* ptr);
-
-  // Marks this block as free, inserting it into the given free block list and
-  // writing the footer to the end of the block and setting the "prev free" bit
-  // of the next adjacent block.
-  //
-  // This method returns a pointer to `this` down-cast to `FreeBlock`, now that
-  // the block has been freed.
-  class FreeBlock* MarkFree(LinkedList<FreeBlock>& free_block_list);
 
  private:
   // The beginning of user-allocatable space in this block.

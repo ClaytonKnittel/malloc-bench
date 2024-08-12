@@ -38,12 +38,11 @@ cc_library(
 
 cc_library(
     name = "freelist",
+    srcs = ["freelist.cc"],
     hdrs = ["freelist.h"],
     deps = [
         ":block",
-        ":common",
-        ":slab_manager",
-        ":slab_map",
+        ":linked_list",
     ],
 )
 
@@ -63,6 +62,19 @@ cc_test(
         ":linked_list",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "main_allocator",
+    hdrs = ["main_allocator.h"],
+    deps = [
+        ":block",
+        ":common",
+        ":freelist",
+        ":slab_manager",
+        ":slab_map",
+        ":util",
     ],
 )
 
@@ -240,7 +252,7 @@ cc_library(
     hdrs = ["state.h"],
     deps = [
         ":common",
-        ":freelist",
+        ":main_allocator",
         ":metadata_manager",
         ":slab",
         ":slab_manager",

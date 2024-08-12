@@ -1,7 +1,6 @@
 #include "src/ckmalloc/block.h"
 
 #include "src/ckmalloc/common.h"
-#include "src/ckmalloc/linked_list.h"
 #include "src/ckmalloc/util.h"
 
 namespace ckmalloc {
@@ -35,19 +34,6 @@ static_assert(
 uint64_t Block::BlockSizeForUserSize(size_t user_size) {
   return std::max(AlignUp(user_size + kMetadataOverhead, kDefaultAlignment),
                   kMinBlockSize);
-}
-
-FreeBlock* Block::InitFree(uint64_t size,
-                           LinkedList<FreeBlock>& free_block_list) {
-  CK_ASSERT_GE(size, kMinBlockSize);
-  CK_ASSERT_TRUE(IsAligned(size, kDefaultAlignment));
-  // Prev free is never true for free blocks, so we will not set that.
-  header_ = size | kFreeBitMask;
-  WriteFooterAndPrevFree();
-
-  FreeBlock* free_block = ToFree();
-  free_block_list.InsertFront(free_block);
-  return free_block;
 }
 
 AllocatedBlock* Block::InitAllocated(uint64_t size, bool prev_free) {
@@ -140,38 +126,6 @@ void Block::WriteFooterAndPrevFree() {
   next->SetPrevSize(size);
 }
 
-AllocatedBlock* FreeBlock::MarkAllocated() {
-  // Remove ourselves from the freelist we are in.
-  LinkedListNode::Remove();
-
-  // Clear the free bit.
-  header_ &= ~kFreeBitMask;
-  // Clear the prev-free bit of the next adjacent block.
-  NextAdjacentBlock()->SetPrevFree(false);
-  return ToAllocated();
-}
-
-std::pair<AllocatedBlock*, FreeBlock*> FreeBlock::Split(
-    uint64_t block_size, LinkedList<FreeBlock>& free_block_list) {
-  uint64_t size = Size();
-  CK_ASSERT_LE(block_size, size);
-
-  uint64_t remainder = size - block_size;
-  if (remainder < kMinBlockSize) {
-    AllocatedBlock* block = MarkAllocated();
-    return std::make_pair(block, nullptr);
-  }
-
-  SetSize(block_size);
-  AllocatedBlock* block = MarkAllocated();
-
-  Block* remainder_block = block->NextAdjacentBlock();
-  FreeBlock* remainder_free_block =
-      remainder_block->InitFree(remainder, free_block_list);
-
-  return std::make_pair(block, remainder_free_block);
-}
-
 void* AllocatedBlock::UserDataPtr() {
   return data_;
 }
@@ -180,34 +134,6 @@ void* AllocatedBlock::UserDataPtr() {
 AllocatedBlock* AllocatedBlock::FromUserDataPtr(void* ptr) {
   return reinterpret_cast<AllocatedBlock*>(reinterpret_cast<uint8_t*>(ptr) -
                                            UserDataOffset());
-}
-
-FreeBlock* AllocatedBlock::MarkFree(LinkedList<FreeBlock>& free_block_list) {
-  uint64_t size = Size();
-  Block* block_start = this;
-  if (PrevFree()) {
-    FreeBlock* prev = PrevAdjacentBlock()->ToFree();
-    CK_ASSERT_EQ(prev->Size(), PrevSize());
-    size += PrevSize();
-
-    prev->LinkedListNode::Remove();
-    block_start = prev;
-  }
-  Block* next_block = NextAdjacentBlock();
-  if (next_block->Free()) {
-    FreeBlock* next = next_block->ToFree();
-    size += next->Size();
-
-    next->LinkedListNode::Remove();
-  }
-
-  block_start->SetSize(size);
-  block_start->header_ |= kFreeBitMask;
-  block_start->WriteFooterAndPrevFree();
-
-  FreeBlock* free_block = block_start->ToFree();
-  free_block_list.InsertFront(free_block);
-  return free_block;
 }
 
 }  // namespace ckmalloc
