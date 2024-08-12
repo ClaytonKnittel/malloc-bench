@@ -170,6 +170,9 @@ class LargeSlab : public AllocatedSlab {
   // pages of the minimum-sized slab that could fit a block large enough to
   // satisfy this allocation.
   static uint32_t NPagesForBlock(size_t user_size);
+
+  // Returns the largest block size that can fit in this large slab.
+  uint64_t MaxBlockSize() const;
 };
 
 // The sizes of all subtypes of slab must be equal.

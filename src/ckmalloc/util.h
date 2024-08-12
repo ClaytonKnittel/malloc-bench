@@ -25,8 +25,10 @@
 
 #endif
 
+// clang-format off
 #define CK_ASSERT_INFIX(a, b, op, neg) \
-  CK_ASSERT_MSG((a) op(b), (a) << (" " #neg " ") << (b))
+  CK_ASSERT_MSG((a) op (b), (a) << (" " #neg " ") << (b))
+// clang-format on
 
 #define CK_ASSERT_EQ(a, b) CK_ASSERT_INFIX(a, b, ==, !=)
 #define CK_ASSERT_NE(a, b) CK_ASSERT_INFIX(a, b, !=, ==)

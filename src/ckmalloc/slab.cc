@@ -3,6 +3,7 @@
 #include <ostream>
 
 #include "src/ckmalloc/block.h"
+#include "src/ckmalloc/common.h"
 #include "src/ckmalloc/page_id.h"
 #include "src/ckmalloc/util.h"
 
@@ -166,9 +167,18 @@ uint32_t MappedSlab::Pages() const {
 
 /* static */
 uint32_t LargeSlab::NPagesForBlock(size_t user_size) {
-  return CeilDiv<uint32_t>(
-      user_size + Block::kFirstBlockInSlabOffset + Block::kMetadataOverhead,
-      kPageSize);
+  return CeilDiv<uint32_t>(Block::BlockSizeForUserSize(user_size) +
+                               Block::kFirstBlockInSlabOffset +
+                               Block::kMetadataOverhead,
+                           kPageSize);
+}
+
+uint64_t LargeSlab::MaxBlockSize() const {
+  CK_ASSERT_EQ(Type(), SlabType::kLarge);
+  return AlignDown(mapped.n_pages_ * kPageSize -
+                       Block::kFirstBlockInSlabOffset -
+                       Block::kMetadataOverhead,
+                   kDefaultAlignment);
 }
 
 }  // namespace ckmalloc
