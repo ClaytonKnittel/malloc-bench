@@ -44,7 +44,7 @@ class Block {
   class AllocatedBlock* InitAllocated(uint64_t size, bool prev_free);
 
   // Initializes an untracked block with given size, which is a free block not
-  // tracked in the freelist..
+  // tracked in the freelist.
   class UntrackedBlock* InitUntracked(uint64_t size);
 
   // Initializes this block to a phony header, which is placed in the last 8
