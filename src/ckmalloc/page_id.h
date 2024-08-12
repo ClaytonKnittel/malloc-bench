@@ -21,7 +21,7 @@ class PageId {
 
  public:
   constexpr explicit PageId(uint32_t page_idx) : page_idx_(page_idx) {
-    CK_ASSERT(page_idx < kMaxPageIdx);
+    CK_ASSERT_LT(page_idx, kMaxPageIdx);
   }
 
   PageId(const PageId& page_id) = default;
