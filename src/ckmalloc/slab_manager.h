@@ -387,8 +387,8 @@ void SlabManagerImpl<MetadataAlloc, SlabMap>::RemoveMultiPageFreeSlab(
         multi_page_free_slabs_.Next(slab_start));
   }
   multi_page_free_slabs_.Remove(slab_start);
-  CK_ASSERT_EQ(smallest_multi_page_, nullptr);
-  CK_ASSERT_EQ(multi_page_free_slabs_.Prev(smallest_multi_page_), nullptr);
+  CK_ASSERT_TRUE(smallest_multi_page_ == nullptr ||
+                 multi_page_free_slabs_.Prev(smallest_multi_page_) == nullptr);
 }
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
