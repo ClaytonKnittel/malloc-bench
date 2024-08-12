@@ -2,11 +2,11 @@
 
 #include <cstdint>
 #include <optional>
-#include <type_traits>
 #include <utility>
 
 #include "util/std_util.h"
 
+#include "src/ckmalloc/block.h"
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/free_slab.h"
 #include "src/ckmalloc/linked_list.h"
@@ -17,19 +17,6 @@
 #include "src/heap_interface.h"
 
 namespace ckmalloc {
-
-template <typename>
-struct IsAllocInitializableHelper : public std::false_type {};
-
-template <>
-struct IsAllocInitializableHelper<SmallSlab> : public std::true_type {};
-
-template <>
-struct IsAllocInitializableHelper<LargeSlab> : public std::true_type {};
-
-template <typename S>
-inline constexpr bool kIsAllocInitializable =
-    IsAllocInitializableHelper<S>::value;
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
 class SlabManagerImpl {
@@ -52,7 +39,8 @@ class SlabManagerImpl {
   // the slab metadata pointer returned will be null and the user has to
   // allocate slab metadata. This is to prevent a recursive cycle when
   // allocating a metdata slab, which is where slab metadata are allocated.
-  std::optional<std::pair<PageId, Slab*>> Alloc(uint32_t n_pages);
+  std::optional<std::pair<PageId, Slab*>> Alloc(uint32_t n_pages,
+                                                bool has_metadata = false);
 
   // Allocates `n_pages` contiguous pages and initializes a slab metadata for
   // that region.
@@ -87,8 +75,10 @@ class SlabManagerImpl {
 
   // Tries to allocate `n_pages` at the end of the heap, which should increase
   // the size of the heap. This should be called if allocating within the heap
-  // has already failed.
-  std::optional<std::pair<PageId, Slab*>> AllocEndWithSbrk(uint32_t n_pages);
+  // has already failed. If `has_metadata` is true, then the slab map will
+  // allocate the necessary nodes for map entries for the new slab.
+  std::optional<std::pair<PageId, Slab*>> AllocEndWithSbrk(uint32_t n_pages,
+                                                           bool has_metadata);
 
   // Inserts a single-page free slab into the slab freelist.
   void InsertSinglePageFreeSlab(FreeSinglePageSlab* slab_start);
@@ -158,21 +148,24 @@ PageId SlabManagerImpl<MetadataAlloc, SlabMap>::PageIdFromPtr(
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
 std::optional<std::pair<PageId, Slab*>>
-SlabManagerImpl<MetadataAlloc, SlabMap>::Alloc(uint32_t n_pages) {
+SlabManagerImpl<MetadataAlloc, SlabMap>::Alloc(uint32_t n_pages,
+                                               bool has_metadata) {
   return OptionalOrElse<std::pair<PageId, Slab*>>(
-      DoAllocWithoutSbrk(n_pages),
-      [this, n_pages]() { return AllocEndWithSbrk(n_pages); });
+      DoAllocWithoutSbrk(n_pages), [this, n_pages, has_metadata]() {
+        return AllocEndWithSbrk(n_pages, has_metadata);
+      });
 }
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
 template <typename S, typename... Args>
 std::optional<std::pair<PageId, S*>>
 SlabManagerImpl<MetadataAlloc, SlabMap>::Alloc(uint32_t n_pages, Args... args) {
-  static_assert(kIsAllocInitializable<S>,
+  static_assert(kHasMetadata<S>,
                 "You may only directly allocate non-metadata slabs.");
   using AllocResult = std::pair<PageId, Slab*>;
 
-  DEFINE_OR_RETURN_OPT(AllocResult, result, Alloc(n_pages));
+  DEFINE_OR_RETURN_OPT(AllocResult, result,
+                       Alloc(n_pages, /*has_metadata=*/true));
   auto [page_id, slab] = std::move(result);
   if (slab == nullptr) {
     slab = MetadataAlloc::SlabAlloc();
@@ -299,7 +292,8 @@ SlabManagerImpl<MetadataAlloc, SlabMap>::DoAllocWithoutSbrk(uint32_t n_pages) {
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
 std::optional<std::pair<PageId, Slab*>>
-SlabManagerImpl<MetadataAlloc, SlabMap>::AllocEndWithSbrk(uint32_t n_pages) {
+SlabManagerImpl<MetadataAlloc, SlabMap>::AllocEndWithSbrk(uint32_t n_pages,
+                                                          bool has_metadata) {
   // If we have allocated anything, check if the last slab is free. If so, we
   // can use it and only allocate the difference past the end of the heap.
   Slab* slab;
@@ -327,7 +321,8 @@ SlabManagerImpl<MetadataAlloc, SlabMap>::AllocEndWithSbrk(uint32_t n_pages) {
     return std::nullopt;
   }
 
-  if (!slab_map_->AllocatePath(new_memory_id, start_id + n_pages - 1)) {
+  if (has_metadata &&
+      !slab_map_->AllocatePath(new_memory_id, start_id + n_pages - 1)) {
     return std::nullopt;
   }
 

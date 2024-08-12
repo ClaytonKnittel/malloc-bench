@@ -1,11 +1,23 @@
 #pragma once
 
 #include <cstdint>
+#include <type_traits>
 
-#include "src/ckmalloc/block.h"
 #include "src/ckmalloc/page_id.h"
 
 namespace ckmalloc {
+
+template <typename>
+struct HasMetadataHelper : public std::false_type {};
+
+template <>
+struct HasMetadataHelper<SmallSlab> : public std::true_type {};
+
+template <>
+struct HasMetadataHelper<LargeSlab> : public std::true_type {};
+
+template <typename S>
+inline constexpr bool kHasMetadata = HasMetadataHelper<S>::value;
 
 // The slab types are the possible variant types of slabs.
 enum class SlabType {
