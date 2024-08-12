@@ -8,6 +8,7 @@
 #include "src/ckmalloc/linked_list.h"
 #include "src/ckmalloc/slab_manager.h"
 #include "src/ckmalloc/slab_map.h"
+#include "src/ckmalloc/util.h"
 
 namespace ckmalloc {
 
@@ -129,14 +130,41 @@ FreelistImpl<MetadataAlloc, SlabMap, SlabManager>::AllocLargeSlabAndMakeBlock(
   LargeSlab* slab = result->second;
 
   uint64_t block_size = Block::BlockSizeForUserSize(user_size);
+  CK_ASSERT_LE(block_size, slab->MaxBlockSize());
+
+  uint64_t remainder_size = AlignDown(
+      n_pages * kPageSize - block_size - Block::kFirstBlockInSlabOffset,
+      kDefaultAlignment);
+
+  if (remainder_size < Block::kMinBlockSize) {
+    block_size += remainder_size;
+    remainder_size = 0;
+  }
+  CK_ASSERT_LE(block_size,
+               AlignDown(n_pages * kPageSize - Block::kFirstBlockInSlabOffset,
+                         kDefaultAlignment));
+
   AllocatedBlock* block =
       slab_manager_->FirstBlockInLargeSlab(slab)->InitAllocated(block_size,
                                                                 false);
-  block->NextAdjacentBlock()->InitFree(
-      AlignDown(
-          n_pages * kPageSize - block_size - Block::kFirstBlockInSlabOffset,
-          kDefaultAlignment),
-      free_blocks_);
+
+  // Write a phony header for an allocated block of size 0 at the end of the
+  // slab, which will trick the last block in the slab from never trying to
+  // coalesce with its next adjacent neighbor.
+  Block* slab_end_header = block->NextAdjacentBlock();
+
+  if (remainder_size != 0) {
+    Block* next_adjacent = block->NextAdjacentBlock();
+    next_adjacent->InitFree(AlignDown(n_pages * kPageSize - block_size -
+                                          Block::kFirstBlockInSlabOffset,
+                                      kDefaultAlignment),
+                            free_blocks_);
+
+    slab_end_header = next_adjacent->NextAdjacentBlock();
+    slab_end_header->InitPhonyHeader(/*prev_free=*/true);
+  } else {
+    slab_end_header->InitPhonyHeader(/*prev_free=*/false);
+  }
 
   return block;
 }
