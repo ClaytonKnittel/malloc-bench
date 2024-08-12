@@ -13,11 +13,15 @@ constexpr size_t HeaderOffset() {
 #pragma clang diagnostic pop
 }
 
-constexpr bool UserDataOffsetValid() {
+constexpr size_t UserDataOffset() {
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
-  return offsetof(AllocatedBlock, data_) == AllocatedBlock::kMetadataOverhead;
+  return offsetof(AllocatedBlock, data_);
 #pragma clang diagnostic pop
+}
+
+constexpr bool UserDataOffsetValid() {
+  return UserDataOffset() == AllocatedBlock::kMetadataOverhead;
 }
 
 static_assert(HeaderOffset() == 0, "FreeBlock header offset must be 0");
@@ -96,11 +100,13 @@ const Block* Block::NextAdjacentBlock() const {
 }
 
 Block* Block::PrevAdjacentBlock() {
+  CK_ASSERT_TRUE(PrevFree());
   return reinterpret_cast<Block*>(reinterpret_cast<uint8_t*>(this) -
                                   PrevSize());
 }
 
 const Block* Block::PrevAdjacentBlock() const {
+  CK_ASSERT_TRUE(PrevFree());
   return reinterpret_cast<const Block*>(reinterpret_cast<const uint8_t*>(this) -
                                         PrevSize());
 }
@@ -140,6 +146,8 @@ AllocatedBlock* FreeBlock::MarkAllocated() {
 
   // Clear the free bit.
   header_ &= ~kFreeBitMask;
+  // Clear the prev-free bit of the next adjacent block.
+  NextAdjacentBlock()->SetPrevFree(false);
   return ToAllocated();
 }
 
@@ -168,11 +176,36 @@ void* AllocatedBlock::UserDataPtr() {
   return data_;
 }
 
-FreeBlock* AllocatedBlock::MarkFree(LinkedList<FreeBlock>& free_block_list) {
-  header_ |= kFreeBitMask;
-  WriteFooterAndPrevFree();
+/* static */
+AllocatedBlock* AllocatedBlock::FromUserDataPtr(void* ptr) {
+  return reinterpret_cast<AllocatedBlock*>(reinterpret_cast<uint8_t*>(ptr) -
+                                           UserDataOffset());
+}
 
-  FreeBlock* free_block = ToFree();
+FreeBlock* AllocatedBlock::MarkFree(LinkedList<FreeBlock>& free_block_list) {
+  uint64_t size = Size();
+  Block* block_start = this;
+  if (PrevFree()) {
+    FreeBlock* prev = PrevAdjacentBlock()->ToFree();
+    CK_ASSERT_EQ(prev->Size(), PrevSize());
+    size += PrevSize();
+
+    prev->LinkedListNode::Remove();
+    block_start = prev;
+  }
+  Block* next_block = NextAdjacentBlock();
+  if (next_block->Free()) {
+    FreeBlock* next = next_block->ToFree();
+    size += next->Size();
+
+    next->LinkedListNode::Remove();
+  }
+
+  block_start->SetSize(size);
+  block_start->header_ |= kFreeBitMask;
+  block_start->WriteFooterAndPrevFree();
+
+  FreeBlock* free_block = block_start->ToFree();
   free_block_list.InsertFront(free_block);
   return free_block;
 }

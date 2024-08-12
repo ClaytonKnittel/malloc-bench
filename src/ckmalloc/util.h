@@ -8,7 +8,11 @@
 
 #ifdef NDEBUG
 
-#define CK_ASSERT_MSG(cond, message) __builtin_assume(cond)
+#define CK_ASSERT_MSG(cond, message)              \
+  _Pragma("GCC diagnostic push");                 \
+  _Pragma("GCC diagnostic ignored \"-Wassume\""); \
+  __builtin_assume(cond);                         \
+  _Pragma("GCC diagnostic pop")
 
 #else
 
