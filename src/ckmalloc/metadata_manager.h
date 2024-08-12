@@ -61,10 +61,10 @@ template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
 void* MetadataManagerImpl<SlabMap, SlabManager>::Alloc(size_t size,
                                                        size_t alignment) {
   // Alignment must be a power of two.
-  CK_ASSERT((alignment & (alignment - 1)) == 0);
-  CK_ASSERT(alignment <= kPageSize);
+  CK_ASSERT_EQ((alignment & (alignment - 1)), 0);
+  CK_ASSERT_LE(alignment, kPageSize);
   // Size must already be aligned to `alignment`.
-  CK_ASSERT((size & (alignment - 1)) == 0);
+  CK_ASSERT_EQ((size & (alignment - 1)), 0);
 
   auto current_end = static_cast<uintptr_t>(alloc_offset_);
   uintptr_t aligned_end = AlignUp(current_end, alignment);
@@ -99,7 +99,7 @@ void* MetadataManagerImpl<SlabMap, SlabManager>::Alloc(size_t size,
   void* slab_start = slab_manager_->PageStartFromId(last_);
   void* alloc_start = static_cast<uint8_t*>(slab_start) + aligned_end;
   alloc_offset_ = aligned_end + size;
-  CK_ASSERT(alloc_offset_ <= kPageSize);
+  CK_ASSERT_LE(alloc_offset_, kPageSize);
   return alloc_start;
 }
 

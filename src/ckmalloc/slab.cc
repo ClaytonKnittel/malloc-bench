@@ -1,10 +1,29 @@
 #include "src/ckmalloc/slab.h"
 
+#include <ostream>
+
 #include "src/ckmalloc/block.h"
 #include "src/ckmalloc/page_id.h"
 #include "src/ckmalloc/util.h"
 
 namespace ckmalloc {
+
+std::ostream& operator<<(std::ostream& ostr, SlabType slab_type) {
+  switch (slab_type) {
+    case SlabType::kUnmapped: {
+      return ostr << "kUnmapped";
+    }
+    case SlabType::kFree: {
+      return ostr << "kFree";
+    }
+    case SlabType::kSmall: {
+      return ostr << "kSmall";
+    }
+    case SlabType::kLarge: {
+      return ostr << "kLarge";
+    }
+  }
+}
 
 template <>
 UnmappedSlab* Slab::Init(UnmappedSlab* next) {
@@ -54,92 +73,94 @@ LargeSlab* Slab::Init(PageId start_id, uint32_t n_pages) {
 }
 
 UnmappedSlab* Slab::ToUnmapped() {
-  CK_ASSERT(Type() == SlabType::kUnmapped);
+  CK_ASSERT_EQ(Type(), SlabType::kUnmapped);
   return static_cast<UnmappedSlab*>(this);
 }
 
 const UnmappedSlab* Slab::ToUnmapped() const {
-  CK_ASSERT(Type() == SlabType::kUnmapped);
+  CK_ASSERT_EQ(Type(), SlabType::kUnmapped);
   return static_cast<const UnmappedSlab*>(this);
 }
 
 MappedSlab* Slab::ToMapped() {
-  CK_ASSERT(Type() != SlabType::kUnmapped);
+  CK_ASSERT_NE(Type(), SlabType::kUnmapped);
   return static_cast<MappedSlab*>(this);
 }
 
 const MappedSlab* Slab::ToMapped() const {
-  CK_ASSERT(Type() != SlabType::kUnmapped);
+  CK_ASSERT_NE(Type(), SlabType::kUnmapped);
   return static_cast<const MappedSlab*>(this);
 }
 
 FreeSlab* Slab::ToFree() {
-  CK_ASSERT(Type() == SlabType::kFree);
+  CK_ASSERT_EQ(Type(), SlabType::kFree);
   return static_cast<FreeSlab*>(this);
 }
 
 const FreeSlab* Slab::ToFree() const {
-  CK_ASSERT(Type() == SlabType::kFree);
+  CK_ASSERT_EQ(Type(), SlabType::kFree);
   return static_cast<const FreeSlab*>(this);
 }
 
 AllocatedSlab* Slab::ToAllocated() {
-  CK_ASSERT(Type() == SlabType::kSmall || Type() == SlabType::kLarge);
+  CK_ASSERT_NE(Type(), SlabType::kUnmapped);
+  CK_ASSERT_NE(Type(), SlabType::kFree);
   return static_cast<AllocatedSlab*>(this);
 }
 
 const AllocatedSlab* Slab::ToAllocated() const {
-  CK_ASSERT(Type() == SlabType::kSmall || Type() == SlabType::kLarge);
+  CK_ASSERT_NE(Type(), SlabType::kUnmapped);
+  CK_ASSERT_NE(Type(), SlabType::kFree);
   return static_cast<const AllocatedSlab*>(this);
 }
 
 SmallSlab* Slab::ToSmall() {
-  CK_ASSERT(Type() == SlabType::kSmall);
+  CK_ASSERT_EQ(Type(), SlabType::kSmall);
   return static_cast<SmallSlab*>(this);
 }
 
 const SmallSlab* Slab::ToSmall() const {
-  CK_ASSERT(Type() == SlabType::kSmall);
+  CK_ASSERT_EQ(Type(), SlabType::kSmall);
   return static_cast<const SmallSlab*>(this);
 }
 
 LargeSlab* Slab::ToLarge() {
-  CK_ASSERT(Type() == SlabType::kLarge);
+  CK_ASSERT_EQ(Type(), SlabType::kLarge);
   return static_cast<LargeSlab*>(this);
 }
 
 const LargeSlab* Slab::ToLarge() const {
-  CK_ASSERT(Type() == SlabType::kLarge);
+  CK_ASSERT_EQ(Type(), SlabType::kLarge);
   return static_cast<const LargeSlab*>(this);
 }
 
 UnmappedSlab* UnmappedSlab::NextUnmappedSlab() {
-  CK_ASSERT(type_ == SlabType::kUnmapped);
+  CK_ASSERT_EQ(type_, SlabType::kUnmapped);
   return unmapped.next_;
 }
 
 const UnmappedSlab* UnmappedSlab::NextUnmappedSlab() const {
-  CK_ASSERT(type_ == SlabType::kUnmapped);
+  CK_ASSERT_EQ(type_, SlabType::kUnmapped);
   return unmapped.next_;
 }
 
 void UnmappedSlab::SetNextUnmappedSlab(UnmappedSlab* next) {
-  CK_ASSERT(type_ == SlabType::kUnmapped);
+  CK_ASSERT_EQ(type_, SlabType::kUnmapped);
   unmapped.next_ = next;
 }
 
 PageId MappedSlab::StartId() const {
-  CK_ASSERT(type_ != SlabType::kUnmapped);
+  CK_ASSERT_NE(type_, SlabType::kUnmapped);
   return mapped.id_;
 }
 
 PageId MappedSlab::EndId() const {
-  CK_ASSERT(type_ != SlabType::kUnmapped);
+  CK_ASSERT_NE(type_, SlabType::kUnmapped);
   return mapped.id_ + Pages() - 1;
 }
 
 uint32_t MappedSlab::Pages() const {
-  CK_ASSERT(type_ != SlabType::kUnmapped);
+  CK_ASSERT_NE(type_, SlabType::kUnmapped);
   return mapped.n_pages_;
 }
 

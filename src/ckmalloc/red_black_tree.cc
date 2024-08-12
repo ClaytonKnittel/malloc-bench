@@ -19,7 +19,7 @@ bool IsBlackPtr(const RbNode* node) {
 }  // namespace
 
 void RbNode::RotateLeft(RbNode* right) {
-  CK_ASSERT(right == right_);
+  CK_ASSERT_EQ(right, right_);
   this->SetRight(right->Left());
   right->SetParentOf(this);
   this->parent_ = right;
@@ -27,7 +27,7 @@ void RbNode::RotateLeft(RbNode* right) {
 }
 
 void RbNode::RotateRight(RbNode* left) {
-  CK_ASSERT(left == left_);
+  CK_ASSERT_EQ(left, left_);
   this->SetLeft(left->Right());
   left->SetParentOf(this);
   this->parent_ = left;
@@ -35,9 +35,9 @@ void RbNode::RotateRight(RbNode* left) {
 }
 
 void RbNode::RotateLeftRight(RbNode* parent, RbNode* right) {
-  CK_ASSERT(parent == parent_);
-  CK_ASSERT(parent->left_ == this);
-  CK_ASSERT(right == right_);
+  CK_ASSERT_EQ(parent, parent_);
+  CK_ASSERT_EQ(parent->left_, this);
+  CK_ASSERT_EQ(right, right_);
   this->SetRight(right->Left());
   parent->SetLeft(right->Right());
   right->SetParentOf(parent);
@@ -46,9 +46,9 @@ void RbNode::RotateLeftRight(RbNode* parent, RbNode* right) {
 }
 
 void RbNode::RotateRightLeft(RbNode* parent, RbNode* left) {
-  CK_ASSERT(parent == parent_);
-  CK_ASSERT(parent->right_ == this);
-  CK_ASSERT(left == left_);
+  CK_ASSERT_EQ(parent, parent_);
+  CK_ASSERT_EQ(parent->right_, this);
+  CK_ASSERT_EQ(left, left_);
   this->SetLeft(left->Right());
   parent->SetRight(left->Left());
   left->SetParentOf(parent);
@@ -57,7 +57,7 @@ void RbNode::RotateRightLeft(RbNode* parent, RbNode* left) {
 }
 
 void RbNode::InsertLeft(RbNode* node, const RbNode* root) {
-  CK_ASSERT(node->left_ == nullptr);
+  CK_ASSERT_EQ(node->left_, nullptr);
   node->left_ = this;
   this->parent_ = node;
   this->MakeRed();
@@ -65,7 +65,7 @@ void RbNode::InsertLeft(RbNode* node, const RbNode* root) {
 }
 
 void RbNode::InsertRight(RbNode* node, const RbNode* root) {
-  CK_ASSERT(node->right_ == nullptr);
+  CK_ASSERT_EQ(node->right_, nullptr);
   node->right_ = this;
   this->parent_ = node;
   this->MakeRed();
@@ -193,13 +193,13 @@ void RbNode::DeleteFix(RbNode* n, RbNode* p, const RbNode* root) {
   while (true) {
 #define FIX_CHILD(dir, opp)                           \
   RbNode* s = p->opp();                               \
-  CK_ASSERT(s != nullptr);                            \
+  CK_ASSERT_NE(s, nullptr);                           \
   if (s->IsRed()) {                                   \
     p->MakeRed();                                     \
     s->MakeBlack();                                   \
     p->Rotate##dir(s);                                \
     s = p->opp();                                     \
-    CK_ASSERT(s != nullptr);                          \
+    CK_ASSERT_NE(s, nullptr);                         \
   }                                                   \
   if (IsBlackPtr(s->dir()) && IsBlackPtr(s->opp())) { \
     s->MakeRed();                                     \

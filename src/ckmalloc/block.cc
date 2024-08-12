@@ -36,8 +36,8 @@ uint64_t Block::BlockSizeForUserSize(size_t user_size) {
 FreeBlock* Block::InitFree(uint64_t size,
                            LinkedList<FreeBlock>& free_block_list,
                            bool is_end_of_slab) {
-  CK_ASSERT(size >= kMinBlockSize);
-  CK_ASSERT(IsAligned(size, kDefaultAlignment));
+  CK_ASSERT_GE(size, kMinBlockSize);
+  CK_ASSERT_TRUE(IsAligned(size, kDefaultAlignment));
   // Prev free is never true for free blocks, so we will not set that.
   header_ = size | kFreeBitMask;
   if (!is_end_of_slab) {
@@ -50,8 +50,8 @@ FreeBlock* Block::InitFree(uint64_t size,
 }
 
 AllocatedBlock* Block::InitAllocated(uint64_t size, bool prev_free) {
-  CK_ASSERT(size >= kMinBlockSize);
-  CK_ASSERT(IsAligned(size, kDefaultAlignment));
+  CK_ASSERT_GE(size, kMinBlockSize);
+  CK_ASSERT_TRUE(IsAligned(size, kDefaultAlignment));
   header_ = size | (prev_free ? kPrevFreeBitMask : 0);
   return ToAllocated();
 }
@@ -61,9 +61,9 @@ uint64_t Block::Size() const {
 }
 
 void Block::SetSize(uint64_t size) {
-  CK_ASSERT(size >= kMinBlockSize);
-  CK_ASSERT(IsAligned(size, kDefaultAlignment));
-  CK_ASSERT(size == (size & kSizeMask));
+  CK_ASSERT_GE(size, kMinBlockSize);
+  CK_ASSERT_TRUE(IsAligned(size, kDefaultAlignment));
+  CK_ASSERT_EQ(size, (size & kSizeMask));
   header_ = size | (header_ & ~kSizeMask);
 }
 
@@ -76,12 +76,12 @@ bool Block::Free() const {
 }
 
 FreeBlock* Block::ToFree() {
-  CK_ASSERT(Free());
+  CK_ASSERT_TRUE(Free());
   return static_cast<FreeBlock*>(this);
 }
 
 AllocatedBlock* Block::ToAllocated() {
-  CK_ASSERT(!Free());
+  CK_ASSERT_FALSE(Free());
   return static_cast<AllocatedBlock*>(this);
 }
 
@@ -117,7 +117,7 @@ void Block::SetPrevFree(bool free) {
 }
 
 uint64_t Block::PrevSize() const {
-  CK_ASSERT(PrevFree());
+  CK_ASSERT_TRUE(PrevFree());
   return *(&header_ - 1);
 }
 
@@ -145,7 +145,7 @@ AllocatedBlock* FreeBlock::MarkAllocated() {
 std::pair<AllocatedBlock*, FreeBlock*> FreeBlock::Split(
     uint64_t block_size, LinkedList<FreeBlock>& free_block_list) {
   uint64_t size = Size();
-  CK_ASSERT(block_size <= size);
+  CK_ASSERT_LE(block_size, size);
 
   uint64_t remainder = size - block_size;
   if (remainder < kMinBlockSize) {
