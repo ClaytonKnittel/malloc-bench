@@ -21,7 +21,7 @@ static_assert(bench::SingletonHeap::kHeapSize == (size_t(1) << kHeapSizeShift));
 
 // The largest user-request size which will be allocated in small slabs. Any
 // size larger will go in large blocks.
-static constexpr size_t kMaxSmallSize = 128;
+static constexpr size_t kMaxSmallSize = 0;
 
 // Forward declarations for concepts (to prevent circular dependencies):
 enum class SlabType;
@@ -58,11 +58,11 @@ concept SlabManagerInterface = requires(
   {
     slab_mgr.template Alloc<class SmallSlab>(n_pages)
   } -> std::convertible_to<
-        std::optional<std::pair<class PageId, class SmallSlab*>>>;
+      std::optional<std::pair<class PageId, class SmallSlab*>>>;
   {
     slab_mgr.template Alloc<class LargeSlab>(n_pages)
   } -> std::convertible_to<
-        std::optional<std::pair<class PageId, class LargeSlab*>>>;
+      std::optional<std::pair<class PageId, class LargeSlab*>>>;
   { slab_mgr.Free(slab) } -> std::same_as<void>;
   {
     slab_mgr.FirstBlockInLargeSlab(large_slab)
