@@ -141,7 +141,7 @@ class LinkedList {
 
   T* PopFront() {
     LinkedListNode* first = sentinel_.next_;
-    CK_ASSERT(first != &sentinel_);
+    CK_ASSERT_NE(first, &sentinel_);
     first->Remove();
     return static_cast<T*>(first);
   }
@@ -153,7 +153,7 @@ class LinkedList {
 
   T* PopBack() {
     LinkedListNode* last = sentinel_.prev_;
-    CK_ASSERT(last != &sentinel_);
+    CK_ASSERT_NE(last, &sentinel_);
     last->Remove();
     return static_cast<T*>(last);
   }

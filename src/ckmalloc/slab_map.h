@@ -48,7 +48,7 @@ class SlabMapImpl {
   class Leaf {
    public:
     MappedSlab* operator[](size_t idx) const {
-      CK_ASSERT(idx < kLeafSize);
+      CK_ASSERT_LT(idx, kLeafSize);
       return slabs_[idx];
     }
 
@@ -78,7 +78,7 @@ class SlabMapImpl {
   }
 
   Leaf* operator[](size_t idx) const {
-    CK_ASSERT(idx < kRootSize);
+    CK_ASSERT_LT(idx, kRootSize);
     return leaves_[idx];
   }
 

@@ -133,14 +133,16 @@ void* SlabManagerImpl<MetadataAlloc, SlabMap>::PageStartFromId(
     PageId page_id) const {
   void* slab_start = static_cast<uint8_t*>(heap_start_) +
                      (static_cast<ptrdiff_t>(page_id.Idx()) * kPageSize);
-  CK_ASSERT(slab_start >= heap_start_ && slab_start < heap_->End());
+  CK_ASSERT_GE(slab_start, heap_start_);
+  CK_ASSERT_LT(slab_start, heap_->End());
   return slab_start;
 }
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
 PageId SlabManagerImpl<MetadataAlloc, SlabMap>::PageIdFromPtr(
     const void* ptr) const {
-  CK_ASSERT(ptr >= heap_start_ && ptr < heap_->End());
+  CK_ASSERT_GE(ptr, heap_start_);
+  CK_ASSERT_LT(ptr, heap_->End());
   ptrdiff_t diff =
       static_cast<const uint8_t*>(ptr) - static_cast<uint8_t*>(heap_start_);
   return PageId(static_cast<uint32_t>(diff / kPageSize));
@@ -183,8 +185,8 @@ SlabManagerImpl<MetadataAlloc, SlabMap>::Alloc(uint32_t n_pages, Args... args) {
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
 void SlabManagerImpl<MetadataAlloc, SlabMap>::Free(AllocatedSlab* slab) {
-  CK_ASSERT(slab->Type() != SlabType::kFree &&
-            slab->Type() != SlabType::kUnmapped);
+  CK_ASSERT_NE(slab->Type(), SlabType::kFree);
+  CK_ASSERT_NE(slab->Type(), SlabType::kUnmapped);
   uint32_t n_pages = slab->Pages();
   if (n_pages == 0) {
     return;
@@ -237,7 +239,7 @@ PageId SlabManagerImpl<MetadataAlloc, SlabMap>::HeapEndPageId() {
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
 MappedSlab* SlabManagerImpl<MetadataAlloc, SlabMap>::LastSlab() {
-  CK_ASSERT(HeapSize() != 0);
+  CK_ASSERT_NE(HeapSize(), 0);
   return slab_map_->FindSlab(HeapEndPageId() - 1);
 }
 
@@ -274,9 +276,9 @@ SlabManagerImpl<MetadataAlloc, SlabMap>::DoAllocWithoutSbrk(uint32_t n_pages) {
 
   PageId page_id = PageIdFromPtr(slab_start);
   MappedSlab* slab = slab_map_->FindSlab(page_id);
-  CK_ASSERT(slab != nullptr);
+  CK_ASSERT_NE(slab, nullptr);
   uint32_t actual_pages = slab_start->Pages();
-  CK_ASSERT(actual_pages >= n_pages);
+  CK_ASSERT_GE(actual_pages, n_pages);
   if (actual_pages != n_pages) {
     // This region was already free, so we know the next adjacent slab cannot be
     // free, and we are about to allocate the region before it, so we never need
@@ -345,7 +347,7 @@ void SlabManagerImpl<MetadataAlloc, SlabMap>::InsertMultiPageFreeSlab(
   if (smallest_multi_page_ == nullptr || *slab < *smallest_multi_page_) {
     smallest_multi_page_ = slab;
   }
-  CK_ASSERT(multi_page_free_slabs_.Prev(smallest_multi_page_) == nullptr);
+  CK_ASSERT_EQ(multi_page_free_slabs_.Prev(smallest_multi_page_), nullptr);
 }
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
@@ -385,8 +387,8 @@ void SlabManagerImpl<MetadataAlloc, SlabMap>::RemoveMultiPageFreeSlab(
         multi_page_free_slabs_.Next(slab_start));
   }
   multi_page_free_slabs_.Remove(slab_start);
-  CK_ASSERT(smallest_multi_page_ == nullptr ||
-            multi_page_free_slabs_.Prev(smallest_multi_page_) == nullptr);
+  CK_ASSERT_EQ(smallest_multi_page_, nullptr);
+  CK_ASSERT_EQ(multi_page_free_slabs_.Prev(smallest_multi_page_), nullptr);
 }
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>

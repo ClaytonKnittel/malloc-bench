@@ -41,7 +41,7 @@ std::optional<std::pair<PageId, Slab*>> TestSlabManager::Alloc(
 
 void TestSlabManager::Free(AllocatedSlab* slab) {
   auto it = test_fixture_->allocated_slabs_.find(slab);
-  CK_ASSERT(it != test_fixture_->allocated_slabs_.end());
+  CK_ASSERT_FALSE(it == test_fixture_->allocated_slabs_.end());
 
   test_fixture_->allocated_slabs_.erase(it);
   slab_manager_.Free(slab);
@@ -55,7 +55,7 @@ void TestSlabManager::HandleAlloc(AllocatedSlab* slab) {
   // Make a copy of this slab's metadata to ensure it does not get dirtied.
   AllocatedSlab copy = *slab;
   auto [it, inserted] = test_fixture_->allocated_slabs_.insert({ slab, copy });
-  CK_ASSERT(inserted);
+  CK_ASSERT_TRUE(inserted);
 }
 
 /* static */
@@ -332,7 +332,7 @@ absl::StatusOr<AllocatedSlab*> SlabManagerFixture::AllocateSlab(
 
   // Make a copy of this slab's metadata to ensure it does not get dirtied.
   auto [it, inserted] = slab_magics_.insert({ slab, magic });
-  CK_ASSERT(inserted);
+  CK_ASSERT_TRUE(inserted);
 
   return slab;
 }
@@ -352,7 +352,7 @@ absl::Status SlabManagerFixture::FreeSlab(AllocatedSlab* slab) {
 }
 
 void SlabManagerFixture::FillMagic(AllocatedSlab* slab, uint64_t magic) {
-  CK_ASSERT(slab->Type() == SlabType::kLarge);
+  CK_ASSERT_EQ(slab->Type(), SlabType::kLarge);
   auto* start = reinterpret_cast<uint64_t*>(
       SlabManager().PageStartFromId(slab->StartId()));
   auto* end = reinterpret_cast<uint64_t*>(
@@ -366,7 +366,7 @@ void SlabManagerFixture::FillMagic(AllocatedSlab* slab, uint64_t magic) {
 
 absl::Status SlabManagerFixture::CheckMagic(AllocatedSlab* slab,
                                             uint64_t magic) {
-  CK_ASSERT(slab->Type() == SlabType::kLarge);
+  CK_ASSERT_EQ(slab->Type(), SlabType::kLarge);
   auto* start = reinterpret_cast<uint64_t*>(
       SlabManager().PageStartFromId(slab->StartId()));
   auto* end = reinterpret_cast<uint64_t*>(

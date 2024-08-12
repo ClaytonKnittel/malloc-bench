@@ -27,7 +27,7 @@ void* TestMetadataManager::Alloc(size_t size, size_t alignment) {
 
   auto [it, inserted] =
       test_fixture_->allocated_blocks_.insert({ block, size });
-  CK_ASSERT(inserted);
+  CK_ASSERT_TRUE(inserted);
 
   return block;
 }
@@ -37,7 +37,7 @@ Slab* TestMetadataManager::NewSlabMeta() {
 
   auto [it, inserted] =
       test_fixture_->allocated_blocks_.insert({ slab, sizeof(Slab) });
-  CK_ASSERT(inserted);
+  CK_ASSERT_TRUE(inserted);
 
   // Erase this slab metadata from the freed set if it was there.
   test_fixture_->freed_slab_metadata_.erase(slab);
@@ -47,14 +47,14 @@ Slab* TestMetadataManager::NewSlabMeta() {
 
 void TestMetadataManager::FreeSlabMeta(MappedSlab* slab) {
   auto it = test_fixture_->allocated_blocks_.find(slab);
-  CK_ASSERT(it != test_fixture_->allocated_blocks_.end());
+  CK_ASSERT_FALSE(it == test_fixture_->allocated_blocks_.end());
   test_fixture_->allocated_blocks_.erase(it);
 
   metadata_manager_.FreeSlabMeta(slab);
 
   auto [_, inserted] = test_fixture_->freed_slab_metadata_.insert(
       static_cast<Slab*>(slab)->ToUnmapped());
-  CK_ASSERT(inserted);
+  CK_ASSERT_TRUE(inserted);
 }
 
 absl::StatusOr<size_t> MetadataManagerFixture::SlabMetaFreelistLength() const {
@@ -94,7 +94,7 @@ absl::StatusOr<Slab*> MetadataManagerFixture::NewSlabMeta() {
 
 absl::Status MetadataManagerFixture::FreeSlabMeta(Slab* slab) {
   auto alloc_it = allocated_blocks_.find(slab);
-  CK_ASSERT(alloc_it != allocated_blocks_.end());
+  CK_ASSERT_FALSE(alloc_it == allocated_blocks_.end());
   if (alloc_it->second != sizeof(Slab)) {
     return absl::FailedPreconditionError(
         absl::StrFormat("Slab block in allocated blocks map not the correct "
@@ -103,7 +103,7 @@ absl::Status MetadataManagerFixture::FreeSlabMeta(Slab* slab) {
   }
 
   auto magic_it = block_magics_.find(slab);
-  CK_ASSERT(magic_it != block_magics_.end());
+  CK_ASSERT_FALSE(magic_it == block_magics_.end());
   RETURN_IF_ERROR(CheckMagic(slab, sizeof(Slab), magic_it->second));
   block_magics_.erase(magic_it);
 
@@ -143,7 +143,7 @@ absl::Status MetadataManagerFixture::CheckMagic(void* block, size_t size,
 absl::Status MetadataManagerFixture::ValidateHeap() {
   for (const auto& [block, magic] : block_magics_) {
     auto it = allocated_blocks_.find(block);
-    CK_ASSERT(it != allocated_blocks_.end());
+    CK_ASSERT_FALSE(it == allocated_blocks_.end());
     RETURN_IF_ERROR(CheckMagic(block, it->second, magic));
   }
 
