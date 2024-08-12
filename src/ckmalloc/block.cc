@@ -142,6 +142,27 @@ AllocatedBlock* FreeBlock::MarkAllocated() {
   return ToAllocated();
 }
 
+std::pair<AllocatedBlock*, FreeBlock*> FreeBlock::Split(
+    uint64_t block_size, LinkedList<FreeBlock>& free_block_list) {
+  uint64_t size = Size();
+  CK_ASSERT(block_size <= size);
+
+  uint64_t remainder = size - block_size;
+  if (remainder < kMinBlockSize) {
+    AllocatedBlock* block = MarkAllocated();
+    return std::make_pair(block, nullptr);
+  }
+
+  SetSize(block_size);
+  AllocatedBlock* block = MarkAllocated();
+
+  Block* remainder_block = block->NextAdjacentBlock();
+  FreeBlock* remainder_free_block =
+      remainder_block->InitFree(remainder, free_block_list);
+
+  return std::make_pair(block, remainder_free_block);
+}
+
 void* AllocatedBlock::UserDataPtr() {
   return data_;
 }
