@@ -13,6 +13,7 @@ namespace ckmalloc {
 // from large slabs.
 class Block {
   friend class AllocatedBlock;
+  friend class FreeBlock;
 
   friend constexpr size_t HeaderOffset();
 
@@ -68,7 +69,7 @@ class Block {
   Block* PrevAdjacentBlock();
   const Block* PrevAdjacentBlock() const;
 
- protected:
+ private:
   bool PrevFree() const;
 
   void SetPrevFree(bool free);
@@ -120,7 +121,7 @@ class FreeBlock : public Block, public LinkedListNode {
 };
 
 class AllocatedBlock : public Block {
-  friend constexpr bool UserDataOffsetValid();
+  friend constexpr size_t UserDataOffset();
 
  public:
   // You can't initialize already-initialized blocks.
@@ -135,6 +136,10 @@ class AllocatedBlock : public Block {
   // Returns a pointer to the beginning of the user-allocatable region of memory
   // in this block.
   void* UserDataPtr();
+
+  // Given a user data pointer, returns the allocated block containing this
+  // pointer.
+  static AllocatedBlock* FromUserDataPtr(void* ptr);
 
   // Marks this block as free, inserting it into the given free block list and
   // writing the footer to the end of the block and setting the "prev free" bit
