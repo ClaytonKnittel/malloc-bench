@@ -13,8 +13,6 @@
 namespace ckmalloc {
 
 using testing::ElementsAre;
-using testing::Pointee;
-using testing::Property;
 using util::IsOk;
 
 class MainAllocatorTest : public ::testing::Test {
@@ -46,6 +44,12 @@ class MainAllocatorTest : public ::testing::Test {
     return main_allocator_fixture_->MainAllocator().Freelist().free_blocks_;
   }
 
+  size_t FreelistSize() {
+    return absl::c_count_if(
+        main_allocator_fixture_->MainAllocator().Freelist().free_blocks_,
+        [](const auto&) { return true; });
+  }
+
   absl::Status ValidateHeap() {
     RETURN_IF_ERROR(slab_manager_fixture_->ValidateHeap());
     RETURN_IF_ERROR(main_allocator_fixture_->ValidateHeap());
@@ -57,18 +61,18 @@ class MainAllocatorTest : public ::testing::Test {
   std::shared_ptr<MainAllocatorFixture> main_allocator_fixture_;
 };
 
-TEST_F(MainAllocatorTest, TestEmpty) {
+TEST_F(MainAllocatorTest, Empty) {
   EXPECT_EQ(Heap().Size(), 0);
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
-TEST_F(MainAllocatorTest, TestAllocLarge) {
+TEST_F(MainAllocatorTest, AllocLarge) {
   MainAllocator().Alloc(500);
   EXPECT_NE(Heap().Size(), 0);
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
-TEST_F(MainAllocatorTest, TestAllocManyLarge) {
+TEST_F(MainAllocatorTest, AllocManyLarge) {
   for (uint64_t size = 400; size < 800; size += 20) {
     MainAllocator().Alloc(size);
   }
@@ -77,7 +81,7 @@ TEST_F(MainAllocatorTest, TestAllocManyLarge) {
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
-TEST_F(MainAllocatorTest, TestFreeLarge) {
+TEST_F(MainAllocatorTest, FreeLarge) {
   void* ptr = MainAllocator().Alloc(500);
   MainAllocator().Free(ptr);
 
@@ -88,6 +92,43 @@ TEST_F(MainAllocatorTest, TestFreeLarge) {
               << std::endl;
   }
   EXPECT_THAT(FreelistList(), ElementsAre());
+}
+
+TEST_F(MainAllocatorTest, FreeTwoLarge) {
+  void* ptr1 = MainAllocator().Alloc(500);
+  MainAllocator().Alloc(1000);
+  MainAllocator().Free(ptr1);
+
+  EXPECT_THAT(ValidateHeap(), IsOk());
+  EXPECT_EQ(FreelistSize(), 2);
+}
+
+TEST_F(MainAllocatorTest, ReallocOnce) {
+  void* ptr1 = MainAllocator().Alloc(500);
+  void* ptr2 = MainAllocator().Realloc(ptr1, 1000);
+
+  EXPECT_EQ(ptr1, ptr2);
+  EXPECT_THAT(ValidateHeap(), IsOk());
+  EXPECT_EQ(FreelistSize(), 1);
+}
+
+TEST_F(MainAllocatorTest, ReallocSmaller) {
+  void* ptr1 = MainAllocator().Alloc(500);
+  void* ptr2 = MainAllocator().Realloc(ptr1, 100);
+
+  EXPECT_EQ(ptr1, ptr2);
+  EXPECT_THAT(ValidateHeap(), IsOk());
+  EXPECT_EQ(FreelistSize(), 1);
+}
+
+TEST_F(MainAllocatorTest, ReallocMove) {
+  void* ptr1 = MainAllocator().Alloc(500);
+  MainAllocator().Alloc(100);
+  void* ptr2 = MainAllocator().Realloc(ptr1, 550);
+
+  EXPECT_NE(ptr1, ptr2);
+  EXPECT_THAT(ValidateHeap(), IsOk());
+  EXPECT_EQ(FreelistSize(), 2);
 }
 
 }  // namespace ckmalloc
