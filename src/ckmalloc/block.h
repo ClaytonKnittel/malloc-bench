@@ -18,6 +18,9 @@ class Block {
   friend class Freelist;
   friend class FreelistTest;
 
+  template <typename Sink>
+  friend void AbslStringify(Sink& sink, const Block& block);
+
   friend constexpr size_t HeaderOffset();
 
  public:
@@ -76,10 +79,13 @@ class Block {
   bool IsUntrackedSize() const;
 
   class FreeBlock* ToFree();
+  const class FreeBlock* ToFree() const;
 
   class AllocatedBlock* ToAllocated();
+  const class AllocatedBlock* ToAllocated() const;
 
   class UntrackedBlock* ToUntracked();
+  const class UntrackedBlock* ToUntracked() const;
 
   Block* NextAdjacentBlock();
   const Block* NextAdjacentBlock() const;

@@ -5,6 +5,7 @@
 
 #include "absl/strings/str_format.h"
 
+#include "src/ckmalloc/block.h"
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/page_id.h"
 #include "src/ckmalloc/slab.h"
@@ -70,6 +71,23 @@ void AbslStringify(Sink& sink, const Slab* slab) {
     sink.Append("[nullptr]");
   } else {
     absl::Format(&sink, "%v", *slab);
+  }
+}
+
+template <typename Sink>
+void AbslStringify(Sink& sink, const Block& block) {
+  if (block.Free()) {
+    if (block.IsUntrackedSize()) {
+      absl::Format(&sink, "Block %p: [untracked, size=%" PRIu64 "]", &block,
+                   block.Size());
+    } else {
+      absl::Format(
+          &sink, "Block %p: [free, size=%" PRIu64 ", prev=%p, next=%p]", &block,
+          block.Size(), block.ToFree()->Prev(), block.ToFree()->Next());
+    }
+  } else {
+    absl::Format(&sink, "Block %p: [allocated, size=%" PRIu64 ", prev_free=%s]",
+                 &block, block.Size(), (block.PrevFree() ? "true" : "false"));
   }
 }
 
