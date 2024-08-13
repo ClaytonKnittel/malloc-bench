@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <exception>
 
 #include "src/jsmalloc/blocks/block.h"
 #include "src/jsmalloc/blocks/free_block_allocator.h"
@@ -19,47 +20,14 @@ constexpr uint32_t CaseMask(uint32_t n, uint32_t start, uint32_t end) {
          static_cast<uint32_t>((start <= n) && (n < end));
 }
 
-/**
- * The max allocable data size for each size class.
- */
-constexpr uint32_t kMaxDataSizePerSizeClass[] = {
-  12, 28, 44, 60, 76, 92, 108, 124, 156, 188, 220, 252
-};
-
-/**
- * Returns the size class that `data_size` belongs to.
- * The buckets correspond to kMaxDataSizePerSizeClass.
- *
- * Start is inclusive, end is inclusive.
- * ——————————————————————
- * |  class | start-end |
- * |      0 |      0-12 |
- * |      1 |     13-28 |
- * |      2 |     29-44 |
- * |      3 |     45-60 |
- * |      4 |     61-76 |
- * |      5 |     77-92 |
- * |      6 |    93-108 |
- * |      7 |   109-124 |
- * |      8 |   125-156 |
- * |      9 |   157-189 |
- * |     10 |   190-220 |
- * |     11 |   221-252 |
- * ——————————————————————
- */
+/** Returns the size class that `data_size` belongs to. */
 static constexpr uint32_t SizeClass(uint32_t data_size) {
-  data_size += 3;
-
-  uint32_t cls = 0;
-  cls |= (data_size / 16) & CaseMask(data_size, 0, 128);
-  cls |= (8 + (data_size - 128) / 32) & CaseMask(data_size, 128, 256);
-
-  // To support n >= 252, uncomment the following lines:
-  //
-  //   cls |= (12 + (n - 256) / 64) & CaseMask(n, 256, 512);
-  //   cls |= (16 + (n - 512) / 128) & CaseMask(n, 512, 1024);
-
-  return cls;
+  for (uint32_t cls = 0; cls < SmallBlockAllocator::kSizeClasses; cls++) {
+    if (data_size <= SmallBlockAllocator::kMaxDataSizePerSizeClass[cls]) {
+      return cls;
+    }
+  }
+  std::terminate();
 }
 
 static_assert(SizeClass(SmallBlockAllocator::kMaxDataSize) + 1 ==
@@ -72,7 +40,8 @@ static_assert(SizeClass(SmallBlockAllocator::kMaxDataSize) + 1 ==
  * SmallBlock about 2KB.
  */
 constexpr uint32_t BinCountForSizeClass(uint32_t size_class) {
-  uint32_t data_size = kMaxDataSizePerSizeClass[size_class];
+  uint32_t data_size =
+      SmallBlockAllocator::kMaxDataSizePerSizeClass[size_class];
   uint32_t desired_block_size = 2048;
   uint32_t bin_count =
       (desired_block_size - sizeof(SmallBlock)) / (data_size + 4);
@@ -83,7 +52,7 @@ constexpr uint32_t BinCountForSizeClass(uint32_t size_class) {
  * Returns the data size allocable by a SmallBlock with the given size class.
  */
 constexpr uint32_t DataSizeForSizeClass(uint32_t size_class) {
-  return kMaxDataSizePerSizeClass[size_class];
+  return SmallBlockAllocator::kMaxDataSizePerSizeClass[size_class];
 }
 
 static_assert(DataSizeForSizeClass(SizeClass(20)) == 28);

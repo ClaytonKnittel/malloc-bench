@@ -21,11 +21,19 @@ class SmallBlockAllocator {
   /** Frees a chunk of user data from its SmallBlock. */
   void Free(void* ptr);
 
-  /** The maximum data size serviced by `SmallBlockAllocator`. */
-  static constexpr int kMaxDataSize = 252;
+  /** The max allocable data size for each size class. */
+  static constexpr uint32_t kMaxDataSizePerSizeClass[] = {
+    12,  28,  44,  60,  76,  92,  108, 124, 140,
+    156, 172, 188, 204, 220, 236, 252, 268
+  };
 
   /** The number of size classes that `SmallBlockAllocator` services from. */
-  static constexpr int kSizeClasses = 12;
+  static constexpr int kSizeClasses =
+      sizeof(kMaxDataSizePerSizeClass) / sizeof(kMaxDataSizePerSizeClass[0]);
+
+  /** The maximum data size serviced by `SmallBlockAllocator`. */
+  static constexpr int kMaxDataSize =
+      kMaxDataSizePerSizeClass[kSizeClasses - 1];
 
  private:
   SmallBlock::List& SmallBlockList(size_t data_size);
