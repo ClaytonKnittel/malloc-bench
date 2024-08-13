@@ -13,6 +13,9 @@ class LinkedListNode {
   template <typename T>
   friend class LinkedListIterator;
 
+  template <typename Sink>
+  friend void AbslStringify(Sink& sink, const class Block& block);
+
  public:
   LinkedListNode() = default;
 
