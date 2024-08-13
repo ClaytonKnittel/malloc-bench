@@ -120,12 +120,6 @@ MainAllocatorImpl<MetadataAlloc, SlabMap,
   uint64_t remainder_size = slab->MaxBlockSize() - block_size;
   CK_ASSERT_TRUE(IsAligned(remainder_size, kDefaultAlignment));
 
-  if (remainder_size == 0) {
-    block_size += remainder_size;
-    remainder_size = 0;
-  }
-  CK_ASSERT_LE(block_size, slab->MaxBlockSize());
-
   AllocatedBlock* block =
       slab_manager_->FirstBlockInLargeSlab(slab)->InitAllocated(block_size,
                                                                 false);
