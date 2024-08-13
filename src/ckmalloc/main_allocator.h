@@ -154,12 +154,6 @@ void* MainAllocatorImpl<MetadataAlloc, SlabMap, SlabManager>::ReallocLarge(
   if (freelist_.ResizeIfPossible(block, new_block_size)) {
     slab->AddAllocation(new_block_size);
     slab->RemoveAllocation(block_size);
-
-    if (slab->AllocatedBytes() == 0) {
-      slab_manager_->Free(slab);
-    } else {
-      freelist_.MarkFree(block);
-    }
     return ptr;
   }
 
