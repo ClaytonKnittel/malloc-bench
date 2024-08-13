@@ -74,10 +74,11 @@ TEST_F(BlockTest, UntrackedBlock) {
 
 TEST_F(BlockTest, PrevFree) {
   constexpr size_t kBlockSize = 0x1030;
-  uint64_t headers[kBlockSize / sizeof(uint64_t) + 1];
+  uint64_t
+      region[(kBlockSize + Block::kMetadataOverhead) / sizeof(uint64_t)] = {};
   Block* block =
-      reinterpret_cast<Block*>(&headers[kBlockSize / sizeof(uint64_t)]);
-  Block* prev = reinterpret_cast<Block*>(&headers[0]);
+      reinterpret_cast<Block*>(&region[kBlockSize / sizeof(uint64_t)]);
+  Block* prev = reinterpret_cast<Block*>(&region[0]);
 
   block->InitAllocated(0x54540, /*prev_free=*/false);
 

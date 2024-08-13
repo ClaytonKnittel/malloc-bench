@@ -5,6 +5,7 @@
 
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/linked_list.h"
+#include "src/ckmalloc/util.h"
 
 namespace ckmalloc {
 
@@ -12,9 +13,10 @@ namespace ckmalloc {
 // from large slabs.
 class Block {
   friend class AllocatedBlock;
+  friend class BlockTest;
   friend class FreeBlock;
   friend class Freelist;
-  friend class BlockTest;
+  friend class FreelistTest;
 
   friend constexpr size_t HeaderOffset();
 
@@ -35,6 +37,9 @@ class Block {
   // Sizes smaller than this go in small slabs, and having a heterogenous list
   // of free blocks for small size classes is extra overhead we want to avoid.
   static const size_t kMinLargeSize;
+
+  // Returns the maximum user size that fits in a block of size `block_size`.
+  static constexpr size_t UserSizeForBlockSize(uint64_t block_size);
 
   // Returns the minimum block size such that `UserDataSize()` is >=
   // `user_size`.
@@ -161,11 +166,17 @@ class UntrackedBlock : public Block {
 };
 
 /* static */
+constexpr size_t Block::UserSizeForBlockSize(uint64_t block_size) {
+  CK_ASSERT_TRUE(IsAligned(block_size, kDefaultAlignment));
+  return block_size - kMetadataOverhead;
+}
+
+/* static */
 constexpr uint64_t Block::BlockSizeForUserSize(size_t user_size) {
   // TODO revert
   // return AlignUp(user_size + kMetadataOverhead, kDefaultAlignment);
   return std::max(AlignUp(user_size + kMetadataOverhead, kDefaultAlignment),
-                  kMinBlockSize + 16);
+                  AlignUp(sizeof(FreeBlock), kDefaultAlignment));
 }
 
 /* static */
