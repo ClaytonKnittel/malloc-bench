@@ -120,8 +120,7 @@ MainAllocatorImpl<MetadataAlloc, SlabMap,
   uint64_t remainder_size = slab->MaxBlockSize() - block_size;
   CK_ASSERT_TRUE(IsAligned(remainder_size, kDefaultAlignment));
 
-  // TODO: replace with == 0
-  if (remainder_size < Block::kMinBlockSize) {
+  if (remainder_size == 0) {
     block_size += remainder_size;
     remainder_size = 0;
   }
