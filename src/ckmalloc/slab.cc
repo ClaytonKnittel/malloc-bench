@@ -190,7 +190,7 @@ void LargeSlab::AddAllocation(uint64_t n_bytes) {
 
 void LargeSlab::RemoveAllocation(uint64_t n_bytes) {
   CK_ASSERT_EQ(Type(), SlabType::kLarge);
-  mapped.large.allocated_bytes_ += n_bytes;
+  mapped.large.allocated_bytes_ -= n_bytes;
 }
 
 uint64_t LargeSlab::AllocatedBytes() const {
