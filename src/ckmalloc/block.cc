@@ -58,7 +58,7 @@ uint64_t Block::Size() const {
 
 uint64_t Block::UserDataSize() const {
   CK_ASSERT_GE(Size(), kMinLargeSize);
-  return Size() - kMetadataOverhead;
+  return UserSizeForBlockSize(Size());
 }
 
 bool Block::Free() const {
