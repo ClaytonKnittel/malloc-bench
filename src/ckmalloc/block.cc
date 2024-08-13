@@ -75,16 +75,34 @@ FreeBlock* Block::ToFree() {
   return static_cast<FreeBlock*>(this);
 }
 
+const FreeBlock* Block::ToFree() const {
+  CK_ASSERT_TRUE(Free());
+  CK_ASSERT_GE(Size(), kMinLargeSize);
+  return static_cast<const FreeBlock*>(this);
+}
+
 AllocatedBlock* Block::ToAllocated() {
   CK_ASSERT_FALSE(Free());
   CK_ASSERT_GE(Size(), kMinLargeSize);
   return static_cast<AllocatedBlock*>(this);
 }
 
+const AllocatedBlock* Block::ToAllocated() const {
+  CK_ASSERT_FALSE(Free());
+  CK_ASSERT_GE(Size(), kMinLargeSize);
+  return static_cast<const AllocatedBlock*>(this);
+}
+
 UntrackedBlock* Block::ToUntracked() {
   CK_ASSERT_TRUE(Free());
   CK_ASSERT_LT(Size(), kMinLargeSize);
   return static_cast<UntrackedBlock*>(this);
+}
+
+const UntrackedBlock* Block::ToUntracked() const {
+  CK_ASSERT_TRUE(Free());
+  CK_ASSERT_LT(Size(), kMinLargeSize);
+  return static_cast<const UntrackedBlock*>(this);
 }
 
 Block* Block::NextAdjacentBlock() {
