@@ -173,6 +173,14 @@ class LargeSlab : public AllocatedSlab {
 
   // Returns the largest block size that can fit in this large slab.
   uint64_t MaxBlockSize() const;
+
+  // Adds `n_bytes` to the total allocated byte count of the slab.
+  void AddAllocation(uint64_t n_bytes);
+
+  // Removes `n_bytes` from the total allocated byte count of the slab.
+  void RemoveAllocation(uint64_t n_bytes);
+
+  uint64_t AllocatedBytes() const;
 };
 
 // The sizes of all subtypes of slab must be equal.
