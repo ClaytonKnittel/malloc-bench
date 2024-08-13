@@ -14,6 +14,7 @@ class Block {
   friend class AllocatedBlock;
   friend class FreeBlock;
   friend class Freelist;
+  friend class BlockTest;
 
   friend constexpr size_t HeaderOffset();
 
