@@ -6,19 +6,14 @@
 namespace ckmalloc {
 
 FreeBlock* Freelist::FindFree(size_t user_size) {
-  FreeBlock* best = nullptr;
   for (FreeBlock& block : free_blocks_) {
     // Take the first block that fits.
     if (block.UserDataSize() >= user_size) {
-      if (best == nullptr) {
-        best = &block;
-      } else {
-        return &block;
-      }
+      return &block;
     }
   }
 
-  return best;
+  return nullptr;
 }
 
 FreeBlock* Freelist::InitFree(Block* block, uint64_t size) {
@@ -50,8 +45,7 @@ std::pair<AllocatedBlock*, Block*> Freelist::Split(FreeBlock* block,
   CK_ASSERT_LE(block_size, size);
 
   uint64_t remainder = size - block_size;
-  // TODO: replace with remainder == 0
-  if (remainder < Block::kMinBlockSize) {
+  if (remainder == 0) {
     AllocatedBlock* allocated_block = MarkAllocated(block);
     return std::make_pair(allocated_block, nullptr);
   }
