@@ -6,6 +6,7 @@
 #include "src/ckmalloc/block.h"
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/freelist.h"
+#include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/slab_manager.h"
 #include "src/ckmalloc/slab_map.h"
 #include "src/ckmalloc/util.h"
@@ -31,11 +32,22 @@ class MainAllocatorImpl {
   // if `user_size` is smaller, the data is truncated.
   void* Realloc(void* ptr, size_t user_size);
 
-  // Frees a region of memory returned from `Alloc`, allowing that memory to be
+  // Frees an allocation returned from `Alloc`, allowing that memory to be
   // reused by future `Alloc`s.
   void Free(void* ptr);
 
  private:
+  // Performs allocation for a large-sized allocation (i.e.
+  // !IsSmallSize(user_size)).
+  void* AllocLarge(size_t user_size);
+
+  // Performs reallocation for an allocation in a large slab. Note that
+  // `user_size` may not be a large size.
+  void* ReallocLarge(LargeSlab* slab, void* ptr, size_t user_size);
+
+  // Frees an allocation in a large slab.
+  void FreeLarge(LargeSlab* slab, void* ptr);
+
   // Tries to find a free block large enough for `user_size`, and if one is
   // found, returns the `AllocatedBlock` large enough to serve this request.
   AllocatedBlock* MakeBlockFromFreelist(size_t user_size);
@@ -56,6 +68,63 @@ template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap,
           SlabManagerInterface SlabManager>
 void* MainAllocatorImpl<MetadataAlloc, SlabMap, SlabManager>::Alloc(
     size_t user_size) {
+  if (IsSmallSize(user_size)) {
+    return nullptr;
+  }
+
+  return AllocLarge(user_size);
+}
+
+template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap,
+          SlabManagerInterface SlabManager>
+void* MainAllocatorImpl<MetadataAlloc, SlabMap, SlabManager>::Realloc(
+    void* ptr, size_t user_size) {
+  Slab* slab = slab_map_->FindSlab(slab_manager_->PageIdFromPtr(ptr));
+  CK_ASSERT_EQ(slab->Type(), SlabType::kLarge);
+
+  switch (slab->Type()) {
+    case SlabType::kSmall: {
+      return nullptr;
+    }
+    case SlabType::kLarge: {
+      return ReallocLarge(slab->ToLarge(), ptr, user_size);
+    }
+    case SlabType::kUnmapped:
+    case SlabType::kFree: {
+      // Unexpected free/unmapped slab.
+      CK_ASSERT_EQ(slab->Type(), SlabType::kSmall);
+      return nullptr;
+    }
+  }
+}
+
+template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap,
+          SlabManagerInterface SlabManager>
+void MainAllocatorImpl<MetadataAlloc, SlabMap, SlabManager>::Free(void* ptr) {
+  Slab* slab = slab_map_->FindSlab(slab_manager_->PageIdFromPtr(ptr));
+  CK_ASSERT_EQ(slab->Type(), SlabType::kLarge);
+
+  switch (slab->Type()) {
+    case SlabType::kSmall: {
+      break;
+    }
+    case SlabType::kLarge: {
+      FreeLarge(slab->ToLarge(), ptr);
+      break;
+    }
+    case SlabType::kUnmapped:
+    case SlabType::kFree: {
+      // Unexpected free/unmapped slab.
+      CK_ASSERT_EQ(slab->Type(), SlabType::kSmall);
+      break;
+    }
+  }
+}
+
+template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap,
+          SlabManagerInterface SlabManager>
+void* MainAllocatorImpl<MetadataAlloc, SlabMap, SlabManager>::AllocLarge(
+    size_t user_size) {
   AllocatedBlock* block = MakeBlockFromFreelist(user_size);
 
   // If allocating from the freelist fails, we need to request another slab of
@@ -69,16 +138,23 @@ void* MainAllocatorImpl<MetadataAlloc, SlabMap, SlabManager>::Alloc(
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap,
           SlabManagerInterface SlabManager>
-void* MainAllocatorImpl<MetadataAlloc, SlabMap, SlabManager>::Realloc(
-    void* ptr, size_t user_size) {
-  Slab* slab = slab_map_->FindSlab(slab_manager_->PageIdFromPtr(ptr));
-  CK_ASSERT_EQ(slab->Type(), SlabType::kLarge);
+void* MainAllocatorImpl<MetadataAlloc, SlabMap, SlabManager>::ReallocLarge(
+    LargeSlab* slab, void* ptr, size_t user_size) {
   AllocatedBlock* block = AllocatedBlock::FromUserDataPtr(ptr);
+  uint64_t block_size = block->Size();
+  uint64_t new_block_size = Block::BlockSizeForUserSize(user_size);
 
   // If we can resize the block in-place, then we don't need to copy any data
   // and can return the same pointer back to the user.
-  if (freelist_.ResizeIfPossible(block,
-                                 Block::BlockSizeForUserSize(user_size))) {
+  if (freelist_.ResizeIfPossible(block, new_block_size)) {
+    slab->AddAllocation(new_block_size);
+    slab->RemoveAllocation(block_size);
+
+    if (slab->AllocatedBytes() == 0) {
+      slab_manager_->Free(slab);
+    } else {
+      freelist_.MarkFree(block);
+    }
     return ptr;
   }
 
@@ -95,32 +171,15 @@ void* MainAllocatorImpl<MetadataAlloc, SlabMap, SlabManager>::Realloc(
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap,
           SlabManagerInterface SlabManager>
-void MainAllocatorImpl<MetadataAlloc, SlabMap, SlabManager>::Free(void* ptr) {
-  Slab* slab = slab_map_->FindSlab(slab_manager_->PageIdFromPtr(ptr));
-  CK_ASSERT_EQ(slab->Type(), SlabType::kLarge);
+void MainAllocatorImpl<MetadataAlloc, SlabMap, SlabManager>::FreeLarge(
+    LargeSlab* slab, void* ptr) {
+  AllocatedBlock* block = AllocatedBlock::FromUserDataPtr(ptr);
+  slab->RemoveAllocation(block->Size());
 
-  switch (slab->Type()) {
-    case SlabType::kSmall: {
-      break;
-    }
-    case SlabType::kLarge: {
-      LargeSlab* large = slab->ToLarge();
-      AllocatedBlock* block = AllocatedBlock::FromUserDataPtr(ptr);
-      large->RemoveAllocation(block->Size());
-
-      if (large->AllocatedBytes() == 0) {
-        slab_manager_->Free(large);
-      } else {
-        freelist_.MarkFree(block);
-      }
-      break;
-    }
-    case SlabType::kUnmapped:
-    case SlabType::kFree: {
-      // Unexpected free/unmapped slab.
-      CK_ASSERT_EQ(slab->Type(), SlabType::kSmall);
-      break;
-    }
+  if (slab->AllocatedBytes() == 0) {
+    slab_manager_->Free(slab);
+  } else {
+    freelist_.MarkFree(block);
   }
 }
 
