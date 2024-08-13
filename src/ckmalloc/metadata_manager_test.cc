@@ -14,6 +14,7 @@
 #include "src/ckmalloc/metadata_manager_test_fixture.h"
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/slab_manager_test_fixture.h"
+#include "src/ckmalloc/util.h"
 
 namespace ckmalloc {
 
@@ -76,9 +77,8 @@ TEST_F(MetadataManagerTest, AllocateAdjacent) {
   ASSERT_OK_AND_DEFINE(void*, v2, Fixture().Alloc(41));
   ASSERT_OK_AND_DEFINE(void*, v3, Fixture().Alloc(60));
 
-  EXPECT_EQ(reinterpret_cast<uint8_t*>(v2) - reinterpret_cast<uint8_t*>(v1), 7);
-  EXPECT_EQ(reinterpret_cast<uint8_t*>(v3) - reinterpret_cast<uint8_t*>(v2),
-            41);
+  EXPECT_EQ(PtrDistance(v2, v1), 7);
+  EXPECT_EQ(PtrDistance(v3, v2), 41);
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
@@ -89,9 +89,8 @@ TEST_F(MetadataManagerTest, AllocateAligned) {
   // Should range from 64 - 127 (inclusive)
   ASSERT_OK_AND_DEFINE(void*, v3, Fixture().Alloc(64, 64));
 
-  EXPECT_EQ(reinterpret_cast<uint8_t*>(v2) - reinterpret_cast<uint8_t*>(v1), 8);
-  EXPECT_EQ(reinterpret_cast<uint8_t*>(v3) - reinterpret_cast<uint8_t*>(v2),
-            56);
+  EXPECT_EQ(PtrDistance(v2, v1), 8);
+  EXPECT_EQ(PtrDistance(v3, v2), 56);
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
