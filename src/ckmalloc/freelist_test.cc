@@ -12,7 +12,7 @@
 #include "src/ckmalloc/block.h"
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/linked_list.h"
-#include "src/ckmalloc/testlib.h"  // IWYU pragma: keep
+#include "src/ckmalloc/testlib.h"
 #include "src/ckmalloc/util.h"
 
 namespace ckmalloc {
@@ -29,7 +29,7 @@ class FreelistTest : public ::testing::Test {
     return freelist_;
   }
 
-  LinkedList<FreeBlock>& FreelistList() {
+  LinkedList<TrackedBlock>& FreelistList() {
     return freelist_.free_blocks_;
   }
 
@@ -41,15 +41,21 @@ class FreelistTest : public ::testing::Test {
     block->SetSize(size);
   }
 
-  FreeBlock* PushFree(size_t size) {
+  static void WriteFooterAndPrevFree(Block* block) {
+    block->WriteFooterAndPrevFree();
+  }
+
+  TrackedBlock* PushFree(size_t size) {
     CK_ASSERT_FALSE(phony_header_pushed_);
     CK_ASSERT_FALSE(last_free_);
-    CK_ASSERT_TRUE(IsAligned(size, kDefaultAlignment));
-    CK_ASSERT_GE(size, Block::kMinLargeSize);
+    CK_ASSERT_TRUE(IsAligned<uint64_t>(size, kDefaultAlignment));
+    CK_ASSERT_FALSE(Block::IsUntrackedSize(size));
     CK_ASSERT_LE(block_offset_ + size / sizeof(uint64_t), kRegionSize);
 
-    FreeBlock* block = Freelist().InitFree(
-        reinterpret_cast<Block*>(&region_[block_offset_]), size);
+    TrackedBlock* block =
+        Freelist()
+            .InitFree(reinterpret_cast<Block*>(&region_[block_offset_]), size)
+            ->ToTracked();
     block_offset_ += size / sizeof(uint64_t);
     last_free_ = true;
     return block;
@@ -57,7 +63,7 @@ class FreelistTest : public ::testing::Test {
 
   AllocatedBlock* PushAllocated(size_t size) {
     CK_ASSERT_FALSE(phony_header_pushed_);
-    CK_ASSERT_TRUE(IsAligned(size, kDefaultAlignment));
+    CK_ASSERT_TRUE(IsAligned<uint64_t>(size, kDefaultAlignment));
     CK_ASSERT_GE(size, Block::kMinLargeSize);
     CK_ASSERT_LE(block_offset_ + size / sizeof(uint64_t), kRegionSize);
 
@@ -71,24 +77,27 @@ class FreelistTest : public ::testing::Test {
   UntrackedBlock* PushUntracked(size_t size) {
     CK_ASSERT_FALSE(phony_header_pushed_);
     CK_ASSERT_FALSE(last_free_);
-    CK_ASSERT_TRUE(IsAligned(size, kDefaultAlignment));
-    CK_ASSERT_LT(size, Block::kMinLargeSize);
+    CK_ASSERT_TRUE(IsAligned<uint64_t>(size, kDefaultAlignment));
+    CK_ASSERT_TRUE(Block::IsUntrackedSize(size));
     CK_ASSERT_LE(block_offset_ + size / sizeof(uint64_t), kRegionSize);
 
     UntrackedBlock* block =
-        reinterpret_cast<Block*>(&region_[block_offset_])->InitUntracked(size);
+        freelist_
+            .InitFree(reinterpret_cast<Block*>(&region_[block_offset_]), size)
+            ->ToUntracked();
     block_offset_ += size / sizeof(uint64_t);
     last_free_ = true;
     return block;
   }
 
-  void PushPhony() {
+  Block* PushPhony() {
     CK_ASSERT_LT(block_offset_, kRegionSize);
 
-    reinterpret_cast<Block*>(&region_[block_offset_])
-        ->InitPhonyHeader(last_free_);
+    Block* phony_block = reinterpret_cast<Block*>(&region_[block_offset_]);
+    phony_block->InitPhonyHeader(last_free_);
     block_offset_++;
     phony_header_pushed_ = true;
+    return phony_block;
   }
 
   // Validate invariants of the heap. This must be called after `PushPhony()`.
@@ -110,132 +119,14 @@ absl::Status FreelistTest::ValidateHeap() {
         "Called `ValidateHeap()` before `PushPhony()`");
   }
 
-  absl::flat_hash_set<const Block*> free_blocks;
-  void* const heap_start = &region_[0];
-  void* const heap_end = &region_[block_offset_];
-  // Iterate over the freelist.
-  for (const FreeBlock& block : FreelistList()) {
-    if (&block < heap_start || &block >= heap_end) {
-      return absl::FailedPreconditionError(
-          absl::StrFormat("Encountered block outside the range of the heap in "
-                          "freelist: block at %p, heap ranges from %p to %p",
-                          &block, heap_start, heap_end));
-    }
-
-    size_t block_offset_bytes = PtrDistance(&block, heap_start);
-    if (!IsAligned(block_offset_bytes, kDefaultAlignment)) {
-      return absl::FailedPreconditionError(
-          absl::StrFormat("Encountered unaligned block in freelist at offset "
-                          "%zu from heap start: %v",
-                          block_offset_bytes, block));
-    }
-
-    if (!static_cast<const Block*>(&block)->Free()) {
-      return absl::FailedPreconditionError(
-          absl::StrFormat("Encountered non-free block in freelist: %v", block));
-    }
-
-    auto [it, inserted] = free_blocks.insert(&block);
-    if (!inserted) {
-      return absl::FailedPreconditionError(
-          absl::StrFormat("Detected loop in freelist at block %v", block));
-    }
-  }
-
-  // Iterate over the heap.
-  Block* block = reinterpret_cast<Block*>(&region_[0]);
-  Block* prev_block = nullptr;
-  size_t n_free_blocks = 0;
-  while (block->Size() != 0) {
-    if (block < heap_start || block >= heap_end) {
-      return absl::FailedPreconditionError(absl::StrFormat(
-          "Encountered block outside the range of the heap while iterating "
-          "over heap: block at %p, heap ranges from %p to %p",
-          &block, heap_start, heap_end));
-    }
-
-    size_t block_offset_bytes = PtrDistance(block, heap_start);
-    if (!IsAligned(block_offset_bytes, kDefaultAlignment)) {
-      return absl::FailedPreconditionError(
-          absl::StrFormat("Encountered unaligned block while iterating heap at "
-                          "offset %zu from heap start: %v",
-                          block_offset_bytes, *block));
-    }
-
-    size_t block_offset = reinterpret_cast<uint64_t*>(block) - &region_[0];
-    if (block_offset >= block_offset_) {
-      return absl::FailedPreconditionError(
-          absl::StrFormat("Encountered block out of range of the heap at "
-                          "address %p, heap ranges from %p to %p",
-                          block, &region_[0], &region_[block_offset_]));
-    }
-
-    if (block->Free()) {
-      bool in_freelist = free_blocks.contains(block);
-      if (block->IsUntrackedSize() && in_freelist) {
-        return absl::FailedPreconditionError(absl::StrFormat(
-            "Encountered untracked block in the freelist: %v", *block));
-      }
-      if (!block->IsUntrackedSize()) {
-        if (!in_freelist) {
-          return absl::FailedPreconditionError(absl::StrFormat(
-              "Encountered free block which was not in freelist: %v", *block));
-        }
-        n_free_blocks++;
-      }
-
-      if (prev_block != nullptr && prev_block->Free()) {
-        return absl::FailedPreconditionError(
-            absl::StrFormat("Encountered two free blocks in a row: %v and %v",
-                            *prev_block, *block));
-      }
-    } else if (block->Size() < Block::kMinLargeSize) {
-      return absl::FailedPreconditionError(
-          absl::StrFormat("Encountered small-sized allocated block, which "
-                          "should not be possible: %v",
-                          *block));
-    }
-
-    if (prev_block != nullptr && prev_block->Free()) {
-      if (!PrevFree(block)) {
-        return absl::FailedPreconditionError(
-            absl::StrFormat("Prev-free bit not set in block after free block: "
-                            "%v followed by %v",
-                            *prev_block, *block));
-      }
-      if (block->PrevSize() != prev_block->Size()) {
-        return absl::FailedPreconditionError(absl::StrFormat(
-            "Prev-size incorrect for block after free block: %v followed by %v",
-            *prev_block, *block));
-      }
-    }
-
-    if (block->Size() > (block_offset_ - block_offset) * sizeof(uint64_t)) {
-      return absl::FailedPreconditionError(absl::StrFormat(
-          "Encountered block with size larger than remainder of heap: %v, heap "
-          "has %zu bytes left",
-          *block, (block_offset_ - block_offset) * sizeof(uint64_t)));
-    }
-
-    prev_block = block;
-    block = block->NextAdjacentBlock();
-  }
-
-  if (block != reinterpret_cast<Block*>(&region_[block_offset_ - 1])) {
-    return absl::FailedPreconditionError(
-        absl::StrFormat("Ended heap iteration on block not at end of heap: %p, "
-                        "end of heap is %p",
-                        block, &region_[block_offset_ - 1]));
-  }
-
-  if (n_free_blocks != free_blocks.size()) {
-    return absl::FailedPreconditionError(
-        absl::StrFormat("Encountered %zu free blocks when iterating over the "
-                        "heap, but %zu free blocks in the freelist",
-                        n_free_blocks, free_blocks.size()));
-  }
-
-  return absl::OkStatus();
+  std::vector<LargeSlabInfo> slabs = {
+    {
+        .start = &region_[0],
+        .end = &region_[block_offset_],
+        .slab = nullptr,
+    },
+  };
+  return ValidateLargeSlabs(slabs, Freelist());
 }
 
 TEST_F(FreelistTest, FreeBlock) {
@@ -256,10 +147,57 @@ TEST_F(FreelistTest, FreeBlock) {
   EXPECT_EQ(next_adjacent->PrevAdjacentBlock(), block);
 
   EXPECT_EQ(block->UserDataSize(), kBlockSize - Block::kMetadataOverhead);
-  EXPECT_FALSE(block->IsUntrackedSize());
+  EXPECT_FALSE(block->IsUntracked());
 
   // This should not trigger an assertion failure.
-  block->ToFree();
+  block->ToTracked();
+
+  EXPECT_THAT(FreelistList(), ElementsAre(Address(block)));
+}
+
+TEST_F(FreelistTest, UntrackedBlock) {
+  constexpr size_t kBlockSize = 0x10;
+  Block block;
+
+  Freelist().InitFree(&block, kBlockSize);
+  EXPECT_TRUE(block.Free());
+  EXPECT_EQ(block.Size(), kBlockSize);
+  EXPECT_FALSE(PrevFree(&block));
+
+  EXPECT_EQ(PtrDistance(block.NextAdjacentBlock(), &block), kBlockSize);
+
+  EXPECT_TRUE(block.IsUntracked());
+
+  // This should not cause assertion failure.
+  block.ToUntracked();
+
+  // Untracked blocks do not go in the freelist.
+  EXPECT_THAT(FreelistList(), ElementsAre());
+}
+
+TEST_F(FreelistTest, PrevFree) {
+  constexpr size_t kBlockSize = 0x1030;
+  uint64_t
+      region[(kBlockSize + Block::kMetadataOverhead) / sizeof(uint64_t)] = {};
+  Block* block =
+      reinterpret_cast<Block*>(&region[kBlockSize / sizeof(uint64_t)]);
+  Block* prev = reinterpret_cast<Block*>(&region[0]);
+
+  block->InitAllocated(0x54540, /*prev_free=*/false);
+
+  // First initialize the block as untracked, which is a type of free block,
+  // then artificially increase its size to the desired size. This has to be
+  // done because we can't directly initialize a free block (this requires
+  // insertion into a freelist), and `InitUntracked` checks that the size is
+  // below the min large block size.
+  Freelist().InitFree(prev, 0x10)->ToUntracked();
+  SetSize(prev, kBlockSize);
+
+  // This should write to the footer of `block`, and set block's prev_free bit.
+  WriteFooterAndPrevFree(prev);
+
+  EXPECT_TRUE(PrevFree(block));
+  EXPECT_EQ(block->PrevAdjacentBlock(), prev);
 }
 
 TEST_F(FreelistTest, Empty) {
@@ -289,7 +227,7 @@ TEST_F(FreelistTest, OnlyAllocatedAndUntracked) {
 }
 
 TEST_F(FreelistTest, OneFree) {
-  FreeBlock* block = PushFree(0x100);
+  TrackedBlock* block = PushFree(0x100);
   PushPhony();
   EXPECT_THAT(ValidateHeap(), IsOk());
 
@@ -302,14 +240,14 @@ TEST_F(FreelistTest, OneFree) {
 
 TEST_F(FreelistTest, ManyFree) {
   PushAllocated(0x100);
-  FreeBlock* b1 = PushFree(0x500);
+  TrackedBlock* b1 = PushFree(0x500);
   PushAllocated(0x400);
   PushAllocated(0x50);
-  FreeBlock* b2 = PushFree(0x300);
+  TrackedBlock* b2 = PushFree(0x300);
   PushAllocated(0x30);
-  FreeBlock* b3 = PushFree(0x900);
+  TrackedBlock* b3 = PushFree(0x900);
   PushAllocated(0x50);
-  FreeBlock* b4 = PushFree(0x200);
+  TrackedBlock* b4 = PushFree(0x200);
   PushPhony();
   EXPECT_THAT(ValidateHeap(), IsOk());
 
@@ -363,7 +301,7 @@ TEST_F(FreelistTest, FreeWithFreePrev) {
   constexpr uint64_t kPrevSize = 0x240;
   constexpr uint64_t kBlockSize = 0x110;
 
-  FreeBlock* b1 = PushFree(kPrevSize);
+  TrackedBlock* b1 = PushFree(kPrevSize);
   AllocatedBlock* b2 = PushAllocated(kBlockSize);
   PushAllocated(0x80);
   PushPhony();
@@ -383,7 +321,7 @@ TEST_F(FreelistTest, FreeWithFreeNext) {
 
   PushAllocated(0x600);
   AllocatedBlock* b1 = PushAllocated(kBlockSize);
-  FreeBlock* b2 = PushFree(kNextSize);
+  TrackedBlock* b2 = PushFree(kNextSize);
   PushPhony();
   EXPECT_THAT(FreelistList(), ElementsAre(Address(b2)));
 
@@ -400,9 +338,9 @@ TEST_F(FreelistTest, FreeWithFreeNextAndPrev) {
   constexpr uint64_t kBlockSize = 0x730;
   constexpr uint64_t kNextSize = 0x240;
 
-  FreeBlock* b1 = PushFree(kPrevSize);
+  TrackedBlock* b1 = PushFree(kPrevSize);
   AllocatedBlock* b2 = PushAllocated(kBlockSize);
-  FreeBlock* b3 = PushFree(kNextSize);
+  TrackedBlock* b3 = PushFree(kNextSize);
   PushPhony();
   EXPECT_THAT(FreelistList(), UnorderedElementsAre(Address(b1), Address(b3)));
 
@@ -431,6 +369,100 @@ TEST_F(FreelistTest, FreeWithUntrackedNeighbors) {
   EXPECT_EQ(free_block->Size(), kPrevSize + kBlockSize + kNextSize);
 
   EXPECT_THAT(FreelistList(), ElementsAre(Address(free_block)));
+}
+
+TEST_F(FreelistTest, ResizeDown) {
+  constexpr uint64_t kBlockSize = 0x530;
+  constexpr uint64_t kNewSize = 0x340;
+
+  PushAllocated(0x140);
+  AllocatedBlock* b1 = PushAllocated(kBlockSize);
+  AllocatedBlock* b2 = PushAllocated(0x100);
+  PushPhony();
+
+  ASSERT_TRUE(Freelist().ResizeIfPossible(b1, kNewSize));
+  EXPECT_EQ(b1->Size(), kNewSize);
+
+  Block* next = b1->NextAdjacentBlock();
+  EXPECT_EQ(next->Size(), kBlockSize - kNewSize);
+  EXPECT_TRUE(next->Free());
+  EXPECT_EQ(next->NextAdjacentBlock(), b2);
+
+  EXPECT_THAT(ValidateHeap(), IsOk());
+  EXPECT_THAT(FreelistList(), ElementsAre(Address(next)));
+}
+
+TEST_F(FreelistTest, ResizeDownBeforeFree) {
+  constexpr uint64_t kBlockSize = 0x290;
+  constexpr uint64_t kNewSize = 0x130;
+  constexpr uint64_t kNextSize = 0x140;
+
+  AllocatedBlock* block = PushAllocated(kBlockSize);
+  PushFree(kNextSize);
+  Block* end_block = PushPhony();
+
+  ASSERT_TRUE(Freelist().ResizeIfPossible(block, kNewSize));
+  EXPECT_EQ(block->Size(), kNewSize);
+
+  Block* next = block->NextAdjacentBlock();
+  EXPECT_EQ(next->Size(), kBlockSize + kNextSize - kNewSize);
+  EXPECT_TRUE(next->Free());
+  EXPECT_EQ(next->NextAdjacentBlock(), end_block);
+
+  EXPECT_THAT(ValidateHeap(), IsOk());
+  EXPECT_THAT(FreelistList(), ElementsAre(Address(next)));
+}
+
+TEST_F(FreelistTest, ResizeUpBeforeAllocated) {
+  constexpr uint64_t kBlockSize = 0x290;
+
+  AllocatedBlock* block = PushAllocated(kBlockSize);
+  PushAllocated(0x150);
+  PushPhony();
+
+  EXPECT_FALSE(
+      Freelist().ResizeIfPossible(block, kBlockSize + kDefaultAlignment));
+  EXPECT_EQ(block->Size(), kBlockSize);
+
+  EXPECT_THAT(ValidateHeap(), IsOk());
+  EXPECT_THAT(FreelistList(), ElementsAre());
+}
+
+TEST_F(FreelistTest, ResizeUpBeforeFree) {
+  constexpr uint64_t kBlockSize = 0x490;
+  constexpr uint64_t kNewSize = 0x880;
+  constexpr uint64_t kNextSize = 0x1100;
+
+  AllocatedBlock* block = PushAllocated(kBlockSize);
+  PushFree(kNextSize);
+  Block* end_block = PushPhony();
+
+  ASSERT_TRUE(Freelist().ResizeIfPossible(block, kNewSize));
+  EXPECT_EQ(block->Size(), kNewSize);
+
+  Block* next = block->NextAdjacentBlock();
+  EXPECT_EQ(next->Size(), kBlockSize + kNextSize - kNewSize);
+  EXPECT_TRUE(next->Free());
+  EXPECT_EQ(next->NextAdjacentBlock(), end_block);
+
+  EXPECT_THAT(ValidateHeap(), IsOk());
+  EXPECT_THAT(FreelistList(), ElementsAre(Address(next)));
+}
+
+TEST_F(FreelistTest, ResizeUpBeforeFreeTooLarge) {
+  constexpr uint64_t kBlockSize = 0x490;
+  constexpr uint64_t kNewSize = 0x600;
+  constexpr uint64_t kNextSize = 0x50;
+
+  AllocatedBlock* b1 = PushAllocated(kBlockSize);
+  FreeBlock* b2 = PushFree(kNextSize);
+  PushPhony();
+
+  EXPECT_FALSE(Freelist().ResizeIfPossible(b1, kNewSize));
+  EXPECT_EQ(b1->Size(), kBlockSize);
+
+  EXPECT_THAT(ValidateHeap(), IsOk());
+  EXPECT_THAT(FreelistList(), ElementsAre(Address(b2)));
 }
 
 }  // namespace ckmalloc

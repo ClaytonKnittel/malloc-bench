@@ -8,7 +8,7 @@ namespace ckmalloc {
 constexpr size_t HeaderOffset() {
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
-  return offsetof(FreeBlock, header_);
+  return offsetof(TrackedBlock, header_);
 #pragma clang diagnostic pop
 }
 
@@ -24,7 +24,7 @@ constexpr bool UserDataOffsetValid() {
 }
 
 static_assert(HeaderOffset() == 0, "FreeBlock header offset must be 0");
-static_assert(sizeof(FreeBlock) <= 24,
+static_assert(sizeof(TrackedBlock) <= 24,
               "FreeBlock size is larger than 24 bytes");
 static_assert(
     UserDataOffsetValid(),
@@ -37,15 +37,6 @@ AllocatedBlock* Block::InitAllocated(uint64_t size, bool prev_free) {
   CK_ASSERT_TRUE(IsAligned(size, kDefaultAlignment));
   header_ = size | (prev_free ? kPrevFreeBitMask : 0);
   return ToAllocated();
-}
-
-UntrackedBlock* Block::InitUntracked(uint64_t size) {
-  CK_ASSERT_GE(size, kMinBlockSize);
-  CK_ASSERT_LT(size, kMinLargeSize);
-  CK_ASSERT_TRUE(IsAligned(size, kDefaultAlignment));
-  header_ = size | kFreeBitMask;
-  WriteFooterAndPrevFree();
-  return ToUntracked();
 }
 
 void Block::InitPhonyHeader(bool prev_free) {
@@ -65,20 +56,8 @@ bool Block::Free() const {
   return (header_ & kFreeBitMask) != 0;
 }
 
-bool Block::IsUntrackedSize() const {
+bool Block::IsUntracked() const {
   return IsUntrackedSize(Size());
-}
-
-FreeBlock* Block::ToFree() {
-  CK_ASSERT_TRUE(Free());
-  CK_ASSERT_GE(Size(), kMinLargeSize);
-  return static_cast<FreeBlock*>(this);
-}
-
-const FreeBlock* Block::ToFree() const {
-  CK_ASSERT_TRUE(Free());
-  CK_ASSERT_GE(Size(), kMinLargeSize);
-  return static_cast<const FreeBlock*>(this);
 }
 
 AllocatedBlock* Block::ToAllocated() {
@@ -91,6 +70,28 @@ const AllocatedBlock* Block::ToAllocated() const {
   CK_ASSERT_FALSE(Free());
   CK_ASSERT_GE(Size(), kMinLargeSize);
   return static_cast<const AllocatedBlock*>(this);
+}
+
+FreeBlock* Block::ToFree() {
+  CK_ASSERT_TRUE(Free());
+  return static_cast<FreeBlock*>(this);
+}
+
+const FreeBlock* Block::ToFree() const {
+  CK_ASSERT_TRUE(Free());
+  return static_cast<const FreeBlock*>(this);
+}
+
+TrackedBlock* Block::ToTracked() {
+  CK_ASSERT_TRUE(Free());
+  CK_ASSERT_GE(Size(), kMinLargeSize);
+  return static_cast<TrackedBlock*>(this);
+}
+
+const TrackedBlock* Block::ToTracked() const {
+  CK_ASSERT_TRUE(Free());
+  CK_ASSERT_GE(Size(), kMinLargeSize);
+  return static_cast<const TrackedBlock*>(this);
 }
 
 UntrackedBlock* Block::ToUntracked() {
