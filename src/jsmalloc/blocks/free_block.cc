@@ -22,8 +22,14 @@ FreeBlock* FreeBlock::New(Allocator& allocator, size_t size) {
   if (ptr == nullptr) {
     return nullptr;
   }
-  // TODO(jtstogel): properly set prev_block_is_free here.
-  return new (ptr) FreeBlock(size, false);
+  // TODO(jtstogel): Refactor `Allocator` to make it clear that
+  // we'll always get a valid BlockHeader* reference.
+  // We have a sentinel BlockHeader* at the end of the heap,
+  // so we get a reference to that here,
+  // but it's not clear from the type of `allocator` that
+  // this is true.
+  BlockHeader* hdr = reinterpret_cast<BlockHeader*>(ptr);
+  return new (ptr) FreeBlock(size, hdr->PrevBlockIsFree());
 }
 
 FreeBlock* FreeBlock::MarkFree(BlockHeader* block_header) {
