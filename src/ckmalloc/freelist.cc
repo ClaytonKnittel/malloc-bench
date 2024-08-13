@@ -126,6 +126,10 @@ bool Freelist::ResizeIfPossible(AllocatedBlock* block, uint64_t new_size) {
   return false;
 }
 
+void Freelist::DeleteBlock(TrackedBlock* block) {
+  RemoveBlock(block);
+}
+
 void Freelist::AddBlock(TrackedBlock* block) {
   free_blocks_.InsertFront(block);
 }

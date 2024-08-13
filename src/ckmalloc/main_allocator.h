@@ -16,6 +16,8 @@ namespace ckmalloc {
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap,
           SlabManagerInterface SlabManager>
 class MainAllocatorImpl {
+  friend class MainAllocatorFixture;
+
  public:
   MainAllocatorImpl(SlabMap* slab_map, SlabManager* slab_manager)
       : slab_map_(slab_map), slab_manager_(slab_manager) {}
@@ -47,6 +49,9 @@ class MainAllocatorImpl {
 
   // Frees an allocation in a large slab.
   void FreeLarge(LargeSlab* slab, void* ptr);
+
+  // Releases an empty large slab back to the slab manager.
+  void ReleaseLargeSlab(LargeSlab* slab);
 
   // Tries to find a free block large enough for `user_size`, and if one is
   // found, returns the `AllocatedBlock` large enough to serve this request.
@@ -176,11 +181,24 @@ void MainAllocatorImpl<MetadataAlloc, SlabMap, SlabManager>::FreeLarge(
   AllocatedBlock* block = AllocatedBlock::FromUserDataPtr(ptr);
   slab->RemoveAllocation(block->Size());
 
+  freelist_.MarkFree(block);
   if (slab->AllocatedBytes() == 0) {
-    slab_manager_->Free(slab);
-  } else {
-    freelist_.MarkFree(block);
+    ReleaseLargeSlab(slab);
   }
+}
+
+template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap,
+          SlabManagerInterface SlabManager>
+void MainAllocatorImpl<MetadataAlloc, SlabMap, SlabManager>::ReleaseLargeSlab(
+    LargeSlab* slab) {
+  CK_ASSERT_EQ(slab->AllocatedBytes(), 0);
+  Block* only_block = slab_manager_->FirstBlockInLargeSlab(slab);
+  CK_ASSERT_EQ(only_block->Size(), slab->MaxBlockSize());
+  CK_ASSERT_TRUE(only_block->Free());
+  CK_ASSERT_TRUE(!only_block->IsUntracked());
+
+  freelist_.DeleteBlock(only_block->ToTracked());
+  slab_manager_->Free(slab);
 }
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap,

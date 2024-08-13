@@ -12,7 +12,7 @@
 #include "src/ckmalloc/block.h"
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/linked_list.h"
-#include "src/ckmalloc/testlib.h"  // IWYU pragma: keep
+#include "src/ckmalloc/testlib.h"
 #include "src/ckmalloc/util.h"
 
 namespace ckmalloc {
@@ -119,132 +119,14 @@ absl::Status FreelistTest::ValidateHeap() {
         "Called `ValidateHeap()` before `PushPhony()`");
   }
 
-  absl::flat_hash_set<const Block*> free_blocks;
-  void* const heap_start = &region_[0];
-  void* const heap_end = &region_[block_offset_];
-  // Iterate over the freelist.
-  for (const FreeBlock& block : FreelistList()) {
-    if (&block < heap_start || &block >= heap_end) {
-      return absl::FailedPreconditionError(
-          absl::StrFormat("Encountered block outside the range of the heap in "
-                          "freelist: block at %p, heap ranges from %p to %p",
-                          &block, heap_start, heap_end));
-    }
-
-    size_t block_offset_bytes = PtrDistance(&block, heap_start);
-    if (!IsAligned<uint64_t>(block_offset_bytes, kDefaultAlignment)) {
-      return absl::FailedPreconditionError(
-          absl::StrFormat("Encountered unaligned block in freelist at offset "
-                          "%zu from heap start: %v",
-                          block_offset_bytes, block));
-    }
-
-    if (!static_cast<const Block*>(&block)->Free()) {
-      return absl::FailedPreconditionError(
-          absl::StrFormat("Encountered non-free block in freelist: %v", block));
-    }
-
-    auto [it, inserted] = free_blocks.insert(&block);
-    if (!inserted) {
-      return absl::FailedPreconditionError(
-          absl::StrFormat("Detected loop in freelist at block %v", block));
-    }
-  }
-
-  // Iterate over the heap.
-  Block* block = reinterpret_cast<Block*>(&region_[0]);
-  Block* prev_block = nullptr;
-  size_t n_free_blocks = 0;
-  while (block->Size() != 0) {
-    if (block < heap_start || block >= heap_end) {
-      return absl::FailedPreconditionError(absl::StrFormat(
-          "Encountered block outside the range of the heap while iterating "
-          "over heap: block at %p, heap ranges from %p to %p",
-          &block, heap_start, heap_end));
-    }
-
-    size_t block_offset_bytes = PtrDistance(block, heap_start);
-    if (!IsAligned<uint64_t>(block_offset_bytes, kDefaultAlignment)) {
-      return absl::FailedPreconditionError(
-          absl::StrFormat("Encountered unaligned block while iterating heap at "
-                          "offset %zu from heap start: %v",
-                          block_offset_bytes, *block));
-    }
-
-    size_t block_offset = reinterpret_cast<uint64_t*>(block) - &region_[0];
-    if (block_offset >= block_offset_) {
-      return absl::FailedPreconditionError(
-          absl::StrFormat("Encountered block out of range of the heap at "
-                          "address %p, heap ranges from %p to %p",
-                          block, &region_[0], &region_[block_offset_]));
-    }
-
-    if (block->Free()) {
-      bool in_freelist = free_blocks.contains(block);
-      if (block->IsUntracked() && in_freelist) {
-        return absl::FailedPreconditionError(absl::StrFormat(
-            "Encountered untracked block in the freelist: %v", *block));
-      }
-      if (!block->IsUntracked()) {
-        if (!in_freelist) {
-          return absl::FailedPreconditionError(absl::StrFormat(
-              "Encountered free block which was not in freelist: %v", *block));
-        }
-        n_free_blocks++;
-      }
-
-      if (prev_block != nullptr && prev_block->Free()) {
-        return absl::FailedPreconditionError(
-            absl::StrFormat("Encountered two free blocks in a row: %v and %v",
-                            *prev_block, *block));
-      }
-    } else if (block->Size() < Block::kMinLargeSize) {
-      return absl::FailedPreconditionError(
-          absl::StrFormat("Encountered small-sized allocated block, which "
-                          "should not be possible: %v",
-                          *block));
-    }
-
-    if (prev_block != nullptr && prev_block->Free()) {
-      if (!PrevFree(block)) {
-        return absl::FailedPreconditionError(
-            absl::StrFormat("Prev-free bit not set in block after free block: "
-                            "%v followed by %v",
-                            *prev_block, *block));
-      }
-      if (block->PrevSize() != prev_block->Size()) {
-        return absl::FailedPreconditionError(absl::StrFormat(
-            "Prev-size incorrect for block after free block: %v followed by %v",
-            *prev_block, *block));
-      }
-    }
-
-    if (block->Size() > (block_offset_ - block_offset) * sizeof(uint64_t)) {
-      return absl::FailedPreconditionError(absl::StrFormat(
-          "Encountered block with size larger than remainder of heap: %v, heap "
-          "has %zu bytes left",
-          *block, (block_offset_ - block_offset) * sizeof(uint64_t)));
-    }
-
-    prev_block = block;
-    block = block->NextAdjacentBlock();
-  }
-
-  if (block != reinterpret_cast<Block*>(&region_[block_offset_ - 1])) {
-    return absl::FailedPreconditionError(
-        absl::StrFormat("Ended heap iteration on block not at end of heap: %p, "
-                        "end of heap is %p",
-                        block, &region_[block_offset_ - 1]));
-  }
-
-  if (n_free_blocks != free_blocks.size()) {
-    return absl::FailedPreconditionError(
-        absl::StrFormat("Encountered %zu free blocks when iterating over the "
-                        "heap, but %zu free blocks in the freelist",
-                        n_free_blocks, free_blocks.size()));
-  }
-
-  return absl::OkStatus();
+  std::vector<LargeSlabInfo> slabs = {
+    {
+        .start = &region_[0],
+        .end = &region_[block_offset_],
+        .slab = nullptr,
+    },
+  };
+  return ValidateLargeSlabs(slabs, Freelist());
 }
 
 TEST_F(FreelistTest, FreeBlock) {

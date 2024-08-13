@@ -10,6 +10,11 @@ namespace ckmalloc {
 
 class Freelist {
   friend class FreelistTest;
+  friend class MainAllocatorTest;
+
+  friend class absl::Status ValidateLargeSlabs(
+      const class std::vector<struct LargeSlabInfo>&,
+      const class Freelist& freelist);
 
  public:
   // Searches the freelists for a block large enough to fit `user_size`. If none
@@ -45,6 +50,10 @@ class Freelist {
   // not be done because it would cause this block to overlap with another
   // allocated block, then this returns `false` and the block is not modified.
   bool ResizeIfPossible(AllocatedBlock* block, uint64_t new_size);
+
+  // Deletes a block in the freelist, should only be called when a large slab is
+  // deallocated.
+  void DeleteBlock(TrackedBlock* block);
 
  private:
   // Adds the block to the freelist.
