@@ -55,6 +55,7 @@ cc_library(
     deps = [
         ":block",
         ":linked_list",
+        ":util",
     ],
 )
 

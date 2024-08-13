@@ -77,13 +77,13 @@ void AbslStringify(Sink& sink, const Slab* slab) {
 template <typename Sink>
 void AbslStringify(Sink& sink, const Block& block) {
   if (block.Free()) {
-    if (block.IsUntrackedSize()) {
+    if (block.IsUntracked()) {
       absl::Format(&sink, "Block %p: [untracked, size=%" PRIu64 "]", &block,
                    block.Size());
     } else {
       absl::Format(
           &sink, "Block %p: [free, size=%" PRIu64 ", prev=%p, next=%p]", &block,
-          block.Size(), block.ToFree()->Prev(), block.ToFree()->Next());
+          block.Size(), block.ToTracked()->Prev(), block.ToTracked()->Next());
     }
   } else {
     absl::Format(&sink, "Block %p: [allocated, size=%" PRIu64 ", prev_free=%s]",

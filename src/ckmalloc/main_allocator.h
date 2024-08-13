@@ -75,12 +75,21 @@ void* MainAllocatorImpl<MetadataAlloc, SlabMap, SlabManager>::Realloc(
   CK_ASSERT_EQ(slab->Type(), SlabType::kLarge);
   AllocatedBlock* block = AllocatedBlock::FromUserDataPtr(ptr);
 
+  // If we can resize the block in-place, then we don't need to copy any data
+  // and can return the same pointer back to the user.
+  if (freelist_.ResizeIfPossible(block,
+                                 Block::BlockSizeForUserSize(user_size))) {
+    return ptr;
+  }
+
+  // Otherwise, if resizing in-place didn't work, then we have to allocate a new
+  // block and copy the contents of this one over to the new one.
   void* new_ptr = Alloc(user_size);
   if (new_ptr != nullptr) {
     std::memcpy(new_ptr, ptr,
                 std::min<size_t>(user_size, block->UserDataSize()));
+    Free(ptr);
   }
-  Free(ptr);
   return new_ptr;
 }
 
@@ -120,7 +129,7 @@ template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap,
 AllocatedBlock*
 MainAllocatorImpl<MetadataAlloc, SlabMap, SlabManager>::MakeBlockFromFreelist(
     size_t user_size) {
-  FreeBlock* free_block = freelist_.FindFree(user_size);
+  TrackedBlock* free_block = freelist_.FindFree(user_size);
   if (free_block == nullptr) {
     return nullptr;
   }
@@ -165,11 +174,7 @@ MainAllocatorImpl<MetadataAlloc, SlabMap,
 
   if (remainder_size != 0) {
     Block* next_adjacent = block->NextAdjacentBlock();
-    if (Block::IsUntrackedSize(remainder_size)) {
-      next_adjacent->InitUntracked(remainder_size);
-    } else {
-      freelist_.InitFree(next_adjacent, remainder_size);
-    }
+    freelist_.InitFree(next_adjacent, remainder_size);
 
     slab_end_header = next_adjacent->NextAdjacentBlock();
     slab_end_header->InitPhonyHeader(/*prev_free=*/true);
