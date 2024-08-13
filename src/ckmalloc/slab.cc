@@ -66,7 +66,9 @@ LargeSlab* Slab::Init(PageId start_id, uint32_t n_pages) {
   mapped = {
     .id_ = start_id,
     .n_pages_ = n_pages,
-    .large = {},
+    .large = {
+      .allocated_bytes_ = 0,
+    },
   };
 
   LargeSlab* slab = static_cast<LargeSlab*>(this);
@@ -179,6 +181,21 @@ uint64_t LargeSlab::MaxBlockSize() const {
                        Block::kFirstBlockInSlabOffset -
                        Block::kMetadataOverhead,
                    kDefaultAlignment);
+}
+
+void LargeSlab::AddAllocation(uint64_t n_bytes) {
+  CK_ASSERT_EQ(Type(), SlabType::kLarge);
+  mapped.large.allocated_bytes_ += n_bytes;
+}
+
+void LargeSlab::RemoveAllocation(uint64_t n_bytes) {
+  CK_ASSERT_EQ(Type(), SlabType::kLarge);
+  mapped.large.allocated_bytes_ += n_bytes;
+}
+
+uint64_t LargeSlab::AllocatedBytes() const {
+  CK_ASSERT_EQ(Type(), SlabType::kLarge);
+  return mapped.large.allocated_bytes_;
 }
 
 }  // namespace ckmalloc
