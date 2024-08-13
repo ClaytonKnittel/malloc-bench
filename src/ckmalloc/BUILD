@@ -19,6 +19,17 @@ cc_library(
     ],
 )
 
+cc_test(
+    name = "block_test",
+    srcs = ["block_test.cc"],
+    deps = [
+        ":block",
+        ":common",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
 cc_library(
     name = "common",
     hdrs = ["common.h"],
@@ -43,6 +54,17 @@ cc_library(
     deps = [
         ":block",
         ":linked_list",
+    ],
+)
+
+cc_test(
+    name = "freelist_test",
+    srcs = ["freelist_test.cc"],
+    deps = [
+        ":block",
+        ":freelist",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
