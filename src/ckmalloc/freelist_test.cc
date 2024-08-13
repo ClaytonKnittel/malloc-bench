@@ -331,15 +331,104 @@ TEST_F(FreelistTest, ManyFree) {
               AnyOf(b1, b2, b3, b4));
 }
 
-TEST_F(FreelistTest, FreeWithoutCoalesce) {
+TEST_F(FreelistTest, FreeAsOnlyBlock) {
   constexpr uint64_t kBlockSize = 0x500;
 
   AllocatedBlock* block = PushAllocated(kBlockSize);
   PushPhony();
-  EXPECT_THAT(ValidateHeap(), IsOk());
 
   FreeBlock* free_block = Freelist().MarkFree(block);
+  EXPECT_THAT(ValidateHeap(), IsOk());
   EXPECT_EQ(free_block->Size(), kBlockSize);
+
+  EXPECT_THAT(FreelistList(), ElementsAre(Address(free_block)));
+}
+
+TEST_F(FreelistTest, FreeWithAllocatedNeighbors) {
+  constexpr uint64_t kBlockSize = 0x500;
+
+  PushAllocated(0x140);
+  AllocatedBlock* block = PushAllocated(kBlockSize);
+  PushAllocated(0x80);
+  PushPhony();
+
+  FreeBlock* free_block = Freelist().MarkFree(block);
+  EXPECT_THAT(ValidateHeap(), IsOk());
+  EXPECT_EQ(free_block->Size(), kBlockSize);
+
+  EXPECT_THAT(FreelistList(), ElementsAre(Address(free_block)));
+}
+
+TEST_F(FreelistTest, FreeWithFreePrev) {
+  constexpr uint64_t kPrevSize = 0x240;
+  constexpr uint64_t kBlockSize = 0x110;
+
+  FreeBlock* b1 = PushFree(kPrevSize);
+  AllocatedBlock* b2 = PushAllocated(kBlockSize);
+  PushAllocated(0x80);
+  PushPhony();
+  EXPECT_THAT(FreelistList(), ElementsAre(Address(b1)));
+
+  FreeBlock* free_block = Freelist().MarkFree(b2);
+  EXPECT_THAT(ValidateHeap(), IsOk());
+  EXPECT_EQ(free_block, b1);
+  EXPECT_EQ(free_block->Size(), kPrevSize + kBlockSize);
+
+  EXPECT_THAT(FreelistList(), ElementsAre(Address(free_block)));
+}
+
+TEST_F(FreelistTest, FreeWithFreeNext) {
+  constexpr uint64_t kBlockSize = 0x550;
+  constexpr uint64_t kNextSize = 0x190;
+
+  PushAllocated(0x600);
+  AllocatedBlock* b1 = PushAllocated(kBlockSize);
+  FreeBlock* b2 = PushFree(kNextSize);
+  PushPhony();
+  EXPECT_THAT(FreelistList(), ElementsAre(Address(b2)));
+
+  FreeBlock* free_block = Freelist().MarkFree(b1);
+  EXPECT_THAT(ValidateHeap(), IsOk());
+  EXPECT_EQ(free_block, static_cast<Block*>(b1));
+  EXPECT_EQ(free_block->Size(), kBlockSize + kNextSize);
+
+  EXPECT_THAT(FreelistList(), ElementsAre(Address(free_block)));
+}
+
+TEST_F(FreelistTest, FreeWithFreeNextAndPrev) {
+  constexpr uint64_t kPrevSize = 0x150;
+  constexpr uint64_t kBlockSize = 0x730;
+  constexpr uint64_t kNextSize = 0x240;
+
+  FreeBlock* b1 = PushFree(kPrevSize);
+  AllocatedBlock* b2 = PushAllocated(kBlockSize);
+  FreeBlock* b3 = PushFree(kNextSize);
+  PushPhony();
+  EXPECT_THAT(FreelistList(), UnorderedElementsAre(Address(b1), Address(b3)));
+
+  FreeBlock* free_block = Freelist().MarkFree(b2);
+  EXPECT_THAT(ValidateHeap(), IsOk());
+  EXPECT_EQ(free_block, b1);
+  EXPECT_EQ(free_block->Size(), kPrevSize + kBlockSize + kNextSize);
+
+  EXPECT_THAT(FreelistList(), ElementsAre(Address(free_block)));
+}
+
+TEST_F(FreelistTest, FreeWithUntrackedNeighbors) {
+  constexpr uint64_t kPrevSize = 0x10;
+  constexpr uint64_t kBlockSize = 0x530;
+  constexpr uint64_t kNextSize = 0x10;
+
+  UntrackedBlock* b1 = PushUntracked(kPrevSize);
+  AllocatedBlock* b2 = PushAllocated(kBlockSize);
+  PushUntracked(kNextSize);
+  PushPhony();
+  EXPECT_THAT(FreelistList(), ElementsAre());
+
+  FreeBlock* free_block = Freelist().MarkFree(b2);
+  EXPECT_THAT(ValidateHeap(), IsOk());
+  EXPECT_EQ(free_block, static_cast<Block*>(b1));
+  EXPECT_EQ(free_block->Size(), kPrevSize + kBlockSize + kNextSize);
 
   EXPECT_THAT(FreelistList(), ElementsAre(Address(free_block)));
 }
