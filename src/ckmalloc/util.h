@@ -90,4 +90,11 @@ constexpr T CeilDiv(T val, T quotient) {
   return (val + quotient - 1) / quotient;
 }
 
+// Returns a - b by integer value.
+template <typename T, typename U>
+constexpr size_t PtrDistance(const T* a, const U* b) {
+  return reinterpret_cast<const uint8_t*>(a) -
+         reinterpret_cast<const uint8_t*>(b);
+}
+
 }  // namespace ckmalloc
