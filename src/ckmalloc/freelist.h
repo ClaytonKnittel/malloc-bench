@@ -9,6 +9,8 @@
 namespace ckmalloc {
 
 class Freelist {
+  friend class FreelistTest;
+
  public:
   // Searches the freelists for a block large enough to fit `user_size`. If none
   // is found, `nullptr` is returned.
