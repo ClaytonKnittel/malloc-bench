@@ -50,6 +50,7 @@ std::pair<AllocatedBlock*, Block*> Freelist::Split(FreeBlock* block,
   CK_ASSERT_LE(block_size, size);
 
   uint64_t remainder = size - block_size;
+  // TODO: replace with remainder == 0
   if (remainder < Block::kMinBlockSize) {
     AllocatedBlock* allocated_block = MarkAllocated(block);
     return std::make_pair(allocated_block, nullptr);

@@ -63,7 +63,10 @@ cc_test(
     srcs = ["freelist_test.cc"],
     deps = [
         ":block",
+        ":common",
         ":freelist",
+        ":linked_list",
+        ":util",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
