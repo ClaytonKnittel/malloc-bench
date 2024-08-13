@@ -71,10 +71,14 @@ template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap,
           SlabManagerInterface SlabManager>
 void* MainAllocatorImpl<MetadataAlloc, SlabMap, SlabManager>::Realloc(
     void* ptr, size_t user_size) {
+  Slab* slab = slab_map_->FindSlab(slab_manager_->PageIdFromPtr(ptr));
+  CK_ASSERT_EQ(slab->Type(), SlabType::kLarge);
+  AllocatedBlock* block = AllocatedBlock::FromUserDataPtr(ptr);
+
   void* new_ptr = Alloc(user_size);
   if (new_ptr != nullptr) {
-    // TODO: copy min of sizes.
-    std::memcpy(new_ptr, ptr, user_size);
+    std::memcpy(new_ptr, ptr,
+                std::min<size_t>(user_size, block->UserDataSize()));
   }
   Free(ptr);
   return new_ptr;
@@ -83,8 +87,32 @@ void* MainAllocatorImpl<MetadataAlloc, SlabMap, SlabManager>::Realloc(
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap,
           SlabManagerInterface SlabManager>
 void MainAllocatorImpl<MetadataAlloc, SlabMap, SlabManager>::Free(void* ptr) {
-  AllocatedBlock* block = AllocatedBlock::FromUserDataPtr(ptr);
-  freelist_.MarkFree(block);
+  Slab* slab = slab_map_->FindSlab(slab_manager_->PageIdFromPtr(ptr));
+  CK_ASSERT_EQ(slab->Type(), SlabType::kLarge);
+
+  switch (slab->Type()) {
+    case SlabType::kSmall: {
+      break;
+    }
+    case SlabType::kLarge: {
+      LargeSlab* large = slab->ToLarge();
+      AllocatedBlock* block = AllocatedBlock::FromUserDataPtr(ptr);
+      large->RemoveAllocation(block->Size());
+
+      if (large->AllocatedBytes() == 0) {
+        slab_manager_->Free(large);
+      } else {
+        freelist_.MarkFree(block);
+      }
+      break;
+    }
+    case SlabType::kUnmapped:
+    case SlabType::kFree: {
+      // Unexpected free/unmapped slab.
+      CK_ASSERT_EQ(slab->Type(), SlabType::kSmall);
+      break;
+    }
+  }
 }
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap,
@@ -97,8 +125,13 @@ MainAllocatorImpl<MetadataAlloc, SlabMap, SlabManager>::MakeBlockFromFreelist(
     return nullptr;
   }
 
+  LargeSlab* slab =
+      slab_map_->FindSlab(slab_manager_->PageIdFromPtr(free_block))->ToLarge();
+
   auto [allocated_block, remainder_block] =
       freelist_.Split(free_block, Block::BlockSizeForUserSize(user_size));
+
+  slab->AddAllocation(allocated_block->Size());
   return allocated_block;
 }
 
@@ -123,9 +156,10 @@ MainAllocatorImpl<MetadataAlloc, SlabMap,
   AllocatedBlock* block =
       slab_manager_->FirstBlockInLargeSlab(slab)->InitAllocated(block_size,
                                                                 false);
+  slab->AddAllocation(block_size);
 
   // Write a phony header for an allocated block of size 0 at the end of the
-  // slab, which will trick the last block in the slab from never trying to
+  // slab, which will trick the last block in the slab into never trying to
   // coalesce with its next adjacent neighbor.
   Block* slab_end_header = block->NextAdjacentBlock();
 
