@@ -25,6 +25,7 @@ cc_test(
     deps = [
         ":block",
         ":common",
+        ":util",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
