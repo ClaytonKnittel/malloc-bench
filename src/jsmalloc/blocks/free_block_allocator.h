@@ -33,5 +33,18 @@ class FreeBlockAllocator {
   FreeBlock::List free_blocks_;
 };
 
+namespace testing {
+
+/** A FreeBlockAllocator that can be initialized on the stack. */
+class StackFreeBlockAllocator : public FreeBlockAllocator {
+ public:
+  StackFreeBlockAllocator() : FreeBlockAllocator(stack_allocator_){};
+
+ private:
+  BigStackAllocator stack_allocator_;
+};
+
+}  // namespace testing
+
 }  // namespace blocks
 }  // namespace jsmalloc

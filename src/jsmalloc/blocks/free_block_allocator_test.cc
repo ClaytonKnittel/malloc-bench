@@ -4,7 +4,6 @@
 
 #include "gtest/gtest.h"
 
-#include "src/jsmalloc/allocator.h"
 #include "src/jsmalloc/blocks/free_block.h"
 
 namespace jsmalloc {
@@ -14,8 +13,7 @@ namespace blocks {
 constexpr size_t kMinSavedBlockSize = 256;
 
 TEST(TestFreeBlockAllocator, AllocatesExistingBlocks) {
-  BigStackAllocator stack_allocator;
-  FreeBlockAllocator allocator(stack_allocator);
+  testing::StackFreeBlockAllocator allocator;
 
   FreeBlock* b1 = allocator.Allocate(kMinSavedBlockSize);
   FreeBlock* b2 = allocator.Allocate(kMinSavedBlockSize + 16);
@@ -32,8 +30,7 @@ TEST(TestFreeBlockAllocator, AllocatesExistingBlocks) {
 }
 
 TEST(TestFreeBlockAllocator, SplitsBlocks) {
-  BigStackAllocator stack_allocator;
-  FreeBlockAllocator allocator(stack_allocator);
+  testing::StackFreeBlockAllocator allocator;
 
   FreeBlock* b = allocator.Allocate(kMinSavedBlockSize * 3);
   allocator.Free(b->Header());
