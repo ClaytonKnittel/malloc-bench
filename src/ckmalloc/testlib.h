@@ -2,11 +2,14 @@
 
 #include <cinttypes>
 #include <cstddef>
+#include <vector>
 
+#include "absl/status/status.h"
 #include "absl/strings/str_format.h"
 
 #include "src/ckmalloc/block.h"
 #include "src/ckmalloc/common.h"
+#include "src/ckmalloc/freelist.h"
 #include "src/ckmalloc/page_id.h"
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/slab_map.h"
@@ -55,13 +58,28 @@ void AbslStringify(Sink& sink, SlabType slab_type) {
 
 template <typename Sink>
 void AbslStringify(Sink& sink, const Slab& slab) {
-  if (slab.Type() == SlabType::kUnmapped) {
-    absl::Format(&sink, "Unmapped slab metadata!");
-  } else {
-    const MappedSlab& mapped_slab = *slab.ToMapped();
-    absl::Format(&sink, "Slab: [type=%v, pages=%" PRIu32 ", start_id=%v]",
-                 mapped_slab.Type(), mapped_slab.Pages(),
-                 mapped_slab.StartId());
+  switch (slab.Type()) {
+    case SlabType::kUnmapped: {
+      absl::Format(&sink, "Unmapped slab metadata!");
+      break;
+    }
+    case SlabType::kFree:
+    case SlabType::kSmall: {
+      const MappedSlab& mapped_slab = *slab.ToMapped();
+      absl::Format(&sink, "Slab: [type=%v, pages=%" PRIu32 ", start_id=%v]",
+                   mapped_slab.Type(), mapped_slab.Pages(),
+                   mapped_slab.StartId());
+      break;
+    }
+    case SlabType::kLarge: {
+      const LargeSlab& large_slab = *slab.ToLarge();
+      absl::Format(&sink,
+                   "Slab: [type=%v, pages=%" PRIu32
+                   ", start_id=%v, allocated_bytes=%" PRIu64 "]",
+                   large_slab.Type(), large_slab.Pages(), large_slab.StartId(),
+                   large_slab.AllocatedBytes());
+      break;
+    }
   }
 }
 
@@ -77,13 +95,13 @@ void AbslStringify(Sink& sink, const Slab* slab) {
 template <typename Sink>
 void AbslStringify(Sink& sink, const Block& block) {
   if (block.Free()) {
-    if (block.IsUntrackedSize()) {
+    if (block.IsUntracked()) {
       absl::Format(&sink, "Block %p: [untracked, size=%" PRIu64 "]", &block,
                    block.Size());
     } else {
       absl::Format(
           &sink, "Block %p: [free, size=%" PRIu64 ", prev=%p, next=%p]", &block,
-          block.Size(), block.ToFree()->Prev(), block.ToFree()->Next());
+          block.Size(), block.ToTracked()->Prev(), block.ToTracked()->Next());
     }
   } else {
     absl::Format(&sink, "Block %p: [allocated, size=%" PRIu64 ", prev_free=%s]",
@@ -117,5 +135,14 @@ class CkMallocTest {
   // frequently in tests to verify the heap remains in a consistent state.
   virtual absl::Status ValidateHeap() = 0;
 };
+
+struct LargeSlabInfo {
+  void* start;
+  void* end;
+  LargeSlab* slab;
+};
+
+absl::Status ValidateLargeSlabs(const std::vector<LargeSlabInfo>& slabs,
+                                const Freelist& freelist);
 
 }  // namespace ckmalloc

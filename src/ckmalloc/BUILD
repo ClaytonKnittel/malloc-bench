@@ -55,6 +55,7 @@ cc_library(
     deps = [
         ":block",
         ":linked_list",
+        ":util",
     ],
 )
 
@@ -68,9 +69,9 @@ cc_test(
         ":linked_list",
         ":testlib",
         ":util",
+        "@abseil-cpp//absl/container:flat_hash_set",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/strings:str_format",
-        "@abseil-cpp//absl/container:flat_hash_set",
         "@cc-util//util:gtest_util",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
@@ -106,6 +107,42 @@ cc_library(
         ":slab_manager",
         ":slab_map",
         ":util",
+    ],
+)
+
+cc_test(
+    name = "main_allocator_test",
+    srcs = ["main_allocator_test.cc"],
+    deps = [
+        ":block",
+        ":linked_list",
+        ":main_allocator",
+        ":main_allocator_test_fixture",
+        ":slab_manager_test_fixture",
+        "@cc-util//util:absl_util",
+        "@cc-util//util:gtest_util",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "main_allocator_test_fixture",
+    srcs = ["main_allocator_test_fixture.cc"],
+    hdrs = ["main_allocator_test_fixture.h"],
+    deps = [
+        ":common",
+        ":freelist",
+        ":main_allocator",
+        ":page_id",
+        ":slab",
+        ":slab_manager_test_fixture",
+        ":testlib",
+        ":util",
+        "//src:rng",
+        "@abseil-cpp//absl/container:btree",
+        "@abseil-cpp//absl/status",
+        "@cc-util//util:absl_util",
     ],
 )
 
@@ -301,10 +338,14 @@ cc_library(
     deps = [
         ":block",
         ":common",
+        ":freelist",
         ":page_id",
         ":slab",
         ":slab_map",
+        ":util",
         "//src:heap_interface",
+        "@abseil-cpp//absl/container:flat_hash_set",
+        "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/strings:str_format",
     ],
 )

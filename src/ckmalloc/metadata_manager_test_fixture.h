@@ -57,7 +57,7 @@ class MetadataManagerFixture : public CkMallocTest {
         slab_manager_test_fixture_(std::move(slab_manager_test_fixture)),
         slab_manager_(slab_manager),
         metadata_manager_(std::make_shared<TestMetadataManager>(
-            this, slab_map.get(), slab_manager.get())),
+            this, slab_map_.get(), slab_manager_.get())),
         rng_(2021, 5) {}
 
   MetadataManagerFixture()
