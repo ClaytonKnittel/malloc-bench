@@ -182,9 +182,7 @@ absl::Status MetadataManagerFixture::TraceBlockAllocation(void* block,
                                                           size_t alignment) {
   // Check that the pointer is aligned relative to the heap start. The heap will
   // be page-aligned in production, but may not be in tests.
-  if (((reinterpret_cast<intptr_t>(block) -
-        reinterpret_cast<intptr_t>(Heap().Start())) &
-       (alignment - 1)) != 0) {
+  if ((PtrDistance(block, Heap().Start()) & (alignment - 1)) != 0) {
     return absl::FailedPreconditionError(
         absl::StrFormat("Pointer returned from Alloc not aligned properly: "
                         "pointer %p, size %zu, alignment %zu",
