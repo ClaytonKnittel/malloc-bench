@@ -29,15 +29,9 @@ class SizeClass {
     static_assert(kMaxSmallSize == 128);
     CK_ASSERT_LT(size_class_, 9);
     constexpr uint32_t kSliceMap[9] = {
-      /*size=8  */ 512,
-      /*size=16 */ 256,
-      /*size=32 */ 128,
-      /*size=48 */ 85,
-      /*size=64 */ 64,
-      /*size=80 */ 51,
-      /*size=96 */ 42,
-      /*size=112*/ 36,
-      /*size=128*/ 32,
+      kPageSize / 8,  kPageSize / 16,  kPageSize / 32,
+      kPageSize / 48, kPageSize / 64,  kPageSize / 80,
+      kPageSize / 96, kPageSize / 112, kPageSize / 128,
     };
 
     return kSliceMap[size_class_];

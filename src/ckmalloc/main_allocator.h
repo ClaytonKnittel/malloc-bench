@@ -62,9 +62,9 @@ class MainAllocatorImpl {
   // `user_size`.
   AllocatedBlock* AllocLargeSlabAndMakeBlock(size_t user_size);
 
-  SlabMap* slab_map_;
+  SlabMap* const slab_map_;
 
-  SlabManager* slab_manager_;
+  SlabManager* const slab_manager_;
 
   Freelist freelist_;
 };

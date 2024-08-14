@@ -336,6 +336,19 @@ cc_library(
 )
 
 cc_library(
+    name = "small_freelist",
+    srcs = ["small_freelist.cc"],
+    hdrs = ["small_freelist.h"],
+    deps = [
+        ":common",
+        ":slab",
+        ":slab_manager",
+        ":slice",
+        ":util",
+    ],
+)
+
+cc_library(
     name = "state",
     srcs = ["state.cc"],
     hdrs = ["state.h"],
