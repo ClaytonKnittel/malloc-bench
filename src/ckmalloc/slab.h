@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 #include <ostream>
 #include <type_traits>
 
@@ -8,6 +9,7 @@
 #include "src/ckmalloc/page_id.h"
 #include "src/ckmalloc/size_class.h"
 #include "src/ckmalloc/slice.h"
+#include "src/ckmalloc/util.h"
 
 namespace ckmalloc {
 
@@ -40,6 +42,60 @@ enum class SlabType {
 };
 
 std::ostream& operator<<(std::ostream& ostr, SlabType slab_type);
+
+template <typename Fn>
+concept SliceLookup = requires(Fn fn, SliceId slice_id) {
+  { fn(slice_id) } -> std::convertible_to<FreeSlice*>;
+};
+
+class SmallSlabMetadata {
+ public:
+  explicit SmallSlabMetadata(SizeClass size_class);
+
+  SizeClass SizeClass() const {
+    return size_class_;
+  }
+
+  // If true, all slices are free in this slab.
+  bool Empty() const;
+
+  // If true, all slices are allocated in this slab.
+  bool Full() const;
+
+  // Given a slice lookup function, which given a `SliceId` returns a
+  // `FreeSlice*`, pops the next slice off the freelist and updates the freelist
+  // accordingly, returning the newly allocated slice.
+  template <SliceLookup Fn>
+  AllocatedSlice* PopSlice(Fn slice_lookup);
+
+  // Pushes a newly freed slice with id `slice_id` onto the stack of free
+  // slices.
+  template <SliceLookup Fn>
+  void PushSlice(FreeSlice* slice, SliceId slice_id, Fn slice_lookup);
+
+ private:
+  // The size of allocations this slab holds.
+  class SizeClass size_class_;
+
+  // Some free slices contain up to four pointers to other free slices
+  // in this slab. This number here is the count of other pointers in
+  // the slice `freelist_` points to, and also the offset that the next
+  // freed slice id should be placed. It ranges from 0-3.
+  uint8_t freelist_node_offset_ = 0;
+
+  // The slice id of the first slice in the freelist.
+  SliceId freelist_ = SliceId::Nil();
+
+  // The count of initialized slices. This starts off at 0, and will
+  // increase as free blocks are requested and the freelist remains
+  // empty. Once this reaches the maximum number of slices that fit in
+  // this slab, it cannot be increased further, and if the freelist is
+  // empty the slab is full.
+  uint16_t initialized_count_ = 0;
+
+  // The count of allocated slices in this slab.
+  uint16_t allocated_count_ = 0;
+};
 
 // Slab metadata class, which is stored separately from the slab it describes,
 // in a metadata slab.
@@ -93,24 +149,7 @@ class Slab {
       union {
         struct {
         } free;
-        struct {
-          // The size of allocations this small slab holds. Must be <=
-          // kSmallSize.
-          SizeClass size_class_;
-
-          // The slice id of the first slice in the freelist.
-          SliceId freelist_;
-
-          // The count of initialized slices. This starts off at 0, and will
-          // increase as free blocks are requested and the freelist remains
-          // empty. Once this reaches the maximum number of slices that fit in
-          // this slab, it cannot be increased further, and if the freelist is
-          // empty the slab is full.
-          uint16_t initialized_count_;
-
-          // The count of allocated slices in this slab.
-          uint16_t allocated_count_;
-        } small;
+        SmallSlabMetadata small_meta_;
         struct {
           // Tracks the total number of allocated bytes in this block.
           uint64_t allocated_bytes_;
@@ -180,22 +219,7 @@ class SmallSlab : public AllocatedSlab {
   class LargeSlab* ToLarge() = delete;
   const class LargeSlab* ToLarge() const = delete;
 
-  // The size of allocations this slab holds.
-  SizeClass SizeClass() const;
-
-  // If true, all slices are free in this slab.
-  bool Empty() const;
-
-  // If true, all slices are allocated in this slab.
-  bool Full() const;
-
-  // Allocates a single slice from this small blocks slab, which must not be
-  // full.
-  // TODO: return multiple once we have a cache?
-  void* TakeSlice();
-
-  // Returns a slice to the small slab, allowing it to be reallocated.
-  void ReturnSlice(void* ptr);
+  SmallSlabMetadata& Metadata();
 };
 
 class LargeSlab : public AllocatedSlab {
@@ -242,5 +266,47 @@ template <>
 SmallSlab* Slab::Init(PageId start_id, uint32_t n_pages, SizeClass size_class);
 template <>
 LargeSlab* Slab::Init(PageId start_id, uint32_t n_pages);
+
+template <SliceLookup Fn>
+AllocatedSlice* SmallSlabMetadata::PopSlice(Fn slice_lookup) {
+  SliceId id = SliceId::Nil();
+  if (freelist_ != SliceId::Nil()) {
+    FreeSlice* slice = slice_lookup(freelist_);
+
+    // TODO: need to fix this condition
+    if (freelist_node_offset_ == 4) {
+      id = freelist_;
+      freelist_ = slice->IdAt(0);
+      freelist_node_offset_ = 0;
+    } else {
+      id = slice->IdAt(freelist_node_offset_);
+      freelist_node_offset_--;
+    }
+  } else {
+    // If the freelist is empty, we can allocate more slices from the end of the
+    // allocated space within the slab.
+    CK_ASSERT_LT(initialized_count_, size_class_.MaxSlicesPerSlab());
+
+    id = SliceId(initialized_count_);
+    initialized_count_++;
+  }
+
+  CK_ASSERT_NE(id, SliceId::Nil());
+  return slice_lookup(id)->ToAllocated();
+}
+
+template <SliceLookup Fn>
+void SmallSlabMetadata::PushSlice(FreeSlice* slice, SliceId slice_id,
+                                  Fn slice_lookup) {
+  if (freelist_node_offset_ == 0) {
+    slice->SetId(0, freelist_);
+    freelist_ = slice_id;
+  } else {
+    CK_ASSERT_NE(freelist_, SliceId::Nil());
+    FreeSlice* head = slice_lookup(freelist_);
+    head->SetId(freelist_node_offset_, slice_id);
+    freelist_node_offset_ = (freelist_node_offset_ + 1) % 4;
+  }
+}
 
 }  // namespace ckmalloc

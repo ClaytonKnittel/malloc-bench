@@ -6,7 +6,6 @@
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/page_id.h"
 #include "src/ckmalloc/size_class.h"
-#include "src/ckmalloc/slice.h"
 #include "src/ckmalloc/util.h"
 
 namespace ckmalloc {
@@ -26,6 +25,17 @@ std::ostream& operator<<(std::ostream& ostr, SlabType slab_type) {
       return ostr << "kLarge";
     }
   }
+}
+
+SmallSlabMetadata::SmallSlabMetadata(class SizeClass size_class)
+    : size_class_(size_class) {}
+
+bool SmallSlabMetadata::Empty() const {
+  return allocated_count_ == 0;
+}
+
+bool SmallSlabMetadata::Full() const {
+  return allocated_count_ == size_class_.MaxSlicesPerSlab();
 }
 
 template <>
@@ -56,12 +66,7 @@ SmallSlab* Slab::Init(PageId start_id, uint32_t n_pages, SizeClass size_class) {
   mapped = {
     .id_ = start_id,
     .n_pages_ = n_pages,
-    .small = {
-      .size_class_ = size_class,
-      .freelist_ = SliceId::Nil(),
-      .initialized_count_ = 0,
-      .allocated_count_ = 0,
-    },
+    .small_meta_ = SmallSlabMetadata(size_class),
   };
 
   return static_cast<SmallSlab*>(this);
@@ -174,27 +179,9 @@ uint32_t MappedSlab::Pages() const {
   return mapped.n_pages_;
 }
 
-SizeClass SmallSlab::SizeClass() const {
+SmallSlabMetadata& SmallSlab::Metadata() {
   CK_ASSERT_EQ(type_, SlabType::kSmall);
-  return mapped.small.size_class_;
-}
-
-bool SmallSlab::Empty() const {
-  CK_ASSERT_EQ(type_, SlabType::kSmall);
-  return mapped.small.allocated_count_ == 0;
-}
-
-bool SmallSlab::Full() const {
-  CK_ASSERT_EQ(type_, SlabType::kSmall);
-  return mapped.small.allocated_count_ == SizeClass().MaxSlicesPerSlab();
-}
-
-void* SmallSlab::TakeSlice() {
-  CK_ASSERT_EQ(type_, SlabType::kSmall);
-}
-
-void SmallSlab::ReturnSlice(void* ptr) {
-  CK_ASSERT_EQ(type_, SlabType::kSmall);
+  return mapped.small_meta_;
 }
 
 /* static */
