@@ -26,6 +26,10 @@ class Block {
 
   Block* GetNextBlock();
 
+  static size_t space_needed_with_header(const size_t& size);
+
+  static Block* create_block_extend_heap(size_t size);
+
  private:
   uint64_t header_;
   uint64_t magic_value_ = 123456;

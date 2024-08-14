@@ -65,11 +65,6 @@ uint8_t* Block::GetBody() {
   return body_;
 }
 
-Block* Block::FromRawPtr(void* ptr) {
-  return reinterpret_cast<Block*>(reinterpret_cast<uint8_t*>(ptr) -
-                                  offsetof(Block, body_));
-}
-
 void Block::CheckValid() const {
   MALLOC_ASSERT_EQ(magic_value_, 123456);
 }
@@ -77,4 +72,24 @@ void Block::CheckValid() const {
 Block* Block::GetNextBlock() {
   return reinterpret_cast<Block*>(reinterpret_cast<uint8_t*>(this) +
                                   GetBlockSize());
+}
+
+size_t Block::space_needed_with_header(const size_t& size) {
+  // add size of header to size, 8 bytes
+  size_t round_up = size + sizeof(Block);
+  // round up size of memory needed to be 16 byte aligned
+  round_up += 0xf;
+  // zero out first four bits
+  round_up = round_up & ~0xf;
+  return round_up;
+}
+
+Block* Block::create_block_extend_heap(size_t size) {
+  size_t block_size = Block::space_needed_with_header(size);
+  auto* block = reinterpret_cast<Block*>(
+      bench::SingletonHeap::GlobalInstance()->sbrk(block_size));
+  block->SetBlockSize(block_size);
+  block->SetFree(false);
+  block->SetMagic();
+  return block;
 }
