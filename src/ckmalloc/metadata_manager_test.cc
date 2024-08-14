@@ -12,6 +12,7 @@
 
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/metadata_manager_test_fixture.h"
+#include "src/ckmalloc/size_class.h"
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/slab_manager_test_fixture.h"
 #include "src/ckmalloc/util.h"
@@ -170,7 +171,8 @@ TEST_F(MetadataManagerTest, AllocateWithOtherAllocators) {
   ASSERT_THAT(Fixture().Alloc(kPageSize).status(), IsOk());
 
   // Allocate a phony slab right after the one just allocated.
-  auto res = SlabManager().template Alloc<SmallSlab>(1);
+  auto res = SlabManager().template Alloc<SmallSlab>(
+      1, SizeClass::FromSliceSize(kDefaultAlignment));
   ASSERT_TRUE(res.has_value());
   EXPECT_THAT(ValidateHeap(), IsOk());
   EXPECT_EQ(res.value().first, PageId(1));

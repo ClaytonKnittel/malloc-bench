@@ -167,6 +167,7 @@ cc_test(
         ":metadata_manager_test_fixture",
         ":slab",
         ":slab_manager_test_fixture",
+        ":size_class",
         ":util",
         "@abseil-cpp//absl/status",
         "@cc-util//util:absl_util",
@@ -227,6 +228,15 @@ cc_test(
 )
 
 cc_library(
+    name = "size_class",
+    hdrs = ["size_class.h"],
+    deps = [
+        ":common",
+        ":util",
+    ],
+)
+
+cc_library(
     name = "slab",
     srcs = ["slab.cc"],
     hdrs = ["slab.h"],
@@ -234,6 +244,8 @@ cc_library(
         ":block",
         ":common",
         ":page_id",
+        ":size_class",
+        ":slice",
         ":util",
     ],
 )
@@ -312,6 +324,14 @@ cc_test(
         "@abseil-cpp//absl/status",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "slice",
+    hdrs = ["slice.h"],
+    deps = [
+        ":common",
     ],
 )
 

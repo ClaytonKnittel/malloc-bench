@@ -8,6 +8,8 @@
 
 namespace ckmalloc {
 
+// The freelist tracks free large blocks, i.e. blocks which hold regions of
+// memory larger than what fit into small slabs.
 class Freelist {
   friend class FreelistTest;
   friend class MainAllocatorTest;

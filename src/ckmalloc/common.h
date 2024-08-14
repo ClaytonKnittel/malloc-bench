@@ -11,6 +11,9 @@ namespace ckmalloc {
 // The alignment of all allocations above the default alignment threshold.
 static constexpr uint64_t kDefaultAlignment = 16;
 
+// The alignment of small allocations (<= 8 bytes).
+static constexpr uint64_t kMinAlignment = 8;
+
 static constexpr uint32_t kPageShift = 12;
 // The size of slabs in bytes.
 static constexpr size_t kPageSize = 1 << kPageShift;
@@ -21,7 +24,7 @@ static_assert(bench::SingletonHeap::kHeapSize == (size_t(1) << kHeapSizeShift));
 
 // The largest user-request size which will be allocated in small slabs. Any
 // size larger will go in large blocks.
-static constexpr size_t kMaxSmallSize = 0;
+static constexpr size_t kMaxSmallSize = 128;
 
 // If true, memory for this request will be allocated from a small slab.
 inline constexpr bool IsSmallSize(size_t user_size) {
@@ -63,11 +66,11 @@ concept SlabManagerInterface = requires(
   {
     slab_mgr.template Alloc<class SmallSlab>(n_pages)
   } -> std::convertible_to<
-        std::optional<std::pair<class PageId, class SmallSlab*>>>;
+      std::optional<std::pair<class PageId, class SmallSlab*>>>;
   {
     slab_mgr.template Alloc<class LargeSlab>(n_pages)
   } -> std::convertible_to<
-        std::optional<std::pair<class PageId, class LargeSlab*>>>;
+      std::optional<std::pair<class PageId, class LargeSlab*>>>;
   { slab_mgr.Free(slab) } -> std::same_as<void>;
   {
     slab_mgr.FirstBlockInLargeSlab(large_slab)
