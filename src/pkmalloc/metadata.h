@@ -1,10 +1,12 @@
 #pragma once
 
-#include "block.h"
+#include "src/pkmalloc/allocated_block.h"
+#include "src/pkmalloc/block.h"
+#include "src/pkmalloc/free_block.h"
 
 class Metadata {
  public:
-  Metadata* create_metadata_structure() {}
+  Metadata* create_metadata_structure();
   // have a pointer to this structure
   // which will be stored on the heap
 
