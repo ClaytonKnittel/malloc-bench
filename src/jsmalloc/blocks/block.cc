@@ -9,9 +9,9 @@ namespace jsmalloc {
 namespace blocks {
 namespace {
 
-using KindAccessor = twiddle::BitRangeAccessor<uint32_t, 0, 2>;
-using PrevBlockIsFreeAccessor = twiddle::BitRangeAccessor<uint32_t, 2, 3>;
-using BlockSizeAccessor = twiddle::BitRangeAccessor<uint32_t, 3, 32>;
+using KindAccessor = twiddle::BitRangeAccessor<uint32_t, 0, 3>;
+using PrevBlockIsFreeAccessor = twiddle::BitRangeAccessor<uint32_t, 3, 4>;
+using BlockSizeAccessor = twiddle::BitRangeAccessor<uint32_t, 4, 32>;
 
 }  // namespace
 

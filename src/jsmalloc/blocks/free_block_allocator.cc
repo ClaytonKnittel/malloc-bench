@@ -34,10 +34,16 @@ FreeBlock* FreeBlockAllocator::Allocate(size_t size) {
     if (remainder != nullptr && remainder->BlockSize() >= 256) {
       free_blocks_.insert_back(*remainder);
     }
+    free_block.Header()->SetKind(BlockKind::kLeasedFreeBlock);
     return &free_block;
   }
 
-  return FreeBlock::New(allocator_, size);
+  FreeBlock* block = FreeBlock::New(allocator_, size);
+  if (block == nullptr) {
+    return nullptr;
+  }
+  block->Header()->SetKind(BlockKind::kLeasedFreeBlock);
+  return block;
 }
 
 void FreeBlockAllocator::Free(BlockHeader* block) {
