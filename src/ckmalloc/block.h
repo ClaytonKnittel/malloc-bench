@@ -41,8 +41,8 @@ class Block {
   static constexpr uint64_t kMinBlockSize = kDefaultAlignment;
 
   // The smallest size of large blocks which will be tracked in the freelist.
-  // Sizes smaller than this go in small slabs, and having a heterogenous list
-  // of free blocks for small size classes is extra overhead we want to avoid.
+  // Sizes smaller than this go in small slabs, as having a heterogenous list of
+  // free blocks for small size classes is extra overhead we want to avoid.
   static const size_t kMinLargeSize;
 
   // Returns the maximum user size that fits in a block of size `block_size`.
@@ -183,11 +183,7 @@ constexpr size_t Block::UserSizeForBlockSize(uint64_t block_size) {
 
 /* static */
 constexpr uint64_t Block::BlockSizeForUserSize(size_t user_size) {
-  // TODO revert
-  // return AlignUp(user_size + kMetadataOverhead, kDefaultAlignment);
-  return std::max(
-      AlignUp<size_t>(user_size + kMetadataOverhead, kDefaultAlignment),
-      AlignUp<size_t>(sizeof(TrackedBlock), kDefaultAlignment));
+  return AlignUp<size_t>(user_size + kMetadataOverhead, kDefaultAlignment);
 }
 
 /* static */
