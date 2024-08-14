@@ -24,6 +24,14 @@ enum class BlockKind {
   // A `FreeBlock` (see src/jsmalloc/blocks/free_block.h).
   kFree = 0,
 
+  // An unused block free block.
+  // Not really free, but not really used.
+  // Blowing in the wind, undefined.
+  // One day it may find itself fulfilled,
+  // but until then, it will wallow, silently,
+  // in the torn out pages of time.
+  kLeasedFreeBlock = 4,
+
   // A `SmallBlock` (see src/jsmalloc/blocks/small_block.h).
   kSmall = 1,
 
@@ -47,7 +55,10 @@ class BlockHeader {
   /** The kind of the block. */
   BlockKind Kind() const;
 
-  /** The kind of the block. */
+  /** Sets the kind of the block. */
+  void SetKind(BlockKind kind);
+
+  /** Whether the block before this in memory is free. */
   bool PrevBlockIsFree() const;
 
   /** Whether this block has the correct magic value (debug only). */
@@ -61,7 +72,6 @@ class BlockHeader {
 
  private:
   void SetBlockSize(uint32_t size);
-  void SetKind(BlockKind kind);
   void SetPrevBlockIsFree(bool value);
 
   uint32_t data_;
