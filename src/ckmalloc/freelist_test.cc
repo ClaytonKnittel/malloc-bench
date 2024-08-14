@@ -211,10 +211,10 @@ TEST_F(FreelistTest, Empty) {
 }
 
 TEST_F(FreelistTest, OnlyAllocatedAndUntracked) {
-  PushAllocated(0x100);
+  PushAllocated(0x140);
   PushAllocated(0x300);
-  PushUntracked(0x10);
-  PushAllocated(0x20);
+  PushUntracked(0x80);
+  PushAllocated(0x200);
   PushUntracked(0x10);
   PushPhony();
   EXPECT_THAT(ValidateHeap(), IsOk());
@@ -239,14 +239,14 @@ TEST_F(FreelistTest, OneFree) {
 }
 
 TEST_F(FreelistTest, ManyFree) {
-  PushAllocated(0x100);
+  PushAllocated(0x150);
   TrackedBlock* b1 = PushFree(0x500);
   PushAllocated(0x400);
-  PushAllocated(0x50);
+  PushAllocated(0x160);
   TrackedBlock* b2 = PushFree(0x300);
-  PushAllocated(0x30);
+  PushAllocated(0x240);
   TrackedBlock* b3 = PushFree(0x900);
-  PushAllocated(0x50);
+  PushAllocated(0x150);
   TrackedBlock* b4 = PushFree(0x200);
   PushPhony();
   EXPECT_THAT(ValidateHeap(), IsOk());
@@ -287,7 +287,7 @@ TEST_F(FreelistTest, FreeWithAllocatedNeighbors) {
 
   PushAllocated(0x140);
   AllocatedBlock* block = PushAllocated(kBlockSize);
-  PushAllocated(0x80);
+  PushAllocated(0x180);
   PushPhony();
 
   FreeBlock* free_block = Freelist().MarkFree(block);
@@ -299,11 +299,11 @@ TEST_F(FreelistTest, FreeWithAllocatedNeighbors) {
 
 TEST_F(FreelistTest, FreeWithFreePrev) {
   constexpr uint64_t kPrevSize = 0x240;
-  constexpr uint64_t kBlockSize = 0x110;
+  constexpr uint64_t kBlockSize = 0x1100;
 
   TrackedBlock* b1 = PushFree(kPrevSize);
   AllocatedBlock* b2 = PushAllocated(kBlockSize);
-  PushAllocated(0x80);
+  PushAllocated(0x800);
   PushPhony();
   EXPECT_THAT(FreelistList(), ElementsAre(Address(b1)));
 
@@ -355,7 +355,7 @@ TEST_F(FreelistTest, FreeWithFreeNextAndPrev) {
 TEST_F(FreelistTest, FreeWithUntrackedNeighbors) {
   constexpr uint64_t kPrevSize = 0x10;
   constexpr uint64_t kBlockSize = 0x530;
-  constexpr uint64_t kNextSize = 0x10;
+  constexpr uint64_t kNextSize = 0x80;
 
   UntrackedBlock* b1 = PushUntracked(kPrevSize);
   AllocatedBlock* b2 = PushAllocated(kBlockSize);
@@ -377,7 +377,7 @@ TEST_F(FreelistTest, ResizeDown) {
 
   PushAllocated(0x140);
   AllocatedBlock* b1 = PushAllocated(kBlockSize);
-  AllocatedBlock* b2 = PushAllocated(0x100);
+  AllocatedBlock* b2 = PushAllocated(0x190);
   PushPhony();
 
   ASSERT_TRUE(Freelist().ResizeIfPossible(b1, kNewSize));
@@ -452,7 +452,7 @@ TEST_F(FreelistTest, ResizeUpBeforeFree) {
 TEST_F(FreelistTest, ResizeUpBeforeFreeTooLarge) {
   constexpr uint64_t kBlockSize = 0x490;
   constexpr uint64_t kNewSize = 0x600;
-  constexpr uint64_t kNextSize = 0x50;
+  constexpr uint64_t kNextSize = 0x90;
 
   AllocatedBlock* b1 = PushAllocated(kBlockSize);
   FreeBlock* b2 = PushFree(kNextSize);

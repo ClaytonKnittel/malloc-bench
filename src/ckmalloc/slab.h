@@ -4,7 +4,10 @@
 #include <ostream>
 #include <type_traits>
 
+#include "src/ckmalloc/common.h"
 #include "src/ckmalloc/page_id.h"
+#include "src/ckmalloc/size_class.h"
+#include "src/ckmalloc/slice.h"
 
 namespace ckmalloc {
 
@@ -91,6 +94,22 @@ class Slab {
         struct {
         } free;
         struct {
+          // The size of allocations this small slab holds. Must be <=
+          // kSmallSize.
+          SizeClass size_class_;
+
+          // The slice id of the first slice in the freelist.
+          SliceId freelist_;
+
+          // The count of initialized slices. This starts off at 0, and will
+          // increase as free blocks are requested and the freelist remains
+          // empty. Once this reaches the maximum number of slices that fit in
+          // this slab, it cannot be increased further, and if the freelist is
+          // empty the slab is full.
+          uint16_t initialized_count_;
+
+          // The count of allocated slices in this slab.
+          uint16_t allocated_count_;
         } small;
         struct {
           // Tracks the total number of allocated bytes in this block.
@@ -155,10 +174,28 @@ class AllocatedSlab : public MappedSlab {
   const class FreeSlab* ToFree() const = delete;
 };
 
+// Small slabs hold many duplicates of a single size of block.
 class SmallSlab : public AllocatedSlab {
  public:
   class LargeSlab* ToLarge() = delete;
   const class LargeSlab* ToLarge() const = delete;
+
+  // The size of allocations this slab holds.
+  SizeClass SizeClass() const;
+
+  // If true, all slices are free in this slab.
+  bool Empty() const;
+
+  // If true, all slices are allocated in this slab.
+  bool Full() const;
+
+  // Allocates a single slice from this small blocks slab, which must not be
+  // full.
+  // TODO: return multiple once we have a cache?
+  void* TakeSlice();
+
+  // Returns a slice to the small slab, allowing it to be reallocated.
+  void ReturnSlice(void* ptr);
 };
 
 class LargeSlab : public AllocatedSlab {
@@ -202,7 +239,7 @@ UnmappedSlab* Slab::Init(UnmappedSlab* next_unmapped);
 template <>
 FreeSlab* Slab::Init(PageId start_id, uint32_t n_pages);
 template <>
-SmallSlab* Slab::Init(PageId start_id, uint32_t n_pages);
+SmallSlab* Slab::Init(PageId start_id, uint32_t n_pages, SizeClass size_class);
 template <>
 LargeSlab* Slab::Init(PageId start_id, uint32_t n_pages);
 

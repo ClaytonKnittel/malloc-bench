@@ -174,8 +174,8 @@ void MainAllocatorImpl<MetadataAlloc, SlabMap, SlabManager>::FreeLarge(
     LargeSlab* slab, void* ptr) {
   AllocatedBlock* block = AllocatedBlock::FromUserDataPtr(ptr);
   slab->RemoveAllocation(block->Size());
-
   freelist_.MarkFree(block);
+
   if (slab->AllocatedBytes() == 0) {
     ReleaseLargeSlab(slab);
   }
