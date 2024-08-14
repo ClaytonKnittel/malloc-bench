@@ -1,3 +1,5 @@
+#pragma once
+
 #include "block.h"
 
 class FreeBlock : public Block {
