@@ -105,6 +105,3 @@ inline void free_hint(void* ptr, std::align_val_t size) {
 }
 
 }  // namespace bench
-
-// add comments about allocating at certain address and freeing at certain
-// address *******************************
