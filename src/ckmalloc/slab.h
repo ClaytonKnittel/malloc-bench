@@ -244,10 +244,25 @@ class SmallSlab : public AllocatedSlab {
 
   SizeClass SizeClass() const;
 
-  // Tiny metadata is for 8-byte block small slabs.
-  SmallSlabMetadata<uint16_t>& TinyMetadata();
-  // Small metadata is for 16-byte block small slabs.
-  SmallSlabMetadata<uint8_t>& SmallMetadata();
+  // If true, all slices are free in this slab.
+  bool Empty() const;
+
+  // If true, all slices are allocated in this slab.
+  bool Full() const;
+
+  // Given a pointer to the start of this slab, pops the next slice off the
+  // freelist and updates the freelist accordingly, returning the newly
+  // allocated slice.
+  AllocatedSlice* PopSlice(void* slab_start);
+
+  // Given a pointer to the start of this slab, pushes the given `FreeSlice`
+  // onto the stack of free slices, so it may be allocated in the future.
+  void PushSlice(void* slab_start, AllocatedSlice* slice);
+
+ private:
+  // If true, this slab manages slices <= 16 bytes, which are classified as tiny
+  // slices.
+  bool IsTiny() const;
 };
 
 class LargeSlab : public AllocatedSlab {
