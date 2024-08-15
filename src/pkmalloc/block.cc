@@ -42,3 +42,10 @@ Block* Block::GetNextBlock() {
   return reinterpret_cast<Block*>(reinterpret_cast<uint8_t*>(this) +
                                   GetBlockSize());
 }
+
+void Block::SetBlockSize(uint64_t size) {
+  // check first 4 bits are 0, 16 byte alligned size
+  MALLOC_ASSERT((size & 0xf) == 0);
+  MALLOC_ASSERT(size != 0);
+  header_ = size | (header_ & 0x1);
+}

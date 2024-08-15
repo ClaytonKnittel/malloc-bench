@@ -7,23 +7,17 @@ uint8_t* AllocatedBlock::GetBody() {
 }
 
 AllocatedBlock* AllocatedBlock::FromRawPtr(void* ptr) {
-  return reinterpret_cast<Block*>(reinterpret_cast<uint8_t*>(ptr) -
-                                  offsetof(Block, body_));
+  return reinterpret_cast<AllocatedBlock*>(reinterpret_cast<uint8_t*>(ptr) -
+                                           offsetof(AllocatedBlock, body_));
 }
 
-// Block* take_free_block(size_t size) {
 AllocatedBlock* AllocatedBlock::take_free_block() {
   // fix later, if you change size to be smaller, the remainder of this block
   // should be made to be a new free block SetBlockSize(size);
+  // should take parameter size_t size in the future to allow user to change
+  // size of allocated block
   Block::SetFree(false);
   return this;
-}
-
-void AllocatedBlock::SetBlockSize(uint64_t size) {
-  // check first 4 bits are 0, 16 byte alligned size
-  MALLOC_ASSERT((size & 0xf) == 0);
-  MALLOC_ASSERT(size != 0);
-  header_ = size | (header_ & 0x1);
 }
 
 AllocatedBlock* AllocatedBlock::create_block_extend_heap(size_t size) {

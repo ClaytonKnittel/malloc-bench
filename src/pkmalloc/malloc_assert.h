@@ -1,3 +1,5 @@
+#pragma once
+
 #define MALLOC_ASSERT(cond) assert(cond)
 #define MALLOC_ASSERT_EQ(lhs, rhs)                                          \
   do {                                                                      \

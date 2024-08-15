@@ -29,14 +29,14 @@ cc_library(
 )
 
 cc_library(
-    name = "heap_check",
-    srcs = ["heap_check.cc"],
-    hdrs = ["fheap_check.h"],
+    name = "free_list",
+    hdrs = ["free_list.h"],
 )
 
 cc_library(
-    name = "malloc_assert",
-    hdrs = ["malloc_assert.h"],
+    name = "heap_check",
+    srcs = ["heap_check.cc"],
+    hdrs = ["fheap_check.h"],
 )
 
 cc_library(
