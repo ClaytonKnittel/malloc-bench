@@ -151,13 +151,17 @@ SmallSlab* Slab::Init(PageId start_id, uint32_t n_pages, SizeClass size_class) {
     mapped = {
       .id_ = start_id,
       .n_pages_ = n_pages,
-      .tiny_meta_ = SmallSlabMetadata<uint16_t>(size_class),
+      .small = {
+        .tiny_meta_ = SmallSlabMetadata<uint16_t>(size_class),
+      },
     };
   } else {
     mapped = {
       .id_ = start_id,
       .n_pages_ = n_pages,
-      .small_meta_ = SmallSlabMetadata<uint8_t>(size_class),
+      .small = {
+        .small_meta_ = SmallSlabMetadata<uint8_t>(size_class),
+      },
     };
   }
 
@@ -271,16 +275,36 @@ uint32_t MappedSlab::Pages() const {
   return mapped.n_pages_;
 }
 
+constexpr size_t TinySizeClassOffset() {
+  return offsetof(Slab, mapped.small.tiny_meta_.size_class_);
+}
+
+constexpr size_t SmallSizeClassOffset() {
+  return offsetof(Slab, mapped.small.small_meta_.size_class_);
+}
+
+static_assert(
+    TinySizeClassOffset() == SmallSizeClassOffset(),
+    "Size class must have same offset for tiny slabs and small slabs");
+
+SizeClass SmallSlab::SizeClass() const {
+  CK_ASSERT_EQ(type_, SlabType::kSmall);
+  // We can choose any of the metadata types to read the size class from, since
+  // we assert that the offset of the size class is the same for all metadata
+  // types.
+  return mapped.small.tiny_meta_.SizeClass();
+}
+
 SmallSlabMetadata<uint16_t>& SmallSlab::TinyMetadata() {
   CK_ASSERT_EQ(type_, SlabType::kSmall);
-  SmallSlabMetadata<uint16_t>& meta = mapped.tiny_meta_;
+  SmallSlabMetadata<uint16_t>& meta = mapped.small.tiny_meta_;
   CK_ASSERT_LE(meta.SizeClass().SliceSize(), kMaxUse16ByteSliceId);
   return meta;
 }
 
 SmallSlabMetadata<uint8_t>& SmallSlab::SmallMetadata() {
   CK_ASSERT_EQ(type_, SlabType::kSmall);
-  SmallSlabMetadata<uint8_t>& meta = mapped.small_meta_;
+  SmallSlabMetadata<uint8_t>& meta = mapped.small.small_meta_;
   CK_ASSERT_GE(meta.SizeClass().SliceSize(), 32);
   return meta;
 }
