@@ -107,24 +107,21 @@ const UntrackedBlock* Block::ToUntracked() const {
 }
 
 Block* Block::NextAdjacentBlock() {
-  return reinterpret_cast<Block*>(reinterpret_cast<uint8_t*>(this) + Size());
+  return PtrAdd<Block>(this, Size());
 }
 
 const Block* Block::NextAdjacentBlock() const {
-  return reinterpret_cast<const Block*>(reinterpret_cast<const uint8_t*>(this) +
-                                        Size());
+  return PtrAdd<const Block>(this, Size());
 }
 
 Block* Block::PrevAdjacentBlock() {
   CK_ASSERT_TRUE(PrevFree());
-  return reinterpret_cast<Block*>(reinterpret_cast<uint8_t*>(this) -
-                                  PrevSize());
+  return PtrSub<Block>(this, PrevSize());
 }
 
 const Block* Block::PrevAdjacentBlock() const {
   CK_ASSERT_TRUE(PrevFree());
-  return reinterpret_cast<const Block*>(reinterpret_cast<const uint8_t*>(this) -
-                                        PrevSize());
+  return PtrSub<const Block>(this, PrevSize());
 }
 
 void Block::SetSize(uint64_t size) {
@@ -169,8 +166,7 @@ void* AllocatedBlock::UserDataPtr() {
 
 /* static */
 AllocatedBlock* AllocatedBlock::FromUserDataPtr(void* ptr) {
-  return reinterpret_cast<AllocatedBlock*>(reinterpret_cast<uint8_t*>(ptr) -
-                                           UserDataOffset());
+  return PtrSub<AllocatedBlock>(ptr, UserDataOffset());
 }
 
 }  // namespace ckmalloc

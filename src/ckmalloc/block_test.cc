@@ -47,7 +47,7 @@ TEST_F(BlockTest, AllocatedBlock) {
 
   AllocatedBlock* allocated = block.ToAllocated();
   EXPECT_EQ(allocated->UserDataPtr(),
-            reinterpret_cast<uint8_t*>(&block) + Block::kMetadataOverhead);
+            PtrAdd<void>(&block, Block::kMetadataOverhead));
   EXPECT_EQ(AllocatedBlock::FromUserDataPtr(allocated->UserDataPtr()), &block);
 }
 

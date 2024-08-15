@@ -6,6 +6,7 @@
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/page_id.h"
 #include "src/ckmalloc/size_class.h"
+#include "src/ckmalloc/slice.h"
 #include "src/ckmalloc/util.h"
 
 namespace ckmalloc {
@@ -29,14 +30,61 @@ std::ostream& operator<<(std::ostream& ostr, SlabType slab_type) {
 
 SmallSlabMetadata::SmallSlabMetadata(class SizeClass size_class)
     : size_class_(size_class),
-      freelist_node_offset_(FreelistNodesPerSlice(size_class)) {}
+      freelist_node_offset_(FreelistNodesPerSlice(size_class) - 1),
+      uninitialized_count_(size_class.MaxSlicesPerSlab()) {}
 
 bool SmallSlabMetadata::Empty() const {
   return allocated_count_ == 0;
 }
 
 bool SmallSlabMetadata::Full() const {
-  return allocated_count_ == size_class_.MaxSlicesPerSlab();
+  return freelist_ == SliceId::Nil() && uninitialized_count_ == 0;
+}
+
+AllocatedSlice* SmallSlabMetadata::PopSlice(void* slab_start) {
+  SliceId id = SliceId::Nil();
+  if (freelist_ != SliceId::Nil()) {
+    FreeSlice* slice = SliceFromId(slab_start, freelist_);
+    SliceId next_in_list = slice->IdAt(freelist_node_offset_);
+
+    if (freelist_node_offset_ == 0) {
+      id = freelist_;
+      freelist_ = next_in_list;
+      freelist_node_offset_ = FreelistNodesPerSlice(size_class_) - 1;
+    } else {
+      id = next_in_list;
+      freelist_node_offset_--;
+    }
+  } else {
+    // If the freelist is empty, we can allocate more slices from the end of the
+    // allocated space within the slab.
+    CK_ASSERT_GT(uninitialized_count_, 0);
+
+    id = SliceId((size_class_.MaxSlicesPerSlab() - uninitialized_count_) *
+                 size_class_.SliceSize());
+    uninitialized_count_--;
+  }
+
+  CK_ASSERT_NE(id, SliceId::Nil());
+  allocated_count_++;
+  return SliceFromId(slab_start, id)->ToAllocated();
+}
+
+void SmallSlabMetadata::PushSlice(void* slab_start, FreeSlice* slice) {
+  SliceId slice_id = SliceIdForSlice(slab_start, slice);
+
+  if (freelist_node_offset_ == FreelistNodesPerSlice(size_class_) - 1) {
+    slice->SetId(0, freelist_);
+    freelist_ = slice_id;
+    freelist_node_offset_ = 0;
+  } else {
+    CK_ASSERT_NE(freelist_, SliceId::Nil());
+    FreeSlice* head = SliceFromId(slab_start, freelist_);
+    freelist_node_offset_++;
+    head->SetId(freelist_node_offset_, slice_id);
+  }
+
+  allocated_count_--;
 }
 
 template <>
