@@ -28,23 +28,31 @@ std::ostream& operator<<(std::ostream& ostr, SlabType slab_type) {
   }
 }
 
-SmallSlabMetadata::SmallSlabMetadata(class SizeClass size_class)
+template <typename T>
+requires std::is_integral_v<T>
+SmallSlabMetadata<T>::SmallSlabMetadata(class SizeClass size_class)
     : size_class_(size_class),
       freelist_node_offset_(FreelistNodesPerSlice(size_class) - 1),
       uninitialized_count_(size_class.MaxSlicesPerSlab()) {}
 
-bool SmallSlabMetadata::Empty() const {
+template <typename T>
+requires std::is_integral_v<T>
+bool SmallSlabMetadata<T>::Empty() const {
   return allocated_count_ == 0;
 }
 
-bool SmallSlabMetadata::Full() const {
-  return freelist_ == SliceId::Nil() && uninitialized_count_ == 0;
+template <typename T>
+requires std::is_integral_v<T>
+bool SmallSlabMetadata<T>::Full() const {
+  return freelist_ == SliceId<T>::Nil() && uninitialized_count_ == 0;
 }
 
-AllocatedSlice* SmallSlabMetadata::PopSlice(void* slab_start) {
-  SliceId id = SliceId::Nil();
-  if (freelist_ != SliceId::Nil()) {
-    FreeSlice* slice = SliceFromId(slab_start, freelist_);
+template <typename T>
+requires std::is_integral_v<T>
+AllocatedSlice* SmallSlabMetadata<T>::PopSlice(void* slab_start) {
+  SliceId id = SliceId<T>::Nil();
+  if (freelist_ != SliceId<T>::Nil()) {
+    FreeSlice<T>* slice = SliceFromId(slab_start, freelist_);
     SliceId next_in_list = slice->IdAt(freelist_node_offset_);
 
     if (freelist_node_offset_ == 0) {
@@ -60,32 +68,37 @@ AllocatedSlice* SmallSlabMetadata::PopSlice(void* slab_start) {
     // allocated space within the slab.
     CK_ASSERT_GT(uninitialized_count_, 0);
 
-    id = SliceId((size_class_.MaxSlicesPerSlab() - uninitialized_count_) *
-                 size_class_.SliceSize());
+    id = SliceId<T>((size_class_.MaxSlicesPerSlab() - uninitialized_count_) *
+                    size_class_.SliceSize());
     uninitialized_count_--;
   }
 
-  CK_ASSERT_NE(id, SliceId::Nil());
+  CK_ASSERT_NE(id, SliceId<T>::Nil());
   allocated_count_++;
   return SliceFromId(slab_start, id)->ToAllocated();
 }
 
-void SmallSlabMetadata::PushSlice(void* slab_start, FreeSlice* slice) {
-  SliceId slice_id = SliceIdForSlice(slab_start, slice);
+template <typename T>
+requires std::is_integral_v<T>
+void SmallSlabMetadata<T>::PushSlice(void* slab_start, FreeSlice<T>* slice) {
+  SliceId<T> slice_id = SliceIdForSlice(slab_start, slice);
 
   if (freelist_node_offset_ == FreelistNodesPerSlice(size_class_) - 1) {
     slice->SetId(0, freelist_);
     freelist_ = slice_id;
     freelist_node_offset_ = 0;
   } else {
-    CK_ASSERT_NE(freelist_, SliceId::Nil());
-    FreeSlice* head = SliceFromId(slab_start, freelist_);
+    CK_ASSERT_NE(freelist_, SliceId<T>::Nil());
+    FreeSlice<T>* head = SliceFromId(slab_start, freelist_);
     freelist_node_offset_++;
     head->SetId(freelist_node_offset_, slice_id);
   }
 
   allocated_count_--;
 }
+
+template class SmallSlabMetadata<uint8_t>;
+template class SmallSlabMetadata<uint16_t>;
 
 template <>
 UnmappedSlab* Slab::Init(UnmappedSlab* next) {
@@ -115,7 +128,7 @@ SmallSlab* Slab::Init(PageId start_id, uint32_t n_pages, SizeClass size_class) {
   mapped = {
     .id_ = start_id,
     .n_pages_ = n_pages,
-    .small_meta_ = SmallSlabMetadata(size_class),
+    .small_meta_ = SmallSlabMetadata<uint16_t>(size_class),
   };
 
   return static_cast<SmallSlab*>(this);
@@ -228,7 +241,7 @@ uint32_t MappedSlab::Pages() const {
   return mapped.n_pages_;
 }
 
-SmallSlabMetadata& SmallSlab::Metadata() {
+SmallSlabMetadata<uint16_t>& SmallSlab::Metadata() {
   CK_ASSERT_EQ(type_, SlabType::kSmall);
   return mapped.small_meta_;
 }
