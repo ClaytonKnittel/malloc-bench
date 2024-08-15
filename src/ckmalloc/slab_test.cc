@@ -48,7 +48,7 @@ class TestSmallSlab {
   }
 
   SizeClass SizeClass() {
-    return Metadata().SizeClass();
+    return slab_.SizeClass();
   }
 
   Slice* SliceAt(SliceId<T> slice_id) {
@@ -63,7 +63,7 @@ class TestSmallSlab {
   }
 
   absl::StatusOr<AllocatedSlice*> AllocSlice() {
-    const class SizeClass size_class = Metadata().SizeClass();
+    const class SizeClass size_class = SizeClass();
     CK_ASSERT_LT(allocated_slices_.size(), size_class.MaxSlicesPerSlab());
 
     AllocatedSlice* slice = Metadata().PopSlice(data_.data());
@@ -154,8 +154,7 @@ class TestSmallSlab {
     uint64_t* magic_begin =
         &magic_[PtrDistance(begin, data_.data()) / sizeof(uint64_t)];
 
-    for (size_t i = 0;
-         i < Metadata().SizeClass().SliceSize() / sizeof(uint64_t); i++) {
+    for (size_t i = 0; i < SizeClass().SliceSize() / sizeof(uint64_t); i++) {
       uint64_t val = rng_.GenRand64();
       begin[i] = val;
       magic_begin[i] = val;
@@ -167,8 +166,7 @@ class TestSmallSlab {
     uint64_t* magic_begin =
         &magic_[PtrDistance(begin, data_.data()) / sizeof(uint64_t)];
 
-    for (size_t i = 0;
-         i < Metadata().SizeClass().SliceSize() / sizeof(uint64_t); i++) {
+    for (size_t i = 0; i < SizeClass().SliceSize() / sizeof(uint64_t); i++) {
       if (begin[i] != magic_begin[i]) {
         return absl::FailedPreconditionError(absl::StrFormat(
             "Dirtied allocated slice %" PRIu16 " at offset %zu: %016x vs %016x",
@@ -246,8 +244,7 @@ TYPED_TEST(SmallSlabTest, SingleFree) {
 
 TYPED_TEST(SmallSlabTest, AllAllocations) {
   auto slab = SmallSlabTest<TypeParam>::MakeSlab();
-  const uint64_t slices_per_slab =
-      slab.Metadata().SizeClass().MaxSlicesPerSlab();
+  const uint64_t slices_per_slab = slab.SizeClass().MaxSlicesPerSlab();
 
   for (size_t i = 0; i < slices_per_slab; i++) {
     ASSERT_OK_AND_DEFINE(AllocatedSlice*, slice, slab.AllocSlice());
@@ -258,8 +255,7 @@ TYPED_TEST(SmallSlabTest, AllAllocations) {
 
 TYPED_TEST(SmallSlabTest, FillUpThenEmpty) {
   auto slab = SmallSlabTest<TypeParam>::MakeSlab();
-  const uint64_t slices_per_slab =
-      slab.Metadata().SizeClass().MaxSlicesPerSlab();
+  const uint64_t slices_per_slab = slab.SizeClass().MaxSlicesPerSlab();
 
   for (size_t i = 0; i < slices_per_slab; i++) {
     ASSERT_THAT(slab.AllocSlice().status(), IsOk());
@@ -274,8 +270,7 @@ TYPED_TEST(SmallSlabTest, FillUpThenEmpty) {
 
 TYPED_TEST(SmallSlabTest, FillUpThenEmptyStrangeOrder) {
   auto slab = SmallSlabTest<TypeParam>::MakeSlab();
-  const uint64_t slices_per_slab =
-      slab.Metadata().SizeClass().MaxSlicesPerSlab();
+  const uint64_t slices_per_slab = slab.SizeClass().MaxSlicesPerSlab();
 
   for (size_t i = 0; i < slices_per_slab; i++) {
     ASSERT_THAT(slab.AllocSlice().status(), IsOk());
@@ -291,8 +286,7 @@ TYPED_TEST(SmallSlabTest, FillUpThenEmptyStrangeOrder) {
 
 TYPED_TEST(SmallSlabTest, FillUpThenEmptyAndRefill) {
   auto slab = SmallSlabTest<TypeParam>::MakeSlab();
-  const uint64_t slices_per_slab =
-      slab.Metadata().SizeClass().MaxSlicesPerSlab();
+  const uint64_t slices_per_slab = slab.SizeClass().MaxSlicesPerSlab();
 
   for (size_t i = 0; i < slices_per_slab; i++) {
     ASSERT_THAT(slab.AllocSlice().status(), IsOk());

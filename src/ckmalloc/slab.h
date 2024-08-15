@@ -24,7 +24,7 @@ template <typename S>
 inline constexpr bool kHasMetadata = HasMetadataHelper<S>::value;
 
 // The slab types are the possible variant types of slabs.
-enum class SlabType {
+enum class SlabType : uint8_t {
   // The slab metadata is free and in the metadata freelist. It is not managing
   // any allocated slab and can be claimed for a new slab.
   kUnmapped,
@@ -47,6 +47,9 @@ class SmallSlabMetadata {
   static_assert(std::is_same_v<T, uint8_t> || std::is_same_v<T, uint16_t>,
                 "SmallSlabMetadata can only be instantiated with `uint8_t` or "
                 "`uint16_t`");
+
+  friend constexpr size_t TinySizeClassOffset();
+  friend constexpr size_t SmallSizeClassOffset();
 
  public:
   explicit SmallSlabMetadata(SizeClass size_class);
@@ -110,6 +113,8 @@ class SmallSlabMetadata {
 // in a metadata slab.
 class Slab {
   friend class SlabManagerTest;
+  friend constexpr size_t TinySizeClassOffset();
+  friend constexpr size_t SmallSizeClassOffset();
 
  public:
   // For small slabs with slice sizes at or below this value, 16-byte slice IDs
@@ -162,10 +167,12 @@ class Slab {
       union {
         struct {
         } free;
-        // Metadata for 8-byte slice small slabs.
-        SmallSlabMetadata<uint16_t> tiny_meta_;
-        // Metadata for 16-byte+ slice small slabs.
-        SmallSlabMetadata<uint8_t> small_meta_;
+        union {
+          // Metadata for 8-byte slice small slabs.
+          SmallSlabMetadata<uint16_t> tiny_meta_;
+          // Metadata for 16-byte+ slice small slabs.
+          SmallSlabMetadata<uint8_t> small_meta_;
+        } small;
         struct {
           // Tracks the total number of allocated bytes in this block.
           uint64_t allocated_bytes_;
@@ -234,6 +241,8 @@ class SmallSlab : public AllocatedSlab {
  public:
   class LargeSlab* ToLarge() = delete;
   const class LargeSlab* ToLarge() const = delete;
+
+  SizeClass SizeClass() const;
 
   // Tiny metadata is for 8-byte block small slabs.
   SmallSlabMetadata<uint16_t>& TinyMetadata();
