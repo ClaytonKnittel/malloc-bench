@@ -39,14 +39,6 @@ class TestSmallSlab {
     return slab_;
   }
 
-  SmallSlabMetadata<T>& Metadata() {
-    if constexpr (std::is_same_v<T, uint16_t>) {
-      return slab_.TinyMetadata();
-    } else {
-      return slab_.SmallMetadata();
-    }
-  }
-
   SizeClass SizeClass() {
     return slab_.SizeClass();
   }
@@ -66,7 +58,7 @@ class TestSmallSlab {
     const class SizeClass size_class = SizeClass();
     CK_ASSERT_LT(allocated_slices_.size(), size_class.MaxSlicesPerSlab());
 
-    AllocatedSlice* slice = Metadata().PopSlice(data_.data());
+    AllocatedSlice* slice = slab_.PopSlice(data_.data());
 
     if (reinterpret_cast<uint64_t*>(slice) < data_.data() ||
         reinterpret_cast<uint64_t*>(slice) >=
@@ -92,20 +84,20 @@ class TestSmallSlab {
     }
 
     if (allocated_slices_.size() == size_class.MaxSlicesPerSlab()) {
-      if (!Metadata().Full()) {
+      if (!slab_.Full()) {
         return absl::FailedPreconditionError(
             absl::StrFormat("Expected slab to be full with %" PRIu64
                             " allocations, but Full() returned false",
                             allocated_slices_.size()));
       }
-    } else if (Metadata().Full()) {
+    } else if (slab_.Full()) {
       return absl::FailedPreconditionError(
           absl::StrFormat("Expected slab to be non-full with %" PRIu64
                           " allocations, but Full() returned true",
                           allocated_slices_.size()));
     }
 
-    if (Metadata().Empty()) {
+    if (slab_.Empty()) {
       return absl::FailedPreconditionError(
           absl::StrFormat("Expected slab to be non-empty with %" PRIu64
                           " allocations, but Empty() returned true",
@@ -122,23 +114,23 @@ class TestSmallSlab {
     allocated_slices_.erase(it);
 
     RETURN_IF_ERROR(CheckMagic(slice));
-    Metadata().PushSlice(data_.data(), slice->ToFree<T>());
+    slab_.PushSlice(data_.data(), slice);
 
     if (allocated_slices_.empty()) {
-      if (!Metadata().Empty()) {
+      if (!slab_.Empty()) {
         return absl::FailedPreconditionError(
             absl::StrFormat("Expected slab to be empty with %" PRIu64
                             " allocations, but Empty() returned false",
                             allocated_slices_.size()));
       }
-    } else if (Metadata().Empty()) {
+    } else if (slab_.Empty()) {
       return absl::FailedPreconditionError(
           absl::StrFormat("Expected slab to be non-empty with %" PRIu64
                           " allocations, but Empty() returned true",
                           allocated_slices_.size()));
     }
 
-    if (Metadata().Full()) {
+    if (slab_.Full()) {
       return absl::FailedPreconditionError(
           absl::StrFormat("Expected slab to be non-full with %" PRIu64
                           " allocations, but Full() returned true",
