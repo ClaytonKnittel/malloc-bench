@@ -32,7 +32,7 @@ inline constexpr bool IsSmallSize(size_t user_size) {
 }
 
 // Forward declarations for concepts (to prevent circular dependencies):
-enum class SlabType;
+enum class SlabType : uint8_t;
 
 template <typename T>
 concept MetadataAllocInterface =
