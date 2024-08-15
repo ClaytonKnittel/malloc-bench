@@ -68,8 +68,8 @@ AllocatedSlice* SmallSlabMetadata<T>::PopSlice(void* slab_start) {
     // allocated space within the slab.
     CK_ASSERT_GT(uninitialized_count_, 0);
 
-    id = SliceId<T>((size_class_.MaxSlicesPerSlab() - uninitialized_count_) *
-                    size_class_.SliceSize());
+    id = SliceId<T>::FromIdx(size_class_.MaxSlicesPerSlab() -
+                             uninitialized_count_);
     uninitialized_count_--;
   }
 
@@ -95,6 +95,28 @@ void SmallSlabMetadata<T>::PushSlice(void* slab_start, FreeSlice<T>* slice) {
   }
 
   allocated_count_--;
+}
+
+template <typename T>
+requires std::is_integral_v<T>
+uint8_t SmallSlabMetadata<T>::FreelistNodesPerSlice(
+    class SizeClass size_class) {
+  return static_cast<uint8_t>(size_class.SliceSize() / sizeof(SliceId<T>));
+}
+
+template <typename T>
+requires std::is_integral_v<T>
+SliceId<T> SmallSlabMetadata<T>::SliceIdForSlice(void* slab_start,
+                                                 FreeSlice<T>* slice) {
+  return SliceId<T>::FromOffset(PtrDistance(slice, slab_start), size_class_);
+}
+
+template <typename T>
+requires std::is_integral_v<T>
+FreeSlice<T>* SmallSlabMetadata<T>::SliceFromId(void* slab_start,
+                                                SliceId<T> slice_id) {
+  return PtrAdd<FreeSlice<T>>(slab_start,
+                              slice_id.SliceOffsetBytes(size_class_));
 }
 
 template class SmallSlabMetadata<uint8_t>;
@@ -125,11 +147,19 @@ FreeSlab* Slab::Init(PageId start_id, uint32_t n_pages) {
 template <>
 SmallSlab* Slab::Init(PageId start_id, uint32_t n_pages, SizeClass size_class) {
   type_ = SlabType::kSmall;
-  mapped = {
-    .id_ = start_id,
-    .n_pages_ = n_pages,
-    .small_meta_ = SmallSlabMetadata<uint16_t>(size_class),
-  };
+  if (size_class.SliceSize() <= kMaxUse16ByteSliceId) {
+    mapped = {
+      .id_ = start_id,
+      .n_pages_ = n_pages,
+      .tiny_meta_ = SmallSlabMetadata<uint16_t>(size_class),
+    };
+  } else {
+    mapped = {
+      .id_ = start_id,
+      .n_pages_ = n_pages,
+      .small_meta_ = SmallSlabMetadata<uint8_t>(size_class),
+    };
+  }
 
   return static_cast<SmallSlab*>(this);
 }
@@ -241,9 +271,18 @@ uint32_t MappedSlab::Pages() const {
   return mapped.n_pages_;
 }
 
-SmallSlabMetadata<uint16_t>& SmallSlab::Metadata() {
+SmallSlabMetadata<uint16_t>& SmallSlab::TinyMetadata() {
   CK_ASSERT_EQ(type_, SlabType::kSmall);
-  return mapped.small_meta_;
+  SmallSlabMetadata<uint16_t>& meta = mapped.tiny_meta_;
+  CK_ASSERT_LE(meta.SizeClass().SliceSize(), kMaxUse16ByteSliceId);
+  return meta;
+}
+
+SmallSlabMetadata<uint8_t>& SmallSlab::SmallMetadata() {
+  CK_ASSERT_EQ(type_, SlabType::kSmall);
+  SmallSlabMetadata<uint8_t>& meta = mapped.small_meta_;
+  CK_ASSERT_GE(meta.SizeClass().SliceSize(), 32);
+  return meta;
 }
 
 /* static */
