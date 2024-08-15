@@ -28,7 +28,8 @@ std::ostream& operator<<(std::ostream& ostr, SlabType slab_type) {
 }
 
 SmallSlabMetadata::SmallSlabMetadata(class SizeClass size_class)
-    : size_class_(size_class) {}
+    : size_class_(size_class),
+      freelist_node_offset_(FreelistNodesPerSlice(size_class)) {}
 
 bool SmallSlabMetadata::Empty() const {
   return allocated_count_ == 0;
