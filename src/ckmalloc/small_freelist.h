@@ -21,10 +21,6 @@ class SmallFreelist {
   void ReturnSlice(SmallSlab* slab, AllocatedSlice* slice);
 
  private:
-  Slice* SliceAt(SmallSlab* slab, SliceId slice_id);
-
-  SliceId IdForSlice(SmallSlab* slab, Slice* slice);
-
   SlabManager* const slab_manager_;
 };
 

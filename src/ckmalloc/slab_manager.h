@@ -220,8 +220,8 @@ void SlabManagerImpl<MetadataAlloc, SlabMap>::Free(AllocatedSlab* slab) {
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
 Block* SlabManagerImpl<MetadataAlloc, SlabMap>::FirstBlockInLargeSlab(
     LargeSlab* slab) {
-  uint8_t* start = reinterpret_cast<uint8_t*>(PageStartFromId(slab->StartId()));
-  return reinterpret_cast<Block*>(start + Block::kFirstBlockInSlabOffset);
+  return PtrAdd<Block>(PageStartFromId(slab->StartId()),
+                       Block::kFirstBlockInSlabOffset);
 }
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>

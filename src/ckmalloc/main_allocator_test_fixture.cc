@@ -85,7 +85,7 @@ absl::Status MainAllocatorFixture::ValidateHeap() {
       auto [alloc2, meta2] = *next_it;
       auto [size2, magic2] = meta2;
 
-      if (alloc2 < reinterpret_cast<uint8_t*>(alloc) + size) {
+      if (alloc2 < PtrAdd<void>(alloc, size)) {
         return absl::FailedPreconditionError(absl::StrFormat(
             "Allocation %p of size %zu overlaps with allocation %p of size %zu",
             alloc, size, alloc2, size2));

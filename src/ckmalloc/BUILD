@@ -246,6 +246,7 @@ cc_library(
         ":page_id",
         ":size_class",
         ":slice",
+        ":slice_id",
         ":util",
     ],
 )
@@ -259,11 +260,16 @@ cc_test(
         ":size_class",
         ":slab",
         ":slice",
+        ":slice_id",
         ":util",
         "//src:rng",
         "@abseil-cpp//absl/container:flat_hash_set",
         "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:str_format",
         "@cc-util//util:absl_util",
+        "@cc-util//util:gtest_util",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
@@ -350,7 +356,16 @@ cc_library(
     name = "slice",
     hdrs = ["slice.h"],
     deps = [
+        ":slice_id",
+    ],
+)
+
+cc_library(
+    name = "slice_id",
+    hdrs = ["slice_id.h"],
+    deps = [
         ":common",
+        ":util",
     ],
 )
 
