@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstdint>
-#include <optional>
 #include <ostream>
 #include <type_traits>
 
@@ -43,11 +42,6 @@ enum class SlabType {
 
 std::ostream& operator<<(std::ostream& ostr, SlabType slab_type);
 
-template <typename Fn>
-concept SliceLookup = requires(Fn fn, SliceId slice_id) {
-  { fn(slice_id) } -> std::convertible_to<FreeSlice*>;
-};
-
 class SmallSlabMetadata {
  public:
   explicit SmallSlabMetadata(SizeClass size_class);
@@ -62,19 +56,25 @@ class SmallSlabMetadata {
   // If true, all slices are allocated in this slab.
   bool Full() const;
 
-  // Given a slice lookup function, which given a `SliceId` returns a
-  // `FreeSlice*`, pops the next slice off the freelist and updates the freelist
-  // accordingly, returning the newly allocated slice.
-  template <SliceLookup Fn>
-  AllocatedSlice* PopSlice(Fn slice_lookup);
+  // Given a pointer to the start of this slab, pops the next slice off the
+  // freelist and updates the freelist accordingly, returning the newly
+  // allocated slice.
+  AllocatedSlice* PopSlice(void* slab_start);
 
-  // Pushes a newly freed slice with id `slice_id` onto the stack of free
-  // slices.
-  template <SliceLookup Fn>
-  void PushSlice(FreeSlice* slice, SliceId slice_id, Fn slice_lookup);
+  // Given a pointer to the start of this slab, pushes the given `FreeSlice`
+  // onto the stack of free slices, so it may be allocated in the future.
+  void PushSlice(void* slab_start, FreeSlice* slice);
 
  private:
   static constexpr uint8_t FreelistNodesPerSlice(class SizeClass size_class);
+
+  // Given a pointer to the start of the slab and a `Slice`, returns the slab ID
+  // for that slice.
+  static constexpr SliceId SliceIdForSlice(void* slab_start, FreeSlice* slice);
+
+  // Given a pointer to the start of the slab and a `SliceId`, returns a pointer
+  // to the corresponding slice.
+  static constexpr FreeSlice* SliceFromId(void* slab_start, SliceId slice_id);
 
   // The size of allocations this slab holds.
   class SizeClass size_class_;
@@ -88,12 +88,12 @@ class SmallSlabMetadata {
   // The slice id of the first slice in the freelist.
   SliceId freelist_ = SliceId::Nil();
 
-  // The count of initialized slices. This starts off at 0, and will
-  // increase as free blocks are requested and the freelist remains
-  // empty. Once this reaches the maximum number of slices that fit in
-  // this slab, it cannot be increased further, and if the freelist is
-  // empty the slab is full.
-  uint16_t initialized_count_ = 0;
+  // The count of uninitialized slices. This starts off at
+  // size_class_.MaxSlicesPerSlab(), and will decrease as free blocks are
+  // requested and the freelist remains empty. Once this reaches zero, all
+  // slices are either allocated or in the freelist, so if the freelist is empty
+  // then the slab is full.
+  uint16_t uninitialized_count_;
 
   // The count of allocated slices in this slab.
   uint16_t allocated_count_ = 0;
@@ -269,52 +269,22 @@ SmallSlab* Slab::Init(PageId start_id, uint32_t n_pages, SizeClass size_class);
 template <>
 LargeSlab* Slab::Init(PageId start_id, uint32_t n_pages);
 
-template <SliceLookup Fn>
-AllocatedSlice* SmallSlabMetadata::PopSlice(Fn slice_lookup) {
-  SliceId id = SliceId::Nil();
-  if (freelist_ != SliceId::Nil()) {
-    FreeSlice* slice = slice_lookup(freelist_);
-    SliceId next_in_list = slice->IdAt(freelist_node_offset_);
-
-    if (freelist_node_offset_ == 0) {
-      id = freelist_;
-      freelist_ = next_in_list;
-      freelist_node_offset_ = FreelistNodesPerSlice(size_class_) - 1;
-    } else {
-      id = next_in_list;
-      freelist_node_offset_--;
-    }
-  } else {
-    // If the freelist is empty, we can allocate more slices from the end of the
-    // allocated space within the slab.
-    CK_ASSERT_LT(initialized_count_, size_class_.MaxSlicesPerSlab());
-
-    id = SliceId(initialized_count_);
-    initialized_count_++;
-  }
-
-  CK_ASSERT_NE(id, SliceId::Nil());
-  return slice_lookup(id)->ToAllocated();
-}
-
-template <SliceLookup Fn>
-void SmallSlabMetadata::PushSlice(FreeSlice* slice, SliceId slice_id,
-                                  Fn slice_lookup) {
-  if (freelist_node_offset_ == FreelistNodesPerSlice(size_class_)) {
-    slice->SetId(0, freelist_);
-    freelist_ = slice_id;
-    freelist_node_offset_ = 0;
-  } else {
-    CK_ASSERT_NE(freelist_, SliceId::Nil());
-    FreeSlice* head = slice_lookup(freelist_);
-    head->SetId(freelist_node_offset_, slice_id);
-    freelist_node_offset_++;
-  }
-}
-
+/* static */
 constexpr uint8_t SmallSlabMetadata::FreelistNodesPerSlice(
     class SizeClass size_class) {
   return static_cast<uint8_t>(size_class.SliceSize() / sizeof(SliceId));
+}
+
+/* static */
+constexpr SliceId SmallSlabMetadata::SliceIdForSlice(void* slab_start,
+                                                     FreeSlice* slice) {
+  return SliceId(PtrDistance(slice, slab_start));
+}
+
+/* static */
+constexpr FreeSlice* SmallSlabMetadata::SliceFromId(void* slab_start,
+                                                    SliceId slice_id) {
+  return PtrAdd<FreeSlice>(slab_start, slice_id.SliceOffsetBytes());
 }
 
 }  // namespace ckmalloc
