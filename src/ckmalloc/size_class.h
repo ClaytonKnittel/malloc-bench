@@ -36,6 +36,32 @@ class SizeClass {
     return kSliceMap[size_class_ / kDefaultAlignment];
   }
 
+  // TODO check if this is the fastest way to do this.
+  constexpr uint32_t OffsetToIdx(uint64_t offset_bytes) const {
+    switch (size_class_ / kDefaultAlignment) {
+      case 0:
+        return offset_bytes / 8;
+      case 1:
+        return offset_bytes / 16;
+      case 2:
+        return offset_bytes / 32;
+      case 3:
+        return offset_bytes / 48;
+      case 4:
+        return offset_bytes / 64;
+      case 5:
+        return offset_bytes / 80;
+      case 6:
+        return offset_bytes / 96;
+      case 7:
+        return offset_bytes / 112;
+      case 8:
+        return offset_bytes / 128;
+      default:
+        __builtin_unreachable();
+    }
+  }
+
  private:
   explicit constexpr SizeClass(uint8_t size_class) : size_class_(size_class) {}
 

@@ -8,7 +8,6 @@
 #include "src/ckmalloc/page_id.h"
 #include "src/ckmalloc/size_class.h"
 #include "src/ckmalloc/slice.h"
-#include "src/ckmalloc/util.h"
 
 namespace ckmalloc {
 
@@ -72,23 +71,17 @@ class SmallSlabMetadata {
   void PushSlice(void* slab_start, FreeSlice<T>* slice);
 
  private:
-  static constexpr uint8_t FreelistNodesPerSlice(class SizeClass size_class) {
-    return static_cast<uint8_t>(size_class.SliceSize() / sizeof(SliceId<T>));
-  }
+  // Returns the number of freelist items a single slice in the freelist can
+  // hold.
+  uint8_t FreelistNodesPerSlice(class SizeClass size_class);
 
   // Given a pointer to the start of the slab and a `Slice`, returns the slab ID
   // for that slice.
-  static constexpr SliceId<T> SliceIdForSlice(void* slab_start,
-                                              FreeSlice<T>* slice) {
-    return SliceId<T>(PtrDistance(slice, slab_start));
-  }
+  SliceId<T> SliceIdForSlice(void* slab_start, FreeSlice<T>* slice);
 
   // Given a pointer to the start of the slab and a `SliceId`, returns a pointer
   // to the corresponding slice.
-  static constexpr FreeSlice<T>* SliceFromId(void* slab_start,
-                                             SliceId<T> slice_id) {
-    return PtrAdd<FreeSlice<T>>(slab_start, slice_id.SliceOffsetBytes());
-  }
+  FreeSlice<T>* SliceFromId(void* slab_start, SliceId<T> slice_id);
 
   // The size of allocations this slab holds.
   class SizeClass size_class_;
@@ -119,6 +112,10 @@ class Slab {
   friend class SlabManagerTest;
 
  public:
+  // For small slabs with slice sizes at or below this value, 16-byte slice IDs
+  // are used.
+  static constexpr uint64_t kMaxUse16ByteSliceId = 16;
+
   // Initializes this slab to the given slab sub-type, returning a pointer to
   // `this` down-cast to the specialized type.
   template <typename S, typename... Args>
@@ -165,7 +162,10 @@ class Slab {
       union {
         struct {
         } free;
-        SmallSlabMetadata<uint16_t> small_meta_;
+        // Metadata for 8-byte slice small slabs.
+        SmallSlabMetadata<uint16_t> tiny_meta_;
+        // Metadata for 16-byte+ slice small slabs.
+        SmallSlabMetadata<uint8_t> small_meta_;
         struct {
           // Tracks the total number of allocated bytes in this block.
           uint64_t allocated_bytes_;
@@ -235,7 +235,10 @@ class SmallSlab : public AllocatedSlab {
   class LargeSlab* ToLarge() = delete;
   const class LargeSlab* ToLarge() const = delete;
 
-  SmallSlabMetadata<uint16_t>& Metadata();
+  // Tiny metadata is for 8-byte block small slabs.
+  SmallSlabMetadata<uint16_t>& TinyMetadata();
+  // Small metadata is for 16-byte block small slabs.
+  SmallSlabMetadata<uint8_t>& SmallMetadata();
 };
 
 class LargeSlab : public AllocatedSlab {
