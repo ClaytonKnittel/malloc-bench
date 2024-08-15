@@ -74,6 +74,8 @@ class SmallSlabMetadata {
   void PushSlice(FreeSlice* slice, SliceId slice_id, Fn slice_lookup);
 
  private:
+  static constexpr uint8_t FreelistNodesPerSlice(class SizeClass size_class);
+
   // The size of allocations this slab holds.
   class SizeClass size_class_;
 
@@ -81,7 +83,7 @@ class SmallSlabMetadata {
   // in this slab. This number here is the count of other pointers in
   // the slice `freelist_` points to, and also the offset that the next
   // freed slice id should be placed. It ranges from 0-3.
-  uint8_t freelist_node_offset_ = 0;
+  uint8_t freelist_node_offset_;
 
   // The slice id of the first slice in the freelist.
   SliceId freelist_ = SliceId::Nil();
@@ -272,14 +274,14 @@ AllocatedSlice* SmallSlabMetadata::PopSlice(Fn slice_lookup) {
   SliceId id = SliceId::Nil();
   if (freelist_ != SliceId::Nil()) {
     FreeSlice* slice = slice_lookup(freelist_);
+    SliceId next_in_list = slice->IdAt(freelist_node_offset_);
 
-    // TODO: need to fix this condition
-    if (freelist_node_offset_ == 4) {
+    if (freelist_node_offset_ == 0) {
       id = freelist_;
-      freelist_ = slice->IdAt(0);
-      freelist_node_offset_ = 0;
+      freelist_ = next_in_list;
+      freelist_node_offset_ = FreelistNodesPerSlice(size_class_) - 1;
     } else {
-      id = slice->IdAt(freelist_node_offset_);
+      id = next_in_list;
       freelist_node_offset_--;
     }
   } else {
@@ -298,15 +300,21 @@ AllocatedSlice* SmallSlabMetadata::PopSlice(Fn slice_lookup) {
 template <SliceLookup Fn>
 void SmallSlabMetadata::PushSlice(FreeSlice* slice, SliceId slice_id,
                                   Fn slice_lookup) {
-  if (freelist_node_offset_ == 0) {
+  if (freelist_node_offset_ == FreelistNodesPerSlice(size_class_)) {
     slice->SetId(0, freelist_);
     freelist_ = slice_id;
+    freelist_node_offset_ = 0;
   } else {
     CK_ASSERT_NE(freelist_, SliceId::Nil());
     FreeSlice* head = slice_lookup(freelist_);
     head->SetId(freelist_node_offset_, slice_id);
-    freelist_node_offset_ = (freelist_node_offset_ + 1) % 4;
+    freelist_node_offset_++;
   }
+}
+
+constexpr uint8_t SmallSlabMetadata::FreelistNodesPerSlice(
+    class SizeClass size_class) {
+  return static_cast<uint8_t>(size_class.SliceSize() / sizeof(SliceId));
 }
 
 }  // namespace ckmalloc
