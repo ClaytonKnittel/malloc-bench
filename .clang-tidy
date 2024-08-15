@@ -97,6 +97,7 @@ Checks: >
   -performance-avoid-endl,
   -performance-enum-size,
   -readability-braces-around-statements,
+  -readability-else-after-return,
   -readability-identifier-length,
   -readability-magic-numbers,
   -readability-named-parameter,

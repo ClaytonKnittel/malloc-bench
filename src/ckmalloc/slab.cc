@@ -295,18 +295,44 @@ SizeClass SmallSlab::SizeClass() const {
   return mapped.small.tiny_meta_.SizeClass();
 }
 
-SmallSlabMetadata<uint16_t>& SmallSlab::TinyMetadata() {
+bool SmallSlab::Empty() const {
   CK_ASSERT_EQ(type_, SlabType::kSmall);
-  SmallSlabMetadata<uint16_t>& meta = mapped.small.tiny_meta_;
-  CK_ASSERT_LE(meta.SizeClass().SliceSize(), kMaxUse16ByteSliceId);
-  return meta;
+  if (IsTiny()) {
+    return mapped.small.tiny_meta_.Empty();
+  } else {
+    return mapped.small.small_meta_.Empty();
+  }
 }
 
-SmallSlabMetadata<uint8_t>& SmallSlab::SmallMetadata() {
+bool SmallSlab::Full() const {
   CK_ASSERT_EQ(type_, SlabType::kSmall);
-  SmallSlabMetadata<uint8_t>& meta = mapped.small.small_meta_;
-  CK_ASSERT_GE(meta.SizeClass().SliceSize(), 32);
-  return meta;
+  if (IsTiny()) {
+    return mapped.small.tiny_meta_.Full();
+  } else {
+    return mapped.small.small_meta_.Full();
+  }
+}
+
+AllocatedSlice* SmallSlab::PopSlice(void* slab_start) {
+  CK_ASSERT_EQ(type_, SlabType::kSmall);
+  if (IsTiny()) {
+    return mapped.small.tiny_meta_.PopSlice(slab_start);
+  } else {
+    return mapped.small.small_meta_.PopSlice(slab_start);
+  }
+}
+
+void SmallSlab::PushSlice(void* slab_start, AllocatedSlice* slice) {
+  CK_ASSERT_EQ(type_, SlabType::kSmall);
+  if (IsTiny()) {
+    mapped.small.tiny_meta_.PushSlice(slab_start, slice->ToFree<uint16_t>());
+  } else {
+    mapped.small.small_meta_.PushSlice(slab_start, slice->ToFree<uint8_t>());
+  }
+}
+
+bool SmallSlab::IsTiny() const {
+  return SizeClass().SliceSize() <= kMaxUse16ByteSliceId;
 }
 
 /* static */
