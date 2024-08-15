@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <type_traits>
 
 #include "src/ckmalloc/slice_id.h"
 
@@ -10,13 +11,15 @@ class Slice {};
 
 // Free slices are unallocated slices in small slabs which hold some metadata.
 // Together they form the freelist within that slab.
+template <typename T>
+requires std::is_integral_v<T>
 class FreeSlice : public Slice {
  public:
-  SliceId& IdAt(uint8_t offset) {
+  SliceId<T>& IdAt(uint8_t offset) {
     return slices_[offset];
   }
 
-  void SetId(uint8_t offset, SliceId slice_id) {
+  void SetId(uint8_t offset, SliceId<T> slice_id) {
     slices_[offset] = slice_id;
   }
 
@@ -25,7 +28,7 @@ class FreeSlice : public Slice {
   }
 
  private:
-  SliceId slices_[];
+  SliceId<T> slices_[];
 };
 
 // Allocated slices have no metadata.
@@ -43,8 +46,10 @@ class AllocatedSlice : public Slice {
     return reinterpret_cast<AllocatedSlice*>(ptr);
   }
 
-  FreeSlice* ToFree() {
-    return reinterpret_cast<FreeSlice*>(this);
+  template <typename T>
+  requires std::is_integral_v<T>
+  FreeSlice<T>* ToFree() {
+    return reinterpret_cast<FreeSlice<T>*>(this);
   }
 };
 

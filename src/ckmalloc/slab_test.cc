@@ -17,12 +17,15 @@
 #include "src/ckmalloc/page_id.h"
 #include "src/ckmalloc/size_class.h"
 #include "src/ckmalloc/slice.h"
+#include "src/ckmalloc/slice_id.h"
 #include "src/ckmalloc/util.h"
 #include "src/rng.h"
 
 namespace ckmalloc {
 
 using util::IsOk;
+
+using SliceId16 = SliceId<uint16_t>;
 
 class TestSmallSlab {
  public:
@@ -35,14 +38,14 @@ class TestSmallSlab {
     return slab_;
   }
 
-  Slice* SliceAt(SliceId slice_id) {
-    CK_ASSERT_NE(slice_id, SliceId::Nil());
+  Slice* SliceAt(SliceId16 slice_id) {
+    CK_ASSERT_NE(slice_id, SliceId16::Nil());
     return reinterpret_cast<Slice*>(
         &data_[slice_id.SliceOffsetBytes() / sizeof(uint64_t)]);
   }
 
-  SliceId IdForSlice(Slice* slice) {
-    return SliceId(PtrDistance(slice, data_.data()));
+  SliceId16 IdForSlice(Slice* slice) {
+    return SliceId16(PtrDistance(slice, data_.data()));
   }
 
   absl::StatusOr<AllocatedSlice*> AllocSlice() {
@@ -105,7 +108,7 @@ class TestSmallSlab {
     allocated_slices_.erase(it);
 
     RETURN_IF_ERROR(CheckMagic(slice));
-    slab_.Metadata().PushSlice(data_.data(), slice->ToFree());
+    slab_.Metadata().PushSlice(data_.data(), slice->ToFree<uint16_t>());
 
     if (allocated_slices_.empty()) {
       if (!slab_.Metadata().Empty()) {
@@ -194,7 +197,7 @@ TEST_P(SmallSlabTest, EmptySmallSlab) {
 TEST_P(SmallSlabTest, SingleAllocation) {
   TestSmallSlab slab = MakeSlab();
   ASSERT_OK_AND_DEFINE(AllocatedSlice*, slice, slab.AllocSlice());
-  EXPECT_EQ(slice, slab.SliceAt(SliceId(0)));
+  EXPECT_EQ(slice, slab.SliceAt(SliceId16(0)));
 }
 
 TEST_P(SmallSlabTest, SingleFree) {
@@ -208,7 +211,7 @@ TEST_P(SmallSlabTest, AllAllocations) {
 
   for (size_t i = 0; i < GetSizeClass().MaxSlicesPerSlab(); i++) {
     ASSERT_OK_AND_DEFINE(AllocatedSlice*, slice, slab.AllocSlice());
-    ASSERT_EQ(slice, slab.SliceAt(SliceId(i * GetSizeClass().SliceSize())));
+    ASSERT_EQ(slice, slab.SliceAt(SliceId16(i * GetSizeClass().SliceSize())));
   }
 }
 
@@ -221,7 +224,7 @@ TEST_P(SmallSlabTest, FillUpThenEmpty) {
 
   for (size_t i = 0; i < GetSizeClass().MaxSlicesPerSlab(); i++) {
     ASSERT_THAT(slab.FreeSlice(static_cast<AllocatedSlice*>(
-                    slab.SliceAt(SliceId(i * GetSizeClass().SliceSize())))),
+                    slab.SliceAt(SliceId16(i * GetSizeClass().SliceSize())))),
                 IsOk());
   }
 }
@@ -236,7 +239,7 @@ TEST_P(SmallSlabTest, FillUpThenEmptyStrangeOrder) {
   for (size_t i = 0; i < GetSizeClass().MaxSlicesPerSlab(); i++) {
     size_t idx = (127 * i + 151) % GetSizeClass().MaxSlicesPerSlab();
     ASSERT_THAT(slab.FreeSlice(static_cast<AllocatedSlice*>(
-                    slab.SliceAt(SliceId(idx * GetSizeClass().SliceSize())))),
+                    slab.SliceAt(SliceId16(idx * GetSizeClass().SliceSize())))),
                 IsOk());
   }
 }
@@ -251,7 +254,7 @@ TEST_P(SmallSlabTest, FillUpThenEmptyAndRefill) {
   for (size_t i = 0; i < GetSizeClass().MaxSlicesPerSlab() / 3; i++) {
     size_t idx = (151 * i + 127) % GetSizeClass().MaxSlicesPerSlab();
     ASSERT_THAT(slab.FreeSlice(static_cast<AllocatedSlice*>(
-                    slab.SliceAt(SliceId(idx * GetSizeClass().SliceSize())))),
+                    slab.SliceAt(SliceId16(idx * GetSizeClass().SliceSize())))),
                 IsOk());
   }
 

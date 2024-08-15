@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <limits>
 #include <ostream>
+#include <type_traits>
 
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/util.h"
@@ -11,12 +12,13 @@ namespace ckmalloc {
 
 // Slice id's are offsets from the beginning of the slab of the slice in a
 // small slab, in multiples of `kMinAlignment`.
-//
-// TODO: If these are indexes, we can use 8 bytes only for 16+ small slabs.
+template <typename T>
+requires std::is_integral_v<T>
 class SliceId {
   friend class SmallSlab;
 
-  friend inline std::ostream& operator<<(std::ostream&, const SliceId&);
+  template <typename U>
+  friend std::ostream& operator<<(std::ostream&, const SliceId<U>&);
 
  public:
   constexpr explicit SliceId(uint64_t offset_bytes)
@@ -39,7 +41,7 @@ class SliceId {
     return !(*this == other);
   }
 
-  constexpr uint16_t Id() const {
+  constexpr T Id() const {
     if (id_ != kNilId) {
       CK_ASSERT_LT(id_, kPageSize / kMinAlignment);
     }
@@ -47,20 +49,22 @@ class SliceId {
   }
 
   constexpr uint32_t SliceOffsetBytes() const {
-    return Id() * kMinAlignment;
+    return static_cast<uint32_t>(Id() * kMinAlignment);
   }
 
  private:
-  static constexpr uint16_t kNilId = std::numeric_limits<uint16_t>::max();
+  static constexpr T kNilId = std::numeric_limits<T>::max();
 
   constexpr SliceId() : id_(kNilId) {}
 
   // The index of the slice in the slab.
-  uint16_t id_;
+  T id_;
 };
 
-inline std::ostream& operator<<(std::ostream& ostr, const SliceId& slice_id) {
-  return ostr << slice_id.id_;
+template <typename T>
+requires std::is_integral_v<T>
+std::ostream& operator<<(std::ostream& ostr, const SliceId<T>& slice_id) {
+  return ostr << slice_id.Id();
 }
 
 }  // namespace ckmalloc
