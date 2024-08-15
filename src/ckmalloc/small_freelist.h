@@ -12,6 +12,7 @@ class SmallFreelist {
   explicit SmallFreelist(SlabManager* slab_manager)
       : slab_manager_(slab_manager) {}
 
+ private:
   // Allocates a single slice from this small blocks slab, which must not be
   // full.
   // TODO: return multiple once we have a cache?
@@ -20,7 +21,6 @@ class SmallFreelist {
   // Returns a slice to the small slab, allowing it to be reallocated.
   void ReturnSlice(SmallSlab* slab, AllocatedSlice* slice);
 
- private:
   SlabManager* const slab_manager_;
 };
 

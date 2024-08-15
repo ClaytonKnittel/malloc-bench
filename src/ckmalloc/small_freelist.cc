@@ -8,9 +8,8 @@
 namespace ckmalloc {
 
 AllocatedSlice* SmallFreelist::TakeSlice(SmallSlab* slab) {
-  CK_ASSERT_FALSE(slab->Metadata().Full());
-  return slab->Metadata().PopSlice(
-      slab_manager_->PageStartFromId(slab->StartId()));
+  CK_ASSERT_FALSE(slab->Full());
+  return slab->PopSlice(slab_manager_->PageStartFromId(slab->StartId()));
 }
 
 void SmallFreelist::ReturnSlice(SmallSlab* slab, AllocatedSlice* slice) {
@@ -18,12 +17,10 @@ void SmallFreelist::ReturnSlice(SmallSlab* slab, AllocatedSlice* slice) {
   void* slab_start = slab_manager_->PageStartFromId(slab->StartId());
   CK_ASSERT_GE(slice, slab_start);
   CK_ASSERT_LE(
-      slice,
-      PtrAdd<AllocatedSlice>(
-          slab_start, kPageSize - slab->Metadata().SizeClass().SliceSize()));
+      slice, PtrAdd<AllocatedSlice>(slab_start,
+                                    kPageSize - slab->SizeClass().SliceSize()));
 
-  slab->Metadata().PushSlice(slab_manager_->PageStartFromId(slab->StartId()),
-                             slice->ToFree());
+  slab->PushSlice(slab_manager_->PageStartFromId(slab->StartId()), slice);
 }
 
 }  // namespace ckmalloc

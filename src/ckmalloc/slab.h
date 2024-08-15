@@ -95,9 +95,6 @@ class SmallSlabMetadata {
   // freed slice id should be placed. It ranges from 0-3.
   uint8_t freelist_node_offset_;
 
-  // The slice id of the first slice in the freelist.
-  SliceId<T> freelist_ = SliceId<T>::Nil();
-
   // The count of uninitialized slices. This starts off at
   // size_class_.MaxSlicesPerSlab(), and will decrease as free blocks are
   // requested and the freelist remains empty. Once this reaches zero, all
@@ -107,6 +104,9 @@ class SmallSlabMetadata {
 
   // The count of allocated slices in this slab.
   uint16_t allocated_count_ = 0;
+
+  // The slice id of the first slice in the freelist.
+  SliceId<T> freelist_ = SliceId<T>::Nil();
 };
 
 // Slab metadata class, which is stored separately from the slab it describes,
@@ -162,16 +162,22 @@ class Slab {
 
     struct {
       PageId id_;
+      // TODO move this into free/large to save space since small metadata is
+      // much larger.
       uint32_t n_pages_;
 
       union {
         struct {
         } free;
         union {
-          // Metadata for 8-byte slice small slabs.
+          // Metadata for <= 16-byte slice small slabs.
           SmallSlabMetadata<uint16_t> tiny_meta_;
-          // Metadata for 16-byte+ slice small slabs.
+          // Metadata for > 16-byte slice small slabs.
           SmallSlabMetadata<uint8_t> small_meta_;
+
+          // A
+          PageId next_free_;
+          PageId prev_free_;
         } small;
         struct {
           // Tracks the total number of allocated bytes in this block.
