@@ -250,6 +250,25 @@ cc_library(
     ],
 )
 
+cc_test(
+    name = "slab_test",
+    srcs = ["slab_test.cc"],
+    deps = [
+        ":common",
+        ":page_id",
+        ":size_class",
+        ":slab",
+        ":slice",
+        ":util",
+        "//src:rng",
+        "@abseil-cpp//absl/container:flat_hash_set",
+        "@abseil-cpp//absl/status",
+        "@cc-util//util:absl_util",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
 cc_library(
     name = "slab_manager",
     hdrs = ["slab_manager.h"],

@@ -57,12 +57,10 @@ class Slice {};
 class FreeSlice : public Slice {
  public:
   SliceId& IdAt(uint8_t offset) {
-    CK_ASSERT_LT(offset, 4);
     return slices_[offset];
   }
 
   void SetId(uint8_t offset, SliceId slice_id) {
-    CK_ASSERT_LT(offset, 4);
     slices_[offset] = slice_id;
   }
 
@@ -71,7 +69,7 @@ class FreeSlice : public Slice {
   }
 
  private:
-  SliceId slices_[4];
+  SliceId slices_[];
 };
 
 // Allocated slices have no metadata.
@@ -93,8 +91,5 @@ class AllocatedSlice : public Slice {
     return reinterpret_cast<FreeSlice*>(this);
   }
 };
-
-// Free slices must be able to fit in any small slab.
-static_assert(sizeof(FreeSlice) <= kMinAlignment);
 
 }  // namespace ckmalloc
