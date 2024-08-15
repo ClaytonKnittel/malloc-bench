@@ -42,7 +42,13 @@ enum class SlabType {
 
 std::ostream& operator<<(std::ostream& ostr, SlabType slab_type);
 
+template <typename T>
+requires std::is_integral_v<T>
 class SmallSlabMetadata {
+  static_assert(std::is_same_v<T, uint8_t> || std::is_same_v<T, uint16_t>,
+                "SmallSlabMetadata can only be instantiated with `uint8_t` or "
+                "`uint16_t`");
+
  public:
   explicit SmallSlabMetadata(SizeClass size_class);
 
@@ -63,18 +69,26 @@ class SmallSlabMetadata {
 
   // Given a pointer to the start of this slab, pushes the given `FreeSlice`
   // onto the stack of free slices, so it may be allocated in the future.
-  void PushSlice(void* slab_start, FreeSlice* slice);
+  void PushSlice(void* slab_start, FreeSlice<T>* slice);
 
  private:
-  static constexpr uint8_t FreelistNodesPerSlice(class SizeClass size_class);
+  static constexpr uint8_t FreelistNodesPerSlice(class SizeClass size_class) {
+    return static_cast<uint8_t>(size_class.SliceSize() / sizeof(SliceId<T>));
+  }
 
   // Given a pointer to the start of the slab and a `Slice`, returns the slab ID
   // for that slice.
-  static constexpr SliceId SliceIdForSlice(void* slab_start, FreeSlice* slice);
+  static constexpr SliceId<T> SliceIdForSlice(void* slab_start,
+                                              FreeSlice<T>* slice) {
+    return SliceId<T>(PtrDistance(slice, slab_start));
+  }
 
   // Given a pointer to the start of the slab and a `SliceId`, returns a pointer
   // to the corresponding slice.
-  static constexpr FreeSlice* SliceFromId(void* slab_start, SliceId slice_id);
+  static constexpr FreeSlice<T>* SliceFromId(void* slab_start,
+                                             SliceId<T> slice_id) {
+    return PtrAdd<FreeSlice<T>>(slab_start, slice_id.SliceOffsetBytes());
+  }
 
   // The size of allocations this slab holds.
   class SizeClass size_class_;
@@ -86,7 +100,7 @@ class SmallSlabMetadata {
   uint8_t freelist_node_offset_;
 
   // The slice id of the first slice in the freelist.
-  SliceId freelist_ = SliceId::Nil();
+  SliceId<T> freelist_ = SliceId<T>::Nil();
 
   // The count of uninitialized slices. This starts off at
   // size_class_.MaxSlicesPerSlab(), and will decrease as free blocks are
@@ -151,7 +165,7 @@ class Slab {
       union {
         struct {
         } free;
-        SmallSlabMetadata small_meta_;
+        SmallSlabMetadata<uint16_t> small_meta_;
         struct {
           // Tracks the total number of allocated bytes in this block.
           uint64_t allocated_bytes_;
@@ -221,7 +235,7 @@ class SmallSlab : public AllocatedSlab {
   class LargeSlab* ToLarge() = delete;
   const class LargeSlab* ToLarge() const = delete;
 
-  SmallSlabMetadata& Metadata();
+  SmallSlabMetadata<uint16_t>& Metadata();
 };
 
 class LargeSlab : public AllocatedSlab {
@@ -268,23 +282,5 @@ template <>
 SmallSlab* Slab::Init(PageId start_id, uint32_t n_pages, SizeClass size_class);
 template <>
 LargeSlab* Slab::Init(PageId start_id, uint32_t n_pages);
-
-/* static */
-constexpr uint8_t SmallSlabMetadata::FreelistNodesPerSlice(
-    class SizeClass size_class) {
-  return static_cast<uint8_t>(size_class.SliceSize() / sizeof(SliceId));
-}
-
-/* static */
-constexpr SliceId SmallSlabMetadata::SliceIdForSlice(void* slab_start,
-                                                     FreeSlice* slice) {
-  return SliceId(PtrDistance(slice, slab_start));
-}
-
-/* static */
-constexpr FreeSlice* SmallSlabMetadata::SliceFromId(void* slab_start,
-                                                    SliceId slice_id) {
-  return PtrAdd<FreeSlice>(slab_start, slice_id.SliceOffsetBytes());
-}
 
 }  // namespace ckmalloc
