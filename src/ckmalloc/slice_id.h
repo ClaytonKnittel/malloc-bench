@@ -6,6 +6,7 @@
 #include <type_traits>
 
 #include "src/ckmalloc/common.h"
+#include "src/ckmalloc/size_class.h"
 #include "src/ckmalloc/util.h"
 
 namespace ckmalloc {
@@ -18,12 +19,18 @@ class SliceId {
   friend class SmallSlab;
 
   template <typename U>
+  requires std::is_integral_v<U>
   friend std::ostream& operator<<(std::ostream&, const SliceId<U>&);
 
  public:
-  constexpr explicit SliceId(uint64_t offset_bytes)
-      : id_(offset_bytes / kMinAlignment) {
+  static constexpr SliceId FromOffset(uint64_t offset_bytes,
+                                      SizeClass size_class) {
     CK_ASSERT_LT(offset_bytes, kPageSize);
+    return SliceId(size_class.OffsetToIdx(offset_bytes));
+  }
+
+  static constexpr SliceId FromIdx(uint16_t idx) {
+    return SliceId(idx);
   }
 
   // Allow copy construction/assignment.
@@ -48,12 +55,14 @@ class SliceId {
     return id_;
   }
 
-  constexpr uint32_t SliceOffsetBytes() const {
-    return static_cast<uint32_t>(Id() * kMinAlignment);
+  constexpr uint32_t SliceOffsetBytes(SizeClass size_class) const {
+    return static_cast<uint32_t>(Id() * size_class.SliceSize());
   }
 
  private:
   static constexpr T kNilId = std::numeric_limits<T>::max();
+
+  constexpr explicit SliceId(T id) : id_(id) {}
 
   constexpr SliceId() : id_(kNilId) {}
 
@@ -64,7 +73,10 @@ class SliceId {
 template <typename T>
 requires std::is_integral_v<T>
 std::ostream& operator<<(std::ostream& ostr, const SliceId<T>& slice_id) {
-  return ostr << slice_id.Id();
+  if (slice_id == SliceId<T>::Nil()) {
+    return ostr << "[nil]";
+  }
+  return ostr << static_cast<uint32_t>(slice_id.Id());
 }
 
 }  // namespace ckmalloc
