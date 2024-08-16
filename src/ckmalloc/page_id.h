@@ -96,11 +96,12 @@ class PageId {
   }
 
   static constexpr PageId Nil() {
-    // TODO make assertions not nil elsewhere.
-    return PageId(std::numeric_limits<uint32_t>::max());
+    return PageId();
   }
 
  private:
+  constexpr PageId() : page_idx_(std::numeric_limits<uint32_t>::max()) {}
+
   uint32_t Idx() const {
     return page_idx_;
   }

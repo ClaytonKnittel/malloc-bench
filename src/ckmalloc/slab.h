@@ -268,10 +268,10 @@ class SmallSlab : public AllocatedSlab {
   void PushSlice(void* slab_start, AllocatedSlice* slice);
 
   // TODO
-  void InsertIntoFreelist(SmallSlab* next_free) {}
+  void InsertIntoFreelist(SmallSlab* next_free);
 
   // TODO
-  void RemoveFromFreelist() {}
+  void RemoveFromFreelist();
 
  private:
   // If true, this slab manages slices <= 16 bytes, which are classified as tiny
