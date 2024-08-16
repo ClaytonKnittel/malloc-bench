@@ -6,10 +6,10 @@
 class FreeBlock : public Block {
  public:
   // combine adjacent free blocks to be one big free block
-  void coalesce();
+  static void coalesce(ListNode* current);
 
   // helper to coalesce
-  void combine(FreeList* left, FreeList* right) {}
+  static ListNode* combine(ListNode* left_block, ListNode* right_block);
 
   // data structure of pointers to free blocks
   // look at programming restrictions in spec
