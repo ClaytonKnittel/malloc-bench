@@ -153,6 +153,8 @@ SmallSlab* Slab::Init(PageId start_id, uint32_t n_pages, SizeClass size_class) {
       .n_pages_ = n_pages,
       .small = {
         .tiny_meta_ = SmallSlabMetadata<uint16_t>(size_class),
+        .next_free_ = PageId::Nil(),
+        .prev_free_ = PageId::Nil(),
       },
     };
   } else {
@@ -161,6 +163,8 @@ SmallSlab* Slab::Init(PageId start_id, uint32_t n_pages, SizeClass size_class) {
       .n_pages_ = n_pages,
       .small = {
         .small_meta_ = SmallSlabMetadata<uint8_t>(size_class),
+        .next_free_ = PageId::Nil(),
+        .prev_free_ = PageId::Nil(),
       },
     };
   }
@@ -329,6 +333,17 @@ void SmallSlab::PushSlice(void* slab_start, AllocatedSlice* slice) {
   } else {
     mapped.small.small_meta_.PushSlice(slab_start, slice->ToFree<uint8_t>());
   }
+}
+
+void SmallSlab::InsertIntoFreelist(SmallSlab* next_free) {
+  CK_ASSERT_EQ(type_, SlabType::kSmall);
+  mapped.small.next_free_ = next_free->StartId();
+  mapped.small.prev_free_ = PageId::Nil();
+  next_free->mapped.small.prev_free_ = this->StartId();
+}
+
+void SmallSlab::RemoveFromFreelist() {
+  // TODO
 }
 
 bool SmallSlab::IsTiny() const {
