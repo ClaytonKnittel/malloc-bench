@@ -169,13 +169,15 @@ class Slab {
       union {
         struct {
         } free;
-        union {
-          // Metadata for <= 16-byte slice small slabs.
-          SmallSlabMetadata<uint16_t> tiny_meta_;
-          // Metadata for > 16-byte slice small slabs.
-          SmallSlabMetadata<uint8_t> small_meta_;
+        struct {
+          union {
+            // Metadata for <= 16-byte slice small slabs.
+            SmallSlabMetadata<uint16_t> tiny_meta_;
+            // Metadata for > 16-byte slice small slabs.
+            SmallSlabMetadata<uint8_t> small_meta_;
+          };
 
-          // A
+          // A doubly-linked list of small slabs of equal size with free space.
           PageId next_free_;
           PageId prev_free_;
         } small;
@@ -264,6 +266,12 @@ class SmallSlab : public AllocatedSlab {
   // Given a pointer to the start of this slab, pushes the given `FreeSlice`
   // onto the stack of free slices, so it may be allocated in the future.
   void PushSlice(void* slab_start, AllocatedSlice* slice);
+
+  // TODO
+  void InsertIntoFreelist(SmallSlab* next_free) {}
+
+  // TODO
+  void RemoveFromFreelist() {}
 
  private:
   // If true, this slab manages slices <= 16 bytes, which are classified as tiny
