@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <limits>
 
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/util.h"
@@ -92,6 +93,11 @@ class PageId {
   // metadata slab.
   static constexpr PageId Zero() {
     return PageId(0);
+  }
+
+  static constexpr PageId Nil() {
+    // TODO make assertions not nil elsewhere.
+    return PageId(std::numeric_limits<uint32_t>::max());
   }
 
  private:
