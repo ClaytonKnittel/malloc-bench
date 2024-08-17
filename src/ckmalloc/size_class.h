@@ -11,6 +11,19 @@ namespace ckmalloc {
 // array of equally-sized slices of memory for individual allocation.
 class SizeClass {
  public:
+  // The number of size classes is the count of 16-byte multiples up to
+  // `kMaxSmallSize`, plus 1 for 8-byte slices.
+  static constexpr size_t kNumSizeClasses =
+      kMaxSmallSize / kDefaultAlignment + 1;
+
+  static constexpr SizeClass FromUserDataSize(size_t user_size) {
+    CK_ASSERT_LE(user_size, kMaxSmallSize);
+    CK_ASSERT_NE(user_size, 0);
+    return FromSliceSize(user_size <= kMinAlignment
+                             ? kMinAlignment
+                             : AlignUp(user_size, kDefaultAlignment));
+  }
+
   static constexpr SizeClass FromSliceSize(uint64_t slice_size) {
     CK_ASSERT_LE(slice_size, kMaxSmallSize);
     CK_ASSERT_NE(slice_size, 0);
@@ -25,9 +38,17 @@ class SizeClass {
     return static_cast<uint64_t>(size_class_);
   }
 
+  // Returns a number 0 - 8,
+  constexpr size_t Ordinal() const {
+    return size_class_ / kDefaultAlignment;
+  }
+
   constexpr uint32_t MaxSlicesPerSlab() const {
-    static_assert(kMaxSmallSize == 128);
-    constexpr uint32_t kSliceMap[9] = {
+    // If the number of size classes grows, the compiler will not complain that
+    // we have not specified every entry of `kSliceMap`. This static assert is
+    // to make sure the map is updated if the number of size classes changes.
+    static_assert(kNumSizeClasses == 9);
+    constexpr uint32_t kSliceMap[kNumSizeClasses] = {
       kPageSize / 8,  kPageSize / 16,  kPageSize / 32,
       kPageSize / 48, kPageSize / 64,  kPageSize / 80,
       kPageSize / 96, kPageSize / 112, kPageSize / 128,
@@ -38,6 +59,7 @@ class SizeClass {
 
   // TODO check if this is the fastest way to do this.
   constexpr uint32_t OffsetToIdx(uint64_t offset_bytes) const {
+    static_assert(kNumSizeClasses == 9);
     switch (size_class_ / kDefaultAlignment) {
       case 0:
         return offset_bytes / 8;
