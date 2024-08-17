@@ -446,8 +446,21 @@ cc_library(
         ":slab",
         ":slab_manager",
         ":slab_map",
-        ":util",
         "//src:heap_interface",
+    ],
+)
+
+cc_library(
+    name = "state_test_fixture",
+    srcs = ["state_test_fixture.cc"],
+    hdrs = ["state_test_fixture.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":metadata_manager_test_fixture",
+        ":slab_manager_test_fixture",
+        ":state",
+        ":testlib",
+        "@abseil-cpp//absl/status",
     ],
 )
 
