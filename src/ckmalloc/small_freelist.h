@@ -9,13 +9,17 @@
 #include "src/ckmalloc/slab_manager.h"
 #include "src/ckmalloc/slab_map.h"
 #include "src/ckmalloc/slice.h"
+#include "src/ckmalloc/util.h"
 
 namespace ckmalloc {
 
-class SmallFreelist {
+template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
+class SmallFreelistImpl {
+  friend class SmallFreelistFixture;
+
  public:
-  explicit SmallFreelist(SlabManager* slab_manager, SlabMap* slab_map)
-      : slab_manager_(slab_manager), slab_map_(slab_map) {}
+  explicit SmallFreelistImpl(SlabMap* slab_map, SlabManager* slab_manager)
+      : slab_map_(slab_map), slab_manager_(slab_manager) {}
 
   AllocatedSlice* AllocSlice(size_t user_size);
 
@@ -44,8 +48,8 @@ class SmallFreelist {
 
   void RemoveFromFreelist(SmallSlab* slab);
 
-  SlabManager* const slab_manager_;
   SlabMap* const slab_map_;
+  SlabManager* const slab_manager_;
 
   static_assert(SizeClass::kNumSizeClasses == 9);
   PageId freelists_[SizeClass::kNumSizeClasses] = {
@@ -53,5 +57,121 @@ class SmallFreelist {
     PageId::Nil(), PageId::Nil(), PageId::Nil(), PageId::Nil(),
   };
 };
+
+template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
+AllocatedSlice* SmallFreelistImpl<SlabMap, SlabManager>::AllocSlice(
+    size_t user_size) {
+  SizeClass size_class = SizeClass::FromUserDataSize(user_size);
+
+  auto slice_from_freelist = FindSliceInFreelist(size_class);
+  if (slice_from_freelist.has_value()) {
+    return slice_from_freelist.value();
+  }
+
+  return nullptr;
+}
+
+template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
+void SmallFreelistImpl<SlabMap, SlabManager>::FreeSlice(AllocatedSlice* slice) {
+  SmallSlab* slab =
+      slab_map_->FindSlab(slab_manager_->PageIdFromPtr(slice))->ToSmall();
+  if (slab->Full()) {
+    AddToFreelist(slab);
+  }
+
+  ReturnSlice(slab, slice);
+}
+
+template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
+std::optional<AllocatedSlice*>
+SmallFreelistImpl<SlabMap, SlabManager>::FindSliceInFreelist(
+    SizeClass size_class) {
+  PageId first_in_freelist = FreelistHead(size_class);
+  if (first_in_freelist == PageId::Nil()) {
+    return std::nullopt;
+  }
+
+  return TakeSlice(slab_map_->FindSlab(first_in_freelist)->ToSmall());
+}
+
+template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
+AllocatedSlice* SmallFreelistImpl<SlabMap, SlabManager>::TakeSlice(
+    SmallSlab* slab) {
+  CK_ASSERT_FALSE(slab->Full());
+  AllocatedSlice* slice =
+      slab->PopSlice(slab_manager_->PageStartFromId(slab->StartId()));
+
+  if (slab->Full()) {
+    RemoveFromFreelist(slab);
+  }
+  return slice;
+}
+
+template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
+std::optional<AllocatedSlice*>
+SmallFreelistImpl<SlabMap, SlabManager>::TakeSliceFromNewSlab(
+    SizeClass size_class) {
+  using AllocRes = std::pair<PageId, SmallSlab*>;
+  DEFINE_OR_RETURN_OPT(AllocRes, result,
+                       slab_manager_->template Alloc<SmallSlab>(1, size_class));
+  auto [page_id, slab] = result;
+
+  CK_ASSERT_EQ(FreelistHead(size_class), PageId::Nil());
+  AddToFreelist(slab);
+  return TakeSlice(slab);
+}
+
+template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
+void SmallFreelistImpl<SlabMap, SlabManager>::ReturnSlice(
+    SmallSlab* slab, AllocatedSlice* slice) {
+  void* slab_start = slab_manager_->PageStartFromId(slab->StartId());
+  CK_ASSERT_GE(slice, slab_start);
+  CK_ASSERT_LE(
+      slice, PtrAdd<AllocatedSlice>(slab_start,
+                                    kPageSize - slab->SizeClass().SliceSize()));
+
+  slab->PushSlice(slab_manager_->PageStartFromId(slab->StartId()), slice);
+  if (slab->Empty()) {
+    RemoveFromFreelist(slab);
+    slab_manager_->Free(slab);
+  }
+}
+
+template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
+PageId& SmallFreelistImpl<SlabMap, SlabManager>::FreelistHead(
+    SizeClass size_class) {
+  return freelists_[size_class.Ordinal()];
+}
+
+template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
+void SmallFreelistImpl<SlabMap, SlabManager>::AddToFreelist(SmallSlab* slab) {
+  PageId page_id = slab->StartId();
+  PageId& freelist = FreelistHead(slab->SizeClass());
+  slab->SetNextFree(freelist);
+  slab->SetPrevFree(PageId::Nil());
+
+  if (freelist != PageId::Nil()) {
+    SmallSlab* prev_head = slab_map_->FindSlab(freelist)->ToSmall();
+    prev_head->SetPrevFree(slab->StartId());
+  }
+  freelist = page_id;
+}
+
+template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
+void SmallFreelistImpl<SlabMap, SlabManager>::RemoveFromFreelist(
+    SmallSlab* slab) {
+  PageId prev_id = slab->PrevFree();
+  PageId next_id = slab->NextFree();
+  if (prev_id != PageId::Nil()) {
+    slab_map_->FindSlab(prev_id)->ToSmall()->SetNextFree(next_id);
+  } else {
+    FreelistHead(slab->SizeClass()) = next_id;
+  }
+  if (next_id != PageId::Nil()) {
+    slab_map_->FindSlab(next_id)->ToSmall()->SetPrevFree(prev_id);
+  }
+}
+
+using SmallFreelist = SmallFreelistImpl<SlabMap, SlabManager>;
 
 }  // namespace ckmalloc

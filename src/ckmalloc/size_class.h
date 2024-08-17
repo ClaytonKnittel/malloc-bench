@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cinttypes>
 #include <cstdint>
 
 #include "src/ckmalloc/common.h"
@@ -15,6 +16,12 @@ class SizeClass {
   // `kMaxSmallSize`, plus 1 for 8-byte slices.
   static constexpr size_t kNumSizeClasses =
       kMaxSmallSize / kDefaultAlignment + 1;
+
+  static constexpr SizeClass FromOrdinal(size_t ordinal) {
+    CK_ASSERT_LT(ordinal, kNumSizeClasses);
+    return FromSliceSize(
+        std::max<uint64_t>(ordinal * kDefaultAlignment, kMinAlignment));
+  }
 
   static constexpr SizeClass FromUserDataSize(size_t user_size) {
     CK_ASSERT_LE(user_size, kMaxSmallSize);
@@ -33,12 +40,19 @@ class SizeClass {
     return SizeClass(static_cast<uint8_t>(slice_size));
   }
 
+  constexpr bool operator==(SizeClass other) const {
+    return size_class_ == other.size_class_;
+  }
+  constexpr bool operator!=(SizeClass other) const {
+    return !(*this == other);
+  }
+
   // Returns the size of slices represented by this size class.
   constexpr uint64_t SliceSize() const {
     return static_cast<uint64_t>(size_class_);
   }
 
-  // Returns a number 0 - 8,
+  // Returns a number 0 - `kNumSizeClasses`-1,
   constexpr size_t Ordinal() const {
     return size_class_ / kDefaultAlignment;
   }
@@ -90,5 +104,10 @@ class SizeClass {
   // The size in bytes of slices for this size class.
   uint8_t size_class_;
 };
+
+template <typename Sink>
+void AbslStringify(Sink& sink, SizeClass size_class) {
+  absl::Format(&sink, "[%" PRIu64 "]", size_class.SliceSize());
+}
 
 }  // namespace ckmalloc

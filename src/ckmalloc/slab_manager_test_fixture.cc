@@ -83,7 +83,7 @@ absl::Status SlabManagerFixture::ValidateHeap() {
 
   absl::flat_hash_set<MappedSlab*> visited_slabs;
   PageId page = PageId::Zero();
-  PageId end = HeapEnd();
+  PageId end = HeapEndId();
   MappedSlab* previous_slab = nullptr;
   bool previous_was_free = false;
   uint32_t free_slabs = 0;
@@ -309,10 +309,10 @@ absl::StatusOr<AllocatedSlab*> SlabManagerFixture::AllocateSlab(
   auto [start_id, slab] = std::move(result.value());
   PageId end_id = start_id + n_pages - 1;
 
-  if (end_id >= HeapEnd()) {
+  if (end_id >= HeapEndId()) {
     return absl::FailedPreconditionError(absl::StrFormat(
         "Allocated slab past end of heap: %v - %v extends beyond page %v",
-        start_id, end_id, HeapEnd() - 1));
+        start_id, end_id, HeapEndId() - 1));
   }
   for (const auto& [other_slab, _] : allocated_slabs_) {
     // Don't check for collision with ourselves.

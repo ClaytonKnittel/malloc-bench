@@ -69,9 +69,7 @@ cc_test(
         ":linked_list",
         ":testlib",
         ":util",
-        "@abseil-cpp//absl/container:flat_hash_set",
         "@abseil-cpp//absl/status",
-        "@abseil-cpp//absl/strings:str_format",
         "@cc-util//util:gtest_util",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
@@ -371,7 +369,6 @@ cc_library(
 
 cc_library(
     name = "small_freelist",
-    srcs = ["small_freelist.cc"],
     hdrs = ["small_freelist.h"],
     deps = [
         ":common",
@@ -382,6 +379,37 @@ cc_library(
         ":slab_map",
         ":slice",
         ":util",
+    ],
+)
+
+cc_test(
+    name = "small_freelist_test",
+    srcs = ["small_freelist_test.cc"],
+    deps = [
+        ":slab_manager_test_fixture",
+        ":small_freelist_test_fixture",
+        "@abseil-cpp//absl/status",
+        "@cc-util//util:absl_util",
+        "@cc-util//util:gtest_util",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "small_freelist_test_fixture",
+    hdrs = ["small_freelist_test_fixture.h"],
+    srcs = ["small_freelist_test_fixture.cc"],
+    deps = [
+        ":page_id",
+        ":size_class",
+        ":slab",
+        ":slab_manager_test_fixture",
+        ":small_freelist",
+        ":testlib",
+        "@abseil-cpp//absl/container:btree",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/strings:str_format",
     ],
 )
 
