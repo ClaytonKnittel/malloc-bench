@@ -130,7 +130,8 @@ void* MainAllocatorImpl<SlabMap, SlabManager>::Realloc(void* ptr,
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
 void MainAllocatorImpl<SlabMap, SlabManager>::Free(void* ptr) {
   Slab* slab = slab_map_->FindSlab(slab_manager_->PageIdFromPtr(ptr));
-  CK_ASSERT_EQ(slab->Type(), SlabType::kLarge);
+  CK_ASSERT_NE(slab->Type(), SlabType::kFree);
+  CK_ASSERT_NE(slab->Type(), SlabType::kUnmapped);
 
   switch (slab->Type()) {
     case SlabType::kSmall: {
@@ -144,7 +145,7 @@ void MainAllocatorImpl<SlabMap, SlabManager>::Free(void* ptr) {
     case SlabType::kUnmapped:
     case SlabType::kFree: {
       // Unexpected free/unmapped slab.
-      CK_ASSERT_EQ(slab->Type(), SlabType::kSmall);
+      CK_ASSERT_TRUE(false);
       break;
     }
   }
