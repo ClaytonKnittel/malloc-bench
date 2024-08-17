@@ -335,15 +335,24 @@ void SmallSlab::PushSlice(void* slab_start, AllocatedSlice* slice) {
   }
 }
 
-void SmallSlab::InsertIntoFreelist(SmallSlab* next_free) {
+PageId SmallSlab::NextFree() const {
   CK_ASSERT_EQ(type_, SlabType::kSmall);
-  mapped.small.next_free_ = next_free->StartId();
-  mapped.small.prev_free_ = PageId::Nil();
-  next_free->mapped.small.prev_free_ = this->StartId();
+  return mapped.small.next_free_;
 }
 
-void SmallSlab::RemoveFromFreelist() {
-  // TODO
+void SmallSlab::SetNextFree(PageId next) {
+  CK_ASSERT_EQ(type_, SlabType::kSmall);
+  mapped.small.next_free_ = next;
+}
+
+PageId SmallSlab::PrevFree() const {
+  CK_ASSERT_EQ(type_, SlabType::kSmall);
+  return mapped.small.prev_free_;
+}
+
+void SmallSlab::SetPrevFree(PageId prev) {
+  CK_ASSERT_EQ(type_, SlabType::kSmall);
+  mapped.small.prev_free_ = prev;
 }
 
 bool SmallSlab::IsTiny() const {
