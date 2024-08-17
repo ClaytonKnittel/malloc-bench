@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstring>
 #include <optional>
 
 #include "src/ckmalloc/common.h"
@@ -14,16 +15,20 @@
 namespace ckmalloc {
 
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
-class SmallFreelistImpl {
-  friend class SmallFreelistFixture;
+class SmallAllocatorImpl {
+  friend class SmallAllocatorFixture;
 
  public:
-  explicit SmallFreelistImpl(SlabMap* slab_map, SlabManager* slab_manager)
+  explicit SmallAllocatorImpl(SlabMap* slab_map, SlabManager* slab_manager)
       : slab_map_(slab_map), slab_manager_(slab_manager) {}
 
   AllocatedSlice* AllocSlice(size_t user_size);
 
-  void FreeSlice(AllocatedSlice* slice);
+  // Reallocates a small slice to another small slice size.
+  AllocatedSlice* ReallocSlice(SmallSlab* slab, AllocatedSlice* slice,
+                               size_t user_size);
+
+  void FreeSlice(SmallSlab* slab, AllocatedSlice* slice);
 
  private:
   // Returns a slice from the freelist if there is one, or `std::nullopt` if the
@@ -59,7 +64,7 @@ class SmallFreelistImpl {
 };
 
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
-AllocatedSlice* SmallFreelistImpl<SlabMap, SlabManager>::AllocSlice(
+AllocatedSlice* SmallAllocatorImpl<SlabMap, SlabManager>::AllocSlice(
     size_t user_size) {
   SizeClass size_class = SizeClass::FromUserDataSize(user_size);
 
@@ -77,9 +82,38 @@ AllocatedSlice* SmallFreelistImpl<SlabMap, SlabManager>::AllocSlice(
 }
 
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
-void SmallFreelistImpl<SlabMap, SlabManager>::FreeSlice(AllocatedSlice* slice) {
-  SmallSlab* slab =
-      slab_map_->FindSlab(slab_manager_->PageIdFromPtr(slice))->ToSmall();
+AllocatedSlice* SmallAllocatorImpl<SlabMap, SlabManager>::ReallocSlice(
+    SmallSlab* slab, AllocatedSlice* slice, size_t user_size) {
+  CK_ASSERT_NE(user_size, 0);
+  CK_ASSERT_LE(user_size, kMaxSmallSize);
+  if (slice == nullptr) {
+    return AllocSlice(user_size);
+  }
+
+  CK_ASSERT_EQ(
+      slab_map_->FindSlab(slab_manager_->PageIdFromPtr(slice))->ToSmall(),
+      slab);
+  SizeClass size_class = SizeClass::FromUserDataSize(user_size);
+  SizeClass cur_size_class = slab->SizeClass();
+  if (cur_size_class == size_class) {
+    return slice;
+  }
+
+  AllocatedSlice* new_slice = AllocSlice(user_size);
+  if (new_slice != nullptr) {
+    std::memcpy(new_slice->UserDataPtr(), slice->UserDataPtr(),
+                std::min(size_class.SliceSize(), cur_size_class.SliceSize()));
+    FreeSlice(slab, slice);
+  }
+  return new_slice;
+}
+
+template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
+void SmallAllocatorImpl<SlabMap, SlabManager>::FreeSlice(
+    SmallSlab* slab, AllocatedSlice* slice) {
+  CK_ASSERT_EQ(
+      slab_map_->FindSlab(slab_manager_->PageIdFromPtr(slice))->ToSmall(),
+      slab);
   if (slab->Full()) {
     AddToFreelist(slab);
   }
@@ -89,7 +123,7 @@ void SmallFreelistImpl<SlabMap, SlabManager>::FreeSlice(AllocatedSlice* slice) {
 
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
 std::optional<AllocatedSlice*>
-SmallFreelistImpl<SlabMap, SlabManager>::FindSliceInFreelist(
+SmallAllocatorImpl<SlabMap, SlabManager>::FindSliceInFreelist(
     SizeClass size_class) {
   PageId first_in_freelist = FreelistHead(size_class);
   if (first_in_freelist == PageId::Nil()) {
@@ -100,7 +134,7 @@ SmallFreelistImpl<SlabMap, SlabManager>::FindSliceInFreelist(
 }
 
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
-AllocatedSlice* SmallFreelistImpl<SlabMap, SlabManager>::TakeSlice(
+AllocatedSlice* SmallAllocatorImpl<SlabMap, SlabManager>::TakeSlice(
     SmallSlab* slab) {
   CK_ASSERT_FALSE(slab->Full());
   AllocatedSlice* slice =
@@ -114,7 +148,7 @@ AllocatedSlice* SmallFreelistImpl<SlabMap, SlabManager>::TakeSlice(
 
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
 std::optional<AllocatedSlice*>
-SmallFreelistImpl<SlabMap, SlabManager>::TakeSliceFromNewSlab(
+SmallAllocatorImpl<SlabMap, SlabManager>::TakeSliceFromNewSlab(
     SizeClass size_class) {
   using AllocRes = std::pair<PageId, SmallSlab*>;
   DEFINE_OR_RETURN_OPT(AllocRes, result,
@@ -127,7 +161,7 @@ SmallFreelistImpl<SlabMap, SlabManager>::TakeSliceFromNewSlab(
 }
 
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
-void SmallFreelistImpl<SlabMap, SlabManager>::ReturnSlice(
+void SmallAllocatorImpl<SlabMap, SlabManager>::ReturnSlice(
     SmallSlab* slab, AllocatedSlice* slice) {
   void* slab_start = slab_manager_->PageStartFromId(slab->StartId());
   CK_ASSERT_GE(slice, slab_start);
@@ -143,13 +177,13 @@ void SmallFreelistImpl<SlabMap, SlabManager>::ReturnSlice(
 }
 
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
-PageId& SmallFreelistImpl<SlabMap, SlabManager>::FreelistHead(
+PageId& SmallAllocatorImpl<SlabMap, SlabManager>::FreelistHead(
     SizeClass size_class) {
   return freelists_[size_class.Ordinal()];
 }
 
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
-void SmallFreelistImpl<SlabMap, SlabManager>::AddToFreelist(SmallSlab* slab) {
+void SmallAllocatorImpl<SlabMap, SlabManager>::AddToFreelist(SmallSlab* slab) {
   PageId page_id = slab->StartId();
   PageId& freelist = FreelistHead(slab->SizeClass());
   slab->SetNextFree(freelist);
@@ -163,7 +197,7 @@ void SmallFreelistImpl<SlabMap, SlabManager>::AddToFreelist(SmallSlab* slab) {
 }
 
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
-void SmallFreelistImpl<SlabMap, SlabManager>::RemoveFromFreelist(
+void SmallAllocatorImpl<SlabMap, SlabManager>::RemoveFromFreelist(
     SmallSlab* slab) {
   PageId prev_id = slab->PrevFree();
   PageId next_id = slab->NextFree();
@@ -177,6 +211,6 @@ void SmallFreelistImpl<SlabMap, SlabManager>::RemoveFromFreelist(
   }
 }
 
-using SmallFreelist = SmallFreelistImpl<SlabMap, SlabManager>;
+using SmallAllocator = SmallAllocatorImpl<SlabMap, SlabManager>;
 
 }  // namespace ckmalloc

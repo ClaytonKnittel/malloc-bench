@@ -114,7 +114,7 @@ TEST_F(MainAllocatorTest, ReallocOnce) {
 
 TEST_F(MainAllocatorTest, ReallocSmaller) {
   void* ptr1 = MainAllocator().Alloc(500);
-  void* ptr2 = MainAllocator().Realloc(ptr1, 100);
+  void* ptr2 = MainAllocator().Realloc(ptr1, 200);
 
   EXPECT_EQ(ptr1, ptr2);
   EXPECT_THAT(ValidateHeap(), IsOk());
@@ -123,7 +123,7 @@ TEST_F(MainAllocatorTest, ReallocSmaller) {
 
 TEST_F(MainAllocatorTest, ReallocMove) {
   void* ptr1 = MainAllocator().Alloc(500);
-  MainAllocator().Alloc(100);
+  MainAllocator().Alloc(200);
   void* ptr2 = MainAllocator().Realloc(ptr1, 550);
 
   EXPECT_NE(ptr1, ptr2);
