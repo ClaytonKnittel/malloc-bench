@@ -77,6 +77,20 @@ cc_test(
 )
 
 cc_library(
+    name = "large_allocator",
+    hdrs = ["large_allocator.h"],
+    deps = [
+        ":block",
+        ":common",
+        ":freelist",
+        ":slab",
+        ":slab_manager",
+        ":slab_map",
+        ":util",
+    ],
+)
+
+cc_library(
     name = "linked_list",
     srcs = ["linked_list.cc"],
     hdrs = ["linked_list.h"],
@@ -101,9 +115,11 @@ cc_library(
     deps = [
         ":block",
         ":common",
-        ":freelist",
+        ":large_allocator",
+        ":slab",
         ":slab_manager",
         ":slab_map",
+        ":small_allocator",
         ":util",
     ],
 )
@@ -163,9 +179,9 @@ cc_test(
     deps = [
         ":common",
         ":metadata_manager_test_fixture",
+        ":size_class",
         ":slab",
         ":slab_manager_test_fixture",
-        ":size_class",
         ":util",
         "@abseil-cpp//absl/status",
         "@cc-util//util:absl_util",
@@ -368,8 +384,8 @@ cc_library(
 )
 
 cc_library(
-    name = "small_freelist",
-    hdrs = ["small_freelist.h"],
+    name = "small_allocator",
+    hdrs = ["small_allocator.h"],
     deps = [
         ":common",
         ":page_id",
@@ -383,15 +399,15 @@ cc_library(
 )
 
 cc_test(
-    name = "small_freelist_test",
-    srcs = ["small_freelist_test.cc"],
+    name = "small_allocator_test",
+    srcs = ["small_allocator_test.cc"],
     deps = [
         ":common",
+        ":size_class",
         ":slab",
         ":slab_manager_test_fixture",
         ":slice",
-        ":size_class",
-        ":small_freelist_test_fixture",
+        ":small_allocator_test_fixture",
         ":testlib",
         "@abseil-cpp//absl/status",
         "@cc-util//util:absl_util",
@@ -402,15 +418,15 @@ cc_test(
 )
 
 cc_library(
-    name = "small_freelist_test_fixture",
-    hdrs = ["small_freelist_test_fixture.h"],
-    srcs = ["small_freelist_test_fixture.cc"],
+    name = "small_allocator_test_fixture",
+    srcs = ["small_allocator_test_fixture.cc"],
+    hdrs = ["small_allocator_test_fixture.h"],
     deps = [
         ":page_id",
         ":size_class",
         ":slab",
         ":slab_manager_test_fixture",
-        ":small_freelist",
+        ":small_allocator",
         ":testlib",
         "@abseil-cpp//absl/container:btree",
         "@abseil-cpp//absl/status",

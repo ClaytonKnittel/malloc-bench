@@ -22,8 +22,7 @@ class MainAllocatorFixture : public CkMallocTest {
 
   class TestMainAllocator {
    public:
-    using MainAllocatorT = MainAllocatorImpl<TestGlobalMetadataAlloc,
-                                             TestSlabMap, TestSlabManager>;
+    using MainAllocatorT = MainAllocatorImpl<TestSlabMap, TestSlabManager>;
 
     TestMainAllocator(class MainAllocatorFixture* test_fixture,
                       TestSlabMap* slab_map, TestSlabManager* slab_manager);
@@ -37,7 +36,7 @@ class MainAllocatorFixture : public CkMallocTest {
     }
 
     Freelist& Freelist() {
-      return main_allocator_.freelist_;
+      return main_allocator_.large_alloc_.freelist_;
     }
 
     void* Alloc(size_t user_size);

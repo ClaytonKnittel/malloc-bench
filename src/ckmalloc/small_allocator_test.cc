@@ -9,7 +9,7 @@
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/slab_manager_test_fixture.h"
 #include "src/ckmalloc/slice.h"
-#include "src/ckmalloc/small_freelist_test_fixture.h"
+#include "src/ckmalloc/small_allocator_test_fixture.h"
 #include "src/ckmalloc/testlib.h"
 
 namespace ckmalloc {
@@ -17,11 +17,11 @@ namespace ckmalloc {
 using testing::UnorderedElementsAreArray;
 using util::IsOk;
 
-class SmallFreelistTest : public ::testing::Test {
+class SmallAllocatorTest : public ::testing::Test {
  public:
-  SmallFreelistTest()
+  SmallAllocatorTest()
       : slab_manager_fixture_(std::make_shared<SlabManagerFixture>()),
-        small_freelist_fixture_(std::make_shared<SmallFreelistFixture>(
+        small_allocator_fixture_(std::make_shared<SmallAllocatorFixture>(
             slab_manager_fixture_->HeapPtr(),
             slab_manager_fixture_->SlabMapPtr(), slab_manager_fixture_,
             slab_manager_fixture_->SlabManagerPtr())) {}
@@ -38,27 +38,33 @@ class SmallFreelistTest : public ::testing::Test {
     return slab_manager_fixture_->SlabManager();
   }
 
-  SmallFreelistFixture::TestSmallFreelist& SmallFreelist() {
-    return small_freelist_fixture_->SmallFreelist();
+  SmallAllocatorFixture::TestSmallAllocator& SmallAllocator() {
+    return small_allocator_fixture_->SmallAllocator();
+  }
+
+  void FreeSlice(AllocatedSlice* slice) {
+    SmallSlab* slab =
+        SlabMap().FindSlab(SlabManager().PageIdFromPtr(slice))->ToSmall();
+    SmallAllocator().FreeSlice(slab, slice);
   }
 
   absl::Status ValidateHeap() {
     RETURN_IF_ERROR(slab_manager_fixture_->ValidateHeap());
-    RETURN_IF_ERROR(small_freelist_fixture_->ValidateHeap());
+    RETURN_IF_ERROR(small_allocator_fixture_->ValidateHeap());
     return absl::OkStatus();
   }
 
  private:
   std::shared_ptr<SlabManagerFixture> slab_manager_fixture_;
-  std::shared_ptr<SmallFreelistFixture> small_freelist_fixture_;
+  std::shared_ptr<SmallAllocatorFixture> small_allocator_fixture_;
 };
 
-TEST_F(SmallFreelistTest, TestEmpty) {
+TEST_F(SmallAllocatorTest, TestEmpty) {
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
-TEST_F(SmallFreelistTest, SingleSlab) {
-  AllocatedSlice* slice = SmallFreelist().AllocSlice(16);
+TEST_F(SmallAllocatorTest, SingleSlab) {
+  AllocatedSlice* slice = SmallAllocator().AllocSlice(16);
   ASSERT_NE(slice, nullptr);
 
   Slab* slab = SlabMap().FindSlab(SlabManager().PageIdFromPtr(slice));
@@ -69,48 +75,48 @@ TEST_F(SmallFreelistTest, SingleSlab) {
   EXPECT_EQ(Heap().Size(), kPageSize);
 }
 
-TEST_F(SmallFreelistTest, Misaligned8) {
-  ASSERT_NE(SmallFreelist().AllocSlice(1), nullptr);
-  ASSERT_NE(SmallFreelist().AllocSlice(2), nullptr);
-  ASSERT_NE(SmallFreelist().AllocSlice(3), nullptr);
-  ASSERT_NE(SmallFreelist().AllocSlice(4), nullptr);
-  ASSERT_NE(SmallFreelist().AllocSlice(5), nullptr);
-  ASSERT_NE(SmallFreelist().AllocSlice(6), nullptr);
-  ASSERT_NE(SmallFreelist().AllocSlice(7), nullptr);
-  ASSERT_NE(SmallFreelist().AllocSlice(8), nullptr);
+TEST_F(SmallAllocatorTest, Misaligned8) {
+  ASSERT_NE(SmallAllocator().AllocSlice(1), nullptr);
+  ASSERT_NE(SmallAllocator().AllocSlice(2), nullptr);
+  ASSERT_NE(SmallAllocator().AllocSlice(3), nullptr);
+  ASSERT_NE(SmallAllocator().AllocSlice(4), nullptr);
+  ASSERT_NE(SmallAllocator().AllocSlice(5), nullptr);
+  ASSERT_NE(SmallAllocator().AllocSlice(6), nullptr);
+  ASSERT_NE(SmallAllocator().AllocSlice(7), nullptr);
+  ASSERT_NE(SmallAllocator().AllocSlice(8), nullptr);
 
   EXPECT_THAT(ValidateHeap(), IsOk());
   EXPECT_EQ(Heap().Size(), kPageSize);
 }
 
-TEST_F(SmallFreelistTest, Misaligned16) {
-  ASSERT_NE(SmallFreelist().AllocSlice(9), nullptr);
-  ASSERT_NE(SmallFreelist().AllocSlice(10), nullptr);
-  ASSERT_NE(SmallFreelist().AllocSlice(11), nullptr);
-  ASSERT_NE(SmallFreelist().AllocSlice(12), nullptr);
-  ASSERT_NE(SmallFreelist().AllocSlice(13), nullptr);
-  ASSERT_NE(SmallFreelist().AllocSlice(14), nullptr);
-  ASSERT_NE(SmallFreelist().AllocSlice(15), nullptr);
-  ASSERT_NE(SmallFreelist().AllocSlice(16), nullptr);
+TEST_F(SmallAllocatorTest, Misaligned16) {
+  ASSERT_NE(SmallAllocator().AllocSlice(9), nullptr);
+  ASSERT_NE(SmallAllocator().AllocSlice(10), nullptr);
+  ASSERT_NE(SmallAllocator().AllocSlice(11), nullptr);
+  ASSERT_NE(SmallAllocator().AllocSlice(12), nullptr);
+  ASSERT_NE(SmallAllocator().AllocSlice(13), nullptr);
+  ASSERT_NE(SmallAllocator().AllocSlice(14), nullptr);
+  ASSERT_NE(SmallAllocator().AllocSlice(15), nullptr);
+  ASSERT_NE(SmallAllocator().AllocSlice(16), nullptr);
 
   EXPECT_THAT(ValidateHeap(), IsOk());
   EXPECT_EQ(Heap().Size(), kPageSize);
 }
 
-TEST_F(SmallFreelistTest, Misaligned64) {
-  ASSERT_NE(SmallFreelist().AllocSlice(49), nullptr);
-  ASSERT_NE(SmallFreelist().AllocSlice(55), nullptr);
-  ASSERT_NE(SmallFreelist().AllocSlice(63), nullptr);
-  ASSERT_NE(SmallFreelist().AllocSlice(64), nullptr);
+TEST_F(SmallAllocatorTest, Misaligned64) {
+  ASSERT_NE(SmallAllocator().AllocSlice(49), nullptr);
+  ASSERT_NE(SmallAllocator().AllocSlice(55), nullptr);
+  ASSERT_NE(SmallAllocator().AllocSlice(63), nullptr);
+  ASSERT_NE(SmallAllocator().AllocSlice(64), nullptr);
 
   EXPECT_THAT(ValidateHeap(), IsOk());
   EXPECT_EQ(Heap().Size(), kPageSize);
 }
 
-TEST_F(SmallFreelistTest, FilledSlabs) {
+TEST_F(SmallAllocatorTest, FilledSlabs) {
   constexpr size_t kSliceSize = 128;
   for (size_t i = 0; i < kPageSize / kSliceSize; i++) {
-    AllocatedSlice* slice = SmallFreelist().AllocSlice(kSliceSize);
+    AllocatedSlice* slice = SmallAllocator().AllocSlice(kSliceSize);
     ASSERT_NE(slice, nullptr);
     ASSERT_THAT(ValidateHeap(), IsOk());
   }
@@ -119,10 +125,10 @@ TEST_F(SmallFreelistTest, FilledSlabs) {
   EXPECT_EQ(Heap().Size(), kPageSize);
 }
 
-TEST_F(SmallFreelistTest, TwoSlabs) {
+TEST_F(SmallAllocatorTest, TwoSlabs) {
   constexpr size_t kSliceSize = 128;
   for (size_t i = 0; i < kPageSize / kSliceSize + 1; i++) {
-    AllocatedSlice* slice = SmallFreelist().AllocSlice(kSliceSize);
+    AllocatedSlice* slice = SmallAllocator().AllocSlice(kSliceSize);
     ASSERT_NE(slice, nullptr);
     ASSERT_THAT(ValidateHeap(), IsOk());
   }
@@ -131,61 +137,61 @@ TEST_F(SmallFreelistTest, TwoSlabs) {
   EXPECT_EQ(Heap().Size(), 2 * kPageSize);
 }
 
-TEST_F(SmallFreelistTest, TwoSizes) {
-  EXPECT_NE(SmallFreelist().AllocSlice(32), nullptr);
-  EXPECT_NE(SmallFreelist().AllocSlice(64), nullptr);
+TEST_F(SmallAllocatorTest, TwoSizes) {
+  EXPECT_NE(SmallAllocator().AllocSlice(32), nullptr);
+  EXPECT_NE(SmallAllocator().AllocSlice(64), nullptr);
 
   EXPECT_THAT(ValidateHeap(), IsOk());
   EXPECT_EQ(Heap().Size(), 2 * kPageSize);
 }
 
-TEST_F(SmallFreelistTest, FreeOne) {
-  AllocatedSlice* slice = SmallFreelist().AllocSlice(32);
+TEST_F(SmallAllocatorTest, FreeOne) {
+  AllocatedSlice* slice = SmallAllocator().AllocSlice(32);
   ASSERT_NE(slice, nullptr);
 
-  SmallFreelist().FreeSlice(slice);
+  FreeSlice(slice);
 
   EXPECT_THAT(ValidateHeap(), IsOk());
   EXPECT_EQ(Heap().Size(), kPageSize);
 }
 
-TEST_F(SmallFreelistTest, FreeFullSlab) {
+TEST_F(SmallAllocatorTest, FreeFullSlab) {
   constexpr size_t kSliceSize = 80;
   std::vector<AllocatedSlice*> slices;
   slices.reserve(kPageSize / kSliceSize);
   for (size_t i = 0; i < kPageSize / kSliceSize; i++) {
-    AllocatedSlice* slice = SmallFreelist().AllocSlice(kSliceSize);
+    AllocatedSlice* slice = SmallAllocator().AllocSlice(kSliceSize);
     ASSERT_NE(slice, nullptr);
     slices.push_back(slice);
   }
 
   for (size_t i = 0; i < kPageSize / kSliceSize; i++) {
     size_t idx = (11 * i + 23) % (kPageSize / kSliceSize);
-    SmallFreelist().FreeSlice(slices[idx]);
+    FreeSlice(slices[idx]);
     ASSERT_THAT(ValidateHeap(), IsOk());
   }
 
   EXPECT_EQ(Heap().Size(), kPageSize);
 }
 
-TEST_F(SmallFreelistTest, AllocFreeAllocOne) {
-  AllocatedSlice* slice = SmallFreelist().AllocSlice(95);
+TEST_F(SmallAllocatorTest, AllocFreeAllocOne) {
+  AllocatedSlice* slice = SmallAllocator().AllocSlice(95);
   ASSERT_NE(slice, nullptr);
 
-  SmallFreelist().FreeSlice(slice);
+  FreeSlice(slice);
 
-  EXPECT_EQ(SmallFreelist().AllocSlice(95), slice);
+  EXPECT_EQ(SmallAllocator().AllocSlice(95), slice);
 
   EXPECT_THAT(ValidateHeap(), IsOk());
   EXPECT_EQ(Heap().Size(), kPageSize);
 }
 
-TEST_F(SmallFreelistTest, AllocFreeAllocFull) {
+TEST_F(SmallAllocatorTest, AllocFreeAllocFull) {
   constexpr size_t kSliceSize = 128;
   std::vector<AllocatedSlice*> slices;
   slices.reserve(kPageSize / kSliceSize);
   for (size_t i = 0; i < kPageSize / kSliceSize; i++) {
-    AllocatedSlice* slice = SmallFreelist().AllocSlice(kSliceSize);
+    AllocatedSlice* slice = SmallAllocator().AllocSlice(kSliceSize);
     ASSERT_NE(slice, nullptr);
     slices.push_back(slice);
   }
@@ -195,13 +201,13 @@ TEST_F(SmallFreelistTest, AllocFreeAllocFull) {
   for (size_t i = 0; i < kPageSize / kSliceSize; i++) {
     size_t idx = (11 * i + 23) % (kPageSize / kSliceSize);
     frees.push_back(slices[idx]);
-    SmallFreelist().FreeSlice(slices[idx]);
+    FreeSlice(slices[idx]);
   }
 
   std::vector<AllocatedSlice*> slices2;
   slices2.reserve(kPageSize / kSliceSize);
   for (size_t i = 0; i < kPageSize / kSliceSize; i++) {
-    AllocatedSlice* slice = SmallFreelist().AllocSlice(kSliceSize);
+    AllocatedSlice* slice = SmallAllocator().AllocSlice(kSliceSize);
     ASSERT_NE(slice, nullptr);
     slices2.push_back(slice);
   }
@@ -210,13 +216,13 @@ TEST_F(SmallFreelistTest, AllocFreeAllocFull) {
   EXPECT_EQ(Heap().Size(), kPageSize);
 }
 
-TEST_F(SmallFreelistTest, ManyAllocs) {
+TEST_F(SmallAllocatorTest, ManyAllocs) {
   std::vector<AllocatedSlice*> slices;
   for (size_t ord = 0; ord < SizeClass::kNumSizeClasses; ord++) {
     SizeClass size_class = SizeClass::FromOrdinal(ord);
     for (size_t i = 0; i < size_class.MaxSlicesPerSlab(); i++) {
       AllocatedSlice* slice =
-          SmallFreelist().AllocSlice(size_class.SliceSize());
+          SmallAllocator().AllocSlice(size_class.SliceSize());
       ASSERT_NE(slice, nullptr);
       ASSERT_THAT(ValidateHeap(), IsOk());
       slices.push_back(slice);
@@ -225,7 +231,7 @@ TEST_F(SmallFreelistTest, ManyAllocs) {
 
   for (size_t i = 0; i < slices.size(); i++) {
     size_t idx = (11 * i + 23) % slices.size();
-    SmallFreelist().FreeSlice(slices[idx]);
+    FreeSlice(slices[idx]);
     ASSERT_THAT(ValidateHeap(), IsOk());
   }
 

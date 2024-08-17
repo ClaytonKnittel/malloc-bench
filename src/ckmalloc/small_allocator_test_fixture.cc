@@ -1,4 +1,4 @@
-#include "src/ckmalloc/small_freelist_test_fixture.h"
+#include "src/ckmalloc/small_allocator_test_fixture.h"
 
 #include "absl/container/btree_map.h"
 #include "absl/container/btree_set.h"
@@ -9,11 +9,11 @@
 #include "src/ckmalloc/size_class.h"
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/slab_manager_test_fixture.h"
-#include "src/ckmalloc/small_freelist.h"
+#include "src/ckmalloc/small_allocator.h"
 
 namespace ckmalloc {
 
-absl::Status SmallFreelistFixture::ValidateHeap() {
+absl::Status SmallAllocatorFixture::ValidateHeap() {
   // Iterate over the heap and collect all small slabs.
   std::array<absl::btree_set<SmallSlab*>, SizeClass::kNumSizeClasses> slabs;
   absl::btree_map<PageId, SmallSlab*> id_to_slab;
@@ -42,7 +42,7 @@ absl::Status SmallFreelistFixture::ValidateHeap() {
 
     PageId prev_id = PageId::Nil();
     for (PageId page_id =
-             small_freelist_->FreelistHead(SizeClass::FromOrdinal(i));
+             small_allocator_->FreelistHead(SizeClass::FromOrdinal(i));
          page_id != PageId::Nil();) {
       auto it = id_to_slab.find(page_id);
       if (it == id_to_slab.end()) {
