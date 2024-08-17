@@ -48,21 +48,39 @@ class MetadataManagerFixture : public CkMallocTest {
   };
 
   MetadataManagerFixture(
+      std::shared_ptr<TestHeap> heap, std::shared_ptr<TestSlabMap> slab_map,
+      std::shared_ptr<SlabManagerFixture> slab_manager_test_fixture,
+      std::shared_ptr<TestSlabManager> slab_manager,
+      std::shared_ptr<TestMetadataManager> metadata_manager)
+      : heap_(std::move(heap)),
+        slab_map_(std::move(slab_map)),
+        slab_manager_test_fixture_(std::move(slab_manager_test_fixture)),
+        slab_manager_(std::move(slab_manager)),
+        metadata_manager_(std::move(metadata_manager)),
+        rng_(2021, 5) {}
+
+  MetadataManagerFixture(
       std::shared_ptr<TestHeap> heap,
       const std::shared_ptr<TestSlabMap>& slab_map,
       std::shared_ptr<SlabManagerFixture> slab_manager_test_fixture,
       const std::shared_ptr<TestSlabManager>& slab_manager)
-      : heap_(std::move(heap)),
-        slab_map_(std::move(slab_map)),
-        slab_manager_test_fixture_(std::move(slab_manager_test_fixture)),
-        slab_manager_(slab_manager),
-        metadata_manager_(std::make_shared<TestMetadataManager>(
-            this, slab_map_.get(), slab_manager_.get())),
-        rng_(2021, 5) {}
+      : MetadataManagerFixture(std::move(heap), slab_map,
+                               std::move(slab_manager_test_fixture),
+                               slab_manager,
+                               std::make_shared<TestMetadataManager>(
+                                   this, slab_map.get(), slab_manager.get())) {}
 
   MetadataManagerFixture()
       : MetadataManagerFixture(std::make_shared<TestHeap>(kNumPages),
                                std::make_shared<TestSlabMap>()) {}
+
+  static std::pair<std::shared_ptr<MetadataManagerFixture>,
+                   std::shared_ptr<TestMetadataManager>>
+  InitializeTest(
+      const std::shared_ptr<TestHeap>& heap,
+      const std::shared_ptr<TestSlabMap>& slab_map,
+      const std::shared_ptr<SlabManagerFixture>& slab_manager_test_fixture,
+      const std::shared_ptr<TestSlabManager>& slab_manager);
 
   TestHeap& Heap() {
     return *heap_;

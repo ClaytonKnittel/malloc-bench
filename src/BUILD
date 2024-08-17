@@ -19,6 +19,11 @@ cc_binary(
 )
 
 cc_library(
+    name = "common",
+    hdrs = ["common.h"],
+)
+
+cc_library(
     name = "perftest",
     srcs = ["perftest.cc"],
     hdrs = ["perftest.h"],
@@ -65,10 +70,10 @@ cc_library(
 
 cc_library(
     name = "correctness_checker",
-    srcs = ["correctness_checker.cc"],
     hdrs = ["correctness_checker.h"],
     deps = [
         ":allocator_interface",
+        ":common",
         ":rng",
         ":singleton_heap",
         ":tracefile_reader",
@@ -90,6 +95,7 @@ cc_test(
     ],
     deps = [
         ":correctness_checker",
+        "//src/ckmalloc:state_test_fixture",
         "@abseil-cpp//absl/status",
         "@cc-util//util:gtest_util",
         "@googletest//:gtest",
@@ -103,6 +109,7 @@ cc_library(
     hdrs = ["singleton_heap.h"],
     visibility = ["//src:__subpackages__"],
     deps = [
+        ":common",
         ":heap_interface",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings:str_format",
