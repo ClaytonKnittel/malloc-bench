@@ -68,6 +68,11 @@ AllocatedSlice* SmallFreelistImpl<SlabMap, SlabManager>::AllocSlice(
     return slice_from_freelist.value();
   }
 
+  auto slice_from_new_slab = TakeSliceFromNewSlab(size_class);
+  if (slice_from_new_slab.has_value()) {
+    return slice_from_new_slab.value();
+  }
+
   return nullptr;
 }
 

@@ -63,7 +63,14 @@ class SlabManagerFixture : public CkMallocTest {
     }
 
     Slab* operator*() {
-      return fixture_->SlabMap().FindSlab(current_);
+      Slab* slab = fixture_->SlabMap().FindSlab(current_);
+      // Since the slab map may have stale entries, we need to check that the
+      // slab we found still applies to this page.
+      return slab != nullptr && slab->Type() != SlabType::kUnmapped &&
+                     current_ >= slab->ToMapped()->StartId() &&
+                     current_ <= slab->ToMapped()->EndId()
+                 ? slab
+                 : nullptr;
     }
     Slab* operator->() {
       return fixture_->SlabMap().FindSlab(current_);
@@ -72,7 +79,7 @@ class SlabManagerFixture : public CkMallocTest {
     HeapIterator operator++() {
       Slab* current = **this;
       // If current is `nullptr`, then this is a metadata slab.
-      current_ += current != nullptr ? current->ToAllocated()->Pages() : 1;
+      current_ += current != nullptr ? current->ToMapped()->Pages() : 1;
       return *this;
     }
     HeapIterator operator++(int) {
