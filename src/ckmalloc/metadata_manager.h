@@ -16,8 +16,15 @@ class MetadataManagerImpl {
   friend class MetadataManagerFixture;
 
  public:
-  explicit MetadataManagerImpl(SlabMap* slab_map, SlabManager* slab_manager)
+  // alloc_offset is by default kPageSize. Initializing this to kPageSize tricks
+  // the manager into thinking the last allocated slab is full, even though we
+  // have not allocated any slabs on initialization yet. If some metadata has
+  // already been allocated, this number can be changed to reflect the number of
+  // already-allocated bytes from the first page.
+  explicit MetadataManagerImpl(SlabMap* slab_map, SlabManager* slab_manager,
+                               uint32_t alloc_offset = kPageSize)
       : last_(PageId::Zero()),
+        alloc_offset_(alloc_offset),
         slab_map_(slab_map),
         slab_manager_(slab_manager) {}
 
@@ -41,11 +48,7 @@ class MetadataManagerImpl {
 
   // The offset in bytes that the next piece of metadata should be allocated
   // from `last_`.
-  //
-  // Initializing this to kPageSize tricks the manager into
-  // thinking the last allocated slab is full, even though we have not allocated
-  // any slabs on initialization yet.
-  uint32_t alloc_offset_ = kPageSize;
+  uint32_t alloc_offset_;
 
   SlabMap* slab_map_;
 

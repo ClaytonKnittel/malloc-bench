@@ -29,4 +29,23 @@ inline void free(void* ptr) {
   ckmalloc::free(ptr);
 }
 
+class CkMallocInterface {
+ public:
+  static void* malloc(size_t size) {
+    return bench::malloc(size);
+  }
+
+  static void* calloc(size_t nmemb, size_t size) {
+    return bench::calloc(nmemb, size);
+  }
+
+  static void* realloc(void* ptr, size_t size) {
+    return bench::realloc(ptr, size);
+  }
+
+  static void free(void* ptr) {
+    return bench::free(ptr);
+  }
+};
+
 }  // namespace bench
