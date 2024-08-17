@@ -2,9 +2,7 @@
 
 #include <cstdint>
 
-#include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
-#include "absl/strings/str_format.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "util/gtest_util.h"

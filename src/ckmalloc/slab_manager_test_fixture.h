@@ -51,6 +51,55 @@ class SlabManagerFixture : public CkMallocTest {
     SlabManagerT slab_manager_;
   };
 
+  class HeapIterator {
+    friend class SlabManagerFixture;
+
+   public:
+    bool operator==(HeapIterator other) const {
+      return current_ == other.current_;
+    }
+    bool operator!=(HeapIterator other) const {
+      return !(*this == other);
+    }
+
+    Slab* operator*() {
+      return fixture_->SlabMap().FindSlab(current_);
+    }
+    Slab* operator->() {
+      return fixture_->SlabMap().FindSlab(current_);
+    }
+
+    HeapIterator operator++() {
+      Slab* current = **this;
+      // If current is `nullptr`, then this is a metadata slab.
+      current_ += current != nullptr ? current->ToAllocated()->Pages() : 1;
+      return *this;
+    }
+    HeapIterator operator++(int) {
+      HeapIterator copy = *this;
+      ++*this;
+      return copy;
+    }
+
+   private:
+    explicit HeapIterator(SlabManagerFixture* fixture)
+        : HeapIterator(fixture, PageId::Zero()) {}
+
+    HeapIterator(SlabManagerFixture* fixture, PageId page_id)
+        : fixture_(fixture), current_(page_id) {}
+
+    SlabManagerFixture* const fixture_;
+    PageId current_;
+  };
+
+  HeapIterator HeapBegin() {
+    return HeapIterator(this);
+  }
+
+  HeapIterator HeapEnd() {
+    return HeapIterator(this, HeapEndId());
+  }
+
   SlabManagerFixture(std::shared_ptr<TestHeap> heap,
                      std::shared_ptr<TestSlabMap> slab_map,
                      std::shared_ptr<TestSlabManager> slab_manager)
@@ -92,7 +141,7 @@ class SlabManagerFixture : public CkMallocTest {
     return *slab_manager_;
   }
 
-  PageId HeapEnd() const {
+  PageId HeapEndId() const {
     return PageId(heap_->Size() / kPageSize);
   }
 
