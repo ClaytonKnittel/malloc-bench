@@ -7,14 +7,16 @@
 namespace ckmalloc {
 
 TrackedBlock* Freelist::FindFree(size_t user_size) {
+  TrackedBlock* best = nullptr;
+  // TODO make bins for large sizes.
   for (TrackedBlock& block : free_blocks_) {
-    // Take the first block that fits.
-    if (block.UserDataSize() >= user_size) {
-      return &block;
+    if (block.UserDataSize() >= user_size &&
+        (best == nullptr || block.UserDataSize() < best->UserDataSize())) {
+      best = &block;
     }
   }
 
-  return nullptr;
+  return best;
 }
 
 FreeBlock* Freelist::InitFree(Block* block, uint64_t size) {
