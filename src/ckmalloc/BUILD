@@ -386,8 +386,13 @@ cc_test(
     name = "small_freelist_test",
     srcs = ["small_freelist_test.cc"],
     deps = [
+        ":common",
+        ":slab",
         ":slab_manager_test_fixture",
+        ":slice",
+        ":size_class",
         ":small_freelist_test_fixture",
+        ":testlib",
         "@abseil-cpp//absl/status",
         "@cc-util//util:absl_util",
         "@cc-util//util:gtest_util",
