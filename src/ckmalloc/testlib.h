@@ -30,11 +30,6 @@ class TestGlobalMetadataAlloc {
 using TestSlabMap = SlabMapImpl<TestGlobalMetadataAlloc>;
 
 template <typename Sink>
-void AbslStringify(Sink& sink, const PageId& page_id) {
-  absl::Format(&sink, "%" PRIu32, page_id.Idx());
-}
-
-template <typename Sink>
 void AbslStringify(Sink& sink, SlabType slab_type) {
   switch (slab_type) {
     case SlabType::kUnmapped: {

@@ -1,7 +1,11 @@
 #pragma once
 
+#include <cinttypes>
 #include <cstdint>
 #include <limits>
+#include <ostream>
+
+#include "absl/strings/str_format.h"
 
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/util.h"
@@ -18,7 +22,9 @@ class PageId {
   friend class SlabMapImpl;
 
   template <typename Sink>
-  friend void AbslStringify(Sink&, const PageId&);
+  friend void AbslStringify(Sink&, PageId);
+
+  friend inline std::ostream& operator<<(std::ostream& ostr, PageId page_id);
 
  public:
   constexpr explicit PageId(uint32_t page_idx) : page_idx_(page_idx) {
@@ -110,5 +116,14 @@ class PageId {
   // is the next page, and so on.
   uint32_t page_idx_;
 };
+
+template <typename Sink>
+void AbslStringify(Sink& sink, PageId page_id) {
+  absl::Format(&sink, "%" PRIu32, page_id.Idx());
+}
+
+inline std::ostream& operator<<(std::ostream& ostr, PageId page_id) {
+  return ostr << page_id.Idx();
+}
 
 }  // namespace ckmalloc

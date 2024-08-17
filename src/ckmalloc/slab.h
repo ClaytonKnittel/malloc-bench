@@ -250,6 +250,9 @@ class SmallSlab : public AllocatedSlab {
   class LargeSlab* ToLarge() = delete;
   const class LargeSlab* ToLarge() const = delete;
 
+  // Small slabs range only one page.
+  PageId EndId() const = delete;
+
   SizeClass SizeClass() const;
 
   // If true, all slices are free in this slab.
@@ -267,11 +270,11 @@ class SmallSlab : public AllocatedSlab {
   // onto the stack of free slices, so it may be allocated in the future.
   void PushSlice(void* slab_start, AllocatedSlice* slice);
 
-  // TODO
-  void InsertIntoFreelist(SmallSlab* next_free);
+  PageId NextFree() const;
+  void SetNextFree(PageId next);
 
-  // TODO
-  void RemoveFromFreelist();
+  PageId PrevFree() const;
+  void SetPrevFree(PageId prev);
 
  private:
   // If true, this slab manages slices <= 16 bytes, which are classified as tiny

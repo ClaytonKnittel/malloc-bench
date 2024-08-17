@@ -201,6 +201,7 @@ cc_library(
     hdrs = ["page_id.h"],
     deps = [
         ":common",
+        "@abseil-cpp//absl/strings:str_format",
     ],
 )
 
@@ -374,8 +375,11 @@ cc_library(
     hdrs = ["small_freelist.h"],
     deps = [
         ":common",
+        ":page_id",
+        ":size_class",
         ":slab",
         ":slab_manager",
+        ":slab_map",
         ":slice",
         ":util",
     ],
