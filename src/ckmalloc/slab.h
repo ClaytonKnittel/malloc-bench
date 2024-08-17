@@ -162,8 +162,6 @@ class Slab {
 
     struct {
       PageId id_;
-      // TODO move this into free/large to save space since small metadata is
-      // much larger.
       uint32_t n_pages_;
 
       union {
