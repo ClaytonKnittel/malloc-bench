@@ -129,6 +129,7 @@ cc_test(
     srcs = ["main_allocator_test.cc"],
     deps = [
         ":block",
+        ":common",
         ":linked_list",
         ":main_allocator",
         ":main_allocator_test_fixture",

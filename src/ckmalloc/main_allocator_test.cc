@@ -6,6 +6,7 @@
 #include "util/gtest_util.h"
 
 #include "src/ckmalloc/block.h"
+#include "src/ckmalloc/common.h"
 #include "src/ckmalloc/linked_list.h"
 #include "src/ckmalloc/main_allocator_test_fixture.h"
 #include "src/ckmalloc/slab_manager_test_fixture.h"
@@ -66,6 +67,36 @@ TEST_F(MainAllocatorTest, Empty) {
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
+TEST_F(MainAllocatorTest, AllocSmall) {
+  MainAllocator().Alloc(50);
+  EXPECT_NE(Heap().Size(), 0);
+  EXPECT_THAT(ValidateHeap(), IsOk());
+}
+
+TEST_F(MainAllocatorTest, AllocManySmall) {
+  for (uint64_t size = 1; size <= kMaxSmallSize; size++) {
+    MainAllocator().Alloc(size);
+  }
+
+  EXPECT_NE(Heap().Size(), 0);
+  EXPECT_THAT(ValidateHeap(), IsOk());
+}
+
+TEST_F(MainAllocatorTest, FreeSmall) {
+  void* ptr = MainAllocator().Alloc(60);
+  MainAllocator().Free(ptr);
+
+  EXPECT_THAT(ValidateHeap(), IsOk());
+}
+
+TEST_F(MainAllocatorTest, FreeTwoSmall) {
+  void* ptr1 = MainAllocator().Alloc(10);
+  MainAllocator().Alloc(10);
+  MainAllocator().Free(ptr1);
+
+  EXPECT_THAT(ValidateHeap(), IsOk());
+}
+
 TEST_F(MainAllocatorTest, AllocLarge) {
   MainAllocator().Alloc(500);
   EXPECT_NE(Heap().Size(), 0);
@@ -86,11 +117,6 @@ TEST_F(MainAllocatorTest, FreeLarge) {
   MainAllocator().Free(ptr);
 
   EXPECT_THAT(ValidateHeap(), IsOk());
-
-  for (const auto& x : FreelistList()) {
-    std::cout << reinterpret_cast<const void*>(&x) << " " << x.Size()
-              << std::endl;
-  }
   EXPECT_THAT(FreelistList(), ElementsAre());
 }
 
