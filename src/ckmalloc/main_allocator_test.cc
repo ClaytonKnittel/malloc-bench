@@ -107,8 +107,9 @@ TEST_F(MainAllocatorTest, AllocLarge) {
 }
 
 TEST_F(MainAllocatorTest, AllocHuge) {
+  MainAllocator().Alloc(472);
   MainAllocator().Alloc(kPageSize);
-  EXPECT_EQ(Heap().Size(), 2 * kPageSize);
+  EXPECT_EQ(Heap().Size(), 3 * kPageSize);
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 

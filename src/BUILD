@@ -20,11 +20,6 @@ cc_binary(
 )
 
 cc_library(
-    name = "common",
-    hdrs = ["common.h"],
-)
-
-cc_library(
     name = "perftest",
     srcs = ["perftest.cc"],
     hdrs = ["perftest.h"],
@@ -72,14 +67,16 @@ cc_library(
 cc_library(
     name = "correctness_checker",
     hdrs = ["correctness_checker.h"],
+    srcs = ["correctness_checker.cc"],
     deps = [
         ":allocator_interface",
         ":heap_interface",
         ":rng",
+        ":tracefile_executor",
         ":tracefile_reader",
         "@abseil-cpp//absl/container:btree",
-        "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",
         "@cc-util//util:absl_util",
@@ -94,13 +91,15 @@ cc_test(
         "//traces",
     ],
     deps = [
-        ":correctness_checker",
+        ":tracefile_executor",
+        ":tracefile_reader",
         "//src/ckmalloc:main_allocator_test_fixture",
         "//src/ckmalloc:metadata_manager_test_fixture",
         "//src/ckmalloc:slab_manager_test_fixture",
         "//src/ckmalloc:small_allocator_test_fixture",
         "//src/ckmalloc:testlib",
         "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
         "@cc-util//util:absl_util",
         "@cc-util//util:gtest_util",
         "@googletest//:gtest",
@@ -114,7 +113,6 @@ cc_library(
     hdrs = ["singleton_heap.h"],
     visibility = ["//src:__subpackages__"],
     deps = [
-        ":common",
         ":heap_interface",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings:str_format",
@@ -136,6 +134,19 @@ cc_library(
     visibility = ["//src:__subpackages__"],
     deps = [
         ":heap_interface",
+    ],
+)
+
+cc_library(
+    name = "tracefile_executor",
+    srcs = ["tracefile_executor.cc"],
+    hdrs = ["tracefile_executor.h"],
+    deps = [
+        ":tracefile_reader",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/container:flat_hash_map",
+        "@cc-util//util:absl_util",
     ],
 )
 

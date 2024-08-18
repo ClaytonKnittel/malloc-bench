@@ -19,6 +19,8 @@ class MetadataManagerFixture : public CkMallocTest {
   using TestSlabManager = SlabManagerFixture::TestSlabManager;
 
  public:
+  static constexpr const char* kPrefix = "[MetadataManagerFixture]";
+
   class TestMetadataManager {
    public:
     using MetadataManagerT = MetadataManagerImpl<TestSlabMap, TestSlabManager>;
@@ -56,6 +58,10 @@ class MetadataManagerFixture : public CkMallocTest {
             this, slab_map_.get(), slab_manager_.get())),
         rng_(2021, 5) {}
 
+  const char* TestPrefix() const override {
+    return kPrefix;
+  }
+
   TestHeap& Heap() {
     return *heap_;
   }
@@ -89,7 +95,7 @@ class MetadataManagerFixture : public CkMallocTest {
   absl::Status FreeSlabMeta(Slab* slab);
 
   static void FillMagic(void* block, size_t size, uint64_t magic);
-  static absl::Status CheckMagic(void* block, size_t size, uint64_t magic);
+  absl::Status CheckMagic(void* block, size_t size, uint64_t magic);
 
   absl::Status ValidateHeap() override;
 

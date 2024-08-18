@@ -16,6 +16,8 @@ class SmallAllocatorFixture : public CkMallocTest {
  public:
   using TestSmallAllocator = SmallAllocatorImpl<TestSlabMap, TestSlabManager>;
 
+  static constexpr const char* kPrefix = "[SmallAllocatorFixture]";
+
   SmallAllocatorFixture(
       std::shared_ptr<TestHeap> heap,
       const std::shared_ptr<TestSlabMap>& slab_map,
@@ -26,6 +28,10 @@ class SmallAllocatorFixture : public CkMallocTest {
         slab_manager_(slab_manager_test_fixture_->SlabManagerPtr()),
         small_allocator_(std::make_shared<TestSmallAllocator>(
             slab_map_.get(), slab_manager_.get())) {}
+
+  const char* TestPrefix() const override {
+    return kPrefix;
+  }
 
   TestHeap& Heap() {
     return *heap_;
