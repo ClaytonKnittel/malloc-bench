@@ -107,22 +107,17 @@ class SlabManagerFixture : public CkMallocTest {
     return HeapIterator(this, HeapEndId());
   }
 
-  SlabManagerFixture(std::shared_ptr<TestHeap> heap,
-                     std::shared_ptr<TestSlabMap> slab_map,
-                     std::shared_ptr<TestSlabManager> slab_manager)
-      : heap_(std::move(heap)),
-        slab_map_(std::move(slab_map)),
-        slab_manager_(std::move(slab_manager)),
-        rng_(1027, 3) {}
+  // Only used for initializing `TestSlabManager` via the default constructor,
+  // which needs the heap and slab_map to have been defined already.
+  SlabManagerFixture(const std::shared_ptr<TestHeap>& heap,
+                     const std::shared_ptr<TestSlabMap>& slab_map)
+      : SlabManagerFixture(heap, slab_map,
+                           std::make_shared<TestSlabManager>(this, heap.get(),
+                                                             slab_map.get())) {}
 
   SlabManagerFixture()
       : SlabManagerFixture(std::make_shared<TestHeap>(kNumPages),
                            std::make_shared<TestSlabMap>()) {}
-
-  static std::pair<std::shared_ptr<SlabManagerFixture>,
-                   std::shared_ptr<TestSlabManager>>
-  InitializeTest(const std::shared_ptr<TestHeap>& heap,
-                 const std::shared_ptr<TestSlabMap>& slab_map);
 
   std::shared_ptr<TestHeap> HeapPtr() {
     return heap_;
@@ -159,13 +154,13 @@ class SlabManagerFixture : public CkMallocTest {
   absl::Status FreeSlab(AllocatedSlab* slab);
 
  private:
-  // Only used for initializing `TestSlabManager` via the default constructor,
-  // which needs the heap and slab_map to have been defined already.
-  SlabManagerFixture(const std::shared_ptr<TestHeap>& heap,
-                     const std::shared_ptr<TestSlabMap>& slab_map)
-      : SlabManagerFixture(heap, slab_map,
-                           std::make_shared<TestSlabManager>(this, heap.get(),
-                                                             slab_map.get())) {}
+  SlabManagerFixture(std::shared_ptr<TestHeap> heap,
+                     std::shared_ptr<TestSlabMap> slab_map,
+                     std::shared_ptr<TestSlabManager> slab_manager)
+      : heap_(std::move(heap)),
+        slab_map_(std::move(slab_map)),
+        slab_manager_(std::move(slab_manager)),
+        rng_(1027, 3) {}
 
   void FillMagic(AllocatedSlab* slab, uint64_t magic);
 

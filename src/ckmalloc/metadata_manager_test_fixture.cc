@@ -60,26 +60,6 @@ void TestMetadataManager::FreeSlabMeta(MappedSlab* slab) {
   CK_ASSERT_TRUE(inserted);
 }
 
-/* static */
-std::pair<std::shared_ptr<MetadataManagerFixture>,
-          std::shared_ptr<TestMetadataManager>>
-MetadataManagerFixture::InitializeTest(
-    const std::shared_ptr<TestHeap>& heap,
-    const std::shared_ptr<TestSlabMap>& slab_map,
-    const std::shared_ptr<SlabManagerFixture>& slab_manager_test_fixture,
-    const std::shared_ptr<TestSlabManager>& slab_manager) {
-  void* meta_mgr_memory = operator new(sizeof(TestMetadataManager));
-  std::shared_ptr<TestMetadataManager> metadata_manager(
-      reinterpret_cast<TestMetadataManager*>(meta_mgr_memory));
-  auto test_fixture = std::make_shared<MetadataManagerFixture>(
-      heap, slab_map, slab_manager_test_fixture, slab_manager,
-      metadata_manager);
-  new (meta_mgr_memory) TestMetadataManager(test_fixture.get(), slab_map.get(),
-                                            slab_manager.get());
-
-  return std::make_pair(test_fixture, metadata_manager);
-}
-
 absl::StatusOr<size_t> MetadataManagerFixture::SlabMetaFreelistLength() const {
   constexpr size_t kMaxReasonableLength = 10000;
   size_t length = 0;
