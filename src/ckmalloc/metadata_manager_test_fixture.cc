@@ -1,14 +1,11 @@
 #include "src/ckmalloc/metadata_manager_test_fixture.h"
 
-#include <memory>
-
 #include "absl/container/flat_hash_map.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "util/absl_util.h"
 
 #include "src/ckmalloc/slab.h"
-#include "src/ckmalloc/slab_manager_test_fixture.h"
 #include "src/ckmalloc/testlib.h"
 #include "src/ckmalloc/util.h"
 #include "src/rng.h"
@@ -69,8 +66,7 @@ absl::StatusOr<size_t> MetadataManagerFixture::SlabMetaFreelistLength() const {
     ;
 
   return length == kMaxReasonableLength
-             ? absl::FailedPreconditionError(
-                   "Slab metadata freelist appears to have a cycle")
+             ? FailedTest("Slab metadata freelist appears to have a cycle")
              : absl::StatusOr<size_t>(length);
 }
 
@@ -99,10 +95,10 @@ absl::Status MetadataManagerFixture::FreeSlabMeta(Slab* slab) {
   auto alloc_it = allocated_blocks_.find(slab);
   CK_ASSERT_FALSE(alloc_it == allocated_blocks_.end());
   if (alloc_it->second != sizeof(Slab)) {
-    return absl::FailedPreconditionError(
-        absl::StrFormat("Slab block in allocated blocks map not the correct "
-                        "size: %v, expected block size %zu, found size %zu",
-                        *slab, sizeof(Slab), alloc_it->second));
+    return FailedTest(
+        "Slab block in allocated blocks map not the correct size: %v, expected "
+        "block size %zu, found size %zu",
+        *slab, sizeof(Slab), alloc_it->second);
   }
 
   auto magic_it = block_magics_.find(slab);
@@ -125,7 +121,6 @@ void MetadataManagerFixture::FillMagic(void* block, size_t size,
   }
 }
 
-/* static */
 absl::Status MetadataManagerFixture::CheckMagic(void* block, size_t size,
                                                 uint64_t magic) {
   uint8_t* start = reinterpret_cast<uint8_t*>(block);
@@ -134,9 +129,9 @@ absl::Status MetadataManagerFixture::CheckMagic(void* block, size_t size,
     uint8_t magic_byte = (magic >> ((i % 8) * 8)) & 0xff;
     start[i] = magic_byte;
     if (start[i] != magic_byte) {
-      return absl::FailedPreconditionError(absl::StrFormat(
+      return FailedTest(
           "Allocated block %p of size %zu was dirtied starting from offset %zu",
-          start, size, i));
+          start, size, i);
     }
   }
 
@@ -157,24 +152,23 @@ absl::Status MetadataManagerFixture::ValidateHeap() {
        slab != nullptr && n_free_slab_meta < kMaxReasonableFreedSlabMetas;
        slab = slab->NextUnmappedSlab()) {
     if (!freed_slab_metadata_.contains(slab)) {
-      return absl::FailedPreconditionError(absl::StrFormat(
+      return FailedTest(
           "Encountered freed slab metadata in freelist which should not be: %v",
-          *slab));
+          *slab);
     }
 
     if (slab->Type() != SlabType::kUnmapped) {
-      return absl::FailedPreconditionError(absl::StrFormat(
-          "Expected slab metadata in freelist to be unmapped, found %v",
-          *slab));
+      return FailedTest(
+          "Expected slab metadata in freelist to be unmapped, found %v", *slab);
     }
 
     n_free_slab_meta++;
   }
 
   if (n_free_slab_meta == kMaxReasonableFreedSlabMetas) {
-    return absl::FailedPreconditionError(absl::StrFormat(
+    return FailedTest(
         "Detected cycle in slab metadata freelist after searching %zu elements",
-        n_free_slab_meta));
+        n_free_slab_meta);
   }
 
   return absl::OkStatus();
@@ -186,18 +180,18 @@ absl::Status MetadataManagerFixture::TraceBlockAllocation(void* block,
   // Check that the pointer is aligned relative to the heap start. The heap will
   // be page-aligned in production, but may not be in tests.
   if ((PtrDistance(block, Heap().Start()) & (alignment - 1)) != 0) {
-    return absl::FailedPreconditionError(
-        absl::StrFormat("Pointer returned from Alloc not aligned properly: "
-                        "pointer %p, size %zu, alignment %zu",
-                        block, size, alignment));
+    return FailedTest(
+        "Pointer returned from Alloc not aligned properly: pointer %p, size "
+        "%zu, alignment %zu",
+        block, size, alignment);
   }
 
   if (block < Heap().Start() ||
       static_cast<uint8_t*>(block) + size > Heap().End()) {
-    return absl::FailedPreconditionError(
-        absl::StrFormat("Block allocated outside range of heap: returned %p of "
-                        "size %zu, heap ranges from %p to %p",
-                        block, size, Heap().Start(), Heap().End()));
+    return FailedTest(
+        "Block allocated outside range of heap: returned %p of size %zu, heap "
+        "ranges from %p to %p",
+        block, size, Heap().Start(), Heap().End());
   }
 
   for (const auto& [ptr, ptr_size] : allocated_blocks_) {
@@ -208,10 +202,10 @@ absl::Status MetadataManagerFixture::TraceBlockAllocation(void* block,
 
     if (ptr < static_cast<uint8_t*>(block) + size &&
         block < static_cast<uint8_t*>(ptr) + ptr_size) {
-      return absl::FailedPreconditionError(absl::StrFormat(
+      return FailedTest(
           "Allocated block overlaps with already allocated block: returned %p "
           "of size %zu, overlaps with %p of size %zu",
-          block, size, ptr, ptr_size));
+          block, size, ptr, ptr_size);
     }
   }
 

@@ -18,6 +18,8 @@ class MainAllocatorFixture : public CkMallocTest {
   using TestSlabManager = SlabManagerFixture::TestSlabManager;
 
  public:
+  static constexpr const char* kPrefix = "[MainAllocatorFixture]";
+
   static constexpr size_t kNumPages = 64;
 
   class TestMainAllocator {
@@ -62,6 +64,10 @@ class MainAllocatorFixture : public CkMallocTest {
             this, slab_map_.get(), slab_manager_.get())),
         rng_(53, 47) {}
 
+  const char* TestPrefix() const override {
+    return kPrefix;
+  }
+
   TestHeap& Heap() {
     return *heap_;
   }
@@ -91,7 +97,7 @@ class MainAllocatorFixture : public CkMallocTest {
  private:
   static void FillMagic(void* allocation, size_t size, uint64_t magic);
 
-  static absl::Status CheckMagic(void* allocation, size_t size, uint64_t magic);
+  absl::Status CheckMagic(void* allocation, size_t size, uint64_t magic);
 
   std::shared_ptr<TestHeap> heap_;
   std::shared_ptr<TestSlabMap> slab_map_;
