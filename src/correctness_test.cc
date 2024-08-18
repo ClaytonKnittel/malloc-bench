@@ -16,6 +16,8 @@
 
 namespace bench {
 
+// #define PRINT
+
 class TestCkMalloc : public TracefileExecutor {
   friend class TestCorrectness;
 
@@ -36,7 +38,7 @@ class TestCkMalloc : public TracefileExecutor {
 
 class TestCorrectness : public ::testing::Test {
  public:
-  static constexpr size_t kNumPages = 64;
+  static constexpr size_t kNumPages = (1 << 17);
 
   TestCorrectness()
       : heap_(std::make_shared<ckmalloc::TestHeap>(kNumPages)),
@@ -87,9 +89,13 @@ absl::StatusOr<void*> TestCkMalloc::Malloc(size_t size) {
   if (size == 0) {
     return nullptr;
   }
-  // std::cout << "malloc(" << size << ")" << std::endl;
+#ifdef PRINT
+  std::cout << "malloc(" << size << ")" << std::endl;
+#endif
   void* result = fixture_->MainAllocator().Alloc(size);
-  // std::cout << "returned " << result << std::endl;
+#ifdef PRINT
+  std::cout << "returned " << result << std::endl;
+#endif
   if (result == nullptr) {
     return absl::FailedPreconditionError("Returned nullptr from malloc");
   }
@@ -99,11 +105,7 @@ absl::StatusOr<void*> TestCkMalloc::Malloc(size_t size) {
 }
 
 absl::StatusOr<void*> TestCkMalloc::Calloc(size_t nmemb, size_t size) {
-  DEFINE_OR_RETURN(void*, block, Malloc(nmemb * size));
-  if (block != nullptr) {
-    memset(block, 0, nmemb * size);
-  }
-  return block;
+  return Malloc(nmemb * size);
 }
 
 absl::StatusOr<void*> TestCkMalloc::Realloc(void* ptr, size_t size) {
@@ -112,9 +114,13 @@ absl::StatusOr<void*> TestCkMalloc::Realloc(void* ptr, size_t size) {
   }
 
   CK_ASSERT_NE(size, 0);
-  // std::cout << "realloc(" << ptr << ", " << size << ")" << std::endl;
+#ifdef PRINT
+  std::cout << "realloc(" << ptr << ", " << size << ")" << std::endl;
+#endif
   void* result = fixture_->MainAllocator().Realloc(ptr, size);
-  // std::cout << "returned " << result << std::endl;
+#ifdef PRINT
+  std::cout << "returned " << result << std::endl;
+#endif
   if (result == nullptr) {
     return absl::FailedPreconditionError("Returned nullptr from realloc");
   }
@@ -128,7 +134,9 @@ absl::Status TestCkMalloc::Free(void* ptr) {
     return absl::OkStatus();
   }
 
-  // std::cout << "free(" << ptr << ")" << std::endl;
+#ifdef PRINT
+  std::cout << "free(" << ptr << ")" << std::endl;
+#endif
   fixture_->MainAllocator().Free(ptr);
 
   return fixture_->ValidateHeap();
