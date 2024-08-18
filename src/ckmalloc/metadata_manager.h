@@ -22,8 +22,9 @@ class MetadataManagerImpl {
   // already been allocated, this number can be changed to reflect the number of
   // already-allocated bytes from the first page.
   explicit MetadataManagerImpl(SlabMap* slab_map, SlabManager* slab_manager,
+                               PageId last_page,
                                uint32_t alloc_offset = kPageSize)
-      : last_(PageId::Zero()),
+      : last_(last_page),
         alloc_offset_(alloc_offset),
         slab_map_(slab_map),
         slab_manager_(slab_manager) {}

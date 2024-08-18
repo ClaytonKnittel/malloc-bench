@@ -3,9 +3,11 @@
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/main_allocator.h"
 #include "src/ckmalloc/metadata_manager.h"
+#include "src/ckmalloc/page_id.h"
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/slab_manager.h"
 #include "src/ckmalloc/slab_map.h"
+#include "src/ckmalloc/util.h"
 #include "src/heap_interface.h"
 
 namespace ckmalloc {
@@ -15,11 +17,11 @@ State* State::state_ = nullptr;
 /* static */
 State* State::InitializeWithEmptyHeap(bench::Heap* heap) {
   CK_ASSERT_EQ(heap->Size(), 0);
-  static_assert(sizeof(State) <= kPageSize,
-                "sizeof(State) is larger than page size");
   // Allocate a metadata slab and place ourselves at the beginning of it.
-  void* heap_start = heap->sbrk(kPageSize);
-  auto* state = new (heap_start) State(heap);
+  size_t metadata_size = AlignUp(sizeof(State), kPageSize);
+  uint32_t n_pages = metadata_size / kPageSize;
+  void* heap_start = heap->sbrk(metadata_size);
+  auto* state = new (heap_start) State(heap, PageId(n_pages - 1));
   state_ = state;
   return state;
 }
@@ -30,9 +32,9 @@ State* State::Instance() {
   return state_;
 }
 
-State::State(bench::Heap* heap)
+State::State(bench::Heap* heap, PageId last)
     : slab_manager_(heap, &slab_map_),
-      metadata_manager_(&slab_map_, &slab_manager_ /*, sizeof(State)*/),
+      metadata_manager_(&slab_map_, &slab_manager_, last /*, sizeof(State)*/),
       small_alloc_(&slab_map_, &slab_manager_),
       main_allocator_(&slab_map_, &slab_manager_, &small_alloc_) {}
 
