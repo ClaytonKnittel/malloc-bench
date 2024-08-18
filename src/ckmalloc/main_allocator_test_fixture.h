@@ -53,12 +53,11 @@ class MainAllocatorFixture : public CkMallocTest {
   MainAllocatorFixture(
       std::shared_ptr<TestHeap> heap,
       const std::shared_ptr<TestSlabMap>& slab_map,
-      std::shared_ptr<SlabManagerFixture> slab_manager_test_fixture,
-      const std::shared_ptr<TestSlabManager>& slab_manager)
+      std::shared_ptr<SlabManagerFixture> slab_manager_test_fixture)
       : heap_(std::move(heap)),
         slab_map_(slab_map),
         slab_manager_test_fixture_(std::move(slab_manager_test_fixture)),
-        slab_manager_(slab_manager),
+        slab_manager_(slab_manager_test_fixture_->SlabManagerPtr()),
         main_allocator_(std::make_shared<TestMainAllocator>(
             this, slab_map_.get(), slab_manager_.get())),
         rng_(53, 47) {}
@@ -81,6 +80,10 @@ class MainAllocatorFixture : public CkMallocTest {
 
   const TestMainAllocator& MainAllocator() const {
     return *main_allocator_;
+  }
+
+  std::shared_ptr<TestMainAllocator> MainAllocatorPtr() const {
+    return main_allocator_;
   }
 
   absl::Status ValidateHeap() override;

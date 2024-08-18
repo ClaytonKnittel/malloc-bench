@@ -1,5 +1,3 @@
-#include "src/ckmalloc/main_allocator.h"
-
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "util/absl_util.h"
@@ -18,12 +16,15 @@ using util::IsOk;
 
 class MainAllocatorTest : public ::testing::Test {
  public:
+  static constexpr size_t kNumPages = 64;
+
   MainAllocatorTest()
-      : slab_manager_fixture_(std::make_shared<SlabManagerFixture>()),
+      : heap_(std::make_shared<TestHeap>(kNumPages)),
+        slab_map_(std::make_shared<TestSlabMap>()),
+        slab_manager_fixture_(
+            std::make_shared<SlabManagerFixture>(heap_, slab_map_)),
         main_allocator_fixture_(std::make_shared<MainAllocatorFixture>(
-            slab_manager_fixture_->HeapPtr(),
-            slab_manager_fixture_->SlabMapPtr(), slab_manager_fixture_,
-            slab_manager_fixture_->SlabManagerPtr())) {}
+            heap_, slab_map_, slab_manager_fixture_)) {}
 
   TestHeap& Heap() {
     return slab_manager_fixture_->Heap();
@@ -58,6 +59,8 @@ class MainAllocatorTest : public ::testing::Test {
   }
 
  private:
+  std::shared_ptr<TestHeap> heap_;
+  std::shared_ptr<TestSlabMap> slab_map_;
   std::shared_ptr<SlabManagerFixture> slab_manager_fixture_;
   std::shared_ptr<MainAllocatorFixture> main_allocator_fixture_;
 };

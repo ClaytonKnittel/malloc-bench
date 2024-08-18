@@ -145,6 +145,7 @@ cc_library(
     name = "main_allocator_test_fixture",
     srcs = ["main_allocator_test_fixture.cc"],
     hdrs = ["main_allocator_test_fixture.h"],
+    visibility = ["//visibility:public"],
     deps = [
         ":common",
         ":freelist",
@@ -196,6 +197,7 @@ cc_library(
     name = "metadata_manager_test_fixture",
     srcs = ["metadata_manager_test_fixture.cc"],
     hdrs = ["metadata_manager_test_fixture.h"],
+    visibility = ["//visibility:public"],
     deps = [
         ":metadata_manager",
         ":slab",
@@ -315,6 +317,7 @@ cc_test(
         ":page_id",
         ":slab",
         ":slab_manager_test_fixture",
+        ":testlib",
         "@cc-util//util:gtest_util",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
@@ -325,6 +328,7 @@ cc_library(
     name = "slab_manager_test_fixture",
     srcs = ["slab_manager_test_fixture.cc"],
     hdrs = ["slab_manager_test_fixture.h"],
+    visibility = ["//visibility:public"],
     deps = [
         ":common",
         ":page_id",
@@ -422,6 +426,7 @@ cc_library(
     name = "small_allocator_test_fixture",
     srcs = ["small_allocator_test_fixture.cc"],
     hdrs = ["small_allocator_test_fixture.h"],
+    visibility = ["//visibility:public"],
     deps = [
         ":page_id",
         ":size_class",
@@ -451,24 +456,10 @@ cc_library(
 )
 
 cc_library(
-    name = "state_test_fixture",
-    srcs = ["state_test_fixture.cc"],
-    hdrs = ["state_test_fixture.h"],
-    visibility = ["//visibility:public"],
-    deps = [
-        ":main_allocator_test_fixture",
-        ":metadata_manager_test_fixture",
-        ":slab_manager_test_fixture",
-        ":testlib",
-        "@abseil-cpp//absl/status",
-        "@cc-util//util:absl_util",
-    ],
-)
-
-cc_library(
     name = "testlib",
     srcs = ["testlib.cc"],
     hdrs = ["testlib.h"],
+    visibility = ["//visibility:public"],
     deps = [
         ":block",
         ":common",

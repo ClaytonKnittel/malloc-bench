@@ -14,6 +14,7 @@
 
 #include "src/correctness_checker.h"
 #include "src/perftest.h"
+#include "src/singleton_heap.h"
 #include "src/tracefile_reader.h"
 #include "src/utiltest.h"
 
@@ -46,7 +47,8 @@ absl::StatusOr<TraceResult> RunTrace(const std::string& tracefile) {
 
   // Check for correctness.
   if (!absl::GetFlag(FLAGS_skip_correctness)) {
-    absl::Status correctness_status = CorrectnessChecker::Check(tracefile);
+    absl::Status correctness_status =
+        CorrectnessChecker::Check(tracefile, SingletonHeap::GlobalInstance());
     if (correctness_status.ok()) {
       result.correct = true;
     } else {

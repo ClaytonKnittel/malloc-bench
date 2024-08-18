@@ -7,6 +7,7 @@ cc_binary(
     deps = [
         ":correctness_checker",
         ":perftest",
+        ":singleton_heap",
         ":tracefile_reader",
         ":utiltest",
         "@abseil-cpp//absl/flags:flag",
@@ -73,9 +74,8 @@ cc_library(
     hdrs = ["correctness_checker.h"],
     deps = [
         ":allocator_interface",
-        ":common",
+        ":heap_interface",
         ":rng",
-        ":singleton_heap",
         ":tracefile_reader",
         "@abseil-cpp//absl/container:btree",
         "@abseil-cpp//absl/container:flat_hash_map",
@@ -95,8 +95,13 @@ cc_test(
     ],
     deps = [
         ":correctness_checker",
-        "//src/ckmalloc:state_test_fixture",
+        "//src/ckmalloc:main_allocator_test_fixture",
+        "//src/ckmalloc:metadata_manager_test_fixture",
+        "//src/ckmalloc:slab_manager_test_fixture",
+        "//src/ckmalloc:small_allocator_test_fixture",
+        "//src/ckmalloc:testlib",
         "@abseil-cpp//absl/status",
+        "@cc-util//util:absl_util",
         "@cc-util//util:gtest_util",
         "@googletest//:gtest",
         "@googletest//:gtest_main",

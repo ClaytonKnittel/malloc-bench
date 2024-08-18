@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cstddef>
 #include <memory>
 
 #include "absl/container/flat_hash_map.h"
@@ -18,8 +17,6 @@ namespace ckmalloc {
 
 class SlabManagerFixture : public CkMallocTest {
  public:
-  static constexpr size_t kNumPages = 64;
-
   class TestSlabManager {
    public:
     using SlabManagerT = SlabManagerImpl<TestGlobalMetadataAlloc, TestSlabMap>;
@@ -109,26 +106,16 @@ class SlabManagerFixture : public CkMallocTest {
 
   // Only used for initializing `TestSlabManager` via the default constructor,
   // which needs the heap and slab_map to have been defined already.
-  SlabManagerFixture(const std::shared_ptr<TestHeap>& heap,
-                     const std::shared_ptr<TestSlabMap>& slab_map)
-      : SlabManagerFixture(heap, slab_map,
-                           std::make_shared<TestSlabManager>(this, heap.get(),
-                                                             slab_map.get())) {}
-
-  SlabManagerFixture()
-      : SlabManagerFixture(std::make_shared<TestHeap>(kNumPages),
-                           std::make_shared<TestSlabMap>()) {}
-
-  std::shared_ptr<TestHeap> HeapPtr() {
-    return heap_;
-  }
+  SlabManagerFixture(std::shared_ptr<TestHeap> heap,
+                     std::shared_ptr<TestSlabMap> slab_map)
+      : heap_(std::move(heap)),
+        slab_map_(std::move(slab_map)),
+        slab_manager_(std::make_shared<TestSlabManager>(this, heap_.get(),
+                                                        slab_map_.get())),
+        rng_(1027, 3) {}
 
   TestHeap& Heap() {
     return *heap_;
-  }
-
-  std::shared_ptr<TestSlabMap> SlabMapPtr() {
-    return slab_map_;
   }
 
   TestSlabMap& SlabMap() {
@@ -154,14 +141,6 @@ class SlabManagerFixture : public CkMallocTest {
   absl::Status FreeSlab(AllocatedSlab* slab);
 
  private:
-  SlabManagerFixture(std::shared_ptr<TestHeap> heap,
-                     std::shared_ptr<TestSlabMap> slab_map,
-                     std::shared_ptr<TestSlabManager> slab_manager)
-      : heap_(std::move(heap)),
-        slab_map_(std::move(slab_map)),
-        slab_manager_(std::move(slab_manager)),
-        rng_(1027, 3) {}
-
   void FillMagic(AllocatedSlab* slab, uint64_t magic);
 
   absl::Status CheckMagic(AllocatedSlab* slab, uint64_t magic);
