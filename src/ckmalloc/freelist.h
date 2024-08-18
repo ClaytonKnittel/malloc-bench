@@ -64,12 +64,10 @@ class Freelist {
   // Removes the block from the freelist.
   void RemoveBlock(TrackedBlock* block);
 
-  // Moves `block` to `new_head`, resizing it to `new_size` and returning a
-  // down-cast pointer to the new free block. `new_head` must move
-  // forward/backward by the difference in the block's current size and
+  // Moves `block` to `new_head`, resizing it to `new_size`. `new_head` must
+  // move forward/backward by the difference in the block's current size and
   // `new_size`.
-  FreeBlock* MoveBlockHeader(FreeBlock* block, Block* new_head,
-                             uint64_t new_size);
+  void MoveBlockHeader(FreeBlock* block, Block* new_head, uint64_t new_size);
 
   LinkedList<TrackedBlock> free_blocks_;
 };

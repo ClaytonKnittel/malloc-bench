@@ -2,6 +2,7 @@
 
 #include "src/ckmalloc/main_allocator.h"
 #include "src/ckmalloc/metadata_manager.h"
+#include "src/ckmalloc/page_id.h"
 #include "src/ckmalloc/slab_manager.h"
 #include "src/ckmalloc/slab_map.h"
 #include "src/ckmalloc/small_allocator.h"
@@ -35,7 +36,7 @@ class State {
   }
 
  private:
-  explicit State(bench::Heap* heap);
+  explicit State(bench::Heap* heap, PageId last);
 
   // This is the global state instance that is initialized with
   // `InitializeWithEmptyHeap`.
