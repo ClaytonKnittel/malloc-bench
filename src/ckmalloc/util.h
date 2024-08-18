@@ -121,4 +121,33 @@ constexpr U* PtrSub(T* a, Int offset) {
   return result;
 }
 
+class AlignedAlloc {
+ public:
+  explicit AlignedAlloc(size_t size, size_t alignment) {
+    memory_region_ = new uint8_t[size + alignment];
+    uintptr_t start = reinterpret_cast<uintptr_t>(memory_region_);
+    uintptr_t alignment_offset = AlignUp(start, alignment) - start;
+    start_ = memory_region_ + alignment_offset;
+  }
+
+  ~AlignedAlloc() {
+    delete[] memory_region_;
+  }
+
+  void* RegionStart() {
+    return memory_region_;
+  }
+
+  const void* RegionStart() const {
+    return memory_region_;
+  }
+
+ private:
+  // Where the allocated memory starts
+  uint8_t* memory_region_;
+  // Where the aligned region starts. We allocate extra memory so the start of
+  // the region will be aligned.
+  uint8_t* start_;
+};
+
 }  // namespace ckmalloc
