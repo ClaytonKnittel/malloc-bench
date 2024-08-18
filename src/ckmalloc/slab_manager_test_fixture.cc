@@ -275,6 +275,35 @@ absl::Status SlabManagerFixture::ValidateHeap() {
   return absl::OkStatus();
 }
 
+absl::Status SlabManagerFixture::ValidateEmpty() {
+  if (!SlabManager().Underlying().single_page_freelist_.Empty()) {
+    return FailedTest(
+        "Expected single-page freelist to be empty, but was not.");
+  }
+  if (!SlabManager().Underlying().multi_page_free_slabs_.Empty()) {
+    return FailedTest("Expected multi-page freelist to be empty, but was not.");
+  }
+
+  PageId page = PageId::Zero();
+  PageId end = HeapEndId();
+  while (page < end) {
+    MappedSlab* slab = SlabMap().FindSlab(page);
+    if (slab == nullptr) {
+      // This must be a metadata slab.
+      page += 1;
+      continue;
+    }
+
+    if (slab->Type() != SlabType::kFree) {
+      return FailedTest("Unexpected non-free slab found in heap: %v.", *slab);
+    }
+
+    page += slab->Pages();
+  }
+
+  return absl::OkStatus();
+}
+
 absl::StatusOr<AllocatedSlab*> SlabManagerFixture::AllocateSlab(
     uint32_t n_pages) {
   // Arbitrarily make all allocated slabs large slabs. Their actual type doesn't
