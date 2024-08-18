@@ -164,7 +164,7 @@ LargeAllocatorImpl<SlabMap, SlabManager>::AllocLargeSlabAndMakeBlock(
   Block* slab_end_header = block->NextAdjacentBlock();
 
   if (remainder_size != 0) {
-    Block* next_adjacent = block->NextAdjacentBlock();
+    Block* next_adjacent = slab_end_header;
     freelist_.InitFree(next_adjacent, remainder_size);
 
     slab_end_header = next_adjacent->NextAdjacentBlock();
