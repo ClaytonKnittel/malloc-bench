@@ -108,11 +108,11 @@ absl::Status CorrectnessCheckerImpl<I>::Run() {
   }
   heap_ = heap;
   heap->Reset();
-  initialize_heap();
+  I::initialize_heap();
 
   absl::Status result = ProcessTracefile();
   heap->Reset();
-  initialize_heap();
+  I::initialize_heap();
   heap_ = nullptr;
   return result;
 }
