@@ -77,6 +77,19 @@ concept SlabManagerInterface = requires(
   } -> std::convertible_to<class Block*>;
 };
 
+template <typename T>
+concept SmallAllocatorInterface =
+    requires(T small_alloc, size_t user_size, class SmallSlab* slab,
+             class AllocatedSlice* slice) {
+      {
+        small_alloc.AllocSlice(user_size)
+      } -> std::convertible_to<class AllocatedSlice*>;
+      {
+        small_alloc.ReallocSlice(slab, slice, user_size)
+      } -> std::convertible_to<class AllocatedSlice*>;
+      { small_alloc.FreeSlice(slab, slice) } -> std::same_as<void>;
+    };
+
 // This is defined in `state.cc` to avoid circular dependencies.
 class GlobalMetadataAlloc {
  public:

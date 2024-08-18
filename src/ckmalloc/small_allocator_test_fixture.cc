@@ -25,8 +25,8 @@ absl::Status SmallAllocatorFixture::ValidateHeap() {
     SmallSlab* slab = it->ToSmall();
 
     if (slab->Empty()) {
-      return absl::FailedPreconditionError(absl::StrFormat(
-          "Encountered empty slab at page %v in freelist", slab->StartId()));
+      return FailedTest("Encountered empty slab at page %v in freelist",
+                        slab->StartId());
     }
 
     if (!slab->Full()) {
@@ -46,30 +46,29 @@ absl::Status SmallAllocatorFixture::ValidateHeap() {
          page_id != PageId::Nil();) {
       auto it = id_to_slab.find(page_id);
       if (it == id_to_slab.end()) {
-        return absl::FailedPreconditionError(
-            absl::StrFormat("Encountered slab in freelist %v which is not a "
-                            "small slab at page id %v.",
-                            size_class, page_id));
+        return FailedTest(
+            "Encountered slab in freelist %v which is not a small slab at page "
+            "id %v.",
+            size_class, page_id);
       }
       SmallSlab* slab = it->second;
       freelist_slabs.insert(slab);
 
       if (slab->Full()) {
-        return absl::FailedPreconditionError(absl::StrFormat(
-            "Encountered full slab at page %v in freelist", slab->StartId()));
+        return FailedTest("Encountered full slab at page %v in freelist",
+                          slab->StartId());
       }
 
       if (slab->SizeClass() != size_class) {
-        return absl::FailedPreconditionError(
-            absl::StrFormat("Encountered slab of incorrect size class in "
-                            "freelist: found %v, expected %v",
-                            slab->SizeClass(), size_class));
+        return FailedTest(
+            "Encountered slab of incorrect size class in freelist: found %v, "
+            "expected %v",
+            slab->SizeClass(), size_class);
       }
 
       if (prev_id != slab->PrevFree()) {
-        return absl::FailedPreconditionError(
-            absl::StrFormat("Prev ID of slab at page %v was %v, expected %v",
-                            page_id, slab->PrevFree(), prev_id));
+        return FailedTest("Prev ID of slab at page %v was %v, expected %v",
+                          page_id, slab->PrevFree(), prev_id);
       }
 
       prev_id = page_id;
@@ -77,10 +76,18 @@ absl::Status SmallAllocatorFixture::ValidateHeap() {
     }
 
     if (freelist_slabs != slabs[i]) {
-      return absl::FailedPreconditionError(
-          absl::StrFormat("Freelist slabs for size class %v do not match "
-                          "those found in the heap, some slabs are missing.",
-                          size_class));
+      for (const auto& slab : freelist_slabs) {
+        std::cout << "freelist: " << slab->StartId() << " "
+                  << slab->SizeClass().SliceSize() << std::endl;
+      }
+      for (const auto& slab : slabs[i]) {
+        std::cout << "heap: " << slab->StartId() << " "
+                  << slab->SizeClass().SliceSize() << std::endl;
+      }
+      return FailedTest(
+          "Freelist slabs for size class %v do not match those found in the "
+          "heap, some slabs are missing.",
+          size_class);
     }
   }
 

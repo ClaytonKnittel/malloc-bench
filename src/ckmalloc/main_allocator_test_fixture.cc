@@ -18,8 +18,10 @@ using TestMainAllocator = MainAllocatorFixture::TestMainAllocator;
 
 TestMainAllocator::TestMainAllocator(MainAllocatorFixture* test_fixture,
                                      TestSlabMap* slab_map,
-                                     TestSlabManager* slab_manager)
-    : test_fixture_(test_fixture), main_allocator_(slab_map, slab_manager) {}
+                                     TestSlabManager* slab_manager,
+                                     TestSmallAllocator* small_alloc)
+    : test_fixture_(test_fixture),
+      main_allocator_(slab_map, slab_manager, small_alloc) {}
 
 void* TestMainAllocator::Alloc(size_t user_size) {
   void* alloc = main_allocator_.Alloc(user_size);
