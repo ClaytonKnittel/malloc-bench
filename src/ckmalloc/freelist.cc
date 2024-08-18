@@ -140,8 +140,8 @@ void Freelist::RemoveBlock(TrackedBlock* block) {
   block->LinkedListNode::Remove();
 }
 
-FreeBlock* Freelist::MoveBlockHeader(FreeBlock* block, Block* new_head,
-                                     uint64_t new_size) {
+void Freelist::MoveBlockHeader(FreeBlock* block, Block* new_head,
+                               uint64_t new_size) {
   CK_ASSERT_EQ(
       static_cast<int64_t>(block->Size() - new_size),
       reinterpret_cast<int64_t>(new_head) - reinterpret_cast<int64_t>(block));
@@ -150,7 +150,9 @@ FreeBlock* Freelist::MoveBlockHeader(FreeBlock* block, Block* new_head,
     RemoveBlock(block->ToTracked());
   }
 
-  return InitFree(new_head, new_size);
+  if (new_size != 0) {
+    InitFree(new_head, new_size);
+  }
 }
 
 }  // namespace ckmalloc

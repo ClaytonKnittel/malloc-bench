@@ -454,6 +454,8 @@ cc_library(
         ":slab_manager",
         ":slab_map",
         ":small_allocator",
+        ":util",
+        ":page_id",
         "//src:heap_interface",
     ],
 )
