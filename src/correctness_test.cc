@@ -28,6 +28,7 @@ class TestCkMalloc {
     if (size == 0) {
       return nullptr;
     }
+    std::cout << "malloc(" << size << ")" << std::endl;
     void* result = fixture_->MainAllocator().Alloc(size);
     absl::Status valid = fixture_->ValidateHeap();
     if (!valid.ok()) {
@@ -51,6 +52,7 @@ class TestCkMalloc {
     if (ptr == nullptr) {
       return malloc(size);
     }
+    std::cout << "realloc(" << ptr << ", " << size << ")" << std::endl;
     void* result = fixture_->MainAllocator().Realloc(ptr, size);
     absl::Status valid = fixture_->ValidateHeap();
     if (!valid.ok()) {
@@ -65,6 +67,7 @@ class TestCkMalloc {
     if (ptr == nullptr) {
       return;
     }
+    std::cout << "free(" << ptr << ")" << std::endl;
     fixture_->MainAllocator().Free(ptr);
 
     absl::Status valid = fixture_->ValidateHeap();
@@ -90,11 +93,11 @@ class TestCorrectness : public ::testing::Test {
   }
 };
 
-TEST_F(TestCorrectness, BddAa32) {
+TEST_F(TestCorrectness, bddaa32) {
   ASSERT_THAT(Checker::Check("traces/bdd-aa32.trace"), util::IsOk());
 }
 
-TEST_F(TestCorrectness, BddAa4) {
+TEST_F(TestCorrectness, bddaa4) {
   ASSERT_THAT(Checker::Check("traces/bdd-aa4.trace"), util::IsOk());
 }
 
@@ -122,55 +125,55 @@ TEST_F(TestCorrectness, cbitxyz) {
   ASSERT_THAT(Checker::Check("traces/cbit-xyz.trace"), util::IsOk());
 }
 
-TEST_F(TestCorrectness, ngramfox1) {
+TEST_F(TestCorrectness, NgramFox1) {
   ASSERT_THAT(Checker::Check("traces/ngram-fox1.trace"), util::IsOk());
 }
 
-TEST_F(TestCorrectness, ngramgulliver1) {
+TEST_F(TestCorrectness, NgramGulliver1) {
   ASSERT_THAT(Checker::Check("traces/ngram-gulliver1.trace"), util::IsOk());
 }
 
-TEST_F(TestCorrectness, ngramgulliver2) {
+TEST_F(TestCorrectness, NgramGulliver2) {
   ASSERT_THAT(Checker::Check("traces/ngram-gulliver2.trace"), util::IsOk());
 }
 
-TEST_F(TestCorrectness, ngrammoby1) {
+TEST_F(TestCorrectness, NgramMoby1) {
   ASSERT_THAT(Checker::Check("traces/ngram-moby1.trace"), util::IsOk());
 }
 
-TEST_F(TestCorrectness, ngramshake1) {
+TEST_F(TestCorrectness, NgramShake1) {
   ASSERT_THAT(Checker::Check("traces/ngram-shake1.trace"), util::IsOk());
 }
 
-TEST_F(TestCorrectness, synarray) {
+TEST_F(TestCorrectness, SynArray) {
   ASSERT_THAT(Checker::Check("traces/syn-array.trace"), util::IsOk());
 }
 
-TEST_F(TestCorrectness, synarrayshort) {
+TEST_F(TestCorrectness, SynArrayShort) {
   ASSERT_THAT(Checker::Check("traces/syn-array-short.trace"), util::IsOk());
 }
 
-TEST_F(TestCorrectness, synmix) {
+TEST_F(TestCorrectness, SynMix) {
   ASSERT_THAT(Checker::Check("traces/syn-mix.trace"), util::IsOk());
 }
 
-TEST_F(TestCorrectness, synmixrealloc) {
+TEST_F(TestCorrectness, SynMixRealloc) {
   ASSERT_THAT(Checker::Check("traces/syn-mix-realloc.trace"), util::IsOk());
 }
 
-TEST_F(TestCorrectness, synmixshort) {
+TEST_F(TestCorrectness, SynMixShort) {
   ASSERT_THAT(Checker::Check("traces/syn-mix-short.trace"), util::IsOk());
 }
 
-TEST_F(TestCorrectness, synstring) {
+TEST_F(TestCorrectness, SynString) {
   ASSERT_THAT(Checker::Check("traces/syn-string.trace"), util::IsOk());
 }
 
-TEST_F(TestCorrectness, synstringshort) {
+TEST_F(TestCorrectness, SynStringShort) {
   ASSERT_THAT(Checker::Check("traces/syn-string-short.trace"), util::IsOk());
 }
 
-TEST_F(TestCorrectness, synstruct) {
+TEST_F(TestCorrectness, SynStruct) {
   ASSERT_THAT(Checker::Check("traces/syn-struct.trace"), util::IsOk());
 }
 
