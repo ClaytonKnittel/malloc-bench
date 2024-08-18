@@ -15,15 +15,17 @@
 
 namespace ckmalloc {
 
-template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
+template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager,
+          SmallAllocatorInterface SmallAllocator>
 class MainAllocatorImpl {
   friend class MainAllocatorFixture;
 
  public:
-  MainAllocatorImpl(SlabMap* slab_map, SlabManager* slab_manager)
+  MainAllocatorImpl(SlabMap* slab_map, SlabManager* slab_manager,
+                    SmallAllocator* small_alloc)
       : slab_map_(slab_map),
         slab_manager_(slab_manager),
-        small_alloc_(slab_map, slab_manager),
+        small_alloc_(small_alloc),
         large_alloc_(slab_map, slab_manager) {}
 
   // Allocates a region of memory `user_size` bytes long, returning a pointer to
@@ -45,15 +47,16 @@ class MainAllocatorImpl {
  private:
   SlabMap* const slab_map_;
   SlabManager* const slab_manager_;
-
-  SmallAllocatorImpl<SlabMap, SlabManager> small_alloc_;
+  SmallAllocator* const small_alloc_;
   LargeAllocatorImpl<SlabMap, SlabManager> large_alloc_;
 };
 
-template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
-void* MainAllocatorImpl<SlabMap, SlabManager>::Alloc(size_t user_size) {
+template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager,
+          SmallAllocatorInterface SmallAllocator>
+void* MainAllocatorImpl<SlabMap, SlabManager, SmallAllocator>::Alloc(
+    size_t user_size) {
   if (IsSmallSize(user_size)) {
-    AllocatedSlice* slice = small_alloc_.AllocSlice(user_size);
+    AllocatedSlice* slice = small_alloc_->AllocSlice(user_size);
     return slice != nullptr ? slice->UserDataPtr() : nullptr;
   } else {
     AllocatedBlock* block = large_alloc_.AllocLarge(user_size);
@@ -61,9 +64,10 @@ void* MainAllocatorImpl<SlabMap, SlabManager>::Alloc(size_t user_size) {
   }
 }
 
-template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
-void* MainAllocatorImpl<SlabMap, SlabManager>::Realloc(void* ptr,
-                                                       size_t user_size) {
+template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager,
+          SmallAllocatorInterface SmallAllocator>
+void* MainAllocatorImpl<SlabMap, SlabManager, SmallAllocator>::Realloc(
+    void* ptr, size_t user_size) {
   Slab* slab = slab_map_->FindSlab(slab_manager_->PageIdFromPtr(ptr));
   CK_ASSERT_NE(slab->Type(), SlabType::kFree);
   CK_ASSERT_NE(slab->Type(), SlabType::kUnmapped);
@@ -73,7 +77,7 @@ void* MainAllocatorImpl<SlabMap, SlabManager>::Realloc(void* ptr,
       // If this is a small-to-small size reallocation, we can use the
       // specialized realloc in small allocator.
       if (user_size <= kMaxSmallSize) {
-        AllocatedSlice* slice = small_alloc_.ReallocSlice(
+        AllocatedSlice* slice = small_alloc_->ReallocSlice(
             slab->ToSmall(), AllocatedSlice::FromUserDataPtr(ptr), user_size);
         return slice != nullptr ? slice->UserDataPtr() : nullptr;
       }
@@ -91,8 +95,8 @@ void* MainAllocatorImpl<SlabMap, SlabManager>::Realloc(void* ptr,
                   slab->ToSmall()->SizeClass().SliceSize());
 
       // Free the slice and return the newly allocated block.
-      small_alloc_.FreeSlice(slab->ToSmall(),
-                             AllocatedSlice::FromUserDataPtr(ptr));
+      small_alloc_->FreeSlice(slab->ToSmall(),
+                              AllocatedSlice::FromUserDataPtr(ptr));
       return block->UserDataPtr();
     }
     case SlabType::kLarge: {
@@ -104,7 +108,7 @@ void* MainAllocatorImpl<SlabMap, SlabManager>::Realloc(void* ptr,
 
       // Otherwise, we will always need to alloc-copy-free. First allocate the
       // small slice.
-      AllocatedSlice* slice = small_alloc_.AllocSlice(user_size);
+      AllocatedSlice* slice = small_alloc_->AllocSlice(user_size);
       if (slice == nullptr) {
         return nullptr;
       }
@@ -127,8 +131,9 @@ void* MainAllocatorImpl<SlabMap, SlabManager>::Realloc(void* ptr,
   }
 }
 
-template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
-void MainAllocatorImpl<SlabMap, SlabManager>::Free(void* ptr) {
+template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager,
+          SmallAllocatorInterface SmallAllocator>
+void MainAllocatorImpl<SlabMap, SlabManager, SmallAllocator>::Free(void* ptr) {
   Slab* slab = slab_map_->FindSlab(slab_manager_->PageIdFromPtr(ptr));
   CK_ASSERT_NE(slab->Type(), SlabType::kFree);
   CK_ASSERT_NE(slab->Type(), SlabType::kUnmapped);
@@ -151,6 +156,6 @@ void MainAllocatorImpl<SlabMap, SlabManager>::Free(void* ptr) {
   }
 }
 
-using MainAllocator = MainAllocatorImpl<SlabMap, SlabManager>;
+using MainAllocator = MainAllocatorImpl<SlabMap, SlabManager, SmallAllocator>;
 
 }  // namespace ckmalloc

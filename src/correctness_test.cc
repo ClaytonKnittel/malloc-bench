@@ -51,7 +51,8 @@ class TestCorrectness : public ::testing::Test {
                 heap_, slab_map_, slab_manager_fixture_)),
         main_allocator_fixture_(
             std::make_shared<ckmalloc::MainAllocatorFixture>(
-                heap_, slab_map_, slab_manager_fixture_)) {}
+                heap_, slab_map_, slab_manager_fixture_,
+                small_allocator_fixture_)) {}
 
   ckmalloc::MainAllocatorFixture::TestMainAllocator& MainAllocator() {
     return main_allocator_fixture_->MainAllocator();
@@ -119,124 +120,124 @@ absl::Status TestCkMalloc::Free(void* ptr) {
   return fixture_->ValidateHeap();
 }
 
-// TEST_F(TestCorrectness, bddaa32) {
-//   ASSERT_THAT(RunTrace("traces/bdd-aa32.trace"), util::IsOk());
-// }
-//
-// TEST_F(TestCorrectness, bddaa4) {
-//   ASSERT_THAT(RunTrace("traces/bdd-aa4.trace"), util::IsOk());
-// }
-//
-// TEST_F(TestCorrectness, bddma4) {
-//   ASSERT_THAT(RunTrace("traces/bdd-ma4.trace"), util::IsOk());
-// }
-//
-// TEST_F(TestCorrectness, bddnq7) {
-//   ASSERT_THAT(RunTrace("traces/bdd-nq7.trace"), util::IsOk());
-// }
-//
-// TEST_F(TestCorrectness, cbitabs) {
-//   ASSERT_THAT(RunTrace("traces/cbit-abs.trace"), util::IsOk());
-// }
-//
-// TEST_F(TestCorrectness, cbitparity) {
-//   ASSERT_THAT(RunTrace("traces/cbit-parity.trace"), util::IsOk());
-// }
-//
-// TEST_F(TestCorrectness, cbitsatadd) {
-//   ASSERT_THAT(RunTrace("traces/cbit-satadd.trace"), util::IsOk());
-// }
-//
-// TEST_F(TestCorrectness, cbitxyz) {
-//   ASSERT_THAT(RunTrace("traces/cbit-xyz.trace"), util::IsOk());
-// }
-//
-// TEST_F(TestCorrectness, NgramFox1) {
-//   ASSERT_THAT(RunTrace("traces/ngram-fox1.trace"), util::IsOk());
-// }
-//
-// TEST_F(TestCorrectness, NgramGulliver1) {
-//   ASSERT_THAT(RunTrace("traces/ngram-gulliver1.trace"), util::IsOk());
-// }
-//
-// TEST_F(TestCorrectness, NgramGulliver2) {
-//   ASSERT_THAT(RunTrace("traces/ngram-gulliver2.trace"), util::IsOk());
-// }
-//
-// TEST_F(TestCorrectness, NgramMoby1) {
-//   ASSERT_THAT(RunTrace("traces/ngram-moby1.trace"), util::IsOk());
-// }
-//
-// TEST_F(TestCorrectness, NgramShake1) {
-//   ASSERT_THAT(RunTrace("traces/ngram-shake1.trace"), util::IsOk());
-// }
-//
-// TEST_F(TestCorrectness, SynArray) {
-//   ASSERT_THAT(RunTrace("traces/syn-array.trace"), util::IsOk());
-// }
-//
-// TEST_F(TestCorrectness, SynArrayShort) {
-//   ASSERT_THAT(RunTrace("traces/syn-array-short.trace"), util::IsOk());
-// }
-//
-// TEST_F(TestCorrectness, SynMix) {
-//   ASSERT_THAT(RunTrace("traces/syn-mix.trace"), util::IsOk());
-// }
-//
-// TEST_F(TestCorrectness, SynMixRealloc) {
-//   ASSERT_THAT(RunTrace("traces/syn-mix-realloc.trace"), util::IsOk());
-// }
-//
-// TEST_F(TestCorrectness, SynMixShort) {
-//   ASSERT_THAT(RunTrace("traces/syn-mix-short.trace"), util::IsOk());
-// }
-//
-// TEST_F(TestCorrectness, SynString) {
-//   ASSERT_THAT(RunTrace("traces/syn-string.trace"), util::IsOk());
-// }
-//
-// TEST_F(TestCorrectness, SynStringShort) {
-//   ASSERT_THAT(RunTrace("traces/syn-string-short.trace"), util::IsOk());
-// }
-//
-// TEST_F(TestCorrectness, SynStruct) {
-//   ASSERT_THAT(RunTrace("traces/syn-struct.trace"), util::IsOk());
-// }
+TEST_F(TestCorrectness, bddaa32) {
+  ASSERT_THAT(RunTrace("traces/bdd-aa32.trace"), util::IsOk());
+}
+
+TEST_F(TestCorrectness, bddaa4) {
+  ASSERT_THAT(RunTrace("traces/bdd-aa4.trace"), util::IsOk());
+}
+
+TEST_F(TestCorrectness, bddma4) {
+  ASSERT_THAT(RunTrace("traces/bdd-ma4.trace"), util::IsOk());
+}
+
+TEST_F(TestCorrectness, bddnq7) {
+  ASSERT_THAT(RunTrace("traces/bdd-nq7.trace"), util::IsOk());
+}
+
+TEST_F(TestCorrectness, cbitabs) {
+  ASSERT_THAT(RunTrace("traces/cbit-abs.trace"), util::IsOk());
+}
+
+TEST_F(TestCorrectness, cbitparity) {
+  ASSERT_THAT(RunTrace("traces/cbit-parity.trace"), util::IsOk());
+}
+
+TEST_F(TestCorrectness, cbitsatadd) {
+  ASSERT_THAT(RunTrace("traces/cbit-satadd.trace"), util::IsOk());
+}
+
+TEST_F(TestCorrectness, cbitxyz) {
+  ASSERT_THAT(RunTrace("traces/cbit-xyz.trace"), util::IsOk());
+}
+
+TEST_F(TestCorrectness, NgramFox1) {
+  ASSERT_THAT(RunTrace("traces/ngram-fox1.trace"), util::IsOk());
+}
+
+TEST_F(TestCorrectness, NgramGulliver1) {
+  ASSERT_THAT(RunTrace("traces/ngram-gulliver1.trace"), util::IsOk());
+}
+
+TEST_F(TestCorrectness, NgramGulliver2) {
+  ASSERT_THAT(RunTrace("traces/ngram-gulliver2.trace"), util::IsOk());
+}
+
+TEST_F(TestCorrectness, NgramMoby1) {
+  ASSERT_THAT(RunTrace("traces/ngram-moby1.trace"), util::IsOk());
+}
+
+TEST_F(TestCorrectness, NgramShake1) {
+  ASSERT_THAT(RunTrace("traces/ngram-shake1.trace"), util::IsOk());
+}
+
+TEST_F(TestCorrectness, SynArray) {
+  ASSERT_THAT(RunTrace("traces/syn-array.trace"), util::IsOk());
+}
+
+TEST_F(TestCorrectness, SynArrayShort) {
+  ASSERT_THAT(RunTrace("traces/syn-array-short.trace"), util::IsOk());
+}
+
+TEST_F(TestCorrectness, SynMix) {
+  ASSERT_THAT(RunTrace("traces/syn-mix.trace"), util::IsOk());
+}
+
+TEST_F(TestCorrectness, SynMixRealloc) {
+  ASSERT_THAT(RunTrace("traces/syn-mix-realloc.trace"), util::IsOk());
+}
+
+TEST_F(TestCorrectness, SynMixShort) {
+  ASSERT_THAT(RunTrace("traces/syn-mix-short.trace"), util::IsOk());
+}
+
+TEST_F(TestCorrectness, SynString) {
+  ASSERT_THAT(RunTrace("traces/syn-string.trace"), util::IsOk());
+}
+
+TEST_F(TestCorrectness, SynStringShort) {
+  ASSERT_THAT(RunTrace("traces/syn-string-short.trace"), util::IsOk());
+}
+
+TEST_F(TestCorrectness, SynStruct) {
+  ASSERT_THAT(RunTrace("traces/syn-struct.trace"), util::IsOk());
+}
 
 TEST_F(TestCorrectness, SynStructShort) {
   ASSERT_THAT(RunTrace("traces/syn-struct-short.trace"), util::IsOk());
 }
 
-// TEST_F(TestCorrectness, Test) {
-//   ASSERT_THAT(RunTrace("traces/test.trace"), util::IsOk());
-// }
-//
-// TEST_F(TestCorrectness, Server) {
-//   ASSERT_THAT(RunTrace("traces/server.trace"), util::IsOk());
-// }
-//
-// TEST_F(TestCorrectness, Simple) {
-//   ASSERT_THAT(RunTrace("traces/simple.trace"), util::IsOk());
-// }
-//
-// TEST_F(TestCorrectness, SimpleCalloc) {
-//   ASSERT_THAT(RunTrace("traces/simple_calloc.trace"), util::IsOk());
-// }
-//
-// TEST_F(TestCorrectness, SimpleRealloc) {
-//   ASSERT_THAT(RunTrace("traces/simple_realloc.trace"), util::IsOk());
-// }
-//
-// TEST_F(TestCorrectness, Onoro) {
-//   ASSERT_THAT(RunTrace("traces/onoro.trace"), util::IsOk());
-// }
-//
-// TEST_F(TestCorrectness, OnoroCC) {
-//   ASSERT_THAT(RunTrace("traces/onoro-cc.trace"), util::IsOk());
-// }
-//
-// TEST_F(TestCorrectness, Zero) {
-//   ASSERT_THAT(RunTrace("traces/test-zero.trace"), util::IsOk());
-// }
+TEST_F(TestCorrectness, Test) {
+  ASSERT_THAT(RunTrace("traces/test.trace"), util::IsOk());
+}
+
+TEST_F(TestCorrectness, Server) {
+  ASSERT_THAT(RunTrace("traces/server.trace"), util::IsOk());
+}
+
+TEST_F(TestCorrectness, Simple) {
+  ASSERT_THAT(RunTrace("traces/simple.trace"), util::IsOk());
+}
+
+TEST_F(TestCorrectness, SimpleCalloc) {
+  ASSERT_THAT(RunTrace("traces/simple_calloc.trace"), util::IsOk());
+}
+
+TEST_F(TestCorrectness, SimpleRealloc) {
+  ASSERT_THAT(RunTrace("traces/simple_realloc.trace"), util::IsOk());
+}
+
+TEST_F(TestCorrectness, Onoro) {
+  ASSERT_THAT(RunTrace("traces/onoro.trace"), util::IsOk());
+}
+
+TEST_F(TestCorrectness, OnoroCC) {
+  ASSERT_THAT(RunTrace("traces/onoro-cc.trace"), util::IsOk());
+}
+
+TEST_F(TestCorrectness, Zero) {
+  ASSERT_THAT(RunTrace("traces/test-zero.trace"), util::IsOk());
+}
 
 }  // namespace bench

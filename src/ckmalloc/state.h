@@ -4,6 +4,7 @@
 #include "src/ckmalloc/metadata_manager.h"
 #include "src/ckmalloc/slab_manager.h"
 #include "src/ckmalloc/slab_map.h"
+#include "src/ckmalloc/small_allocator.h"
 #include "src/heap_interface.h"
 
 namespace ckmalloc {
@@ -43,6 +44,7 @@ class State {
   ckmalloc::SlabMap slab_map_;
   ckmalloc::SlabManager slab_manager_;
   ckmalloc::MetadataManager metadata_manager_;
+  ckmalloc::SmallAllocator small_alloc_;
   ckmalloc::MainAllocator main_allocator_;
 };
 

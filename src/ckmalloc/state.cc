@@ -33,7 +33,8 @@ State* State::Instance() {
 State::State(bench::Heap* heap)
     : slab_manager_(heap, &slab_map_),
       metadata_manager_(&slab_map_, &slab_manager_ /*, sizeof(State)*/),
-      main_allocator_(&slab_map_, &slab_manager_) {}
+      small_alloc_(&slab_map_, &slab_manager_),
+      main_allocator_(&slab_map_, &slab_manager_, &small_alloc_) {}
 
 // template <>
 // TestState* TestState::state_ = nullptr;
