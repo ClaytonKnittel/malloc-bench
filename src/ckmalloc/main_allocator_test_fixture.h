@@ -9,6 +9,7 @@
 #include "src/ckmalloc/freelist.h"
 #include "src/ckmalloc/main_allocator.h"
 #include "src/ckmalloc/slab_manager_test_fixture.h"
+#include "src/ckmalloc/small_allocator_test_fixture.h"
 #include "src/ckmalloc/testlib.h"
 #include "src/rng.h"
 
@@ -16,6 +17,7 @@ namespace ckmalloc {
 
 class MainAllocatorFixture : public CkMallocTest {
   using TestSlabManager = SlabManagerFixture::TestSlabManager;
+  using TestSmallAllocator = SmallAllocatorFixture::TestSmallAllocator;
 
  public:
   static constexpr const char* kPrefix = "[MainAllocatorFixture]";
@@ -24,10 +26,12 @@ class MainAllocatorFixture : public CkMallocTest {
 
   class TestMainAllocator {
    public:
-    using MainAllocatorT = MainAllocatorImpl<TestSlabMap, TestSlabManager>;
+    using MainAllocatorT =
+        MainAllocatorImpl<TestSlabMap, TestSlabManager, TestSmallAllocator>;
 
     TestMainAllocator(class MainAllocatorFixture* test_fixture,
-                      TestSlabMap* slab_map, TestSlabManager* slab_manager);
+                      TestSlabMap* slab_map, TestSlabManager* slab_manager,
+                      TestSmallAllocator* small_alloc);
 
     MainAllocatorT& Underlying() {
       return main_allocator_;
@@ -55,13 +59,17 @@ class MainAllocatorFixture : public CkMallocTest {
   MainAllocatorFixture(
       std::shared_ptr<TestHeap> heap,
       const std::shared_ptr<TestSlabMap>& slab_map,
-      std::shared_ptr<SlabManagerFixture> slab_manager_test_fixture)
+      std::shared_ptr<SlabManagerFixture> slab_manager_test_fixture,
+      std::shared_ptr<SmallAllocatorFixture> small_allocator_test_fixture)
       : heap_(std::move(heap)),
         slab_map_(slab_map),
         slab_manager_test_fixture_(std::move(slab_manager_test_fixture)),
         slab_manager_(slab_manager_test_fixture_->SlabManagerPtr()),
+        small_allocator_test_fixture_(std::move(small_allocator_test_fixture)),
+        small_allocator_(small_allocator_test_fixture_->SmallAllocatorPtr()),
         main_allocator_(std::make_shared<TestMainAllocator>(
-            this, slab_map_.get(), slab_manager_.get())),
+            this, slab_map_.get(), slab_manager_.get(),
+            small_allocator_.get())),
         rng_(53, 47) {}
 
   const char* TestPrefix() const override {
@@ -103,6 +111,8 @@ class MainAllocatorFixture : public CkMallocTest {
   std::shared_ptr<TestSlabMap> slab_map_;
   std::shared_ptr<SlabManagerFixture> slab_manager_test_fixture_;
   std::shared_ptr<TestSlabManager> slab_manager_;
+  std::shared_ptr<SmallAllocatorFixture> small_allocator_test_fixture_;
+  std::shared_ptr<TestSmallAllocator> small_allocator_;
   std::shared_ptr<TestMainAllocator> main_allocator_;
 
   util::Rng rng_;

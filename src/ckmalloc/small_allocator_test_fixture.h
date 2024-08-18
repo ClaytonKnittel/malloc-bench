@@ -49,6 +49,10 @@ class SmallAllocatorFixture : public CkMallocTest {
     return *small_allocator_;
   }
 
+  std::shared_ptr<TestSmallAllocator> SmallAllocatorPtr() {
+    return small_allocator_;
+  }
+
   absl::Status ValidateHeap() override;
 
  private:

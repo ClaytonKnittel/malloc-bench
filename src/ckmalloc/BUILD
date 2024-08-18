@@ -134,6 +134,7 @@ cc_test(
         ":main_allocator",
         ":main_allocator_test_fixture",
         ":slab_manager_test_fixture",
+        ":small_allocator_test_fixture",
         "@cc-util//util:absl_util",
         "@cc-util//util:gtest_util",
         "@googletest//:gtest",
@@ -153,6 +154,7 @@ cc_library(
         ":page_id",
         ":slab",
         ":slab_manager_test_fixture",
+        ":small_allocator_test_fixture",
         ":testlib",
         ":util",
         "//src:rng",
@@ -451,6 +453,7 @@ cc_library(
         ":slab",
         ":slab_manager",
         ":slab_map",
+        ":small_allocator",
         "//src:heap_interface",
     ],
 )
