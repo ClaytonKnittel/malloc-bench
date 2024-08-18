@@ -12,9 +12,9 @@
 #include "util/absl_util.h"
 
 #include "src/allocator_interface.h"
-#include "src/common.h"
+#include "src/ckmalloc/util.h"
+#include "src/heap_interface.h"
 #include "src/rng.h"
-#include "src/singleton_heap.h"
 #include "src/tracefile_reader.h"
 
 namespace bench {
@@ -26,7 +26,8 @@ class CorrectnessCheckerImpl {
 
   static bool IsFailedTestStatus(const absl::Status& status);
 
-  static absl::Status Check(const std::string& tracefile, bool verbose = false);
+  static absl::Status Check(const std::string& tracefile, Heap* heap,
+                            bool verbose = false);
 
  private:
   struct AllocatedBlock {
@@ -37,7 +38,7 @@ class CorrectnessCheckerImpl {
   using Map = absl::btree_map<void*, AllocatedBlock>;
   using IdMap = absl::flat_hash_map<void*, void*>;
 
-  explicit CorrectnessCheckerImpl(TracefileReader&& reader);
+  CorrectnessCheckerImpl(TracefileReader&& reader, Heap* heap);
 
   absl::Status Run();
   absl::Status ProcessTracefile();
@@ -65,7 +66,7 @@ class CorrectnessCheckerImpl {
 
   TracefileReader reader_;
 
-  SingletonHeap* heap_;
+  Heap* heap_;
 
   Map allocated_blocks_;
   // A map from the pointer value ID from the trace to the actual pointer value
@@ -86,34 +87,30 @@ bool CorrectnessCheckerImpl<I>::IsFailedTestStatus(const absl::Status& status) {
 /* static */
 template <MallocInterface I>
 absl::Status CorrectnessCheckerImpl<I>::Check(const std::string& tracefile,
-                                              bool verbose) {
+                                              Heap* heap, bool verbose) {
   absl::btree_map<void*, uint32_t> allocated_blocks;
 
   DEFINE_OR_RETURN(TracefileReader, reader, TracefileReader::Open(tracefile));
 
-  CorrectnessCheckerImpl checker(std::move(reader));
+  CorrectnessCheckerImpl checker(std::move(reader), heap);
   checker.verbose_ = verbose;
   return checker.Run();
 }
 
 template <MallocInterface I>
-CorrectnessCheckerImpl<I>::CorrectnessCheckerImpl(TracefileReader&& reader)
-    : reader_(std::move(reader)), rng_(0, 1) {}
+CorrectnessCheckerImpl<I>::CorrectnessCheckerImpl(TracefileReader&& reader,
+                                                  Heap* heap)
+    : reader_(std::move(reader)), heap_(heap), rng_(0, 1) {}
 
 template <MallocInterface I>
 absl::Status CorrectnessCheckerImpl<I>::Run() {
-  SingletonHeap* heap = SingletonHeap::GlobalInstance();
-  if (heap == nullptr) {
-    return absl::InternalError("`HeapManager()` returned `nullptr` heap.");
-  }
-  heap_ = heap;
-  heap->Reset();
+  CK_ASSERT_NE(heap_, nullptr);
+  heap_->Reset();
   I::initialize_heap();
 
   absl::Status result = ProcessTracefile();
-  heap->Reset();
+  heap_->Reset();
   I::initialize_heap();
-  heap_ = nullptr;
   return result;
 }
 

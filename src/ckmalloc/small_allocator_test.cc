@@ -19,12 +19,15 @@ using util::IsOk;
 
 class SmallAllocatorTest : public ::testing::Test {
  public:
+  static constexpr size_t kNumPages = 64;
+
   SmallAllocatorTest()
-      : slab_manager_fixture_(std::make_shared<SlabManagerFixture>()),
+      : heap_(std::make_shared<TestHeap>(kNumPages)),
+        slab_map_(std::make_shared<TestSlabMap>()),
+        slab_manager_fixture_(
+            std::make_shared<SlabManagerFixture>(heap_, slab_map_)),
         small_allocator_fixture_(std::make_shared<SmallAllocatorFixture>(
-            slab_manager_fixture_->HeapPtr(),
-            slab_manager_fixture_->SlabMapPtr(), slab_manager_fixture_,
-            slab_manager_fixture_->SlabManagerPtr())) {}
+            heap_, slab_map_, slab_manager_fixture_)) {}
 
   TestHeap& Heap() {
     return slab_manager_fixture_->Heap();
@@ -55,6 +58,8 @@ class SmallAllocatorTest : public ::testing::Test {
   }
 
  private:
+  std::shared_ptr<TestHeap> heap_;
+  std::shared_ptr<TestSlabMap> slab_map_;
   std::shared_ptr<SlabManagerFixture> slab_manager_fixture_;
   std::shared_ptr<SmallAllocatorFixture> small_allocator_fixture_;
 };
