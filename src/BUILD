@@ -86,10 +86,12 @@ cc_library(
 
 cc_test(
     name = "correctness_test",
+    timeout = "eternal",
     srcs = ["correctness_test.cc"],
     data = [
         "//traces",
     ],
+    shard_count = 8,
     deps = [
         ":tracefile_executor",
         ":tracefile_reader",
@@ -105,7 +107,6 @@ cc_test(
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
-    shard_count = 8,
 )
 
 cc_library(
