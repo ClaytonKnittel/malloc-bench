@@ -31,6 +31,10 @@ inline void free(void* ptr) {
 
 class CkMallocInterface {
  public:
+  static void initialize_heap() {
+    bench::initialize_heap();
+  }
+
   static void* malloc(size_t size) {
     return bench::malloc(size);
   }
