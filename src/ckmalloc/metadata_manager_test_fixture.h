@@ -19,8 +19,6 @@ class MetadataManagerFixture : public CkMallocTest {
   using TestSlabManager = SlabManagerFixture::TestSlabManager;
 
  public:
-  static constexpr size_t kNumPages = 64;
-
   class TestMetadataManager {
    public:
     using MetadataManagerT = MetadataManagerImpl<TestSlabMap, TestSlabManager>;
@@ -48,21 +46,15 @@ class MetadataManagerFixture : public CkMallocTest {
   };
 
   MetadataManagerFixture(
-      std::shared_ptr<TestHeap> heap,
-      const std::shared_ptr<TestSlabMap>& slab_map,
-      std::shared_ptr<SlabManagerFixture> slab_manager_test_fixture,
-      const std::shared_ptr<TestSlabManager>& slab_manager)
+      std::shared_ptr<TestHeap> heap, std::shared_ptr<TestSlabMap> slab_map,
+      std::shared_ptr<SlabManagerFixture> slab_manager_test_fixture)
       : heap_(std::move(heap)),
-        slab_map_(slab_map),
+        slab_map_(std::move(slab_map)),
         slab_manager_test_fixture_(std::move(slab_manager_test_fixture)),
-        slab_manager_(slab_manager),
+        slab_manager_(slab_manager_test_fixture_->SlabManagerPtr()),
         metadata_manager_(std::make_shared<TestMetadataManager>(
-            this, slab_map.get(), slab_manager.get())),
+            this, slab_map_.get(), slab_manager_.get())),
         rng_(2021, 5) {}
-
-  MetadataManagerFixture()
-      : MetadataManagerFixture(std::make_shared<TestHeap>(kNumPages),
-                               std::make_shared<TestSlabMap>()) {}
 
   TestHeap& Heap() {
     return *heap_;
@@ -84,6 +76,10 @@ class MetadataManagerFixture : public CkMallocTest {
     return *metadata_manager_;
   }
 
+  std::shared_ptr<TestMetadataManager> MetadataManagerPtr() const {
+    return metadata_manager_;
+  }
+
   absl::StatusOr<size_t> SlabMetaFreelistLength() const;
 
   absl::StatusOr<void*> Alloc(size_t size, size_t alignment = 1);
@@ -98,24 +94,6 @@ class MetadataManagerFixture : public CkMallocTest {
   absl::Status ValidateHeap() override;
 
  private:
-  // Only used for initializing `TestSlabManager` via the default constructor,
-  // which needs the heap and slab_map to have been defined already.
-  MetadataManagerFixture(const std::shared_ptr<TestHeap>& heap,
-                         const std::shared_ptr<TestSlabMap>& slab_map)
-      : MetadataManagerFixture(
-            heap, slab_map,
-            std::make_shared<SlabManagerFixture>(heap, slab_map)) {}
-
-  // Only used for initializing `TestMetadataManager` via the default
-  // constructor, which needs the slab_map and slab_manager to have been
-  // defined already.
-  MetadataManagerFixture(
-      const std::shared_ptr<TestHeap>& heap,
-      const std::shared_ptr<TestSlabMap>& slab_map,
-      const std::shared_ptr<SlabManagerFixture>& slab_manager_test_fixture)
-      : MetadataManagerFixture(heap, slab_map, slab_manager_test_fixture,
-                               slab_manager_test_fixture->SlabManagerPtr()) {}
-
   // Validates a newly-allocated block, and writes over its data with magic
   // bytes.
   absl::Status TraceBlockAllocation(void* block, size_t size, size_t alignment);
