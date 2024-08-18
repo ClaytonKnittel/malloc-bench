@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "absl/status/status.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 
 #include "src/ckmalloc/block.h"
@@ -117,6 +118,20 @@ class CkMallocTest {
   virtual ~CkMallocTest() {
     TestGlobalMetadataAlloc::ClearAllAllocs();
   }
+
+  absl::Status FailedTest(const std::string& message) const {
+    return absl::FailedPreconditionError(
+        absl::StrCat(TestPrefix(), " ", message));
+  }
+
+  template <typename... Args>
+  absl::Status FailedTest(const absl::FormatSpec<Args...>& fmt,
+                          const Args&... args) const {
+    return absl::FailedPreconditionError(
+        absl::StrCat(TestPrefix(), " ", absl::StrFormat(fmt, args...)));
+  }
+
+  virtual const char* TestPrefix() const = 0;
 
   // Performs comprehensive validation checks on the heap. May be called
   // frequently in tests to verify the heap remains in a consistent state.

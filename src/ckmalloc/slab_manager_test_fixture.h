@@ -17,6 +17,8 @@ namespace ckmalloc {
 
 class SlabManagerFixture : public CkMallocTest {
  public:
+  static constexpr const char* kPrefix = "[SlabManagerFixture]";
+
   class TestSlabManager {
    public:
     using SlabManagerT = SlabManagerImpl<TestGlobalMetadataAlloc, TestSlabMap>;
@@ -113,6 +115,10 @@ class SlabManagerFixture : public CkMallocTest {
         slab_manager_(std::make_shared<TestSlabManager>(this, heap_.get(),
                                                         slab_map_.get())),
         rng_(1027, 3) {}
+
+  const char* TestPrefix() const override {
+    return kPrefix;
+  }
 
   TestHeap& Heap() {
     return *heap_;

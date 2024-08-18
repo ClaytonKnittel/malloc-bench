@@ -11,8 +11,14 @@ namespace ckmalloc {
 
 class SlabMapTest : public testing::Test, public CkMallocTest {
  public:
+  static constexpr const char* kPrefix = "[SlabMapFixture]";
+
   TestSlabMap& SlabMap() {
     return slab_map_;
+  }
+
+  const char* TestPrefix() const override {
+    return kPrefix;
   }
 
   absl::Status ValidateHeap() override {

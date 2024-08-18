@@ -1,6 +1,7 @@
 #include <cstdlib>
 
 #include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "gtest/gtest.h"
 #include "util/absl_util.h"
 #include "util/gtest_util.h"
@@ -10,30 +11,31 @@
 #include "src/ckmalloc/slab_manager_test_fixture.h"
 #include "src/ckmalloc/small_allocator_test_fixture.h"
 #include "src/ckmalloc/testlib.h"
-#include "src/correctness_checker.h"
+#include "src/tracefile_executor.h"
+#include "src/tracefile_reader.h"
 
 namespace bench {
 
-class TestCkMalloc {
+class TestCkMalloc : public TracefileExecutor {
   friend class TestCorrectness;
 
  public:
-  static void initialize_heap();
-  static void* malloc(size_t size);
-  static void* calloc(size_t nmemb, size_t size);
-  static void* realloc(void* ptr, size_t size);
-  static void free(void* ptr);
+  explicit TestCkMalloc(TracefileReader&& tracefile_reader,
+                        class TestCorrectness* fixture)
+      : TracefileExecutor(std::move(tracefile_reader)), fixture_(fixture) {}
+
+  void InitializeHeap() override;
+  absl::StatusOr<void*> Malloc(size_t size) override;
+  absl::StatusOr<void*> Calloc(size_t nmemb, size_t size) override;
+  absl::StatusOr<void*> Realloc(void* ptr, size_t size) override;
+  absl::Status Free(void* ptr) override;
 
  private:
-  static class TestCorrectness* fixture_;
+  class TestCorrectness* fixture_;
 };
-
-TestCorrectness* TestCkMalloc::fixture_ = nullptr;
 
 class TestCorrectness : public ::testing::Test {
  public:
-  using Checker = bench::CorrectnessCheckerImpl<TestCkMalloc>;
-
   static constexpr size_t kNumPages = 64;
 
   TestCorrectness()
@@ -49,23 +51,25 @@ class TestCorrectness : public ::testing::Test {
                 heap_, slab_map_, slab_manager_fixture_)),
         main_allocator_fixture_(
             std::make_shared<ckmalloc::MainAllocatorFixture>(
-                heap_, slab_map_, slab_manager_fixture_)) {
-    TestCkMalloc::fixture_ = this;
-  }
-
-  ~TestCorrectness() override {
-    TestCkMalloc::fixture_ = nullptr;
-  }
+                heap_, slab_map_, slab_manager_fixture_)) {}
 
   ckmalloc::MainAllocatorFixture::TestMainAllocator& MainAllocator() {
     return main_allocator_fixture_->MainAllocator();
   }
 
   absl::Status RunTrace(const std::string& trace) {
-    return Checker::Check(trace, heap_.get());
+    DEFINE_OR_RETURN(TracefileReader, reader, TracefileReader::Open(trace));
+    TestCkMalloc test(std::move(reader), this);
+    return test.Run();
   }
 
-  absl::Status ValidateHeap() const;
+  absl::Status ValidateHeap() const {
+    RETURN_IF_ERROR(slab_manager_fixture_->ValidateHeap());
+    RETURN_IF_ERROR(metadata_manager_fixture_->ValidateHeap());
+    RETURN_IF_ERROR(small_allocator_fixture_->ValidateHeap());
+    RETURN_IF_ERROR(main_allocator_fixture_->ValidateHeap());
+    return absl::OkStatus();
+  }
 
  private:
   std::shared_ptr<ckmalloc::TestHeap> heap_;
@@ -76,72 +80,43 @@ class TestCorrectness : public ::testing::Test {
   std::shared_ptr<ckmalloc::MainAllocatorFixture> main_allocator_fixture_;
 };
 
-/* static */
-void TestCkMalloc::initialize_heap() {}
+void TestCkMalloc::InitializeHeap() {}
 
-/* static */
-void* TestCkMalloc::malloc(size_t size) {
+absl::StatusOr<void*> TestCkMalloc::Malloc(size_t size) {
   if (size == 0) {
     return nullptr;
   }
   std::cout << "malloc(" << size << ")" << std::endl;
   void* result = fixture_->MainAllocator().Alloc(size);
-  absl::Status valid = fixture_->ValidateHeap();
-  if (!valid.ok()) {
-    std::cerr << valid << std::endl;
-    std::abort();
-  }
+  std::cout << "returned " << result << std::endl;
 
+  RETURN_IF_ERROR(fixture_->ValidateHeap());
   return result;
 }
 
-/* static */
-void* TestCkMalloc::calloc(size_t nmemb, size_t size) {
-  void* block = malloc(nmemb * size);
+absl::StatusOr<void*> TestCkMalloc::Calloc(size_t nmemb, size_t size) {
+  DEFINE_OR_RETURN(void*, block, Malloc(nmemb * size));
   if (block != nullptr) {
     memset(block, 0, nmemb * size);
   }
   return block;
 }
 
-/* static */
-void* TestCkMalloc::realloc(void* ptr, size_t size) {
+absl::StatusOr<void*> TestCkMalloc::Realloc(void* ptr, size_t size) {
   CK_ASSERT_NE(size, 0);
-  if (ptr == nullptr) {
-    return malloc(size);
-  }
   std::cout << "realloc(" << ptr << ", " << size << ")" << std::endl;
   void* result = fixture_->MainAllocator().Realloc(ptr, size);
-  absl::Status valid = fixture_->ValidateHeap();
-  if (!valid.ok()) {
-    std::cerr << valid << std::endl;
-    std::abort();
-  }
+  std::cout << "returned " << result << std::endl;
 
+  RETURN_IF_ERROR(fixture_->ValidateHeap());
   return result;
 }
 
-/* static */
-void TestCkMalloc::free(void* ptr) {
-  if (ptr == nullptr) {
-    return;
-  }
+absl::Status TestCkMalloc::Free(void* ptr) {
   std::cout << "free(" << ptr << ")" << std::endl;
   fixture_->MainAllocator().Free(ptr);
 
-  absl::Status valid = fixture_->ValidateHeap();
-  if (!valid.ok()) {
-    std::cerr << valid << std::endl;
-    std::abort();
-  }
-}
-
-absl::Status TestCorrectness::ValidateHeap() const {
-  RETURN_IF_ERROR(slab_manager_fixture_->ValidateHeap());
-  RETURN_IF_ERROR(metadata_manager_fixture_->ValidateHeap());
-  RETURN_IF_ERROR(small_allocator_fixture_->ValidateHeap());
-  RETURN_IF_ERROR(main_allocator_fixture_->ValidateHeap());
-  return absl::OkStatus();
+  return fixture_->ValidateHeap();
 }
 
 // TEST_F(TestCorrectness, bddaa32) {

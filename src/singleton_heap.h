@@ -4,15 +4,11 @@
 
 #include "absl/status/statusor.h"
 
-#include "src/common.h"
 #include "src/heap_interface.h"
 
 namespace bench {
 
 class SingletonHeap : public Heap {
-  template <MallocInterface I>
-  friend class CorrectnessCheckerImpl;
-
  public:
   // Max heap size is 512 MB.
   static constexpr size_t kHeapSize = 512 * (1 << 20);

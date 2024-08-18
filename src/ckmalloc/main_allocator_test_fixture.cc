@@ -86,9 +86,9 @@ absl::Status MainAllocatorFixture::ValidateHeap() {
       auto [size2, magic2] = meta2;
 
       if (alloc2 < PtrAdd<void>(alloc, size)) {
-        return absl::FailedPreconditionError(absl::StrFormat(
+        return FailedTest(
             "Allocation %p of size %zu overlaps with allocation %p of size %zu",
-            alloc, size, alloc2, size2));
+            alloc, size, alloc2, size2);
       }
     }
 
@@ -111,9 +111,9 @@ absl::Status MainAllocatorFixture::ValidateHeap() {
 
     switch (slab->Type()) {
       case SlabType::kUnmapped: {
-        return absl::FailedPreconditionError(absl::StrFormat(
+        return FailedTest(
             "Unexpected unmapped slab ID encountered in slab map at %v",
-            page_id));
+            page_id);
       }
       case SlabType::kFree:
       case SlabType::kSmall: {
@@ -154,7 +154,6 @@ void MainAllocatorFixture::FillMagic(void* allocation, size_t size,
   }
 }
 
-/* static */
 absl::Status MainAllocatorFixture::CheckMagic(void* allocation, size_t size,
                                               uint64_t magic) {
   uint8_t* start = reinterpret_cast<uint8_t*>(allocation);
@@ -163,9 +162,8 @@ absl::Status MainAllocatorFixture::CheckMagic(void* allocation, size_t size,
   for (uint8_t* ptr = start; ptr != end; ptr++) {
     uint32_t byte = static_cast<uint32_t>((ptr - start) % 8);
     if (*ptr != ((magic >> (8 * byte)) & 0xff)) {
-      return absl::FailedPreconditionError(
-          absl::StrFormat("Allocation %p was dirtied starting from offset %lu",
-                          allocation, ptr - start));
+      return FailedTest("Allocation %p was dirtied starting from offset %lu",
+                        allocation, ptr - start);
     }
   }
 
