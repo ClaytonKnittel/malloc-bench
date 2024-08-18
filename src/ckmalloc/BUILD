@@ -456,11 +456,12 @@ cc_library(
     hdrs = ["state_test_fixture.h"],
     visibility = ["//visibility:public"],
     deps = [
+        ":main_allocator_test_fixture",
         ":metadata_manager_test_fixture",
         ":slab_manager_test_fixture",
-        ":state",
         ":testlib",
         "@abseil-cpp//absl/status",
+        "@cc-util//util:absl_util",
     ],
 )
 

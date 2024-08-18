@@ -56,7 +56,7 @@ class MainAllocatorFixture : public CkMallocTest {
       std::shared_ptr<SlabManagerFixture> slab_manager_test_fixture,
       const std::shared_ptr<TestSlabManager>& slab_manager)
       : heap_(std::move(heap)),
-        slab_map_(std::move(slab_map)),
+        slab_map_(slab_map),
         slab_manager_test_fixture_(std::move(slab_manager_test_fixture)),
         slab_manager_(slab_manager),
         main_allocator_(std::make_shared<TestMainAllocator>(
