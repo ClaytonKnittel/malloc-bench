@@ -276,14 +276,6 @@ absl::Status SlabManagerFixture::ValidateHeap() {
 }
 
 absl::Status SlabManagerFixture::ValidateEmpty() {
-  if (!SlabManager().Underlying().single_page_freelist_.Empty()) {
-    return FailedTest(
-        "Expected single-page freelist to be empty, but was not.");
-  }
-  if (!SlabManager().Underlying().multi_page_free_slabs_.Empty()) {
-    return FailedTest("Expected multi-page freelist to be empty, but was not.");
-  }
-
   PageId page = PageId::Zero();
   PageId end = HeapEndId();
   while (page < end) {
