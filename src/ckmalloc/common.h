@@ -18,7 +18,7 @@ static constexpr uint32_t kPageShift = 12;
 // The size of slabs in bytes.
 static constexpr size_t kPageSize = 1 << kPageShift;
 
-constexpr uint32_t kHeapSizeShift = 29;
+constexpr uint32_t kHeapSizeShift = 31;
 // NOLINTNEXTLINE(google-readability-casting)
 static_assert(bench::SingletonHeap::kHeapSize == (size_t(1) << kHeapSizeShift));
 

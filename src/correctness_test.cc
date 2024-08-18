@@ -46,7 +46,7 @@ class TestCkMalloc : public TracefileExecutor {
 
 class TestCorrectness : public ::testing::Test {
  public:
-  static constexpr size_t kNumPages = (1 << 17);
+  static constexpr size_t kNumPages = (1 << 19);
 
   TestCorrectness()
       : heap_(std::make_shared<ckmalloc::TestHeap>(kNumPages)),
