@@ -39,6 +39,10 @@ class SlabManagerTest : public testing::Test {
     return test_fixture_.ValidateHeap();
   }
 
+  absl::Status ValidateEmpty() {
+    return test_fixture_.ValidateEmpty();
+  }
+
  private:
   std::shared_ptr<TestHeap> heap_;
   std::shared_ptr<TestSlabMap> slab_map_;
@@ -82,6 +86,7 @@ TEST_F(SlabManagerTest, SlabStartFromId) {
 
 TEST_F(SlabManagerTest, EmptyHeapValid) {
   EXPECT_THAT(ValidateHeap(), IsOk());
+  EXPECT_THAT(ValidateEmpty(), IsOk());
 }
 
 TEST_F(SlabManagerTest, SinglePageHeapValid) {
@@ -116,12 +121,14 @@ TEST_F(SlabManagerTest, FreeOnce) {
   ASSERT_OK_AND_DEFINE(AllocatedSlab*, slab, Fixture().AllocateSlab(1));
   ASSERT_THAT(Fixture().FreeSlab(slab), IsOk());
   EXPECT_THAT(ValidateHeap(), IsOk());
+  EXPECT_THAT(ValidateEmpty(), IsOk());
 }
 
 TEST_F(SlabManagerTest, FreeLarge) {
   ASSERT_OK_AND_DEFINE(AllocatedSlab*, slab, Fixture().AllocateSlab(12));
   ASSERT_THAT(Fixture().FreeSlab(slab), IsOk());
   EXPECT_THAT(ValidateHeap(), IsOk());
+  EXPECT_THAT(ValidateEmpty(), IsOk());
 }
 
 TEST_F(SlabManagerTest, FreeTwice) {
@@ -131,6 +138,7 @@ TEST_F(SlabManagerTest, FreeTwice) {
   EXPECT_THAT(ValidateHeap(), IsOk());
   ASSERT_THAT(Fixture().FreeSlab(slab2), IsOk());
   EXPECT_THAT(ValidateHeap(), IsOk());
+  EXPECT_THAT(ValidateEmpty(), IsOk());
 }
 
 TEST_F(SlabManagerTest, CoalesceBehind) {
@@ -140,6 +148,7 @@ TEST_F(SlabManagerTest, CoalesceBehind) {
   EXPECT_THAT(ValidateHeap(), IsOk());
   ASSERT_THAT(Fixture().FreeSlab(slab1), IsOk());
   EXPECT_THAT(ValidateHeap(), IsOk());
+  EXPECT_THAT(ValidateEmpty(), IsOk());
 }
 
 TEST_F(SlabManagerTest, CoalesceAhead) {
@@ -149,6 +158,7 @@ TEST_F(SlabManagerTest, CoalesceAhead) {
   EXPECT_THAT(ValidateHeap(), IsOk());
   ASSERT_THAT(Fixture().FreeSlab(slab2), IsOk());
   EXPECT_THAT(ValidateHeap(), IsOk());
+  EXPECT_THAT(ValidateEmpty(), IsOk());
 }
 
 TEST_F(SlabManagerTest, CoalesceBothDirections) {
@@ -161,6 +171,7 @@ TEST_F(SlabManagerTest, CoalesceBothDirections) {
   EXPECT_THAT(ValidateHeap(), IsOk());
   ASSERT_THAT(Fixture().FreeSlab(slab2), IsOk());
   EXPECT_THAT(ValidateHeap(), IsOk());
+  EXPECT_THAT(ValidateEmpty(), IsOk());
 }
 
 TEST_F(SlabManagerTest, ReAllocateFreed) {
