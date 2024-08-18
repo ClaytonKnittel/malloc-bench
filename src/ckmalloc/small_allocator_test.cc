@@ -57,6 +57,13 @@ class SmallAllocatorTest : public ::testing::Test {
     return absl::OkStatus();
   }
 
+  absl::Status ValidateEmpty() {
+    RETURN_IF_ERROR(slab_manager_fixture_->ValidateEmpty());
+    // TODO
+    // RETURN_IF_ERROR(small_allocator_fixture_->ValidateHeap());
+    return absl::OkStatus();
+  }
+
  private:
   std::shared_ptr<TestHeap> heap_;
   std::shared_ptr<TestSlabMap> slab_map_;
@@ -157,6 +164,7 @@ TEST_F(SmallAllocatorTest, FreeOne) {
   FreeSlice(slice);
 
   EXPECT_THAT(ValidateHeap(), IsOk());
+  EXPECT_THAT(ValidateEmpty(), IsOk());
   EXPECT_EQ(Heap().Size(), kPageSize);
 }
 
@@ -176,6 +184,7 @@ TEST_F(SmallAllocatorTest, FreeFullSlab) {
     ASSERT_THAT(ValidateHeap(), IsOk());
   }
 
+  EXPECT_THAT(ValidateEmpty(), IsOk());
   EXPECT_EQ(Heap().Size(), kPageSize);
 }
 
