@@ -13,6 +13,7 @@
 #include "src/ckmalloc/page_id.h"
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/slab_map.h"
+#include "src/ckmalloc/util.h"
 #include "src/heap_interface.h"
 
 namespace ckmalloc {
@@ -104,20 +105,11 @@ void AbslStringify(Sink& sink, const Block& block) {
   }
 }
 
-class TestHeap : public bench::Heap {
+class TestHeap : private AlignedAlloc, public bench::Heap {
  public:
-  static constexpr size_t kMaxNumPages = 64;
-  static constexpr size_t kMaxHeapSize = kMaxNumPages * kPageSize;
-
   explicit TestHeap(size_t n_pages)
-      : bench::Heap(&memory_region_,
-                    std::min(n_pages * kPageSize, kMaxHeapSize)) {
-    assert(n_pages <= kMaxNumPages);
-  }
-
- private:
-  // TODO: dynamically allocate
-  uint8_t memory_region_[kMaxHeapSize];
+      : AlignedAlloc(n_pages * kPageSize, kPageSize),
+        bench::Heap(RegionStart(), n_pages * kPageSize) {}
 };
 
 class CkMallocTest {
