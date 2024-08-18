@@ -86,4 +86,19 @@ absl::Status SmallAllocatorFixture::ValidateHeap() {
   return absl::OkStatus();
 }
 
+absl::Status SmallAllocatorFixture::ValidateEmpty() {
+  // Verify that each freelist is empty.
+  for (size_t i = 0; i < SizeClass::kNumSizeClasses; i++) {
+    SizeClass size_class = SizeClass::FromOrdinal(i);
+
+    if (small_allocator_->FreelistHead(SizeClass::FromOrdinal(i)) !=
+        PageId::Nil()) {
+      return FailedTest("Expected empty freelist for size class %v",
+                        size_class);
+    }
+  }
+
+  return absl::OkStatus();
+}
+
 }  // namespace ckmalloc

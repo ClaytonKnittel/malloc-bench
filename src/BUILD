@@ -86,7 +86,6 @@ cc_library(
 
 cc_test(
     name = "correctness_test",
-    timeout = "eternal",
     srcs = ["correctness_test.cc"],
     data = [
         "//traces",

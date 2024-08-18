@@ -102,6 +102,8 @@ class MainAllocatorFixture : public CkMallocTest {
 
   absl::Status ValidateHeap() override;
 
+  absl::Status ValidateEmpty();
+
  private:
   static void FillMagic(void* allocation, size_t size, uint64_t magic);
 

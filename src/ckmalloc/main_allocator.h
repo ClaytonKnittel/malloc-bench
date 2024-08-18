@@ -140,6 +140,8 @@ void MainAllocatorImpl<SlabMap, SlabManager, SmallAllocator>::Free(void* ptr) {
 
   switch (slab->Type()) {
     case SlabType::kSmall: {
+      small_alloc_->FreeSlice(slab->ToSmall(),
+                              AllocatedSlice::FromUserDataPtr(ptr));
       break;
     }
     case SlabType::kLarge: {

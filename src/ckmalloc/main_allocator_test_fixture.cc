@@ -144,6 +144,14 @@ absl::Status MainAllocatorFixture::ValidateHeap() {
   return absl::OkStatus();
 }
 
+absl::Status MainAllocatorFixture::ValidateEmpty() {
+  if (!allocations_.empty()) {
+    return FailedTest("Expected empty allocations set");
+  }
+
+  return absl::OkStatus();
+}
+
 /* static */
 void MainAllocatorFixture::FillMagic(void* allocation, size_t size,
                                      uint64_t magic) {
