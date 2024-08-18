@@ -87,9 +87,12 @@ absl::StatusOr<void*> TestCkMalloc::Malloc(size_t size) {
   if (size == 0) {
     return nullptr;
   }
-  std::cout << "malloc(" << size << ")" << std::endl;
+  // std::cout << "malloc(" << size << ")" << std::endl;
   void* result = fixture_->MainAllocator().Alloc(size);
-  std::cout << "returned " << result << std::endl;
+  // std::cout << "returned " << result << std::endl;
+  if (result == nullptr) {
+    return absl::FailedPreconditionError("Returned nullptr from malloc");
+  }
 
   RETURN_IF_ERROR(fixture_->ValidateHeap());
   return result;
@@ -104,17 +107,28 @@ absl::StatusOr<void*> TestCkMalloc::Calloc(size_t nmemb, size_t size) {
 }
 
 absl::StatusOr<void*> TestCkMalloc::Realloc(void* ptr, size_t size) {
+  if (ptr == nullptr) {
+    return Malloc(size);
+  }
+
   CK_ASSERT_NE(size, 0);
-  std::cout << "realloc(" << ptr << ", " << size << ")" << std::endl;
+  // std::cout << "realloc(" << ptr << ", " << size << ")" << std::endl;
   void* result = fixture_->MainAllocator().Realloc(ptr, size);
-  std::cout << "returned " << result << std::endl;
+  // std::cout << "returned " << result << std::endl;
+  if (result == nullptr) {
+    return absl::FailedPreconditionError("Returned nullptr from realloc");
+  }
 
   RETURN_IF_ERROR(fixture_->ValidateHeap());
   return result;
 }
 
 absl::Status TestCkMalloc::Free(void* ptr) {
-  std::cout << "free(" << ptr << ")" << std::endl;
+  if (ptr == nullptr) {
+    return absl::OkStatus();
+  }
+
+  // std::cout << "free(" << ptr << ")" << std::endl;
   fixture_->MainAllocator().Free(ptr);
 
   return fixture_->ValidateHeap();

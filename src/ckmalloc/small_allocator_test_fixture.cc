@@ -76,14 +76,6 @@ absl::Status SmallAllocatorFixture::ValidateHeap() {
     }
 
     if (freelist_slabs != slabs[i]) {
-      for (const auto& slab : freelist_slabs) {
-        std::cout << "freelist: " << slab->StartId() << " "
-                  << slab->SizeClass().SliceSize() << std::endl;
-      }
-      for (const auto& slab : slabs[i]) {
-        std::cout << "heap: " << slab->StartId() << " "
-                  << slab->SizeClass().SliceSize() << std::endl;
-      }
       return FailedTest(
           "Freelist slabs for size class %v do not match those found in the "
           "heap, some slabs are missing.",

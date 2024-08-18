@@ -66,8 +66,8 @@ cc_library(
 
 cc_library(
     name = "correctness_checker",
-    hdrs = ["correctness_checker.h"],
     srcs = ["correctness_checker.cc"],
+    hdrs = ["correctness_checker.h"],
     deps = [
         ":allocator_interface",
         ":heap_interface",
@@ -105,6 +105,7 @@ cc_test(
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
+    shard_count = 8,
 )
 
 cc_library(
@@ -143,9 +144,9 @@ cc_library(
     hdrs = ["tracefile_executor.h"],
     deps = [
         ":tracefile_reader",
+        "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
-        "@abseil-cpp//absl/container:flat_hash_map",
         "@cc-util//util:absl_util",
     ],
 )
