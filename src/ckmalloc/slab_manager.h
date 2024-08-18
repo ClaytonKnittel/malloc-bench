@@ -126,7 +126,7 @@ class SlabManagerImpl {
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
 SlabManagerImpl<MetadataAlloc, SlabMap>::SlabManagerImpl(bench::Heap* heap,
                                                          SlabMap* slab_map)
-    : heap_(heap), heap_start_(heap->End()), slab_map_(slab_map) {}
+    : heap_(heap), heap_start_(heap->Start()), slab_map_(slab_map) {}
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
 void* SlabManagerImpl<MetadataAlloc, SlabMap>::PageStartFromId(
