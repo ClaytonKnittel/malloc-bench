@@ -55,6 +55,8 @@ class SmallAllocatorFixture : public CkMallocTest {
 
   absl::Status ValidateHeap() override;
 
+  absl::Status ValidateEmpty();
+
  private:
   std::shared_ptr<TestHeap> heap_;
   std::shared_ptr<TestSlabMap> slab_map_;

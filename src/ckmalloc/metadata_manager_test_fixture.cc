@@ -17,7 +17,8 @@ using TestMetadataManager = MetadataManagerFixture::TestMetadataManager;
 TestMetadataManager::TestMetadataManager(MetadataManagerFixture* test_fixture,
                                          TestSlabMap* slab_map,
                                          TestSlabManager* slab_manager)
-    : test_fixture_(test_fixture), metadata_manager_(slab_map, slab_manager) {}
+    : test_fixture_(test_fixture),
+      metadata_manager_(slab_map, slab_manager, PageId::Zero()) {}
 
 void* TestMetadataManager::Alloc(size_t size, size_t alignment) {
   void* block = metadata_manager_.Alloc(size, alignment);
