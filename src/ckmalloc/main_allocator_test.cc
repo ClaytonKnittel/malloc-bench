@@ -58,7 +58,15 @@ class MainAllocatorTest : public ::testing::Test {
 
   absl::Status ValidateHeap() {
     RETURN_IF_ERROR(slab_manager_fixture_->ValidateHeap());
+    RETURN_IF_ERROR(small_allocator_fixture_->ValidateHeap());
     RETURN_IF_ERROR(main_allocator_fixture_->ValidateHeap());
+    return absl::OkStatus();
+  }
+
+  absl::Status ValidateEmpty() {
+    RETURN_IF_ERROR(slab_manager_fixture_->ValidateEmpty());
+    RETURN_IF_ERROR(small_allocator_fixture_->ValidateEmpty());
+    RETURN_IF_ERROR(main_allocator_fixture_->ValidateEmpty());
     return absl::OkStatus();
   }
 
@@ -95,6 +103,7 @@ TEST_F(MainAllocatorTest, FreeSmall) {
   MainAllocator().Free(ptr);
 
   EXPECT_THAT(ValidateHeap(), IsOk());
+  EXPECT_THAT(ValidateEmpty(), IsOk());
 }
 
 TEST_F(MainAllocatorTest, FreeTwoSmall) {
@@ -133,6 +142,7 @@ TEST_F(MainAllocatorTest, FreeLarge) {
 
   EXPECT_THAT(ValidateHeap(), IsOk());
   EXPECT_THAT(FreelistList(), ElementsAre());
+  EXPECT_THAT(ValidateEmpty(), IsOk());
 }
 
 TEST_F(MainAllocatorTest, FreeTwoLarge) {

@@ -59,8 +59,7 @@ class SmallAllocatorTest : public ::testing::Test {
 
   absl::Status ValidateEmpty() {
     RETURN_IF_ERROR(slab_manager_fixture_->ValidateEmpty());
-    // TODO
-    // RETURN_IF_ERROR(small_allocator_fixture_->ValidateHeap());
+    RETURN_IF_ERROR(small_allocator_fixture_->ValidateEmpty());
     return absl::OkStatus();
   }
 
