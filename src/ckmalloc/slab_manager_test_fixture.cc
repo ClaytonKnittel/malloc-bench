@@ -58,22 +58,6 @@ void TestSlabManager::HandleAlloc(AllocatedSlab* slab) {
   CK_ASSERT_TRUE(inserted);
 }
 
-/* static */
-std::pair<std::shared_ptr<SlabManagerFixture>, std::shared_ptr<TestSlabManager>>
-SlabManagerFixture::InitializeTest(
-    const std::shared_ptr<TestHeap>& heap,
-    const std::shared_ptr<TestSlabMap>& slab_map) {
-  void* slab_mgr_memory = operator new(sizeof(TestSlabManager));
-  std::shared_ptr<TestSlabManager> slab_manager(
-      reinterpret_cast<TestSlabManager*>(slab_mgr_memory));
-  auto test_fixture =
-      std::make_shared<SlabManagerFixture>(heap, slab_map, slab_manager);
-  new (slab_mgr_memory)
-      TestSlabManager(test_fixture.get(), heap.get(), slab_map.get());
-
-  return std::make_pair(test_fixture, slab_manager);
-}
-
 absl::Status SlabManagerFixture::ValidateHeap() {
   if (Heap().Size() % kPageSize != 0) {
     return absl::FailedPreconditionError(absl::StrFormat(
