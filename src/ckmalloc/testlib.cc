@@ -162,14 +162,22 @@ absl::Status ValidateLargeSlabs(const std::vector<LargeSlabInfo>& slabs,
                               "%v followed by %v",
                               *prev_block, *block));
         }
+      } else if (block->PrevFree()) {
+        if (prev_block == nullptr) {
+          return absl::FailedPreconditionError(absl::StrFormat(
+              "Prev free not set correctly in block %v at beginning of slab",
+              *block));
+        }
+        return absl::FailedPreconditionError(
+            absl::StrFormat("Prev free not set correctly in block %v, prev %v",
+                            *block, *prev_block));
       }
 
       if (block->Size() > PtrDistance(slab_info.end, block)) {
-        return absl::FailedPreconditionError(absl::StrFormat(
-            "Encountered block with size larger than remainder of heap: %v, "
-            "heap "
-            "has %zu bytes left",
-            *block, PtrDistance(slab_info.end, block)));
+        return absl::FailedPreconditionError(
+            absl::StrFormat("Encountered block with size larger than remainder "
+                            "of heap: %v, heap has %zu bytes left",
+                            *block, PtrDistance(slab_info.end, block)));
       }
 
       prev_block = block;
