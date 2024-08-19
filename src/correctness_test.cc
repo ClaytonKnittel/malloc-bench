@@ -41,7 +41,7 @@ class TestCkMalloc : public TracefileExecutor {
  private:
   class TestCorrectness* fixture_;
   uint32_t validate_every_n_;
-  uint32_t iter_ = 0;
+  uint64_t iter_ = 0;
 };
 
 class TestCorrectness : public ::testing::Test {
@@ -116,9 +116,8 @@ absl::StatusOr<void*> TestCkMalloc::Malloc(size_t size) {
     return absl::FailedPreconditionError("Returned nullptr from malloc");
   }
 
-  if (++iter_ == validate_every_n_) {
+  if (++iter_ % validate_every_n_ == 0) {
     RETURN_IF_ERROR(fixture_->ValidateHeap());
-    iter_ = 0;
   }
   return result;
 }
@@ -144,9 +143,8 @@ absl::StatusOr<void*> TestCkMalloc::Realloc(void* ptr, size_t size) {
     return absl::FailedPreconditionError("Returned nullptr from realloc");
   }
 
-  if (++iter_ == validate_every_n_) {
+  if (++iter_ % validate_every_n_ == 0) {
     RETURN_IF_ERROR(fixture_->ValidateHeap());
-    iter_ = 0;
   }
   return result;
 }
@@ -161,11 +159,9 @@ absl::Status TestCkMalloc::Free(void* ptr) {
 #endif
   fixture_->MainAllocator().Free(ptr);
 
-  if (++iter_ == validate_every_n_) {
+  if (++iter_ % validate_every_n_ == 0) {
     RETURN_IF_ERROR(fixture_->ValidateHeap());
-    iter_ = 0;
   }
-
   return absl::OkStatus();
 }
 
@@ -200,13 +196,15 @@ TEST_F(TestCorrectness, cbitabs) {
 }
 
 TEST_F(TestCorrectness, cbitparity) {
-  ASSERT_THAT(RunTrace("traces/cbit-parity.trace", /*validate_every_n=*/1024),
+  ASSERT_THAT(RunTrace("traces/cbit-parity.trace",
+                       /*validate_every_n=*/1024),
               util::IsOk());
   ASSERT_THAT(ValidateEmpty(), IsOk());
 }
 
 TEST_F(TestCorrectness, cbitsatadd) {
-  ASSERT_THAT(RunTrace("traces/cbit-satadd.trace", /*validate_every_n=*/1024),
+  ASSERT_THAT(RunTrace("traces/cbit-satadd.trace",
+                       /*validate_every_n=*/1024),
               util::IsOk());
   ASSERT_THAT(ValidateEmpty(), IsOk());
 }
@@ -238,13 +236,15 @@ TEST_F(TestCorrectness, NgramGulliver2) {
 }
 
 TEST_F(TestCorrectness, NgramMoby1) {
-  ASSERT_THAT(RunTrace("traces/ngram-moby1.trace", /*validate_every_n=*/1024),
+  ASSERT_THAT(RunTrace("traces/ngram-moby1.trace",
+                       /*validate_every_n=*/1024),
               util::IsOk());
   ASSERT_THAT(ValidateEmpty(), IsOk());
 }
 
 TEST_F(TestCorrectness, NgramShake1) {
-  ASSERT_THAT(RunTrace("traces/ngram-shake1.trace", /*validate_every_n=*/1024),
+  ASSERT_THAT(RunTrace("traces/ngram-shake1.trace",
+                       /*validate_every_n=*/1024),
               util::IsOk());
   ASSERT_THAT(ValidateEmpty(), IsOk());
 }
