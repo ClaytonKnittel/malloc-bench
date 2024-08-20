@@ -19,7 +19,7 @@ git_override(
 bazel_dep(name = "cc-util")
 git_override(
     module_name = "cc-util",
-    commit = "d1b52a96fea91c3d4fdb273b290a060f7f71cfa1",
+    commit = "bbd3f78ed7e1a441f6ae886667bd0316f541173f",
     remote = "https://github.com/ClaytonKnittel/cc-util.git",
 )
 

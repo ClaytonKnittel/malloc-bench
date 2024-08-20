@@ -21,7 +21,12 @@ inline void* calloc(size_t nmemb, size_t size) {
 }
 
 inline void* realloc(void* ptr, size_t size) {
-  return jsmalloc::realloc(ptr, size);
+  // TODO: implement
+  void* new_ptr = malloc(size);
+  if (ptr != nullptr) {
+    memcpy(new_ptr, ptr, size);
+  }
+  return new_ptr;
 }
 
 inline void free(void* ptr) {

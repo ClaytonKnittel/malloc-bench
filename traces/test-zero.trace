@@ -6,8 +6,10 @@
 --79596-- malloc(1024) = 0x4A9F040
 --79596-- malloc(8811) = 0x4A9F260
 --79596-- malloc(0) = 0x0
---79596-- realloc(0x4A9F040,0) = 0x0
+--79596-- realloc(0,128) = 0x4AC0000
 --79596-- free(0x4A9F260)
+--79596-- free(0x4AC0000)
+--79596-- free(0x4A9F040)
 ==79596== 
 ==79596== HEAP SUMMARY:
 ==79596==     in use at exit: 0 bytes in 0 blocks
