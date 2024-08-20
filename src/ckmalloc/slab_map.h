@@ -44,6 +44,10 @@ class SlabMapImpl {
   // (inclusive) to `slab`.
   void InsertRange(PageId start_id, PageId end_id, MappedSlab* slab);
 
+  // Clears a slab map entry if it is allocated, mapping it to `nullptr`,
+  // otherwise doing nothing.
+  void Clear(PageId page_id);
+
  private:
   class Leaf {
    public:
@@ -126,6 +130,14 @@ void SlabMapImpl<MetadataAlloc>::InsertRange(PageId start_id, PageId end_id,
          leaf_idx++) {
       leaf.SetLeaf(leaf_idx, slab);
     }
+  }
+}
+
+template <MetadataAllocInterface MetadataAlloc>
+void SlabMapImpl<MetadataAlloc>::Clear(PageId page_id) {
+  Leaf* leaf = (*this)[RootIdx(page_id)];
+  if (leaf != nullptr) {
+    leaf->SetLeaf(LeafIdx(page_id), nullptr);
   }
 }
 

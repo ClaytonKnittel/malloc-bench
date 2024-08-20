@@ -36,21 +36,18 @@ void* TestMetadataManager::Alloc(size_t size, size_t alignment) {
 Slab* TestMetadataManager::NewSlabMeta() {
   Slab* slab = metadata_manager_.NewSlabMeta();
 
-  auto [it, inserted] =
-      test_fixture_->allocated_blocks_.insert({ slab, sizeof(Slab) });
-  CK_ASSERT_TRUE(inserted);
-
-  // Erase this slab metadata from the freed set if it was there.
-  test_fixture_->freed_slab_metadata_.erase(slab);
+  // If the slab metadata freelist is not empty, then something from it must be
+  // allocated.
+  if (!test_fixture_->freed_slab_metadata_.empty()) {
+    auto it = test_fixture_->freed_slab_metadata_.find(slab);
+    CK_ASSERT_TRUE(it != test_fixture_->freed_slab_metadata_.end());
+    test_fixture_->freed_slab_metadata_.erase(it);
+  }
 
   return slab;
 }
 
 void TestMetadataManager::FreeSlabMeta(MappedSlab* slab) {
-  auto it = test_fixture_->allocated_blocks_.find(slab);
-  CK_ASSERT_FALSE(it == test_fixture_->allocated_blocks_.end());
-  test_fixture_->allocated_blocks_.erase(it);
-
   metadata_manager_.FreeSlabMeta(slab);
 
   auto [_, inserted] = test_fixture_->freed_slab_metadata_.insert(

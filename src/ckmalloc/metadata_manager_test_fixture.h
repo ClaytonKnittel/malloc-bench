@@ -23,7 +23,8 @@ class MetadataManagerFixture : public CkMallocTest {
 
   class TestMetadataManager {
    public:
-    using MetadataManagerT = MetadataManagerImpl<TestSlabMap, TestSlabManager>;
+    using MetadataManagerT = MetadataManagerImpl<TestGlobalMetadataAlloc,
+                                                 TestSlabMap, TestSlabManager>;
 
     TestMetadataManager(class MetadataManagerFixture* test_fixture,
                         TestSlabMap* slab_map, TestSlabManager* slab_manager);
