@@ -78,6 +78,11 @@ void TestGlobalMetadataAlloc::ClearAllAllocs() {
   allocator_->ClearAllAllocs();
 }
 
+/* static */
+void TestGlobalMetadataAlloc::ClearAllocatorOverride() {
+  allocator_ = &default_detached_allocator;
+}
+
 absl::Status ValidateLargeSlabs(const std::vector<LargeSlabInfo>& slabs,
                                 const Freelist& freelist) {
   absl::flat_hash_set<const Block*> free_blocks;
