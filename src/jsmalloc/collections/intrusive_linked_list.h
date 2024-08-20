@@ -99,7 +99,7 @@ class IntrusiveLinkedList {
         : curr_(&node), node_field_(node_field) {}
 
     Node* curr_;
-    Node T::*node_field_;
+    Node T::* const node_field_;
   };
 
   size_t size() const {
@@ -157,7 +157,7 @@ class IntrusiveLinkedList {
     return head_.prev_->item(node_field_);
   }
 
-  Node T::*node_field_;
+  Node T::* const node_field_;
   Node head_;
   size_t size_ = 0;
 };
