@@ -21,6 +21,22 @@ using util::IsOk;
 
 // #define PRINT
 
+class TestMetadataAlloc : public ckmalloc::TestMetadataAllocInterface {
+ public:
+  explicit TestMetadataAlloc(class TestCorrectness* fixture)
+      : fixture_(fixture) {}
+
+  ckmalloc::Slab* SlabAlloc() override;
+  void SlabFree(ckmalloc::MappedSlab* slab) override;
+  void* Alloc(size_t size, size_t alignment) override;
+
+  // Test-only function to delete memory allocted by `Alloc`.
+  void ClearAllAllocs() override;
+
+ private:
+  class TestCorrectness* const fixture_;
+};
+
 class TestCkMalloc : public TracefileExecutor {
   friend class TestCorrectness;
 
@@ -30,6 +46,7 @@ class TestCkMalloc : public TracefileExecutor {
                         uint32_t validate_every_n)
       : TracefileExecutor(std::move(tracefile_reader)),
         fixture_(fixture),
+        allocator_(fixture),
         validate_every_n_(validate_every_n) {}
 
   void InitializeHeap() override;
@@ -40,6 +57,7 @@ class TestCkMalloc : public TracefileExecutor {
 
  private:
   class TestCorrectness* fixture_;
+  TestMetadataAlloc allocator_;
   uint32_t validate_every_n_;
   uint64_t iter_ = 0;
 };
@@ -63,6 +81,10 @@ class TestCorrectness : public ::testing::Test {
             std::make_shared<ckmalloc::MainAllocatorFixture>(
                 heap_, slab_map_, slab_manager_fixture_,
                 small_allocator_fixture_)) {}
+
+  ckmalloc::MetadataManagerFixture::TestMetadataManager& MetadataManager() {
+    return metadata_manager_fixture_->MetadataManager();
+  }
 
   ckmalloc::MainAllocatorFixture::TestMainAllocator& MainAllocator() {
     return main_allocator_fixture_->MainAllocator();
@@ -99,7 +121,23 @@ class TestCorrectness : public ::testing::Test {
   std::shared_ptr<ckmalloc::MainAllocatorFixture> main_allocator_fixture_;
 };
 
-void TestCkMalloc::InitializeHeap() {}
+ckmalloc::Slab* TestMetadataAlloc::SlabAlloc() {
+  return fixture_->MetadataManager().NewSlabMeta();
+}
+
+void TestMetadataAlloc::SlabFree(ckmalloc::MappedSlab* slab) {
+  fixture_->MetadataManager().FreeSlabMeta(slab);
+}
+
+void* TestMetadataAlloc::Alloc(size_t size, size_t alignment) {
+  return fixture_->MetadataManager().Alloc(size, alignment);
+}
+
+void TestMetadataAlloc::ClearAllAllocs() {}
+
+void TestCkMalloc::InitializeHeap() {
+  ckmalloc::TestGlobalMetadataAlloc::OverrideAllocator(&allocator_);
+}
 
 absl::StatusOr<void*> TestCkMalloc::Malloc(size_t size) {
   if (size == 0) {
