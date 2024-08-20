@@ -109,6 +109,7 @@ absl::Status MainAllocatorFixture::ValidateHeap() {
     if (slab == nullptr) {
       // Assume this is a metadata slab.
       ++page_id;
+      continue;
     }
 
     switch (slab->Type()) {
