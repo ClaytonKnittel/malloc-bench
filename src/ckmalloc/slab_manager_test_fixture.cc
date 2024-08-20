@@ -74,6 +74,7 @@ absl::Status SlabManagerFixture::ValidateHeap() {
     if (slab == nullptr) {
       // This must be a metadata slab.
       page += 1;
+      previous_was_free = false;
       continue;
     }
     if (page != slab->StartId()) {
