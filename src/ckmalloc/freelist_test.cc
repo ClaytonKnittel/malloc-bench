@@ -447,6 +447,24 @@ TEST_F(FreelistTest, ResizeUpBeforeFree) {
   EXPECT_THAT(FreelistList(), ElementsAre(Address(next)));
 }
 
+TEST_F(FreelistTest, ResizeUpBeforeFreeExact) {
+  constexpr uint64_t kBlockSize = 0x500;
+  constexpr uint64_t kNewSize = 0x800;
+  constexpr uint64_t kNextSize = 0x300;
+
+  AllocatedBlock* block = PushAllocated(kBlockSize);
+  PushFree(kNextSize);
+  Block* end_block = PushPhony();
+
+  ASSERT_TRUE(Freelist().ResizeIfPossible(block, kNewSize));
+  EXPECT_EQ(block->Size(), kNewSize);
+
+  Block* next = block->NextAdjacentBlock();
+
+  EXPECT_THAT(ValidateHeap(), IsOk());
+  EXPECT_THAT(FreelistList(), ElementsAre());
+}
+
 TEST_F(FreelistTest, ResizeUpBeforeFreeTooLarge) {
   constexpr uint64_t kBlockSize = 0x490;
   constexpr uint64_t kNewSize = 0x600;
