@@ -152,6 +152,8 @@ void Freelist::MoveBlockHeader(FreeBlock* block, Block* new_head,
 
   if (new_size != 0) {
     InitFree(new_head, new_size);
+  } else {
+    new_head->SetPrevFree(false);
   }
 }
 
