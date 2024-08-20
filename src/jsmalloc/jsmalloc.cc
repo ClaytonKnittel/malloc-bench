@@ -77,7 +77,7 @@ void* realloc(void* ptr, size_t size) {
   if (new_ptr == nullptr) {
     return nullptr;
   }
-  if (size > 0) {
+  if (ptr != nullptr) {
     memcpy(new_ptr, ptr, size);
   }
   free(ptr);
