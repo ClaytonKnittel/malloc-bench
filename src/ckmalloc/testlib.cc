@@ -15,9 +15,14 @@ namespace {
 
 std::vector<std::pair<void*, std::align_val_t>> allocs;
 
-}
+DetachedMetadataAlloc default_detached_allocator;
 
-Slab* TestGlobalMetadataAlloc::SlabAlloc() {
+}  // namespace
+
+TestMetadataAllocInterface* TestGlobalMetadataAlloc::allocator_ =
+    &default_detached_allocator;
+
+Slab* DetachedMetadataAlloc::SlabAlloc() {
 #ifdef __cpp_aligned_new
   return reinterpret_cast<Slab*>(::operator new(
       sizeof(Slab), static_cast<std::align_val_t>(alignof(Slab))));
@@ -26,7 +31,7 @@ Slab* TestGlobalMetadataAlloc::SlabAlloc() {
 #endif
 }
 
-void TestGlobalMetadataAlloc::SlabFree(MappedSlab* slab) {
+void DetachedMetadataAlloc::SlabFree(MappedSlab* slab) {
 #ifdef __cpp_aligned_new
   ::operator delete(slab, static_cast<std::align_val_t>(alignof(Slab)));
 #else
@@ -34,7 +39,7 @@ void TestGlobalMetadataAlloc::SlabFree(MappedSlab* slab) {
 #endif
 }
 
-void* TestGlobalMetadataAlloc::Alloc(size_t size, size_t alignment) {
+void* DetachedMetadataAlloc::Alloc(size_t size, size_t alignment) {
   auto align_val = static_cast<std::align_val_t>(alignment);
 #ifdef __cpp_aligned_new
   void* ptr = ::operator new(size, align_val);
@@ -46,7 +51,7 @@ void* TestGlobalMetadataAlloc::Alloc(size_t size, size_t alignment) {
   return ptr;
 }
 
-void TestGlobalMetadataAlloc::ClearAllAllocs() {
+void DetachedMetadataAlloc::ClearAllAllocs() {
   for (auto [ptr, align_val] : allocs) {
 #ifdef __cpp_aligned_new
     ::operator delete(ptr, align_val);
@@ -55,6 +60,22 @@ void TestGlobalMetadataAlloc::ClearAllAllocs() {
 #endif
   }
   allocs.clear();
+}
+
+Slab* TestGlobalMetadataAlloc::SlabAlloc() {
+  return allocator_->SlabAlloc();
+}
+
+void TestGlobalMetadataAlloc::SlabFree(MappedSlab* slab) {
+  allocator_->SlabFree(slab);
+}
+
+void* TestGlobalMetadataAlloc::Alloc(size_t size, size_t alignment) {
+  return allocator_->Alloc(size, alignment);
+}
+
+void TestGlobalMetadataAlloc::ClearAllAllocs() {
+  allocator_->ClearAllAllocs();
 }
 
 absl::Status ValidateLargeSlabs(const std::vector<LargeSlabInfo>& slabs,
