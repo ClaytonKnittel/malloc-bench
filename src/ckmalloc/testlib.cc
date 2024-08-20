@@ -192,6 +192,12 @@ absl::Status ValidateLargeSlabs(const std::vector<LargeSlabInfo>& slabs,
           block, reinterpret_cast<uint64_t*>(slab_info.end) - 1));
     }
 
+    if (prev_block != nullptr && block->PrevFree() != prev_block->Free()) {
+      return absl::FailedPreconditionError(absl::StrFormat(
+          "Prev-free bit of phony header is incorrect: %v, prev %v", *block,
+          *prev_block));
+    }
+
     if (slab_info.slab != nullptr &&
         allocated_bytes != slab_info.slab->AllocatedBytes()) {
       return absl::FailedPreconditionError(
