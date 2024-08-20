@@ -82,6 +82,10 @@ class TestCorrectness : public ::testing::Test {
                 heap_, slab_map_, slab_manager_fixture_,
                 small_allocator_fixture_)) {}
 
+  ~TestCorrectness() override {
+    ckmalloc::TestGlobalMetadataAlloc::ClearAllocatorOverride();
+  }
+
   ckmalloc::MetadataManagerFixture::TestMetadataManager& MetadataManager() {
     return metadata_manager_fixture_->MetadataManager();
   }

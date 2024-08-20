@@ -50,6 +50,7 @@ class TestGlobalMetadataAlloc {
   static void OverrideAllocator(TestMetadataAllocInterface* allocator) {
     allocator_ = allocator;
   }
+  static void ClearAllocatorOverride();
 
  private:
   static TestMetadataAllocInterface* allocator_;
