@@ -88,7 +88,7 @@ void* MetadataManagerImpl<MetadataAlloc, SlabMap, SlabManager>::Alloc(
     // Since we are calling the non-templated `Alloc` in slab manager, the slab
     // map is not updated for us, and there may be a stale mapping to the
     // previous metadata for this slab.
-    slab_map_->Clear(page_id);
+    slab_map_->ClearRange(page_id, page_id + n_pages - 1);
 
     // If we got a slab metadata object back, return it to the freelist since we
     // don't annotate metadata slabs with metadata.
