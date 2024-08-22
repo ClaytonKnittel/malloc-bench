@@ -21,22 +21,6 @@ using util::IsOk;
 
 // #define PRINT
 
-class TestMetadataAlloc : public ckmalloc::TestMetadataAllocInterface {
- public:
-  explicit TestMetadataAlloc(class TestCorrectness* fixture)
-      : fixture_(fixture) {}
-
-  ckmalloc::Slab* SlabAlloc() override;
-  void SlabFree(ckmalloc::MappedSlab* slab) override;
-  void* Alloc(size_t size, size_t alignment) override;
-
-  // Test-only function to delete memory allocted by `Alloc`.
-  void ClearAllAllocs() override;
-
- private:
-  class TestCorrectness* const fixture_;
-};
-
 class TestCkMalloc : public TracefileExecutor {
   friend class TestCorrectness;
 
@@ -46,7 +30,6 @@ class TestCkMalloc : public TracefileExecutor {
                         uint32_t validate_every_n)
       : TracefileExecutor(std::move(tracefile_reader)),
         fixture_(fixture),
-        allocator_(fixture),
         validate_every_n_(validate_every_n) {}
 
   void InitializeHeap() override;
@@ -57,7 +40,6 @@ class TestCkMalloc : public TracefileExecutor {
 
  private:
   class TestCorrectness* fixture_;
-  TestMetadataAlloc allocator_;
   uint32_t validate_every_n_;
   uint64_t iter_ = 0;
 };
@@ -86,11 +68,11 @@ class TestCorrectness : public ::testing::Test {
     ckmalloc::TestGlobalMetadataAlloc::ClearAllocatorOverride();
   }
 
-  ckmalloc::MetadataManagerFixture::TestMetadataManager& MetadataManager() {
+  ckmalloc::TestMetadataManager& MetadataManager() {
     return metadata_manager_fixture_->MetadataManager();
   }
 
-  ckmalloc::MainAllocatorFixture::TestMainAllocator& MainAllocator() {
+  ckmalloc::TestMainAllocator& MainAllocator() {
     return main_allocator_fixture_->MainAllocator();
   }
 
@@ -125,30 +107,15 @@ class TestCorrectness : public ::testing::Test {
   std::shared_ptr<ckmalloc::MainAllocatorFixture> main_allocator_fixture_;
 };
 
-ckmalloc::Slab* TestMetadataAlloc::SlabAlloc() {
-  return fixture_->MetadataManager().NewSlabMeta();
-}
-
-void TestMetadataAlloc::SlabFree(ckmalloc::MappedSlab* slab) {
-  fixture_->MetadataManager().FreeSlabMeta(slab);
-}
-
-void* TestMetadataAlloc::Alloc(size_t size, size_t alignment) {
-  return fixture_->MetadataManager().Alloc(size, alignment);
-}
-
-void TestMetadataAlloc::ClearAllAllocs() {}
-
-void TestCkMalloc::InitializeHeap() {
-  ckmalloc::TestGlobalMetadataAlloc::OverrideAllocator(&allocator_);
-}
+void TestCkMalloc::InitializeHeap() {}
 
 absl::StatusOr<void*> TestCkMalloc::Malloc(size_t size) {
   if (size == 0) {
     return nullptr;
   }
+
 #ifdef PRINT
-  std::cout << "malloc(" << size << ")" << std::endl;
+  std::cout << "malloc(" << size << ") (" << iter_ << ")" << std::endl;
 #endif
   void* result = fixture_->MainAllocator().Alloc(size);
 #ifdef PRINT
@@ -175,7 +142,8 @@ absl::StatusOr<void*> TestCkMalloc::Realloc(void* ptr, size_t size) {
 
   CK_ASSERT_NE(size, 0);
 #ifdef PRINT
-  std::cout << "realloc(" << ptr << ", " << size << ")" << std::endl;
+  std::cout << "realloc(" << ptr << ", " << size << ") (" << iter_ << ")"
+            << std::endl;
 #endif
   void* result = fixture_->MainAllocator().Realloc(ptr, size);
 #ifdef PRINT
@@ -197,7 +165,7 @@ absl::Status TestCkMalloc::Free(void* ptr) {
   }
 
 #ifdef PRINT
-  std::cout << "free(" << ptr << ")" << std::endl;
+  std::cout << "free(" << ptr << ") (" << iter_ << ")" << std::endl;
 #endif
   fixture_->MainAllocator().Free(ptr);
 
