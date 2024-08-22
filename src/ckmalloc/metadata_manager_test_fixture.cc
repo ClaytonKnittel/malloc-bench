@@ -1,6 +1,7 @@
 #include "src/ckmalloc/metadata_manager_test_fixture.h"
 
 #include "absl/container/flat_hash_map.h"
+#include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "util/absl_util.h"
@@ -44,11 +45,17 @@ void* TestMetadataManager::Alloc(size_t size, size_t alignment) {
 }
 
 Slab* TestMetadataManager::NewSlabMeta() {
+  // If a new slab metadata needs to be allocated, and this triggers allocating
+  // a new metadata slab, it is possible that a slab metadata object is freed in
+  // the process, but we shouldn't expect this new slab metadata to have come
+  // from the freelist.
+  bool was_empty = test_fixture_->freed_slab_metadata_.empty();
+
   Slab* slab = metadata_manager_.NewSlabMeta();
 
   // If the slab metadata freelist is not empty, then something from it must be
   // allocated.
-  if (!test_fixture_->freed_slab_metadata_.empty()) {
+  if (!was_empty) {
     auto it = test_fixture_->freed_slab_metadata_.find(slab);
     CK_ASSERT_TRUE(it != test_fixture_->freed_slab_metadata_.end());
     test_fixture_->freed_slab_metadata_.erase(it);
@@ -154,6 +161,7 @@ absl::Status MetadataManagerFixture::ValidateHeap() {
   }
 
   constexpr size_t kMaxReasonableFreedSlabMetas = 50000;
+  absl::flat_hash_set<const UnmappedSlab*> freelist_slabs;
   size_t n_free_slab_meta = 0;
   for (const UnmappedSlab* slab =
            MetadataManager().Underlying().last_free_slab_;
@@ -163,6 +171,12 @@ absl::Status MetadataManagerFixture::ValidateHeap() {
       return FailedTest(
           "Encountered freed slab metadata in freelist which should not be: %v",
           *slab);
+    }
+
+    auto [it, inserted] = freelist_slabs.insert(slab);
+    if (!inserted) {
+      return FailedTest("Detected cycle in slab metadata freelist at slab %v",
+                        *slab);
     }
 
     if (slab->Type() != SlabType::kUnmapped) {
@@ -175,8 +189,16 @@ absl::Status MetadataManagerFixture::ValidateHeap() {
 
   if (n_free_slab_meta == kMaxReasonableFreedSlabMetas) {
     return FailedTest(
-        "Detected cycle in slab metadata freelist after searching %zu elements",
+        "Did not reach the end of slab metadata freelist after searching %zu "
+        "elements",
         n_free_slab_meta);
+  }
+
+  if (freelist_slabs.size() != freed_slab_metadata_.size()) {
+    return FailedTest(
+        "Freelist of slab metadata is not the expected length: found %zu, "
+        "expected %zu",
+        freelist_slabs.size(), freed_slab_metadata_.size());
   }
 
   absl::flat_hash_set<MappedSlab*> visited_slabs;
