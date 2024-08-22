@@ -39,11 +39,11 @@ class MetadataManagerTest : public testing::Test {
     return slab_manager_fixture_->Heap();
   }
 
-  SlabManagerFixture::TestSlabManager& SlabManager() {
+  TestSlabManager& SlabManager() {
     return slab_manager_fixture_->SlabManager();
   }
 
-  MetadataManagerFixture::TestMetadataManager& MetadataManager() {
+  TestMetadataManager& MetadataManager() {
     return metadata_manager_fixture_->MetadataManager();
   }
 

@@ -12,8 +12,6 @@
 
 namespace ckmalloc {
 
-using TestMetadataManager = MetadataManagerFixture::TestMetadataManager;
-
 TestMetadataManager::TestMetadataManager(MetadataManagerFixture* test_fixture,
                                          TestSlabMap* slab_map,
                                          TestSlabManager* slab_manager)
@@ -169,14 +167,32 @@ absl::Status MetadataManagerFixture::ValidateHeap() {
         n_free_slab_meta);
   }
 
+  absl::flat_hash_set<MappedSlab*> visited_slabs;
+  PageId page = PageId::Zero();
+  PageId end = slab_manager_test_fixture_->HeapEndId();
+  while (page < end) {
+    MappedSlab* slab = SlabMap().FindSlab(page);
+    if (slab == nullptr) {
+      // This must be a metadata slab.
+      page += 1;
+      continue;
+    }
+
+    if (freed_slab_metadata_.contains(slab)) {
+      return FailedTest("Found allocated slab %v in the freelist.", *slab);
+    }
+
+    page += slab->Pages();
+  }
+
   return absl::OkStatus();
 }
 
 absl::Status MetadataManagerFixture::TraceBlockAllocation(void* block,
                                                           size_t size,
                                                           size_t alignment) {
-  // Check that the pointer is aligned relative to the heap start. The heap will
-  // be page-aligned in production, but may not be in tests.
+  // Check that the pointer is aligned relative to the heap start. The heap
+  // will be page-aligned in production, but may not be in tests.
   if ((PtrDistance(block, Heap().Start()) & (alignment - 1)) != 0) {
     return FailedTest(
         "Pointer returned from Alloc not aligned properly: pointer %p, size "
