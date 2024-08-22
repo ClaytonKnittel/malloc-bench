@@ -454,12 +454,10 @@ TEST_F(FreelistTest, ResizeUpBeforeFreeExact) {
 
   AllocatedBlock* block = PushAllocated(kBlockSize);
   PushFree(kNextSize);
-  Block* end_block = PushPhony();
+  PushPhony();
 
   ASSERT_TRUE(Freelist().ResizeIfPossible(block, kNewSize));
   EXPECT_EQ(block->Size(), kNewSize);
-
-  Block* next = block->NextAdjacentBlock();
 
   EXPECT_THAT(ValidateHeap(), IsOk());
   EXPECT_THAT(FreelistList(), ElementsAre());
