@@ -11,11 +11,10 @@
 namespace bench {
 
 size_t RoundUp(size_t size) {
-  return size;
-  // if (size <= 8) {
-  //   return 8;
-  // }
-  // return (size + 0xf) & ~0xf;
+  if (size <= 8) {
+    return 8;
+  }
+  return (size + 0xf) & ~0xf;
 }
 
 absl::StatusOr<double> MeasureUtilization(const std::string& tracefile) {
