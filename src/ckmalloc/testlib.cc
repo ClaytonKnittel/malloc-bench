@@ -79,6 +79,13 @@ void TestGlobalMetadataAlloc::ClearAllAllocs() {
 }
 
 /* static */
+void TestGlobalMetadataAlloc::OverrideAllocator(
+    TestMetadataAllocInterface* allocator) {
+  CK_ASSERT_EQ(allocator_, &default_detached_allocator);
+  allocator_ = allocator;
+}
+
+/* static */
 void TestGlobalMetadataAlloc::ClearAllocatorOverride() {
   allocator_ = &default_detached_allocator;
 }

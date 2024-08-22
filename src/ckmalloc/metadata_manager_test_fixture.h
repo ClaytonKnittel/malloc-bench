@@ -15,6 +15,21 @@
 
 namespace ckmalloc {
 
+class TestMetadataAlloc : public ckmalloc::TestMetadataAllocInterface {
+ public:
+  explicit TestMetadataAlloc(class TestMetadataManager* manager)
+      : manager_(manager) {}
+
+  ckmalloc::Slab* SlabAlloc() override;
+  void SlabFree(ckmalloc::MappedSlab* slab) override;
+  void* Alloc(size_t size, size_t alignment) override;
+
+  void ClearAllAllocs() override {}
+
+ private:
+  class TestMetadataManager* const manager_;
+};
+
 class TestMetadataManager {
  public:
   using MetadataManagerT = MetadataManagerImpl<TestGlobalMetadataAlloc,
@@ -57,7 +72,14 @@ class MetadataManagerFixture : public CkMallocTest {
         slab_manager_(slab_manager_test_fixture_->SlabManagerPtr()),
         metadata_manager_(std::make_shared<TestMetadataManager>(
             this, slab_map_.get(), slab_manager_.get())),
-        rng_(2021, 5) {}
+        allocator_(metadata_manager_.get()),
+        rng_(2021, 5) {
+    TestGlobalMetadataAlloc::OverrideAllocator(&allocator_);
+  }
+
+  ~MetadataManagerFixture() override {
+    TestGlobalMetadataAlloc::ClearAllocatorOverride();
+  }
 
   const char* TestPrefix() const override {
     return kPrefix;
@@ -110,6 +132,8 @@ class MetadataManagerFixture : public CkMallocTest {
   std::shared_ptr<SlabManagerFixture> slab_manager_test_fixture_;
   std::shared_ptr<TestSlabManager> slab_manager_;
   std::shared_ptr<TestMetadataManager> metadata_manager_;
+
+  TestMetadataAlloc allocator_;
 
   util::Rng rng_;
 
