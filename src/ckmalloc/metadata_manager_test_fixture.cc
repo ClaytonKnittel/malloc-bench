@@ -12,6 +12,18 @@
 
 namespace ckmalloc {
 
+Slab* TestMetadataAlloc::SlabAlloc() {
+  return manager_->NewSlabMeta();
+}
+
+void TestMetadataAlloc::SlabFree(MappedSlab* slab) {
+  manager_->FreeSlabMeta(slab);
+}
+
+void* TestMetadataAlloc::Alloc(size_t size, size_t alignment) {
+  return manager_->Alloc(size, alignment);
+};
+
 TestMetadataManager::TestMetadataManager(MetadataManagerFixture* test_fixture,
                                          TestSlabMap* slab_map,
                                          TestSlabManager* slab_manager)
