@@ -14,8 +14,6 @@
 
 namespace ckmalloc {
 
-using TestMainAllocator = MainAllocatorFixture::TestMainAllocator;
-
 TestMainAllocator::TestMainAllocator(MainAllocatorFixture* test_fixture,
                                      TestSlabMap* slab_map,
                                      TestSlabManager* slab_manager,
@@ -30,7 +28,7 @@ void* TestMainAllocator::Alloc(size_t user_size) {
   }
 
   uint64_t magic = test_fixture_->rng_.GenRand64();
-  FillMagic(alloc, user_size, magic);
+  MainAllocatorFixture::FillMagic(alloc, user_size, magic);
 
   auto [it, inserted] =
       test_fixture_->allocations_.insert({ alloc, { user_size, magic } });
@@ -52,8 +50,9 @@ void* TestMainAllocator::Realloc(void* ptr, size_t user_size) {
   }
 
   if (user_size > old_size) {
-    FillMagic(static_cast<uint8_t*>(new_alloc) + old_size, user_size - old_size,
-              std::rotr(magic, (old_size % 8) * 8));
+    MainAllocatorFixture::FillMagic(static_cast<uint8_t*>(new_alloc) + old_size,
+                                    user_size - old_size,
+                                    std::rotr(magic, (old_size % 8) * 8));
   }
 
   test_fixture_->allocations_.erase(it);

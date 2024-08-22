@@ -37,11 +37,11 @@ class SmallAllocatorTest : public ::testing::Test {
     return slab_manager_fixture_->SlabMap();
   }
 
-  SlabManagerFixture::TestSlabManager& SlabManager() {
+  TestSlabManager& SlabManager() {
     return slab_manager_fixture_->SlabManager();
   }
 
-  SmallAllocatorFixture::TestSmallAllocator& SmallAllocator() {
+  TestSmallAllocator& SmallAllocator() {
     return small_allocator_fixture_->SmallAllocator();
   }
 

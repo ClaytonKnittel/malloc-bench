@@ -15,38 +15,38 @@
 
 namespace ckmalloc {
 
+class TestMetadataManager {
+ public:
+  using MetadataManagerT = MetadataManagerImpl<TestGlobalMetadataAlloc,
+                                               TestSlabMap, TestSlabManager>;
+
+  TestMetadataManager(class MetadataManagerFixture* test_fixture,
+                      TestSlabMap* slab_map, TestSlabManager* slab_manager);
+
+  MetadataManagerT& Underlying() {
+    return metadata_manager_;
+  }
+
+  const MetadataManagerT& Underlying() const {
+    return metadata_manager_;
+  }
+
+  void* Alloc(size_t size, size_t alignment = 1);
+
+  Slab* NewSlabMeta();
+
+  void FreeSlabMeta(MappedSlab* slab);
+
+ private:
+  class MetadataManagerFixture* test_fixture_;
+  MetadataManagerT metadata_manager_;
+};
+
 class MetadataManagerFixture : public CkMallocTest {
-  using TestSlabManager = SlabManagerFixture::TestSlabManager;
+  friend TestMetadataManager;
 
  public:
   static constexpr const char* kPrefix = "[MetadataManagerFixture]";
-
-  class TestMetadataManager {
-   public:
-    using MetadataManagerT = MetadataManagerImpl<TestGlobalMetadataAlloc,
-                                                 TestSlabMap, TestSlabManager>;
-
-    TestMetadataManager(class MetadataManagerFixture* test_fixture,
-                        TestSlabMap* slab_map, TestSlabManager* slab_manager);
-
-    MetadataManagerT& Underlying() {
-      return metadata_manager_;
-    }
-
-    const MetadataManagerT& Underlying() const {
-      return metadata_manager_;
-    }
-
-    void* Alloc(size_t size, size_t alignment = 1);
-
-    Slab* NewSlabMeta();
-
-    void FreeSlabMeta(MappedSlab* slab);
-
-   private:
-    class MetadataManagerFixture* test_fixture_;
-    MetadataManagerT metadata_manager_;
-  };
 
   MetadataManagerFixture(
       std::shared_ptr<TestHeap> heap, std::shared_ptr<TestSlabMap> slab_map,

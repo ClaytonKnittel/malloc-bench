@@ -27,7 +27,7 @@ class SlabManagerTest : public testing::Test {
     return *heap_;
   }
 
-  SlabManagerFixture::TestSlabManager& SlabManager() {
+  TestSlabManager& SlabManager() {
     return test_fixture_.SlabManager();
   }
 

@@ -34,11 +34,11 @@ class MainAllocatorTest : public ::testing::Test {
     return slab_manager_fixture_->Heap();
   }
 
-  SlabManagerFixture::TestSlabManager& SlabManager() {
+  TestSlabManager& SlabManager() {
     return slab_manager_fixture_->SlabManager();
   }
 
-  MainAllocatorFixture::TestMainAllocator& MainAllocator() {
+  TestMainAllocator& MainAllocator() {
     return main_allocator_fixture_->MainAllocator();
   }
 
