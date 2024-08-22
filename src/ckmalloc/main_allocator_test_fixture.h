@@ -15,46 +15,45 @@
 
 namespace ckmalloc {
 
+class TestMainAllocator {
+ public:
+  using MainAllocatorT =
+      MainAllocatorImpl<TestSlabMap, TestSlabManager, TestSmallAllocator>;
+
+  TestMainAllocator(class MainAllocatorFixture* test_fixture,
+                    TestSlabMap* slab_map, TestSlabManager* slab_manager,
+                    TestSmallAllocator* small_alloc);
+
+  MainAllocatorT& Underlying() {
+    return main_allocator_;
+  }
+
+  const MainAllocatorT& Underlying() const {
+    return main_allocator_;
+  }
+
+  Freelist& Freelist() {
+    return main_allocator_.large_alloc_.freelist_;
+  }
+
+  void* Alloc(size_t user_size);
+
+  void* Realloc(void* ptr, size_t user_size);
+
+  void Free(void* ptr);
+
+ private:
+  class MainAllocatorFixture* test_fixture_;
+  MainAllocatorT main_allocator_;
+};
+
 class MainAllocatorFixture : public CkMallocTest {
-  using TestSlabManager = SlabManagerFixture::TestSlabManager;
-  using TestSmallAllocator = SmallAllocatorFixture::TestSmallAllocator;
+  friend TestMainAllocator;
 
  public:
   static constexpr const char* kPrefix = "[MainAllocatorFixture]";
 
   static constexpr size_t kNumPages = 64;
-
-  class TestMainAllocator {
-   public:
-    using MainAllocatorT =
-        MainAllocatorImpl<TestSlabMap, TestSlabManager, TestSmallAllocator>;
-
-    TestMainAllocator(class MainAllocatorFixture* test_fixture,
-                      TestSlabMap* slab_map, TestSlabManager* slab_manager,
-                      TestSmallAllocator* small_alloc);
-
-    MainAllocatorT& Underlying() {
-      return main_allocator_;
-    }
-
-    const MainAllocatorT& Underlying() const {
-      return main_allocator_;
-    }
-
-    Freelist& Freelist() {
-      return main_allocator_.large_alloc_.freelist_;
-    }
-
-    void* Alloc(size_t user_size);
-
-    void* Realloc(void* ptr, size_t user_size);
-
-    void Free(void* ptr);
-
-   private:
-    class MainAllocatorFixture* test_fixture_;
-    MainAllocatorT main_allocator_;
-  };
 
   MainAllocatorFixture(
       std::shared_ptr<TestHeap> heap,

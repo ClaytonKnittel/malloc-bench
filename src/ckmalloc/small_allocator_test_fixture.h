@@ -10,12 +10,10 @@
 
 namespace ckmalloc {
 
+using TestSmallAllocator = SmallAllocatorImpl<TestSlabMap, TestSlabManager>;
+
 class SmallAllocatorFixture : public CkMallocTest {
-  using TestSlabManager = SlabManagerFixture::TestSlabManager;
-
  public:
-  using TestSmallAllocator = SmallAllocatorImpl<TestSlabMap, TestSlabManager>;
-
   static constexpr const char* kPrefix = "[SmallAllocatorFixture]";
 
   SmallAllocatorFixture(

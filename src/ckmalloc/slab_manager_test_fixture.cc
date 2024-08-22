@@ -15,8 +15,6 @@
 
 namespace ckmalloc {
 
-using TestSlabManager = SlabManagerFixture::TestSlabManager;
-
 TestSlabManager::TestSlabManager(SlabManagerFixture* test_fixture,
                                  TestHeap* heap, TestSlabMap* slab_map)
     : test_fixture_(test_fixture), slab_manager_(heap, slab_map) {}

@@ -15,7 +15,7 @@ namespace ckmalloc {
 
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
 class LargeAllocatorImpl {
-  friend class MainAllocatorFixture;
+  friend class TestMainAllocator;
 
  public:
   LargeAllocatorImpl(SlabMap* slab_map, SlabManager* slab_manager)
@@ -154,8 +154,8 @@ LargeAllocatorImpl<SlabMap, SlabManager>::AllocLargeSlabAndMakeBlock(
   CK_ASSERT_TRUE(IsAligned(remainder_size, kDefaultAlignment));
 
   AllocatedBlock* block =
-      slab_manager_->FirstBlockInLargeSlab(slab)->InitAllocated(block_size,
-                                                                false);
+      slab_manager_->FirstBlockInLargeSlab(slab)->InitAllocated(
+          block_size, /*prev_free=*/false);
   slab->AddAllocation(block_size);
 
   // Write a phony header for an allocated block of size 0 at the end of the

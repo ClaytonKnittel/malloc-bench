@@ -15,40 +15,42 @@
 
 namespace ckmalloc {
 
+class TestSlabManager {
+ public:
+  using SlabManagerT = SlabManagerImpl<TestGlobalMetadataAlloc, TestSlabMap>;
+
+  TestSlabManager(class SlabManagerFixture* test_fixture, TestHeap* heap,
+                  TestSlabMap* slab_map);
+
+  SlabManagerT& Underlying() {
+    return slab_manager_;
+  }
+
+  void* PageStartFromId(PageId page_id) const;
+
+  PageId PageIdFromPtr(const void* ptr) const;
+
+  std::optional<std::pair<PageId, Slab*>> Alloc(uint32_t n_pages);
+
+  template <typename S, typename... Args>
+  std::optional<std::pair<PageId, S*>> Alloc(uint32_t n_pages, Args...);
+
+  void Free(AllocatedSlab* slab);
+
+  Block* FirstBlockInLargeSlab(LargeSlab* slab);
+
+ private:
+  void HandleAlloc(AllocatedSlab* slab);
+
+  class SlabManagerFixture* test_fixture_;
+  SlabManagerT slab_manager_;
+};
+
 class SlabManagerFixture : public CkMallocTest {
+  friend TestSlabManager;
+
  public:
   static constexpr const char* kPrefix = "[SlabManagerFixture]";
-
-  class TestSlabManager {
-   public:
-    using SlabManagerT = SlabManagerImpl<TestGlobalMetadataAlloc, TestSlabMap>;
-
-    TestSlabManager(class SlabManagerFixture* test_fixture, TestHeap* heap,
-                    TestSlabMap* slab_map);
-
-    SlabManagerT& Underlying() {
-      return slab_manager_;
-    }
-
-    void* PageStartFromId(PageId page_id) const;
-
-    PageId PageIdFromPtr(const void* ptr) const;
-
-    std::optional<std::pair<PageId, Slab*>> Alloc(uint32_t n_pages);
-
-    template <typename S, typename... Args>
-    std::optional<std::pair<PageId, S*>> Alloc(uint32_t n_pages, Args...);
-
-    void Free(AllocatedSlab* slab);
-
-    Block* FirstBlockInLargeSlab(LargeSlab* slab);
-
-   private:
-    void HandleAlloc(AllocatedSlab* slab);
-
-    class SlabManagerFixture* test_fixture_;
-    SlabManagerT slab_manager_;
-  };
 
   class HeapIterator {
     friend class SlabManagerFixture;
@@ -170,8 +172,8 @@ class SlabManagerFixture : public CkMallocTest {
 };
 
 template <typename S, typename... Args>
-std::optional<std::pair<PageId, S*>> SlabManagerFixture::TestSlabManager::Alloc(
-    uint32_t n_pages, Args... args) {
+std::optional<std::pair<PageId, S*>> TestSlabManager::Alloc(uint32_t n_pages,
+                                                            Args... args) {
   using AllocResult = std::pair<PageId, S*>;
   DEFINE_OR_RETURN_OPT(
       AllocResult, result,

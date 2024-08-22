@@ -128,6 +128,7 @@ class AlignedAlloc {
     uintptr_t start = reinterpret_cast<uintptr_t>(memory_region_);
     uintptr_t alignment_offset = AlignUp(start, alignment) - start;
     start_ = memory_region_ + alignment_offset;
+    CK_ASSERT_TRUE(IsAligned(reinterpret_cast<uintptr_t>(start_), alignment));
   }
 
   ~AlignedAlloc() {
@@ -135,11 +136,11 @@ class AlignedAlloc {
   }
 
   void* RegionStart() {
-    return memory_region_;
+    return start_;
   }
 
   const void* RegionStart() const {
-    return memory_region_;
+    return start_;
   }
 
  private:
