@@ -47,9 +47,7 @@ class TestGlobalMetadataAlloc {
   // Test-only function to delete memory allocted by `Alloc`.
   static void ClearAllAllocs();
 
-  static void OverrideAllocator(TestMetadataAllocInterface* allocator) {
-    allocator_ = allocator;
-  }
+  static void OverrideAllocator(TestMetadataAllocInterface* allocator);
   static void ClearAllocatorOverride();
 
  private:

@@ -184,10 +184,11 @@ TEST_F(MetadataManagerTest, AllocateWithOtherAllocators) {
 
   // Allocate another slab-sized metadata alloc.
   ASSERT_OK_AND_DEFINE(void*, v2, Fixture().Alloc(kPageSize));
-  // v2 should be allocated in a new slab after the two already-allocated slabs.
-  EXPECT_EQ(v2, SlabManager().PageStartFromId(PageId(2)));
+  // v2 should be allocated in a new slab after the two already-allocated slabs,
+  // plus an additional 3 slabs caused by metadata allocation.
+  EXPECT_EQ(v2, SlabManager().PageStartFromId(PageId(5)));
   EXPECT_THAT(ValidateHeap(), IsOk());
-  EXPECT_EQ(Heap().Size(), 3 * kPageSize);
+  EXPECT_EQ(Heap().Size(), 6 * kPageSize);
 }
 
 TEST_F(MetadataManagerTest, AllocateSlabMeta) {
