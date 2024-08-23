@@ -19,6 +19,19 @@ cc_binary(
     ],
 )
 
+cc_binary(
+    name = "perf",
+    srcs = ["perf.cc"],
+    data = [
+        "//traces",
+    ],
+    deps = [
+        ":perftest",
+        "@abseil-cpp//absl/status:statusor",
+        "@cc-util//util:absl_util",
+    ],
+)
+
 cc_library(
     name = "perftest",
     srcs = ["perftest.cc"],
