@@ -77,6 +77,19 @@ cc_test(
 )
 
 cc_library(
+    name = "heap_printer",
+    hdrs = ["heap_printer.h"],
+    srcs = ["heap_printer.cc"],
+    deps = [
+        ":page_id",
+        ":slab",
+        ":slab_map",
+        ":util",
+        "//src:heap_interface",
+    ],
+)
+
+cc_library(
     name = "large_allocator",
     hdrs = ["large_allocator.h"],
     deps = [
