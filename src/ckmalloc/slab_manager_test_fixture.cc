@@ -42,7 +42,7 @@ void TestSlabManager::Free(AllocatedSlab* slab) {
   slab_manager_.Free(slab);
 }
 
-Block* TestSlabManager::FirstBlockInLargeSlab(LargeSlab* slab) {
+Block* TestSlabManager::FirstBlockInLargeSlab(const LargeSlab* slab) const {
   return slab_manager_.FirstBlockInLargeSlab(slab);
 }
 

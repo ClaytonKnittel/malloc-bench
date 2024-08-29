@@ -79,13 +79,14 @@ cc_test(
 cc_library(
     name = "heap_printer",
     hdrs = ["heap_printer.h"],
-    srcs = ["heap_printer.cc"],
     deps = [
+        ":common",
         ":page_id",
         ":slab",
         ":slab_map",
         ":util",
         "//src:heap_interface",
+        "@abseil-cpp//absl/strings:str_format",
     ],
 )
 
@@ -463,12 +464,12 @@ cc_library(
         ":common",
         ":main_allocator",
         ":metadata_manager",
+        ":page_id",
         ":slab",
         ":slab_manager",
         ":slab_map",
         ":small_allocator",
         ":util",
-        ":page_id",
         "//src:heap_interface",
     ],
 )
