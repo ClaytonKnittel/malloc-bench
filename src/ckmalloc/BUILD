@@ -495,6 +495,27 @@ cc_library(
     ],
 )
 
+cc_binary(
+    name = "trace_replayer",
+    srcs = ["trace_replayer.cc"],
+    data = [
+        "//traces",
+    ],
+    deps = [
+        ":ckmalloc",
+        ":state",
+        "//src:singleton_heap",
+        "//src:tracefile_executor",
+        "//src:tracefile_reader",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/flags:parse",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@cc-util//util:absl_util",
+        "@cc-util//util:csi",
+    ],
+)
+
 cc_library(
     name = "util",
     hdrs = ["util.h"],

@@ -20,7 +20,7 @@ class TracefileExecutor {
   virtual absl::StatusOr<void*> Malloc(size_t size) = 0;
   virtual absl::StatusOr<void*> Calloc(size_t nmemb, size_t size) = 0;
   virtual absl::StatusOr<void*> Realloc(void* ptr, size_t size) = 0;
-  virtual absl::Status Free(void* id) = 0;
+  virtual absl::Status Free(void* ptr) = 0;
 
  private:
   using IdMap = absl::flat_hash_map<void*, void*>;
