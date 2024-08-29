@@ -155,6 +155,7 @@ cc_library(
     name = "tracefile_executor",
     srcs = ["tracefile_executor.cc"],
     hdrs = ["tracefile_executor.h"],
+    visibility = ["//:__subpackages__"],
     deps = [
         ":tracefile_reader",
         "@abseil-cpp//absl/container:flat_hash_map",
@@ -168,6 +169,7 @@ cc_library(
     name = "tracefile_reader",
     srcs = ["tracefile_reader.cc"],
     hdrs = ["tracefile_reader.h"],
+    visibility = ["//:__subpackages__"],
     deps = [
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
