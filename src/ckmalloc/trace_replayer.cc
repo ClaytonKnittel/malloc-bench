@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstdio>
+#include <ios>
 #include <string>
 #include <sys/ioctl.h>
 #include <termios.h>
@@ -10,6 +11,7 @@
 #include "absl/flags/parse.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/str_format.h"
 #include "absl/strings/str_split.h"
 #include "util/absl_util.h"
 #include "util/csi.h"
@@ -140,12 +142,22 @@ class TraceReplayer : public TracefileExecutor {
   }
 
   absl::Status AwaitInput() {
+    iter_++;
+    if (skips_ != 0) {
+      skips_--;
+      return absl::OkStatus();
+    }
+
     while (true) {
       RETURN_IF_ERROR(Display());
       DEFINE_OR_RETURN(uint16_t, term_height, TermHeight());
 
       char c = getchar();
       if (c == 'n') {
+        break;
+      }
+      if (c == 'm') {
+        skips_ = 49;
         break;
       }
 
@@ -186,27 +198,28 @@ class TraceReplayer : public TracefileExecutor {
     std::cout << "Next: [n], scroll down: [j], scroll up: [k], quit: [q]"
               << std::endl;
 
-    std::cout << "Next op: ";
+    std::cout << "Next op: " << std::left << std::setw(20);
     switch (op_) {
       case Op::kMalloc: {
-        std::cout << "malloc(" << input_size_ << ")" << std::endl;
+        std::cout << absl::StrFormat("malloc(%zu)", input_size_);
         break;
       }
       case Op::kCalloc: {
-        std::cout << "calloc(" << input_nmemb_ << ", " << input_size_ << ")"
-                  << std::endl;
+        std::cout << absl::StrFormat("calloc(%zu, %zu)", input_nmemb_,
+                                     input_size_);
         break;
       }
       case Op::kRealloc: {
-        std::cout << "realloc(" << input_ptr_ << ", " << input_size_ << ")"
-                  << std::endl;
+        std::cout << absl::StrFormat("realloc(%p, %zu)", input_ptr_,
+                                     input_size_);
         break;
       }
       case Op::kFree: {
-        std::cout << "free(" << input_ptr_ << ")" << std::endl;
+        std::cout << absl::StrFormat("free(%p)", input_ptr_);
         break;
       }
     }
+    std::cout << " (" << iter_ << ")" << std::endl;
 
     uint32_t end = std::min<uint32_t>(printed_heap_.size(),
                                       scroll_ + term_height - kUiLines);
@@ -241,6 +254,9 @@ class TraceReplayer : public TracefileExecutor {
   size_t input_nmemb_;
   // For malloc/calloc/realloc/free_hint, the requested size.
   size_t input_size_;
+
+  uint64_t iter_ = 0;
+  uint64_t skips_ = 0;
 
   std::vector<std::string> printed_heap_;
   uint32_t scroll_ = 0;

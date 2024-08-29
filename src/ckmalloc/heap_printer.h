@@ -22,6 +22,8 @@ class HeapPrinter {
   std::string Print();
 
  private:
+  static constexpr size_t kMaxRowLength = kPageSize / kDefaultAlignment / 2;
+
   static std::string PrintMetadata(PageId page_id);
 
   static std::string PrintFree(const FreeSlab* slab);
@@ -100,8 +102,29 @@ std::string HeapPrinter<SlabMap, SlabManager>::PrintFree(const FreeSlab* slab) {
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
 std::string HeapPrinter<SlabMap, SlabManager>::PrintSmall(
     const SmallSlab* slab) {
-  std::string result =
-      absl::StrFormat("Page %v: small %v", slab->StartId(), slab->SizeClass());
+  std::string result = absl::StrFormat(
+      "Page %v: small %v %v%% full", slab->StartId(), slab->SizeClass(),
+      100.F * slab->AllocatedSlices() /
+          static_cast<float>(slab->SizeClass().MaxSlicesPerSlab()));
+
+  // Track which slices in the small slab are free. Start off with all marked as
+  // allocated, then go through and mark each free slab in the freelist as free.
+  std::vector<bool> free_slots(slab->SizeClass().MaxSlicesPerSlab(), false);
+  slab->IterateSlices(
+      slab_manager_->PageStartFromId(slab->StartId()),
+      [&free_slots](uint32_t slice_idx) { free_slots[slice_idx] = true; });
+
+  result += "\n[";
+  uint32_t offset = 1;
+  for (bool free_slot : free_slots) {
+    if (offset == kMaxRowLength) {
+      result += "\n";
+      offset = 0;
+    }
+
+    result += free_slot ? '.' : 'X';
+  }
+  result += ']';
 
   return result;
 }
@@ -109,18 +132,16 @@ std::string HeapPrinter<SlabMap, SlabManager>::PrintSmall(
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
 std::string HeapPrinter<SlabMap, SlabManager>::PrintLarge(
     const LargeSlab* slab) {
-  constexpr size_t kRowLength = kPageSize / kDefaultAlignment / 2;
-
   std::string result = absl::StrFormat(
       "Pages %v - %v: large %v%% full", slab->StartId(), slab->EndId(),
       100.F * slab->AllocatedBytes() /
           static_cast<float>(slab->Pages() * kPageSize));
 
   std::vector<std::string> rows(2 * slab->Pages(),
-                                std::string(kRowLength, '.'));
+                                std::string(kMaxRowLength, '.'));
 
   auto set_row = [&rows](uint64_t i, char c) {
-    rows[i / kRowLength][i % kRowLength] = c;
+    rows[i / kMaxRowLength][i % kMaxRowLength] = c;
   };
 
   uint64_t offset = 1;
