@@ -49,6 +49,12 @@ bool SmallSlabMetadata<T>::Full() const {
 
 template <typename T>
 requires std::is_integral_v<T>
+uint32_t SmallSlabMetadata<T>::AllocatedSlices() const {
+  return allocated_count_;
+}
+
+template <typename T>
+requires std::is_integral_v<T>
 AllocatedSlice* SmallSlabMetadata<T>::PopSlice(void* slab_start) {
   SliceId id = SliceId<T>::Nil();
   if (freelist_ != SliceId<T>::Nil()) {
@@ -100,7 +106,7 @@ void SmallSlabMetadata<T>::PushSlice(void* slab_start, FreeSlice<T>* slice) {
 template <typename T>
 requires std::is_integral_v<T>
 uint8_t SmallSlabMetadata<T>::FreelistNodesPerSlice(
-    class SizeClass size_class) {
+    class SizeClass size_class) const {
   return static_cast<uint8_t>(size_class.SliceSize() / sizeof(SliceId<T>));
 }
 
@@ -114,7 +120,7 @@ SliceId<T> SmallSlabMetadata<T>::SliceIdForSlice(void* slab_start,
 template <typename T>
 requires std::is_integral_v<T>
 FreeSlice<T>* SmallSlabMetadata<T>::SliceFromId(void* slab_start,
-                                                SliceId<T> slice_id) {
+                                                SliceId<T> slice_id) const {
   return PtrAdd<FreeSlice<T>>(slab_start,
                               slice_id.SliceOffsetBytes(size_class_));
 }
@@ -315,6 +321,15 @@ bool SmallSlab::Full() const {
     return mapped.small.tiny_meta_.Full();
   } else {
     return mapped.small.small_meta_.Full();
+  }
+}
+
+uint32_t SmallSlab::AllocatedSlices() const {
+  CK_ASSERT_EQ(type_, SlabType::kSmall);
+  if (IsTiny()) {
+    return mapped.small.tiny_meta_.AllocatedSlices();
+  } else {
+    return mapped.small.small_meta_.AllocatedSlices();
   }
 }
 

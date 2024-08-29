@@ -8,6 +8,7 @@
 #include "src/ckmalloc/page_id.h"
 #include "src/ckmalloc/size_class.h"
 #include "src/ckmalloc/slice.h"
+#include "src/ckmalloc/slice_id.h"
 
 namespace ckmalloc {
 
@@ -64,6 +65,14 @@ class SmallSlabMetadata {
   // If true, all slices are allocated in this slab.
   bool Full() const;
 
+  // Returns the count of allocated slices in this slab.
+  uint32_t AllocatedSlices() const;
+
+  // Iterates over the free slices in this slab, calling `fn(slice_id)` for each
+  // free slice.
+  template <typename Fn>
+  void IterateSlices(void* slab_start, Fn&& fn) const;
+
   // Given a pointer to the start of this slab, pops the next slice off the
   // freelist and updates the freelist accordingly, returning the newly
   // allocated slice.
@@ -76,7 +85,7 @@ class SmallSlabMetadata {
  private:
   // Returns the number of freelist items a single slice in the freelist can
   // hold.
-  uint8_t FreelistNodesPerSlice(class SizeClass size_class);
+  uint8_t FreelistNodesPerSlice(class SizeClass size_class) const;
 
   // Given a pointer to the start of the slab and a `Slice`, returns the slab ID
   // for that slice.
@@ -84,7 +93,7 @@ class SmallSlabMetadata {
 
   // Given a pointer to the start of the slab and a `SliceId`, returns a pointer
   // to the corresponding slice.
-  FreeSlice<T>* SliceFromId(void* slab_start, SliceId<T> slice_id);
+  FreeSlice<T>* SliceFromId(void* slab_start, SliceId<T> slice_id) const;
 
   // The size of allocations this slab holds.
   class SizeClass size_class_;
@@ -259,6 +268,12 @@ class SmallSlab : public AllocatedSlab {
   // If true, all slices are allocated in this slab.
   bool Full() const;
 
+  // Returns the count of allocated slices in this slab.
+  uint32_t AllocatedSlices() const;
+
+  template <typename Fn>
+  void IterateSlices(void* slab_start, Fn&& fn) const;
+
   // Given a pointer to the start of this slab, pops the next slice off the
   // freelist and updates the freelist accordingly, returning the newly
   // allocated slice.
@@ -324,5 +339,41 @@ template <>
 SmallSlab* Slab::Init(PageId start_id, uint32_t n_pages, SizeClass size_class);
 template <>
 LargeSlab* Slab::Init(PageId start_id, uint32_t n_pages);
+
+template <typename T>
+requires std::is_integral_v<T>
+template <typename Fn>
+void SmallSlabMetadata<T>::IterateSlices(void* slab_start, Fn&& fn) const {
+  // Iterate over slices in the freelist.
+  SliceId<T> node = freelist_;
+  uint32_t offset = freelist_node_offset_;
+  while (node != SliceId<T>::Nil()) {
+    FreeSlice<T>* slice = SliceFromId(slab_start, node);
+    if (offset == 0) {
+      fn(node.Id());
+      node = slice->IdAt(0);
+      offset = FreelistNodesPerSlice(size_class_) - 1;
+    } else {
+      fn(slice->IdAt(offset).Id());
+      offset--;
+    }
+  }
+
+  // Iterate over all uninitialized slices.
+  for (uint32_t i = size_class_.MaxSlicesPerSlab() - uninitialized_count_;
+       i < size_class_.MaxSlicesPerSlab(); i++) {
+    fn(SliceId<T>::FromIdx(i).Id());
+  }
+}
+
+template <typename Fn>
+void SmallSlab::IterateSlices(void* slab_start, Fn&& fn) const {
+  CK_ASSERT_EQ(type_, SlabType::kSmall);
+  if (IsTiny()) {
+    mapped.small.tiny_meta_.IterateSlices(slab_start, fn);
+  } else {
+    mapped.small.small_meta_.IterateSlices(slab_start, fn);
+  }
+}
 
 }  // namespace ckmalloc

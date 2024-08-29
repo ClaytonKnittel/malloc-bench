@@ -3,6 +3,7 @@
 #include <optional>
 
 #include "absl/status/status.h"
+#include "absl/strings/str_format.h"
 #include "util/absl_util.h"
 
 #include "src/tracefile_reader.h"
@@ -62,7 +63,7 @@ absl::Status TracefileExecutor::ProcessTracefile() {
 
           id_map_.erase(it);
         } else {
-          ptr = nullptr;
+          ASSIGN_OR_RETURN(ptr, Realloc(nullptr, line->input_size));
         }
 
         auto [it, inserted] = id_map_.insert({ line->result, ptr });
@@ -79,7 +80,8 @@ absl::Status TracefileExecutor::ProcessTracefile() {
 
         auto it = id_map_.find(line->input_ptr);
         if (it == id_map_.end()) {
-          return absl::InternalError("Tracefile freed non-existent pointer.");
+          return absl::InternalError(absl::StrFormat(
+              "Tracefile freed non-existent pointer %p.", line->input_ptr));
         }
 
         RETURN_IF_ERROR(Free(it->second));
