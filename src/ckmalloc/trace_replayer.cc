@@ -1,5 +1,8 @@
+#include <algorithm>
+#include <cstdint>
 #include <cstdio>
 #include <string>
+#include <sys/ioctl.h>
 #include <termios.h>
 #include <unistd.h>
 
@@ -7,10 +10,12 @@
 #include "absl/flags/parse.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/str_split.h"
 #include "util/absl_util.h"
 #include "util/csi.h"
 
 #include "src/ckmalloc/ckmalloc.h"
+#include "src/ckmalloc/heap_printer.h"
 #include "src/ckmalloc/state.h"
 #include "src/singleton_heap.h"
 #include "src/tracefile_executor.h"
@@ -44,6 +49,7 @@ class TraceReplayer : public TracefileExecutor {
   }
 
   absl::StatusOr<void*> Malloc(size_t size) override {
+    RETURN_IF_ERROR(RefreshPrintedHeap());
     op_ = Op::kMalloc;
     input_size_ = size;
 
@@ -54,6 +60,7 @@ class TraceReplayer : public TracefileExecutor {
   }
 
   absl::StatusOr<void*> Calloc(size_t nmemb, size_t size) override {
+    RETURN_IF_ERROR(RefreshPrintedHeap());
     op_ = Op::kCalloc;
     input_nmemb_ = nmemb;
     input_size_ = size;
@@ -65,6 +72,7 @@ class TraceReplayer : public TracefileExecutor {
   }
 
   absl::StatusOr<void*> Realloc(void* ptr, size_t size) override {
+    RETURN_IF_ERROR(RefreshPrintedHeap());
     op_ = Op::kRealloc;
     input_ptr_ = ptr;
     input_size_ = size;
@@ -76,6 +84,7 @@ class TraceReplayer : public TracefileExecutor {
   }
 
   absl::Status Free(void* ptr) override {
+    RETURN_IF_ERROR(RefreshPrintedHeap());
     op_ = Op::kFree;
     input_ptr_ = ptr;
 
@@ -86,6 +95,8 @@ class TraceReplayer : public TracefileExecutor {
   }
 
  private:
+  static constexpr size_t kUiLines = 2;
+
   enum class Op {
     kMalloc,
     kCalloc,
@@ -108,28 +119,69 @@ class TraceReplayer : public TracefileExecutor {
     tcsetattr(STDIN_FILENO, TCSANOW, &t);
   }
 
+  static absl::StatusOr<uint16_t> TermHeight() {
+    struct winsize w;
+
+    // Retrieve the terminal window size
+    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) == -1) {
+      return absl::InternalError("Unable to get terminal size");
+    }
+
+    return w.ws_row;
+  }
+
+  uint32_t MaxScroll(uint16_t term_height) const {
+    return std::max<uint32_t>(term_height - kUiLines, printed_heap_.size()) -
+           (term_height - kUiLines);
+  }
+
+  void ScrollBy(int32_t diff, uint16_t term_height) {
+    scroll_ = std::clamp<int32_t>(scroll_ + diff, 0, MaxScroll(term_height));
+  }
+
   absl::Status AwaitInput() {
     while (true) {
-      Display();
-      char c = getchar();
+      RETURN_IF_ERROR(Display());
+      DEFINE_OR_RETURN(uint16_t, term_height, TermHeight());
 
-      if (c == 'q') {
-        return absl::AbortedError("User pressed 'q'");
-      }
+      char c = getchar();
       if (c == 'n') {
         break;
       }
-      if (c == 'j') {
-      }
-      if (c == 'k') {
+
+      switch (c) {
+        case 'q': {
+          return absl::AbortedError("User pressed 'q'");
+        }
+        case 'j': {
+          ScrollBy(1, term_height);
+          break;
+        }
+        case 'd': {
+          ScrollBy((term_height - kUiLines) / 2, term_height);
+          break;
+        }
+        case 'k': {
+          ScrollBy(-1, term_height);
+          break;
+        }
+        case 'u': {
+          ScrollBy(-(term_height - kUiLines) / 2, term_height);
+          break;
+        }
+        default: {
+          break;
+        }
       }
     }
 
     return absl::OkStatus();
   }
 
-  void Display() {
-    std::cout << CSI_CHP(1, 1);
+  absl::Status Display() {
+    DEFINE_OR_RETURN(uint16_t, term_height, TermHeight());
+
+    std::cout << CSI_CHP(1, 1) << CSI_ED(CSI_CURSOR_ALL);
 
     std::cout << "Next: [n], scroll down: [j], scroll up: [k], quit: [q]"
               << std::endl;
@@ -155,6 +207,30 @@ class TraceReplayer : public TracefileExecutor {
         break;
       }
     }
+
+    uint32_t end = std::min<uint32_t>(printed_heap_.size(),
+                                      scroll_ + term_height - kUiLines);
+    for (uint32_t i = scroll_; i < end; i++) {
+      std::cout << printed_heap_[i];
+      if (i != end - 1) {
+        std::cout << std::endl;
+      }
+    }
+
+    return absl::OkStatus();
+  }
+
+  absl::Status RefreshPrintedHeap() {
+    DEFINE_OR_RETURN(uint16_t, term_height, TermHeight());
+
+    HeapPrinter p(SingletonHeap::GlobalInstance(), State::Instance()->SlabMap(),
+                  State::Instance()->SlabManager());
+    std::string print = p.Print();
+
+    printed_heap_ = absl::StrSplit(print, '\n');
+    scroll_ = std::min(scroll_, MaxScroll(term_height));
+
+    return absl::OkStatus();
   }
 
   // The op about to be executed.
@@ -167,6 +243,7 @@ class TraceReplayer : public TracefileExecutor {
   size_t input_size_;
 
   std::vector<std::string> printed_heap_;
+  uint32_t scroll_ = 0;
 };
 
 absl::Status Run(const std::string& tracefile) {
