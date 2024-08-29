@@ -38,6 +38,10 @@ enum class SlabType : uint8_t {
 
   // This slab is managing a large block slab.
   kLarge,
+
+  // This slab is managing a single allocation of a page-size multiple (or
+  // nearly page-size multiple) block.
+  kPageMultiple,
 };
 
 std::ostream& operator<<(std::ostream& ostr, SlabType slab_type);
@@ -157,6 +161,9 @@ class Slab {
   class LargeSlab* ToLarge();
   const class LargeSlab* ToLarge() const;
 
+  class PageMultipleSlab* ToPageMultiple();
+  const class PageMultipleSlab* ToPageMuliple() const;
+
  protected:
   Slab() {}
 
@@ -192,6 +199,8 @@ class Slab {
           // Tracks the total number of allocated bytes in this block.
           uint64_t allocated_bytes_;
         } large;
+        struct {
+        } page_multiple;
       };
     } mapped;
   };
@@ -209,6 +218,8 @@ class UnmappedSlab : public Slab {
   const class SmallSlab* ToSmall() const = delete;
   class LargeSlab* ToLarge() = delete;
   const class LargeSlab* ToLarge() const = delete;
+  class PageMultipleSlab* ToPageMultiple() = delete;
+  const class PageMultipleSlab* ToPageMuliple() const = delete;
 
   // Returns the next unmapped slab in the freelist.
   UnmappedSlab* NextUnmappedSlab();
@@ -243,6 +254,8 @@ class FreeSlab : public MappedSlab {
   const class SmallSlab* ToSmall() const = delete;
   class LargeSlab* ToLarge() = delete;
   const class LargeSlab* ToLarge() const = delete;
+  class PageMultipleSlab* ToPageMultiple() = delete;
+  const class PageMultipleSlab* ToPageMuliple() const = delete;
 };
 
 class AllocatedSlab : public MappedSlab {
@@ -256,6 +269,8 @@ class SmallSlab : public AllocatedSlab {
  public:
   class LargeSlab* ToLarge() = delete;
   const class LargeSlab* ToLarge() const = delete;
+  class PageMultipleSlab* ToPageMultiple() = delete;
+  const class PageMultipleSlab* ToPageMuliple() const = delete;
 
   // Small slabs range only one page.
   PageId EndId() const = delete;
@@ -299,6 +314,8 @@ class LargeSlab : public AllocatedSlab {
  public:
   class SmallSlab* ToSmall() = delete;
   const class SmallSlab* ToSmall() const = delete;
+  class PageMultipleSlab* ToPageMultiple() = delete;
+  const class PageMultipleSlab* ToPageMuliple() const = delete;
 
   // Given an allocation request for `user_size` bytes, returns the number of
   // pages of the minimum-sized slab that could fit a block large enough to
@@ -317,6 +334,18 @@ class LargeSlab : public AllocatedSlab {
   uint64_t AllocatedBytes() const;
 };
 
+class PageMultipleSlab : public AllocatedSlab {
+ public:
+  class SmallSlab* ToSmall() = delete;
+  const class SmallSlab* ToSmall() const = delete;
+  class LargeSlab* ToLarge() = delete;
+  const class LargeSlab* ToLarge() const = delete;
+
+  // Returns true if this size is suitable to be allocated within a
+  // page-multiple slab.
+  static bool SizeSuitableForPageMultiple(size_t user_size);
+};
+
 // The sizes of all subtypes of slab must be equal.
 static_assert(sizeof(Slab) == sizeof(UnmappedSlab),
               "Slab subtype sizes must be equal, UnmappedSlab different.");
@@ -330,6 +359,8 @@ static_assert(sizeof(Slab) == sizeof(SmallSlab),
               "Slab subtype sizes must be equal, SmallSlab different.");
 static_assert(sizeof(Slab) == sizeof(LargeSlab),
               "Slab subtype sizes must be equal, LargeSlab different.");
+static_assert(sizeof(Slab) == sizeof(PageMultipleSlab),
+              "Slab subtype sizes must be equal, PageMultipleSlab different.");
 
 template <>
 UnmappedSlab* Slab::Init(UnmappedSlab* next_unmapped);
@@ -339,6 +370,8 @@ template <>
 SmallSlab* Slab::Init(PageId start_id, uint32_t n_pages, SizeClass size_class);
 template <>
 LargeSlab* Slab::Init(PageId start_id, uint32_t n_pages);
+template <>
+PageMultipleSlab* Slab::Init(PageId start_id, uint32_t n_pages);
 
 template <typename T>
 requires std::is_integral_v<T>

@@ -25,6 +25,9 @@ std::ostream& operator<<(std::ostream& ostr, SlabType slab_type) {
     case SlabType::kLarge: {
       return ostr << "kLarge";
     }
+    case SlabType::kPageMultiple: {
+      return ostr << "kPageMultiple";
+    }
   }
 }
 
@@ -191,6 +194,19 @@ LargeSlab* Slab::Init(PageId start_id, uint32_t n_pages) {
   };
 
   LargeSlab* slab = static_cast<LargeSlab*>(this);
+  return slab;
+}
+
+template <>
+PageMultipleSlab* Slab::Init(PageId start_id, uint32_t n_pages) {
+  type_ = SlabType::kPageMultiple;
+  mapped = {
+    .id_ = start_id,
+    .n_pages_ = n_pages,
+    .page_multiple = {},
+  };
+
+  PageMultipleSlab* slab = static_cast<PageMultipleSlab*>(this);
   return slab;
 }
 
@@ -404,6 +420,12 @@ void LargeSlab::RemoveAllocation(uint64_t n_bytes) {
 uint64_t LargeSlab::AllocatedBytes() const {
   CK_ASSERT_EQ(Type(), SlabType::kLarge);
   return mapped.large.allocated_bytes_;
+}
+
+/* static */
+bool PageMultipleSlab::SizeSuitableForPageMultiple(size_t user_size) {
+  return AlignUp(user_size, kPageSize) !=
+         LargeSlab::NPagesForBlock(user_size) * kPageSize;
 }
 
 }  // namespace ckmalloc

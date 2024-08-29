@@ -41,6 +41,13 @@ class LargeAllocatorImpl {
   // found, returns the `AllocatedBlock` large enough to serve this request.
   AllocatedBlock* MakeBlockFromFreelist(size_t user_size);
 
+  // Allocates a new slab for this allocation request. The new slab may be large
+  // or page multiple.
+  AllocatedBlock* MakeBlockWithNewSlab(size_t user_size);
+
+  // TODO: This can't return allocated block, since the block has no header.
+  AllocatedBlock* AllocPageMultipleSlabAndMakeBlock(size_t user_size);
+
   // Allocates a new large slab large enough for `user_size`, and returns a
   // pointer to the newly created `AllocatedBlock` that is large enough for
   // `user_size`.
@@ -61,7 +68,7 @@ AllocatedBlock* LargeAllocatorImpl<SlabMap, SlabManager>::AllocLarge(
   // If allocating from the freelist fails, we need to request another slab of
   // memory.
   if (block == nullptr) {
-    block = AllocLargeSlabAndMakeBlock(user_size);
+    block = MakeBlockWithNewSlab(user_size);
   }
 
   return block;

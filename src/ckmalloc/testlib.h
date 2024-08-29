@@ -75,6 +75,10 @@ void AbslStringify(Sink& sink, SlabType slab_type) {
       sink.Append("kLarge");
       break;
     }
+    case SlabType::kPageMultiple: {
+      sink.Append("kPageMultiple");
+      break;
+    }
   }
 }
 
@@ -86,7 +90,8 @@ void AbslStringify(Sink& sink, const Slab& slab) {
       break;
     }
     case SlabType::kFree:
-    case SlabType::kSmall: {
+    case SlabType::kSmall:
+    case ckmalloc::SlabType::kPageMultiple: {
       const MappedSlab& mapped_slab = *slab.ToMapped();
       absl::Format(&sink, "Slab: [type=%v, pages=%" PRIu32 ", start_id=%v]",
                    mapped_slab.Type(), mapped_slab.Pages(),
