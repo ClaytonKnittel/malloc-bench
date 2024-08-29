@@ -503,6 +503,7 @@ cc_binary(
     ],
     deps = [
         ":ckmalloc",
+        ":heap_printer",
         ":state",
         "//src:singleton_heap",
         "//src:tracefile_executor",
@@ -511,6 +512,7 @@ cc_binary(
         "@abseil-cpp//absl/flags:parse",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
         "@cc-util//util:absl_util",
         "@cc-util//util:csi",
     ],
