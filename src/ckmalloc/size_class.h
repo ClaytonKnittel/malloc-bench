@@ -57,6 +57,7 @@ class SizeClass {
     return size_class_ / kDefaultAlignment;
   }
 
+  // The number of slices that can fit into a small slab of this size class.
   constexpr uint32_t MaxSlicesPerSlab() const {
     // If the number of size classes grows, the compiler will not complain that
     // we have not specified every entry of `kSliceMap`. This static assert is
