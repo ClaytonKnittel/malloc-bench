@@ -52,7 +52,7 @@ class SlabManagerImpl {
 
   // Returns the first block in this slab, i.e. the block with lowest starting
   // address.
-  Block* FirstBlockInLargeSlab(LargeSlab* slab);
+  Block* FirstBlockInLargeSlab(const LargeSlab* slab) const;
 
  private:
   size_t HeapSize() const;
@@ -219,7 +219,7 @@ void SlabManagerImpl<MetadataAlloc, SlabMap>::Free(AllocatedSlab* slab) {
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
 Block* SlabManagerImpl<MetadataAlloc, SlabMap>::FirstBlockInLargeSlab(
-    LargeSlab* slab) {
+    const LargeSlab* slab) const {
   return PtrAdd<Block>(PageStartFromId(slab->StartId()),
                        Block::kFirstBlockInSlabOffset);
 }
