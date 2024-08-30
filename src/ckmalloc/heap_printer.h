@@ -99,7 +99,10 @@ std::string HeapPrinter<SlabMap, SlabManager>::PrintMetadata(PageId page_id) {
 /* static */
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
 std::string HeapPrinter<SlabMap, SlabManager>::PrintFree(const FreeSlab* slab) {
-  return absl::StrFormat("Pages %v - %v: free", slab->StartId(), slab->EndId());
+  return absl::StrFormat("Pages %v%v: free", slab->StartId(),
+                         slab->StartId() == slab->EndId()
+                             ? ""
+                             : absl::StrFormat(" - %v", slab->EndId()));
 }
 
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
@@ -126,6 +129,7 @@ std::string HeapPrinter<SlabMap, SlabManager>::PrintSmall(
     }
 
     result += free_slot ? '.' : 'X';
+    offset++;
   }
   result += ']';
 
@@ -135,10 +139,13 @@ std::string HeapPrinter<SlabMap, SlabManager>::PrintSmall(
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
 std::string HeapPrinter<SlabMap, SlabManager>::PrintBlocked(
     const BlockedSlab* slab) {
-  std::string result = absl::StrFormat(
-      "Pages %v - %v: large %v%% full", slab->StartId(), slab->EndId(),
-      100.F * slab->AllocatedBytes() /
-          static_cast<float>(slab->Pages() * kPageSize));
+  std::string result =
+      absl::StrFormat("Pages %v%v: large %v%% full", slab->StartId(),
+                      slab->StartId() == slab->EndId()
+                          ? ""
+                          : absl::StrFormat(" - %v", slab->EndId()),
+                      100.F * slab->AllocatedBytes() /
+                          static_cast<float>(slab->Pages() * kPageSize));
 
   std::vector<std::string> rows(2 * slab->Pages(),
                                 std::string(kMaxRowLength, '.'));
@@ -174,8 +181,17 @@ std::string HeapPrinter<SlabMap, SlabManager>::PrintBlocked(
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
 std::string HeapPrinter<SlabMap, SlabManager>::PrintSingleAlloc(
     const SingleAllocSlab* slab) {
-  std::string result = absl::StrFormat("Pages %v - %v: single-alloc",
-                                       slab->StartId(), slab->EndId());
+  std::string result =
+      absl::StrFormat("Pages %v%v: single-alloc", slab->StartId(),
+                      slab->StartId() == slab->EndId()
+                          ? ""
+                          : absl::StrFormat(" - %v", slab->EndId()));
+
+  for (const auto& row :
+       std::vector(2 * slab->Pages(), std::string(kMaxRowLength, '='))) {
+    result += '\n' + row;
+  }
+
   return result;
 }
 
