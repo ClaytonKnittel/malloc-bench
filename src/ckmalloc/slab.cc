@@ -324,6 +324,11 @@ uint32_t MappedSlab::Pages() const {
   return mapped.n_pages_;
 }
 
+void MappedSlab::SetSize(uint32_t n_pages) {
+  CK_ASSERT_NE(type_, SlabType::kUnmapped);
+  mapped.n_pages_ = n_pages;
+}
+
 constexpr size_t TinySizeClassOffset() {
   return offsetof(Slab, mapped.small.tiny_meta_.size_class_);
 }

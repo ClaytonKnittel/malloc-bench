@@ -252,6 +252,10 @@ class MappedSlab : public Slab {
   // Returns the number of pages that this slab manages. This slab must not be a
   // freed slab metadata.
   uint32_t Pages() const;
+
+  // Changes the size of the slab to `n_pages`. This should only be called by
+  // the slab manager.
+  void SetSize(uint32_t n_pages);
 };
 
 class FreeSlab : public MappedSlab {
