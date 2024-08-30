@@ -160,6 +160,10 @@ class TraceReplayer : public TracefileExecutor {
         skips_ = 49;
         break;
       }
+      if (c == 'c') {
+        skips_ = 1023;
+        break;
+      }
 
       switch (c) {
         case 'q': {
@@ -198,7 +202,7 @@ class TraceReplayer : public TracefileExecutor {
     std::cout << "Next: [n], scroll down: [j], scroll up: [k], quit: [q]"
               << std::endl;
 
-    std::cout << "Next op: " << std::left << std::setw(20);
+    std::cout << "Next op: " << std::left << std::setw(28);
     switch (op_) {
       case Op::kMalloc: {
         std::cout << absl::StrFormat("malloc(%zu)", input_size_);
@@ -234,6 +238,10 @@ class TraceReplayer : public TracefileExecutor {
   }
 
   absl::Status RefreshPrintedHeap() {
+    if (skips_ != 0) {
+      return absl::OkStatus();
+    }
+
     DEFINE_OR_RETURN(uint16_t, term_height, TermHeight());
 
     HeapPrinter p(SingletonHeap::GlobalInstance(), State::Instance()->SlabMap(),
