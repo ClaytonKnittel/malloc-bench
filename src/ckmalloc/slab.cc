@@ -415,10 +415,10 @@ bool SmallSlab::IsTiny() const {
 
 /* static */
 uint32_t BlockedSlab::NPagesForBlock(size_t user_size) {
-  return CeilDiv<uint32_t>(Block::BlockSizeForUserSize(user_size) +
-                               Block::kFirstBlockInSlabOffset +
-                               Block::kMetadataOverhead,
-                           kPageSize);
+  return static_cast<uint32_t>(CeilDiv(Block::BlockSizeForUserSize(user_size) +
+                                           Block::kFirstBlockInSlabOffset +
+                                           Block::kMetadataOverhead,
+                                       kPageSize));
 }
 
 uint64_t BlockedSlab::MaxBlockSize() const {
@@ -442,6 +442,11 @@ void BlockedSlab::RemoveAllocation(uint64_t n_bytes) {
 uint64_t BlockedSlab::AllocatedBytes() const {
   CK_ASSERT_EQ(Type(), SlabType::kBlocked);
   return mapped.large.allocated_bytes_;
+}
+
+/* static */
+uint32_t SingleAllocSlab::NPagesForAlloc(size_t user_size) {
+  return static_cast<uint32_t>(CeilDiv(user_size, kPageSize));
 }
 
 /* static */

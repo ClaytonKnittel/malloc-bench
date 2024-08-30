@@ -354,6 +354,10 @@ class SingleAllocSlab : public AllocatedSlab {
   BlockedSlab* ToBlocked() = delete;
   const BlockedSlab* ToBlocked() const = delete;
 
+  // Returns the number of pages needed to hold an allocation of the given size
+  // in a single-alloc slab.
+  static uint32_t NPagesForAlloc(size_t user_size);
+
   // Returns true if this size is suitable to be allocated within a
   // page-multiple slab.
   static bool SizeSuitableForSingleAlloc(size_t user_size);
