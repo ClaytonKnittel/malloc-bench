@@ -3,7 +3,6 @@
 #include <cstddef>
 #include <cstring>
 
-#include "src/ckmalloc/block.h"
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/large_allocator.h"
 #include "src/ckmalloc/slab.h"
@@ -59,8 +58,7 @@ void* MainAllocatorImpl<SlabMap, SlabManager, SmallAllocator>::Alloc(
     AllocatedSlice* slice = small_alloc_->AllocSlice(user_size);
     return slice != nullptr ? slice->UserDataPtr() : nullptr;
   } else {
-    AllocatedBlock* block = large_alloc_.AllocLarge(user_size);
-    return block != nullptr ? block->UserDataPtr() : nullptr;
+    return large_alloc_.AllocLarge(user_size);
   }
 }
 
@@ -84,26 +82,24 @@ void* MainAllocatorImpl<SlabMap, SlabManager, SmallAllocator>::Realloc(
 
       // Otherwise, we will always need to alloc-copy-free. First allocate the
       // large block.
-      AllocatedBlock* block = large_alloc_.AllocLarge(user_size);
-      if (block == nullptr) {
+      void* new_ptr = large_alloc_.AllocLarge(user_size);
+      if (new_ptr == nullptr) {
         return nullptr;
       }
 
       // Then copy user data over. Note that the slice's size will always be
       // smaller than `user_size`, so no need to take the min of the two.
-      std::memcpy(block->UserDataPtr(), ptr,
-                  slab->ToSmall()->SizeClass().SliceSize());
+      std::memcpy(new_ptr, ptr, slab->ToSmall()->SizeClass().SliceSize());
 
       // Free the slice and return the newly allocated block.
       small_alloc_->FreeSlice(slab->ToSmall(),
                               AllocatedSlice::FromUserDataPtr(ptr));
-      return block->UserDataPtr();
+      return new_ptr;
     }
-    case SlabType::kLarge: {
+    case SlabType::kBlocked:
+    case SlabType::kSingleAlloc: {
       if (user_size > kMaxSmallSize) {
-        AllocatedBlock* block = large_alloc_.ReallocLarge(
-            slab->ToLarge(), AllocatedBlock::FromUserDataPtr(ptr), user_size);
-        return block != nullptr ? block->UserDataPtr() : nullptr;
+        return large_alloc_.ReallocLarge(slab->ToLarge(), ptr, user_size);
       }
 
       // Otherwise, we will always need to alloc-copy-free. First allocate the
@@ -118,8 +114,7 @@ void* MainAllocatorImpl<SlabMap, SlabManager, SmallAllocator>::Realloc(
       std::memcpy(slice->UserDataPtr(), ptr, user_size);
 
       // Free the block and return the newly allocated slice.
-      large_alloc_.FreeLarge(slab->ToLarge(),
-                             AllocatedBlock::FromUserDataPtr(ptr));
+      large_alloc_.FreeLarge(slab->ToLarge(), ptr);
       return slice->UserDataPtr();
     }
     case SlabType::kUnmapped:
@@ -144,9 +139,9 @@ void MainAllocatorImpl<SlabMap, SlabManager, SmallAllocator>::Free(void* ptr) {
                               AllocatedSlice::FromUserDataPtr(ptr));
       break;
     }
-    case SlabType::kLarge: {
-      large_alloc_.FreeLarge(slab->ToLarge(),
-                             AllocatedBlock::FromUserDataPtr(ptr));
+    case SlabType::kBlocked:
+    case SlabType::kSingleAlloc: {
+      large_alloc_.FreeLarge(slab->ToLarge(), ptr);
       break;
     }
     case SlabType::kUnmapped:

@@ -14,8 +14,8 @@ class Freelist {
   friend class FreelistTest;
   friend class MainAllocatorTest;
 
-  friend class absl::Status ValidateLargeSlabs(
-      const class std::vector<struct LargeSlabInfo>&,
+  friend class absl::Status ValidateBlockedSlabs(
+      const class std::vector<struct BlockedSlabInfo>&,
       const class Freelist& freelist);
 
  public:

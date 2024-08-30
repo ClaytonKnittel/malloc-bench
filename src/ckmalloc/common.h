@@ -57,7 +57,8 @@ concept SlabMapInterface =
 template <typename T>
 concept SlabManagerInterface = requires(
     const T const_slab_mgr, T slab_mgr, class PageId page_id, const void* ptr,
-    uint32_t n_pages, class AllocatedSlab* slab, class LargeSlab* large_slab) {
+    uint32_t n_pages, class AllocatedSlab* slab,
+    class BlockedSlab* blocked_slab) {
   { const_slab_mgr.PageStartFromId(page_id) } -> std::convertible_to<void*>;
   { const_slab_mgr.PageIdFromPtr(ptr) } -> std::convertible_to<class PageId>;
   {
@@ -73,7 +74,7 @@ concept SlabManagerInterface = requires(
       std::optional<std::pair<class PageId, class LargeSlab*>>>;
   { slab_mgr.Free(slab) } -> std::same_as<void>;
   {
-    slab_mgr.FirstBlockInLargeSlab(large_slab)
+    slab_mgr.FirstBlockInBlockedSlab(blocked_slab)
   } -> std::convertible_to<class Block*>;
 };
 

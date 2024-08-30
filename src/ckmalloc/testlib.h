@@ -71,12 +71,12 @@ void AbslStringify(Sink& sink, SlabType slab_type) {
       sink.Append("kSmall");
       break;
     }
-    case SlabType::kLarge: {
-      sink.Append("kLarge");
+    case SlabType::kBlocked: {
+      sink.Append("kBlocked");
       break;
     }
-    case SlabType::kPageMultiple: {
-      sink.Append("kPageMultiple");
+    case SlabType::kSingleAlloc: {
+      sink.Append("kSingleAlloc");
       break;
     }
   }
@@ -91,20 +91,20 @@ void AbslStringify(Sink& sink, const Slab& slab) {
     }
     case SlabType::kFree:
     case SlabType::kSmall:
-    case ckmalloc::SlabType::kPageMultiple: {
+    case SlabType::kSingleAlloc: {
       const MappedSlab& mapped_slab = *slab.ToMapped();
       absl::Format(&sink, "Slab: [type=%v, pages=%" PRIu32 ", start_id=%v]",
                    mapped_slab.Type(), mapped_slab.Pages(),
                    mapped_slab.StartId());
       break;
     }
-    case SlabType::kLarge: {
-      const LargeSlab& large_slab = *slab.ToLarge();
+    case SlabType::kBlocked: {
+      const BlockedSlab& blocked_slab = *slab.ToBlocked();
       absl::Format(&sink,
                    "Slab: [type=%v, pages=%" PRIu32
                    ", start_id=%v, allocated_bytes=%" PRIu64 "]",
-                   large_slab.Type(), large_slab.Pages(), large_slab.StartId(),
-                   large_slab.AllocatedBytes());
+                   blocked_slab.Type(), blocked_slab.Pages(),
+                   blocked_slab.StartId(), blocked_slab.AllocatedBytes());
       break;
     }
   }
@@ -168,13 +168,13 @@ class CkMallocTest {
   virtual absl::Status ValidateHeap() = 0;
 };
 
-struct LargeSlabInfo {
+struct BlockedSlabInfo {
   void* start;
   void* end;
-  LargeSlab* slab;
+  BlockedSlab* slab;
 };
 
-absl::Status ValidateLargeSlabs(const std::vector<LargeSlabInfo>& slabs,
-                                const Freelist& freelist);
+absl::Status ValidateBlockedSlabs(const std::vector<BlockedSlabInfo>& slabs,
+                                  const Freelist& freelist);
 
 }  // namespace ckmalloc

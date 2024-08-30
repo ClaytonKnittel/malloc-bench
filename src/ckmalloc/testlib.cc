@@ -90,15 +90,16 @@ void TestGlobalMetadataAlloc::ClearAllocatorOverride() {
   allocator_ = &default_detached_allocator;
 }
 
-absl::Status ValidateLargeSlabs(const std::vector<LargeSlabInfo>& slabs,
-                                const Freelist& freelist) {
+absl::Status ValidateBlockedSlabs(const std::vector<BlockedSlabInfo>& slabs,
+                                  const Freelist& freelist) {
   absl::flat_hash_set<const Block*> free_blocks;
   // Iterate over the freelist.
   for (const FreeBlock& block : freelist.free_blocks_) {
-    auto it = absl::c_find_if(slabs, [&block](const LargeSlabInfo& slab_info) {
-      return &block >= slab_info.start &&
-             block.NextAdjacentBlock() <= slab_info.end;
-    });
+    auto it =
+        absl::c_find_if(slabs, [&block](const BlockedSlabInfo& slab_info) {
+          return &block >= slab_info.start &&
+                 block.NextAdjacentBlock() <= slab_info.end;
+        });
     if (it == slabs.end()) {
       return absl::FailedPreconditionError(
           absl::StrFormat("Encountered block outside the range of the heap in "
@@ -106,7 +107,7 @@ absl::Status ValidateLargeSlabs(const std::vector<LargeSlabInfo>& slabs,
                           &block, block.Size()));
     }
 
-    LargeSlabInfo slab_info = *it;
+    BlockedSlabInfo slab_info = *it;
 
     size_t block_offset_bytes = PtrDistance(&block, slab_info.start);
     if (!IsAligned<uint64_t>(block_offset_bytes, kDefaultAlignment)) {
@@ -130,7 +131,7 @@ absl::Status ValidateLargeSlabs(const std::vector<LargeSlabInfo>& slabs,
 
   // Iterate over the heap.
   size_t n_free_blocks = 0;
-  for (const LargeSlabInfo& slab_info : slabs) {
+  for (const BlockedSlabInfo& slab_info : slabs) {
     Block* block = reinterpret_cast<Block*>(slab_info.start);
     Block* prev_block = nullptr;
     uint64_t allocated_bytes = 0;

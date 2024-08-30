@@ -21,8 +21,8 @@ class Block {
   template <typename Sink>
   friend void AbslStringify(Sink& sink, const Block& block);
 
-  friend class absl::Status ValidateLargeSlabs(
-      const class std::vector<struct LargeSlabInfo>&,
+  friend class absl::Status ValidateBlockedSlabs(
+      const class std::vector<struct BlockedSlabInfo>&,
       const class Freelist& freelist);
 
   friend constexpr size_t HeaderOffset();

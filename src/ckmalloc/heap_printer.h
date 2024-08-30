@@ -30,7 +30,9 @@ class HeapPrinter {
 
   std::string PrintSmall(const SmallSlab* slab);
 
-  std::string PrintLarge(const LargeSlab* slab);
+  std::string PrintBlocked(const BlockedSlab* slab);
+
+  std::string PrintSingleAlloc(const SingleAllocSlab* slab);
 
   const bench::Heap* const heap_;
   const SlabMap* const slab_map_;
@@ -63,18 +65,19 @@ std::string HeapPrinter<SlabMap, SlabManager>::Print() {
         CK_ASSERT_TRUE(false);
       }
       case SlabType::kFree: {
-        FreeSlab* free_slab = slab->ToFree();
-        result += PrintFree(free_slab);
+        result += PrintFree(slab->ToFree());
         break;
       }
       case SlabType::kSmall: {
-        SmallSlab* small_slab = slab->ToSmall();
-        result += PrintSmall(small_slab);
+        result += PrintSmall(slab->ToSmall());
         break;
       }
-      case SlabType::kLarge: {
-        LargeSlab* large_slab = slab->ToLarge();
-        result += PrintLarge(large_slab);
+      case SlabType::kBlocked: {
+        result += PrintBlocked(slab->ToBlocked());
+        break;
+      }
+      case SlabType::kSingleAlloc: {
+        result += PrintSingleAlloc(slab->ToSingleAlloc());
         break;
       }
     }
@@ -130,8 +133,8 @@ std::string HeapPrinter<SlabMap, SlabManager>::PrintSmall(
 }
 
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
-std::string HeapPrinter<SlabMap, SlabManager>::PrintLarge(
-    const LargeSlab* slab) {
+std::string HeapPrinter<SlabMap, SlabManager>::PrintBlocked(
+    const BlockedSlab* slab) {
   std::string result = absl::StrFormat(
       "Pages %v - %v: large %v%% full", slab->StartId(), slab->EndId(),
       100.F * slab->AllocatedBytes() /
@@ -145,7 +148,7 @@ std::string HeapPrinter<SlabMap, SlabManager>::PrintLarge(
   };
 
   uint64_t offset = 1;
-  for (Block* block = slab_manager_->FirstBlockInLargeSlab(slab);
+  for (Block* block = slab_manager_->FirstBlockInBlockedSlab(slab);
        block->Size() != 0; block = block->NextAdjacentBlock()) {
     uint64_t block_size = block->Size() / kDefaultAlignment;
 
@@ -165,6 +168,14 @@ std::string HeapPrinter<SlabMap, SlabManager>::PrintLarge(
     result += "\n" + row;
   }
 
+  return result;
+}
+
+template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
+std::string HeapPrinter<SlabMap, SlabManager>::PrintSingleAlloc(
+    const SingleAllocSlab* slab) {
+  std::string result = absl::StrFormat("Pages %v - %v: single-alloc",
+                                       slab->StartId(), slab->EndId());
   return result;
 }
 
