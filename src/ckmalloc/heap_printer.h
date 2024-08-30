@@ -7,6 +7,7 @@
 #include "src/ckmalloc/block.h"
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/page_id.h"
+#include "src/ckmalloc/size_class.h"
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/util.h"
 #include "src/heap_interface.h"
@@ -120,18 +121,42 @@ std::string HeapPrinter<SlabMap, SlabManager>::PrintSmall(
       slab_manager_->PageStartFromId(slab->StartId()),
       [&free_slots](uint32_t slice_idx) { free_slots[slice_idx] = true; });
 
-  result += "\n[";
-  uint32_t offset = 1;
-  for (bool free_slot : free_slots) {
-    if (offset == kMaxRowLength) {
-      result += "\n";
-      offset = 0;
-    }
+  result += "\n";
+  uint32_t offset = 0;
+  if (slab->SizeClass().SliceSize() == kMinAlignment) {
+    for (size_t i = 0; i < free_slots.size(); i += 2) {
+      if (offset == kMaxRowLength) {
+        result += "\n";
+        offset = 0;
+      }
 
-    result += free_slot ? '.' : 'X';
-    offset++;
+      if (free_slots[i] && free_slots[i + 1]) {
+        result += ' ';
+      } else if (free_slots[i] && !free_slots[i + 1]) {
+        result += ',';
+      } else if (!free_slots[i] && free_slots[i + 1]) {
+        result += '`';
+      } else {
+        result += '\\';
+      }
+
+      offset++;
+    }
+  } else {
+    uint32_t width = slab->SizeClass().SliceSize() / kDefaultAlignment;
+    for (bool free_slot : free_slots) {
+      for (size_t w = 0; w < width; w++) {
+        if (offset == kMaxRowLength) {
+          result += "\n";
+          offset = 0;
+        }
+
+        result +=
+            free_slot ? '.' : (w == 0 ? '[' : (w == width - 1 ? ']' : 'X'));
+        offset++;
+      }
+    }
   }
-  result += ']';
 
   return result;
 }
