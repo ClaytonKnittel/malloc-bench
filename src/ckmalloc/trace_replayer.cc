@@ -45,6 +45,15 @@ class TraceReplayer : public TracefileExecutor {
     std::cout << CSI_SHOW << CSI_MAIN_DISPLAY;
   }
 
+  absl::Status SetDone() {
+    if (!done_) {
+      skips_ = 0;
+      RETURN_IF_ERROR(RefreshPrintedHeap());
+    }
+    done_ = true;
+    return absl::OkStatus();
+  }
+
   void InitializeHeap() override {
     SingletonHeap::GlobalInstance()->Reset();
     State::InitializeWithEmptyHeap(SingletonHeap::GlobalInstance());
@@ -96,56 +105,13 @@ class TraceReplayer : public TracefileExecutor {
     return absl::OkStatus();
   }
 
- private:
-  static constexpr size_t kUiLines = 2;
-
-  enum class Op {
-    kMalloc,
-    kCalloc,
-    kRealloc,
-    kFree,
-  };
-
-  static void SetNonCanonicalMode(bool enable) {
-    struct termios t;
-    tcgetattr(STDIN_FILENO, &t);
-
-    if (enable) {
-      t.c_lflag &= ~ICANON;  // Disable canonical mode
-      t.c_lflag &= ~ECHO;    // Disable echo
-    } else {
-      t.c_lflag |= ICANON;  // Enable canonical mode
-      t.c_lflag |= ECHO;    // Enable echo
-    }
-
-    tcsetattr(STDIN_FILENO, TCSANOW, &t);
-  }
-
-  static absl::StatusOr<uint16_t> TermHeight() {
-    struct winsize w;
-
-    // Retrieve the terminal window size
-    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) == -1) {
-      return absl::InternalError("Unable to get terminal size");
-    }
-
-    return w.ws_row;
-  }
-
-  uint32_t MaxScroll(uint16_t term_height) const {
-    return std::max<uint32_t>(term_height - kUiLines, printed_heap_.size()) -
-           (term_height - kUiLines);
-  }
-
-  void ScrollBy(int32_t diff, uint16_t term_height) {
-    scroll_ = std::clamp<int32_t>(scroll_ + diff, 0, MaxScroll(term_height));
-  }
-
   absl::Status AwaitInput() {
-    iter_++;
-    if (skips_ != 0) {
-      skips_--;
-      return absl::OkStatus();
+    if (!done_) {
+      iter_++;
+      if (skips_ != 0) {
+        skips_--;
+        return absl::OkStatus();
+      }
     }
 
     while (true) {
@@ -194,6 +160,31 @@ class TraceReplayer : public TracefileExecutor {
     return absl::OkStatus();
   }
 
+ private:
+  static constexpr size_t kUiLines = 2;
+
+  enum class Op {
+    kMalloc,
+    kCalloc,
+    kRealloc,
+    kFree,
+  };
+
+  static void SetNonCanonicalMode(bool enable) {
+    struct termios t;
+    tcgetattr(STDIN_FILENO, &t);
+
+    if (enable) {
+      t.c_lflag &= ~ICANON;  // Disable canonical mode
+      t.c_lflag &= ~ECHO;    // Disable echo
+    } else {
+      t.c_lflag |= ICANON;  // Enable canonical mode
+      t.c_lflag |= ECHO;    // Enable echo
+    }
+
+    tcsetattr(STDIN_FILENO, TCSANOW, &t);
+  }
+
   absl::Status Display() {
     DEFINE_OR_RETURN(uint16_t, term_height, TermHeight());
 
@@ -237,6 +228,26 @@ class TraceReplayer : public TracefileExecutor {
     return absl::OkStatus();
   }
 
+  static absl::StatusOr<uint16_t> TermHeight() {
+    struct winsize w;
+
+    // Retrieve the terminal window size
+    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) == -1) {
+      return absl::InternalError("Unable to get terminal size");
+    }
+
+    return w.ws_row;
+  }
+
+  uint32_t MaxScroll(uint16_t term_height) const {
+    return std::max<uint32_t>(term_height - kUiLines, printed_heap_.size()) -
+           (term_height - kUiLines);
+  }
+
+  void ScrollBy(int32_t diff, uint16_t term_height) {
+    scroll_ = std::clamp<int32_t>(scroll_ + diff, 0, MaxScroll(term_height));
+  }
+
   absl::Status RefreshPrintedHeap() {
     if (skips_ != 0) {
       return absl::OkStatus();
@@ -266,6 +277,8 @@ class TraceReplayer : public TracefileExecutor {
   uint64_t iter_ = 0;
   uint64_t skips_ = 0;
 
+  bool done_ = false;
+
   std::vector<std::string> printed_heap_;
   uint32_t scroll_ = 0;
 };
@@ -273,7 +286,11 @@ class TraceReplayer : public TracefileExecutor {
 absl::Status Run(const std::string& tracefile) {
   DEFINE_OR_RETURN(TracefileReader, reader, TracefileReader::Open(tracefile));
   TraceReplayer replayer(std::move(reader));
-  return replayer.Run();
+  RETURN_IF_ERROR(replayer.Run());
+  RETURN_IF_ERROR(replayer.SetDone());
+  while (true) {
+    RETURN_IF_ERROR(replayer.AwaitInput());
+  }
 }
 
 }  // namespace ckmalloc
