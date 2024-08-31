@@ -20,6 +20,9 @@
 ABSL_FLAG(std::string, trace, "",
           "If set, a specific tracefile to run (must start with \"traces/\").");
 
+ABSL_FLAG(bool, skip_correctness, false,
+          "If true, correctness checking is skipped.");
+
 namespace bench {
 
 struct TraceResult {
@@ -42,17 +45,21 @@ absl::StatusOr<TraceResult> RunTrace(const std::string& tracefile) {
   };
 
   // Check for correctness.
-  absl::Status correctness_status = CorrectnessChecker::Check(tracefile);
-  if (correctness_status.ok()) {
-    result.correct = true;
-  } else {
-    if (!CorrectnessChecker::IsFailedTestStatus(correctness_status)) {
-      return correctness_status;
-    }
+  if (!absl::GetFlag(FLAGS_skip_correctness)) {
+    absl::Status correctness_status = CorrectnessChecker::Check(tracefile);
+    if (correctness_status.ok()) {
+      result.correct = true;
+    } else {
+      if (!CorrectnessChecker::IsFailedTestStatus(correctness_status)) {
+        return correctness_status;
+      }
 
-    std::cout << "Failed " << tracefile << ": " << correctness_status
-              << std::endl;
-    result.correct = false;
+      std::cout << "Failed " << tracefile << ": " << correctness_status
+                << std::endl;
+      result.correct = false;
+    }
+  } else {
+    result.correct = true;
   }
 
   if (result.correct) {
