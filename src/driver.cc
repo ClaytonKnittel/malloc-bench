@@ -193,6 +193,8 @@ int RunAllTraces() {
            "traces/cbit-parity.trace",
            "traces/cbit-satadd.trace",
            "traces/cbit-xyz.trace",
+           "traces/mc_server.trace",
+           "traces/mc_server_small.trace",
            "traces/ngram-fox1.trace",
            "traces/ngram-gulliver1.trace",
            "traces/ngram-gulliver2.trace",
