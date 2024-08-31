@@ -37,7 +37,7 @@ class TestSlabManager {
 
   void Free(AllocatedSlab* slab);
 
-  Block* FirstBlockInLargeSlab(const LargeSlab* slab) const;
+  Block* FirstBlockInBlockedSlab(const BlockedSlab* slab) const;
 
  private:
   void HandleAlloc(AllocatedSlab* slab);
