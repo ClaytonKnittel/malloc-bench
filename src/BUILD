@@ -103,7 +103,7 @@ cc_test(
     data = [
         "//traces",
     ],
-    shard_count = 30,
+    shard_count = 32,
     deps = [
         ":tracefile_executor",
         ":tracefile_reader",

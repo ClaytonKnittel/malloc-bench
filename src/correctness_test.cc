@@ -64,10 +64,6 @@ class TestCorrectness : public ::testing::Test {
                 heap_, slab_map_, slab_manager_fixture_,
                 small_allocator_fixture_)) {}
 
-  ~TestCorrectness() override {
-    ckmalloc::TestGlobalMetadataAlloc::ClearAllocatorOverride();
-  }
-
   ckmalloc::TestMetadataManager& MetadataManager() {
     return metadata_manager_fixture_->MetadataManager();
   }
@@ -221,6 +217,19 @@ TEST_F(TestCorrectness, cbitsatadd) {
 
 TEST_F(TestCorrectness, cbitxyz) {
   ASSERT_THAT(RunTrace("traces/cbit-xyz.trace", /*validate_every_n=*/1024),
+              util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, McServerSmall) {
+  ASSERT_THAT(
+      RunTrace("traces/mc_server_small.trace", /*validate_every_n=*/1024),
+      util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, McServer) {
+  ASSERT_THAT(RunTrace("traces/mc_server.trace", /*validate_every_n=*/16384),
               util::IsOk());
   ASSERT_THAT(ValidateEmpty(), IsOk());
 }
