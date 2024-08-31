@@ -46,7 +46,8 @@ class TestCkMalloc : public TracefileExecutor {
 
 class TestCorrectness : public ::testing::Test {
  public:
-  static constexpr size_t kNumPages = (1 << 19);
+  static constexpr size_t kNumPages =
+      1 << (ckmalloc::kHeapSizeShift - ckmalloc::kPageShift);
 
   TestCorrectness()
       : heap_(std::make_shared<ckmalloc::TestHeap>(kNumPages)),
@@ -231,6 +232,13 @@ TEST_F(TestCorrectness, McServerSmall) {
 TEST_F(TestCorrectness, McServer) {
   ASSERT_THAT(RunTrace("traces/mc_server.trace", /*validate_every_n=*/16384),
               util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, McServerLarge) {
+  ASSERT_THAT(
+      RunTrace("traces/mc_server_large.trace", /*validate_every_n=*/16384),
+      util::IsOk());
   ASSERT_THAT(ValidateEmpty(), IsOk());
 }
 
