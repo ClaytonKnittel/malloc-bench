@@ -10,6 +10,7 @@ filegroup(
         "cbit-satadd.trace",
         "cbit-xyz.trace",
         "mc_server.trace",
+        "mc_server_large.trace",
         "mc_server_small.trace",
         "ngram-fox1.trace",
         "ngram-gulliver1.trace",
