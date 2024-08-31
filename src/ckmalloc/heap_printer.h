@@ -7,6 +7,7 @@
 #include "src/ckmalloc/block.h"
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/page_id.h"
+#include "src/ckmalloc/size_class.h"
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/util.h"
 #include "src/heap_interface.h"
@@ -30,7 +31,9 @@ class HeapPrinter {
 
   std::string PrintSmall(const SmallSlab* slab);
 
-  std::string PrintLarge(const LargeSlab* slab);
+  std::string PrintBlocked(const BlockedSlab* slab);
+
+  std::string PrintSingleAlloc(const SingleAllocSlab* slab);
 
   const bench::Heap* const heap_;
   const SlabMap* const slab_map_;
@@ -63,18 +66,19 @@ std::string HeapPrinter<SlabMap, SlabManager>::Print() {
         CK_ASSERT_TRUE(false);
       }
       case SlabType::kFree: {
-        FreeSlab* free_slab = slab->ToFree();
-        result += PrintFree(free_slab);
+        result += PrintFree(slab->ToFree());
         break;
       }
       case SlabType::kSmall: {
-        SmallSlab* small_slab = slab->ToSmall();
-        result += PrintSmall(small_slab);
+        result += PrintSmall(slab->ToSmall());
         break;
       }
-      case SlabType::kLarge: {
-        LargeSlab* large_slab = slab->ToLarge();
-        result += PrintLarge(large_slab);
+      case SlabType::kBlocked: {
+        result += PrintBlocked(slab->ToBlocked());
+        break;
+      }
+      case SlabType::kSingleAlloc: {
+        result += PrintSingleAlloc(slab->ToSingleAlloc());
         break;
       }
     }
@@ -96,7 +100,10 @@ std::string HeapPrinter<SlabMap, SlabManager>::PrintMetadata(PageId page_id) {
 /* static */
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
 std::string HeapPrinter<SlabMap, SlabManager>::PrintFree(const FreeSlab* slab) {
-  return absl::StrFormat("Pages %v - %v: free", slab->StartId(), slab->EndId());
+  return absl::StrFormat("Pages %v%v: free", slab->StartId(),
+                         slab->StartId() == slab->EndId()
+                             ? ""
+                             : absl::StrFormat(" - %v", slab->EndId()));
 }
 
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
@@ -114,28 +121,56 @@ std::string HeapPrinter<SlabMap, SlabManager>::PrintSmall(
       slab_manager_->PageStartFromId(slab->StartId()),
       [&free_slots](uint32_t slice_idx) { free_slots[slice_idx] = true; });
 
-  result += "\n[";
-  uint32_t offset = 1;
-  for (bool free_slot : free_slots) {
-    if (offset == kMaxRowLength) {
-      result += "\n";
-      offset = 0;
-    }
+  result += "\n";
+  uint32_t offset = 0;
+  if (slab->SizeClass().SliceSize() == kMinAlignment) {
+    for (size_t i = 0; i < free_slots.size(); i += 2) {
+      if (offset == kMaxRowLength) {
+        result += "\n";
+        offset = 0;
+      }
 
-    result += free_slot ? '.' : 'X';
+      if (free_slots[i] && free_slots[i + 1]) {
+        result += ' ';
+      } else if (free_slots[i] && !free_slots[i + 1]) {
+        result += ',';
+      } else if (!free_slots[i] && free_slots[i + 1]) {
+        result += '`';
+      } else {
+        result += '\\';
+      }
+
+      offset++;
+    }
+  } else {
+    uint32_t width = slab->SizeClass().SliceSize() / kDefaultAlignment;
+    for (bool free_slot : free_slots) {
+      for (size_t w = 0; w < width; w++) {
+        if (offset == kMaxRowLength) {
+          result += "\n";
+          offset = 0;
+        }
+
+        result +=
+            free_slot ? '.' : (w == 0 ? '[' : (w == width - 1 ? ']' : 'X'));
+        offset++;
+      }
+    }
   }
-  result += ']';
 
   return result;
 }
 
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
-std::string HeapPrinter<SlabMap, SlabManager>::PrintLarge(
-    const LargeSlab* slab) {
-  std::string result = absl::StrFormat(
-      "Pages %v - %v: large %v%% full", slab->StartId(), slab->EndId(),
-      100.F * slab->AllocatedBytes() /
-          static_cast<float>(slab->Pages() * kPageSize));
+std::string HeapPrinter<SlabMap, SlabManager>::PrintBlocked(
+    const BlockedSlab* slab) {
+  std::string result =
+      absl::StrFormat("Pages %v%v: large %v%% full", slab->StartId(),
+                      slab->StartId() == slab->EndId()
+                          ? ""
+                          : absl::StrFormat(" - %v", slab->EndId()),
+                      100.F * slab->AllocatedBytes() /
+                          static_cast<float>(slab->Pages() * kPageSize));
 
   std::vector<std::string> rows(2 * slab->Pages(),
                                 std::string(kMaxRowLength, '.'));
@@ -145,7 +180,7 @@ std::string HeapPrinter<SlabMap, SlabManager>::PrintLarge(
   };
 
   uint64_t offset = 1;
-  for (Block* block = slab_manager_->FirstBlockInLargeSlab(slab);
+  for (Block* block = slab_manager_->FirstBlockInBlockedSlab(slab);
        block->Size() != 0; block = block->NextAdjacentBlock()) {
     uint64_t block_size = block->Size() / kDefaultAlignment;
 
@@ -163,6 +198,23 @@ std::string HeapPrinter<SlabMap, SlabManager>::PrintLarge(
 
   for (const auto& row : rows) {
     result += "\n" + row;
+  }
+
+  return result;
+}
+
+template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
+std::string HeapPrinter<SlabMap, SlabManager>::PrintSingleAlloc(
+    const SingleAllocSlab* slab) {
+  std::string result =
+      absl::StrFormat("Pages %v%v: single-alloc", slab->StartId(),
+                      slab->StartId() == slab->EndId()
+                          ? ""
+                          : absl::StrFormat(" - %v", slab->EndId()));
+
+  for (const auto& row :
+       std::vector(2 * slab->Pages(), std::string(kMaxRowLength, '='))) {
+    result += '\n' + row;
   }
 
   return result;

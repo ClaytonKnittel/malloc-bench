@@ -42,8 +42,8 @@ void TestSlabManager::Free(AllocatedSlab* slab) {
   slab_manager_.Free(slab);
 }
 
-Block* TestSlabManager::FirstBlockInLargeSlab(const LargeSlab* slab) const {
-  return slab_manager_.FirstBlockInLargeSlab(slab);
+Block* TestSlabManager::FirstBlockInBlockedSlab(const BlockedSlab* slab) const {
+  return slab_manager_.FirstBlockInBlockedSlab(slab);
 }
 
 void TestSlabManager::HandleAlloc(AllocatedSlab* slab) {
@@ -116,7 +116,8 @@ absl::Status SlabManagerFixture::ValidateHeap() {
         break;
       }
       case SlabType::kSmall:
-      case SlabType::kLarge: {
+      case SlabType::kBlocked:
+      case SlabType::kSingleAlloc: {
         AllocatedSlab* allocated_slab = slab->ToAllocated();
         auto it = allocated_slabs_.find(allocated_slab);
         if (it == allocated_slabs_.end()) {
@@ -297,9 +298,9 @@ absl::Status SlabManagerFixture::ValidateEmpty() {
 
 absl::StatusOr<AllocatedSlab*> SlabManagerFixture::AllocateSlab(
     uint32_t n_pages) {
-  // Arbitrarily make all allocated slabs large slabs. Their actual type doesn't
-  // matter, `SlabManager` only cares about free vs. not free.
-  auto result = SlabManager().template Alloc<LargeSlab>(n_pages);
+  // Arbitrarily make all allocated slabs blocked slabs. Their actual type
+  // doesn't matter, `SlabManager` only cares about free vs. not free.
+  auto result = SlabManager().template Alloc<BlockedSlab>(n_pages);
   if (!result.has_value()) {
     return nullptr;
   }
@@ -348,7 +349,7 @@ absl::Status SlabManagerFixture::FreeSlab(AllocatedSlab* slab) {
 }
 
 void SlabManagerFixture::FillMagic(AllocatedSlab* slab, uint64_t magic) {
-  CK_ASSERT_EQ(slab->Type(), SlabType::kLarge);
+  CK_ASSERT_EQ(slab->Type(), SlabType::kBlocked);
   auto* start = reinterpret_cast<uint64_t*>(
       SlabManager().PageStartFromId(slab->StartId()));
   auto* end = reinterpret_cast<uint64_t*>(
@@ -362,7 +363,7 @@ void SlabManagerFixture::FillMagic(AllocatedSlab* slab, uint64_t magic) {
 
 absl::Status SlabManagerFixture::CheckMagic(AllocatedSlab* slab,
                                             uint64_t magic) {
-  CK_ASSERT_EQ(slab->Type(), SlabType::kLarge);
+  CK_ASSERT_EQ(slab->Type(), SlabType::kBlocked);
   auto* start = reinterpret_cast<uint64_t*>(
       SlabManager().PageStartFromId(slab->StartId()));
   auto* end = reinterpret_cast<uint64_t*>(

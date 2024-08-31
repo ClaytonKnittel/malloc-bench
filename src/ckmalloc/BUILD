@@ -127,7 +127,6 @@ cc_library(
     name = "main_allocator",
     hdrs = ["main_allocator.h"],
     deps = [
-        ":block",
         ":common",
         ":large_allocator",
         ":slab",

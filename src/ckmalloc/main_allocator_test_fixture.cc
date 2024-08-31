@@ -100,7 +100,7 @@ absl::Status MainAllocatorFixture::ValidateHeap() {
   }
 
   // Validate all large slabs.
-  std::vector<LargeSlabInfo> large_slabs;
+  std::vector<BlockedSlabInfo> blocked_slabs;
 
   for (PageId page_id = PageId::Zero();
        page_id < PageId(heap_->Size() / kPageSize);) {
@@ -118,19 +118,20 @@ absl::Status MainAllocatorFixture::ValidateHeap() {
             page_id);
       }
       case SlabType::kFree:
-      case SlabType::kSmall: {
+      case SlabType::kSmall:
+      case SlabType::kSingleAlloc: {
         break;
       }
-      case SlabType::kLarge: {
-        LargeSlab* large_slab = slab->ToLarge();
-        large_slabs.push_back(LargeSlabInfo{
+      case SlabType::kBlocked: {
+        BlockedSlab* blocked_slab = slab->ToBlocked();
+        blocked_slabs.push_back(BlockedSlabInfo{
             .start =
                 static_cast<uint8_t*>(slab_manager_->PageStartFromId(page_id)) +
                 Block::kFirstBlockInSlabOffset,
             .end = static_cast<uint8_t*>(
-                       slab_manager_->PageStartFromId(large_slab->EndId())) +
+                       slab_manager_->PageStartFromId(blocked_slab->EndId())) +
                    kPageSize,
-            .slab = large_slab,
+            .slab = blocked_slab,
         });
         break;
       }
@@ -139,7 +140,8 @@ absl::Status MainAllocatorFixture::ValidateHeap() {
     page_id += slab->ToMapped()->Pages();
   }
 
-  RETURN_IF_ERROR(ValidateLargeSlabs(large_slabs, main_allocator_->Freelist()));
+  RETURN_IF_ERROR(
+      ValidateBlockedSlabs(blocked_slabs, main_allocator_->Freelist()));
 
   return absl::OkStatus();
 }

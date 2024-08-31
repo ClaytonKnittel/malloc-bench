@@ -117,14 +117,14 @@ absl::Status FreelistTest::ValidateHeap() {
         "Called `ValidateHeap()` before `PushPhony()`");
   }
 
-  std::vector<LargeSlabInfo> slabs = {
+  std::vector<BlockedSlabInfo> slabs = {
     {
         .start = &region_[0],
         .end = &region_[block_offset_],
         .slab = nullptr,
     },
   };
-  return ValidateLargeSlabs(slabs, Freelist());
+  return ValidateBlockedSlabs(slabs, Freelist());
 }
 
 TEST_F(FreelistTest, FreeBlock) {

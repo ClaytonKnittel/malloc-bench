@@ -22,8 +22,11 @@ std::ostream& operator<<(std::ostream& ostr, SlabType slab_type) {
     case SlabType::kSmall: {
       return ostr << "kSmall";
     }
-    case SlabType::kLarge: {
-      return ostr << "kLarge";
+    case SlabType::kBlocked: {
+      return ostr << "kBlocked";
+    }
+    case SlabType::kSingleAlloc: {
+      return ostr << "kSingleAlloc";
     }
   }
 }
@@ -180,8 +183,8 @@ SmallSlab* Slab::Init(PageId start_id, uint32_t n_pages, SizeClass size_class) {
 }
 
 template <>
-LargeSlab* Slab::Init(PageId start_id, uint32_t n_pages) {
-  type_ = SlabType::kLarge;
+BlockedSlab* Slab::Init(PageId start_id, uint32_t n_pages) {
+  type_ = SlabType::kBlocked;
   mapped = {
     .id_ = start_id,
     .n_pages_ = n_pages,
@@ -190,7 +193,20 @@ LargeSlab* Slab::Init(PageId start_id, uint32_t n_pages) {
     },
   };
 
-  LargeSlab* slab = static_cast<LargeSlab*>(this);
+  BlockedSlab* slab = static_cast<BlockedSlab*>(this);
+  return slab;
+}
+
+template <>
+SingleAllocSlab* Slab::Init(PageId start_id, uint32_t n_pages) {
+  type_ = SlabType::kSingleAlloc;
+  mapped = {
+    .id_ = start_id,
+    .n_pages_ = n_pages,
+    .page_multiple = {},
+  };
+
+  SingleAllocSlab* slab = static_cast<SingleAllocSlab*>(this);
   return slab;
 }
 
@@ -247,13 +263,35 @@ const SmallSlab* Slab::ToSmall() const {
 }
 
 LargeSlab* Slab::ToLarge() {
-  CK_ASSERT_EQ(Type(), SlabType::kLarge);
+  CK_ASSERT_TRUE(Type() == SlabType::kBlocked ||
+                 Type() == SlabType::kSingleAlloc);
   return static_cast<LargeSlab*>(this);
 }
 
 const LargeSlab* Slab::ToLarge() const {
-  CK_ASSERT_EQ(Type(), SlabType::kLarge);
+  CK_ASSERT_TRUE(Type() == SlabType::kBlocked ||
+                 Type() == SlabType::kSingleAlloc);
   return static_cast<const LargeSlab*>(this);
+}
+
+BlockedSlab* Slab::ToBlocked() {
+  CK_ASSERT_EQ(Type(), SlabType::kBlocked);
+  return static_cast<BlockedSlab*>(this);
+}
+
+const BlockedSlab* Slab::ToBlocked() const {
+  CK_ASSERT_EQ(Type(), SlabType::kBlocked);
+  return static_cast<const BlockedSlab*>(this);
+}
+
+class SingleAllocSlab* Slab::ToSingleAlloc() {
+  CK_ASSERT_EQ(Type(), SlabType::kSingleAlloc);
+  return static_cast<SingleAllocSlab*>(this);
+}
+
+const class SingleAllocSlab* Slab::ToSingleAlloc() const {
+  CK_ASSERT_EQ(Type(), SlabType::kSingleAlloc);
+  return static_cast<const SingleAllocSlab*>(this);
 }
 
 UnmappedSlab* UnmappedSlab::NextUnmappedSlab() {
@@ -284,6 +322,11 @@ PageId MappedSlab::EndId() const {
 uint32_t MappedSlab::Pages() const {
   CK_ASSERT_NE(type_, SlabType::kUnmapped);
   return mapped.n_pages_;
+}
+
+void MappedSlab::SetSize(uint32_t n_pages) {
+  CK_ASSERT_NE(type_, SlabType::kUnmapped);
+  mapped.n_pages_ = n_pages;
 }
 
 constexpr size_t TinySizeClassOffset() {
@@ -376,34 +419,45 @@ bool SmallSlab::IsTiny() const {
 }
 
 /* static */
-uint32_t LargeSlab::NPagesForBlock(size_t user_size) {
-  return CeilDiv<uint32_t>(Block::BlockSizeForUserSize(user_size) +
-                               Block::kFirstBlockInSlabOffset +
-                               Block::kMetadataOverhead,
-                           kPageSize);
+uint32_t BlockedSlab::NPagesForBlock(size_t user_size) {
+  return static_cast<uint32_t>(CeilDiv(Block::BlockSizeForUserSize(user_size) +
+                                           Block::kFirstBlockInSlabOffset +
+                                           Block::kMetadataOverhead,
+                                       kPageSize));
 }
 
-uint64_t LargeSlab::MaxBlockSize() const {
-  CK_ASSERT_EQ(Type(), SlabType::kLarge);
+uint64_t BlockedSlab::MaxBlockSize() const {
+  CK_ASSERT_EQ(Type(), SlabType::kBlocked);
   return AlignDown(mapped.n_pages_ * kPageSize -
                        Block::kFirstBlockInSlabOffset -
                        Block::kMetadataOverhead,
                    kDefaultAlignment);
 }
 
-void LargeSlab::AddAllocation(uint64_t n_bytes) {
-  CK_ASSERT_EQ(Type(), SlabType::kLarge);
+void BlockedSlab::AddAllocation(uint64_t n_bytes) {
+  CK_ASSERT_EQ(Type(), SlabType::kBlocked);
   mapped.large.allocated_bytes_ += n_bytes;
 }
 
-void LargeSlab::RemoveAllocation(uint64_t n_bytes) {
-  CK_ASSERT_EQ(Type(), SlabType::kLarge);
+void BlockedSlab::RemoveAllocation(uint64_t n_bytes) {
+  CK_ASSERT_EQ(Type(), SlabType::kBlocked);
   mapped.large.allocated_bytes_ -= n_bytes;
 }
 
-uint64_t LargeSlab::AllocatedBytes() const {
-  CK_ASSERT_EQ(Type(), SlabType::kLarge);
+uint64_t BlockedSlab::AllocatedBytes() const {
+  CK_ASSERT_EQ(Type(), SlabType::kBlocked);
   return mapped.large.allocated_bytes_;
+}
+
+/* static */
+uint32_t SingleAllocSlab::NPagesForAlloc(size_t user_size) {
+  return static_cast<uint32_t>(CeilDiv(user_size, kPageSize));
+}
+
+/* static */
+bool SingleAllocSlab::SizeSuitableForSingleAlloc(size_t user_size) {
+  return AlignUp(user_size, kPageSize) !=
+         BlockedSlab::NPagesForBlock(user_size) * kPageSize;
 }
 
 }  // namespace ckmalloc
