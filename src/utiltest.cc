@@ -11,6 +11,7 @@
 namespace bench {
 
 size_t RoundUp(size_t size) {
+	return size;
   if (size <= 8) {
     return 8;
   }
