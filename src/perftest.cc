@@ -62,6 +62,20 @@ std::pair<std::vector<TimeOp>, size_t> ComputeOps(
         break;
       }
       case TraceLine::Op::kRealloc: {
+        if (line.input_ptr == nullptr) {
+          size_t idx = get_new_idx();
+          ops.push_back(TimeOp{
+              .line = {
+                .op = TraceLine::Op::kMalloc,
+                .input_size = line.input_size,
+                .result = line.result,
+              },
+              .res_idx = idx,
+          });
+          idx_map[line.result] = idx;
+          break;
+        }
+
         if (line.input_ptr != line.result) {
           size_t old_idx = idx_map[line.input_ptr];
           size_t idx = get_new_idx();
