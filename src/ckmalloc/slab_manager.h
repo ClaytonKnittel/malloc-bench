@@ -47,11 +47,11 @@ class SlabManagerImpl {
   template <typename S, typename... Args>
   std::optional<std::pair<PageId, S*>> Alloc(uint32_t n_pages, Args...);
 
-  // Attempts to resize the slab in-place, extending it or shrinking it without
-  // changing the start id of the slab. If this returns true, the resize was
-  // successful, and the slab metadata will have been updated. If this returns
-  // false, then no modifications will have been made.
-  bool Resize(AllocatedSlab* slab, uint32_t new_size);
+  // Attempts to resize the large slab in-place, extending it or shrinking it
+  // without changing the start id of the slab. If this returns true, the resize
+  // was successful, and the slab metadata will have been updated. If this
+  // returns false, then no modifications will have been made.
+  bool ResizeLarge(LargeSlab* slab, uint32_t new_size);
 
   // Frees the slab and takes ownership of the `Slab` metadata object.
   void Free(AllocatedSlab* slab);
@@ -190,8 +190,8 @@ SlabManagerImpl<MetadataAlloc, SlabMap>::Alloc(uint32_t n_pages, Args... args) {
 }
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
-bool SlabManagerImpl<MetadataAlloc, SlabMap>::Resize(AllocatedSlab* slab,
-                                                     uint32_t new_size) {
+bool SlabManagerImpl<MetadataAlloc, SlabMap>::ResizeLarge(LargeSlab* slab,
+                                                          uint32_t new_size) {
   CK_ASSERT_NE(new_size, 0);
 
   uint32_t n_pages = slab->Pages();
@@ -200,11 +200,16 @@ bool SlabManagerImpl<MetadataAlloc, SlabMap>::Resize(AllocatedSlab* slab,
   }
 
   MappedSlab* next_slab = slab_map_->FindSlab(slab->EndId() + 1);
+  // The start of the next adjacent free slab, if there will be one.
+  const PageId free_start = slab->StartId() + new_size;
+  // This will be assigned the size of the next adjacent free slab.
+  uint32_t free_size;
+  // This will be available slab metadata that can be used for the new/modified
+  // next adjacent free slab.
+  Slab* free_meta;
 
   if (new_size < n_pages) {
-    Slab* free_meta;
-    PageId free_start = slab->StartId() + new_size;
-    uint32_t free_size = n_pages - new_size;
+    free_size = n_pages - new_size;
 
     // Check the next slab, if it's free then we can extend it backwards.
     if (next_slab != nullptr && next_slab->Type() == SlabType::kFree) {
@@ -220,13 +225,10 @@ bool SlabManagerImpl<MetadataAlloc, SlabMap>::Resize(AllocatedSlab* slab,
         return false;
       }
     }
-
-    FreeRegion(free_meta, free_start, free_size);
-    slab->SetSize(new_size);
-    return true;
   } else {
     // If the next slab isn't free, we can't extend this slab.
     if (next_slab == nullptr || next_slab->Type() != SlabType::kFree) {
+      // TODO: if this slab is at the end of the heap, we can extend the heap.
       return false;
     }
 
@@ -236,19 +238,33 @@ bool SlabManagerImpl<MetadataAlloc, SlabMap>::Resize(AllocatedSlab* slab,
     // increase.
     if (available_pages < new_size) {
       return false;
-    } else if (available_pages == new_size) {
+    }
+
+    // Remove the next free slab from the freelist, since we'll be changing its
+    // size.
+    RemoveFreeSlab(next_free_slab);
+
+    // At this point, we know for certain that the slab can be extended and will
+    // not fail. Update the slab map for the soon-to-be-added pages.
+    slab_map_->InsertRange(slab->StartId() + n_pages + 1, free_start - 1, slab);
+
+    if (available_pages == new_size) {
+      // If we exactly fill the next free slab, then we can just change our size
+      // and free the old free slab metadata.
+      slab->SetSize(new_size);
+      MetadataAlloc::SlabFree(next_free_slab);
       return true;
     }
 
-    // In this case, we need to add a new free slab after the end of the newly
-    // extended slab.
-    Slab* free_meta = MetadataAlloc::SlabAlloc();
-    if (free_meta == nullptr) {
-      return false;
-    }
-
-    // Also need to add more entries to the slab map.
+    // If we don't exactly fill the next free slab, we need to add a new free
+    // slab after the end of the newly extended slab.
+    free_size = available_pages - new_size;
+    free_meta = next_free_slab;
   }
+
+  FreeRegion(free_meta, free_start, free_size);
+  slab->SetSize(new_size);
+  return true;
 }
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
