@@ -12,8 +12,6 @@
 #include "absl/strings/str_cat.h"
 #include "util/absl_util.h"
 
-#define PID_RE
-
 namespace bench {
 
 namespace {
