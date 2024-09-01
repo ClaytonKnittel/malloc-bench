@@ -15,7 +15,6 @@ cc_binary(
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/strings",
         "@cc-util//util:absl_util",
-        "@cc-util//util:gtest_util",
     ],
 )
 
@@ -47,7 +46,6 @@ cc_library(
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/time",
         "@cc-util//util:absl_util",
-        "@cc-util//util:gtest_util",
     ],
 )
 
@@ -65,7 +63,6 @@ cc_library(
         "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/status:statusor",
         "@cc-util//util:absl_util",
-        "@cc-util//util:gtest_util",
     ],
 )
 
@@ -93,7 +90,6 @@ cc_library(
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",
         "@cc-util//util:absl_util",
-        "@cc-util//util:gtest_util",
     ],
 )
 
@@ -151,6 +147,22 @@ cc_library(
     ],
 )
 
+cc_binary(
+    name = "tracefile_cleaner",
+    srcs = ["tracefile_cleaner.cc"],
+    data = [
+        "//traces",
+    ],
+    deps = [
+        ":tracefile_reader",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/flags:parse",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/strings",
+        "@cc-util//util:absl_util",
+    ],
+)
+
 cc_library(
     name = "tracefile_executor",
     srcs = ["tracefile_executor.cc"],
@@ -175,7 +187,6 @@ cc_library(
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
         "@cc-util//util:absl_util",
-        "@cc-util//util:gtest_util",
     ],
 )
 

@@ -27,6 +27,8 @@ struct TraceLine {
   size_t nmemb;
   // For malloc/calloc/realloc, the returned pointer.
   void* result;
+  // Process ID.
+  int32_t pid;
 };
 
 class TracefileReader {
