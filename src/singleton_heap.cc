@@ -31,7 +31,7 @@ SingletonHeap::SingletonHeap(void* heap_start, size_t size)
 /* static */
 absl::StatusOr<SingletonHeap> SingletonHeap::Initialize() {
   void* heap_start = mmap(nullptr, kHeapSize, PROT_READ | PROT_WRITE,
-                          MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+                          MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
   if (heap_start == MAP_FAILED) {
     return absl::InternalError(
         absl::StrFormat("Failed to mmap 100MB region: %s", strerror(errno)));
