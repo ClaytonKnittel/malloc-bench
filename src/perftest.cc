@@ -8,7 +8,7 @@
 #include "util/absl_util.h"
 
 #include "src/allocator_interface.h"
-#include "src/singleton_heap.h"
+#include "src/heap_factory.h"
 #include "src/tracefile_reader.h"
 
 namespace bench {
@@ -118,7 +118,8 @@ std::pair<std::vector<TimeOp>, size_t> ComputeOps(
 }  // namespace
 
 // Runs at least 1000000 ops, and returns the average MOps/s.
-absl::StatusOr<double> TimeTrace(const std::string& tracefile) {
+absl::StatusOr<double> TimeTrace(const std::string& tracefile,
+                                 HeapFactory& heap_factory) {
   constexpr size_t kMinDesiredOps = 1000000;
 
   DEFINE_OR_RETURN(TracefileReader, reader, TracefileReader::Open(tracefile));
@@ -132,8 +133,8 @@ absl::StatusOr<double> TimeTrace(const std::string& tracefile) {
 
   absl::Time start = absl::Now();
   for (size_t t = 0; t < num_repetitions; t++) {
-    SingletonHeap::GlobalInstance()->Reset();
-    initialize_heap();
+    heap_factory.Reset();
+    initialize_heap(heap_factory);
 
     for (const TimeOp& op : ops) {
       switch (op.line.op) {
