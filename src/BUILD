@@ -47,6 +47,7 @@ cc_library(
         ":singleton_heap",
         ":tracefile_reader",
         "@abseil-cpp//absl/container:flat_hash_map",
+        "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/status:statusor",
         "@cc-util//util:absl_util",
     ],
