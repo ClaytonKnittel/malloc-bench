@@ -4,6 +4,6 @@ build --features=layering_check
 build --process_headers_in_dependencies=false --features=-parse_headers
 build --cxxopt=-std=c++20
 build:opt --action_env=NDEBUG=1
-build:opt --copt=-flto=thin --linkopt=-flto=thin
-# build --linkopt=-lprofiler
-# build --action_env=NDEBUG=1
+# build:opt --copt=-flto=thin --linkopt=-flto=thin
+build --linkopt=-lprofiler --copt=-g3
+build --action_env=NDEBUG=1
