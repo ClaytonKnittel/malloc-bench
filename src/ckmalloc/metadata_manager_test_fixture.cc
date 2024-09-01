@@ -225,21 +225,22 @@ absl::Status MetadataManagerFixture::ValidateHeap() {
 absl::Status MetadataManagerFixture::TraceBlockAllocation(void* block,
                                                           size_t size,
                                                           size_t alignment) {
+  const auto* heap = HeapFactory().Instance(0);
   // Check that the pointer is aligned relative to the heap start. The heap
   // will be page-aligned in production, but may not be in tests.
-  if ((PtrDistance(block, Heap().Start()) & (alignment - 1)) != 0) {
+  if ((PtrDistance(block, heap->Start()) & (alignment - 1)) != 0) {
     return FailedTest(
         "Pointer returned from Alloc not aligned properly: pointer %p, size "
         "%zu, alignment %zu",
         block, size, alignment);
   }
 
-  if (block < Heap().Start() ||
-      static_cast<uint8_t*>(block) + size > Heap().End()) {
+  if (block < heap->Start() ||
+      static_cast<uint8_t*>(block) + size > heap->End()) {
     return FailedTest(
         "Block allocated outside range of heap: returned %p of size %zu, heap "
         "ranges from %p to %p",
-        block, size, Heap().Start(), Heap().End());
+        block, size, heap->Start(), heap->End());
   }
 
   for (const auto& [ptr, ptr_size] : allocated_blocks_) {

@@ -64,9 +64,10 @@ class MetadataManagerFixture : public CkMallocTest {
   static constexpr const char* kPrefix = "[MetadataManagerFixture]";
 
   MetadataManagerFixture(
-      std::shared_ptr<TestHeap> heap, std::shared_ptr<TestSlabMap> slab_map,
+      std::shared_ptr<TestHeapFactory> heap_factory,
+      std::shared_ptr<TestSlabMap> slab_map,
       std::shared_ptr<SlabManagerFixture> slab_manager_test_fixture)
-      : heap_(std::move(heap)),
+      : heap_factory_(std::move(heap_factory)),
         slab_map_(std::move(slab_map)),
         slab_manager_test_fixture_(std::move(slab_manager_test_fixture)),
         slab_manager_(slab_manager_test_fixture_->SlabManagerPtr()),
@@ -85,8 +86,8 @@ class MetadataManagerFixture : public CkMallocTest {
     return kPrefix;
   }
 
-  TestHeap& Heap() {
-    return *heap_;
+  TestHeapFactory& HeapFactory() {
+    return *heap_factory_;
   }
 
   TestSlabMap& SlabMap() {
@@ -127,7 +128,7 @@ class MetadataManagerFixture : public CkMallocTest {
   // bytes.
   absl::Status TraceBlockAllocation(void* block, size_t size, size_t alignment);
 
-  std::shared_ptr<TestHeap> heap_;
+  std::shared_ptr<TestHeapFactory> heap_factory_;
   std::shared_ptr<TestSlabMap> slab_map_;
   std::shared_ptr<SlabManagerFixture> slab_manager_test_fixture_;
   std::shared_ptr<TestSlabManager> slab_manager_;
