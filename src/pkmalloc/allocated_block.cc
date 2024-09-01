@@ -44,3 +44,9 @@ AllocatedBlock* AllocatedBlock::free_to_alloc(FreeBlock* current_block) {
   auto* result = reinterpret_cast<AllocatedBlock*>(current_block);
   return result;
 }
+
+FreeBlock* AllocatedBlock::alloc_to_free(AllocatedBlock* current_block) {
+  current_block->SetFree(true);
+  auto* result = reinterpret_cast<FreeBlock*>(current_block);
+  return result;
+}

@@ -26,6 +26,9 @@ class AllocatedBlock : public Block {
   // changes the type of the current block from free to allocated
   static AllocatedBlock* free_to_alloc(FreeBlock* current_block);
 
+  // changes the type of the current block from allocated to free
+  static FreeBlock* alloc_to_free(AllocatedBlock* current_block);
+
   // still need header, keep 16 byte aligned so make header bits 8-16 of 16 byte
   // chunk*************
 

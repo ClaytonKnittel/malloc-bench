@@ -1,6 +1,5 @@
 #pragma once
 
-#include "src/pkmalloc/allocated_block.h"
 #include "src/pkmalloc/block.h"
 
 class FreeBlock : public Block {
@@ -20,13 +19,8 @@ class FreeBlock : public Block {
   // combine adjacent free blocks to be one big free block
   static void coalesce(FreeBlock* current, FreeBlock* prev);
 
-  // changes the type of the current block from allocated to free
-  static FreeBlock* alloc_to_free(AllocatedBlock* current_block);
-
-  // data structure of pointers to free blocks
   // look at programming restrictions in spec
-  // blocks and do stuff
-  // sort free blocks by size or address? how to coalesce efficiently and have
+  // how to coalesce efficiently and have
   // quick lookup for certain size memory chunk
   // eventually have special cases for smaller blocks (8-byte or less)
 

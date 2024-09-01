@@ -4,7 +4,7 @@ cc_library(
     hdrs = ["allocated_block.h"],
     deps = [
         ":block",
-        ":malloc_assert",
+        ":free_block",
     ],
 )
 
@@ -23,29 +23,29 @@ cc_library(
     srcs = ["free_block.cc"],
     hdrs = ["free_block.h"],
     deps = [
+        ":allocated_block",
         ":block",
-        ":malloc_assert",
     ],
 )
 
 cc_library(
     name = "free_list",
+    srcs = ["free_block.cc"],
     hdrs = ["free_list.h"],
-)
-
-cc_library(
-    name = "heap_check",
-    srcs = ["heap_check.cc"],
-    hdrs = ["fheap_check.h"],
-)
-
-cc_library(
-    name = "metdata",
-    srcs = ["metdata.cc"],
-    hdrs = ["metdata.h"],
     deps = [
         ":allocated_block",
         ":block",
         ":free_block",
     ],
+)
+
+cc_library(
+    name = "heap_check",
+    srcs = ["heap_check.cc"],
+    hdrs = ["heap_check.h"],
+)
+
+cc_library(
+    name = "malloc_assert",
+    hdrs = ["malloc_assert.h"],
 )

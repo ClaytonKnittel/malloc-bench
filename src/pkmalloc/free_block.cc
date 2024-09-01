@@ -14,8 +14,7 @@ void FreeBlock::RemoveNext(FreeBlock* current_block, FreeBlock* next) {
 
 FreeBlock* FreeBlock::combine(FreeBlock* left_block, FreeBlock* right_block) {
   // Do I need to track that address left < address right?
-  // this should happen in free list - edit free list struc
-  // merge two free blocks
+  // this should happen in free list::add_free_block_to_list
   left_block->SetFree(true);
   left_block->SetBlockSize(left_block->GetBlockSize() +
                            right_block->GetBlockSize());
@@ -35,12 +34,4 @@ void FreeBlock::coalesce(FreeBlock* current, FreeBlock* prev) {
       current = combine(current, current->next_);
     }
   }
-  // update current free list to make these blocks only one in the linked list?
-  // return current;
-}
-
-FreeBlock* FreeBlock::alloc_to_free(AllocatedBlock* current_block) {
-  current_block->SetFree(true);
-  auto* result = reinterpret_cast<FreeBlock*>(current_block);
-  return result;
 }

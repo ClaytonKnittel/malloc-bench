@@ -1,7 +1,7 @@
 #include "src/pkmalloc/free_list.h"
 
 FreeBlock* FreeList::add_free_block_to_list(AllocatedBlock* curr_block) {
-  FreeBlock* current_block = FreeBlock::alloc_to_free(curr_block);
+  FreeBlock* current_block = AllocatedBlock::alloc_to_free(curr_block);
   auto* free_list_iter = begin_;
   auto* prev_iter = begin_;
   // free list is empty
