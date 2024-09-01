@@ -6,7 +6,7 @@
 #include "src/ckmalloc/slab_manager.h"
 #include "src/ckmalloc/slab_map.h"
 #include "src/ckmalloc/small_allocator.h"
-#include "src/heap_interface.h"
+#include "src/heap_factory.h"
 
 namespace ckmalloc {
 
@@ -14,7 +14,7 @@ class State {
  public:
   // Initializes a new `State` with a heap has not been allocated from yet. The
   // `State` takes ownership of the heap.
-  static State* InitializeWithEmptyHeap(bench::Heap* heap);
+  static State* InitializeWithEmptyHeap(bench::HeapFactory* heap_factory);
 
   // Returns the singleton `State` instance.
   static State* Instance();
@@ -36,7 +36,7 @@ class State {
   }
 
  private:
-  explicit State(bench::Heap* heap, PageId last);
+  explicit State(bench::HeapFactory* heap_factory, PageId last);
 
   // This is the global state instance that is initialized with
   // `InitializeWithEmptyHeap`.

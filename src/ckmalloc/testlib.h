@@ -143,6 +143,10 @@ class TestHeap : private AlignedAlloc, public bench::Heap {
         bench::Heap(RegionStart(), n_pages * kPageSize) {}
 };
 
+class TestHeapFactory {
+ public:
+};
+
 class CkMallocTest {
  public:
   virtual ~CkMallocTest() {

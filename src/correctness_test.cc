@@ -12,6 +12,7 @@
 #include "src/ckmalloc/slab_manager_test_fixture.h"
 #include "src/ckmalloc/small_allocator_test_fixture.h"
 #include "src/ckmalloc/testlib.h"
+#include "src/heap_factory.h"
 #include "src/tracefile_executor.h"
 #include "src/tracefile_reader.h"
 
@@ -26,13 +27,14 @@ class TestCkMalloc : public TracefileExecutor {
 
  public:
   explicit TestCkMalloc(TracefileReader&& tracefile_reader,
+                        HeapFactory& heap_factory,
                         class TestCorrectness* fixture,
                         uint32_t validate_every_n)
-      : TracefileExecutor(std::move(tracefile_reader)),
+      : TracefileExecutor(std::move(tracefile_reader), heap_factory),
         fixture_(fixture),
         validate_every_n_(validate_every_n) {}
 
-  void InitializeHeap() override;
+  void InitializeHeap(HeapFactory& heap_factory) override;
   absl::StatusOr<void*> Malloc(size_t size) override;
   absl::StatusOr<void*> Calloc(size_t nmemb, size_t size) override;
   absl::StatusOr<void*> Realloc(void* ptr, size_t size) override;
@@ -75,8 +77,9 @@ class TestCorrectness : public ::testing::Test {
 
   absl::Status RunTrace(const std::string& trace,
                         uint32_t validate_every_n = 1) {
+    HeapFactory heap_factory;
     DEFINE_OR_RETURN(TracefileReader, reader, TracefileReader::Open(trace));
-    TestCkMalloc test(std::move(reader), this, validate_every_n);
+    TestCkMalloc test(std::move(reader), heap_factory, this, validate_every_n);
     return test.Run();
   }
 
@@ -104,7 +107,9 @@ class TestCorrectness : public ::testing::Test {
   std::shared_ptr<ckmalloc::MainAllocatorFixture> main_allocator_fixture_;
 };
 
-void TestCkMalloc::InitializeHeap() {}
+void TestCkMalloc::InitializeHeap(HeapFactory& heap_factory) {
+  heap_factory.Reset();
+}
 
 absl::StatusOr<void*> TestCkMalloc::Malloc(size_t size) {
   if (size == 0) {

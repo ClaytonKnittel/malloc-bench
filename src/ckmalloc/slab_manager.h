@@ -14,7 +14,7 @@
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/slab_map.h"
 #include "src/ckmalloc/util.h"
-#include "src/heap_interface.h"
+#include "src/heap_factory.h"
 
 namespace ckmalloc {
 
@@ -23,7 +23,7 @@ class SlabManagerImpl {
   friend class SlabManagerFixture;
 
  public:
-  explicit SlabManagerImpl(bench::Heap* heap, SlabMap* slab_map);
+  explicit SlabManagerImpl(bench::HeapFactory* heap_factory, SlabMap* slab_map);
 
   // Returns a pointer to the start of a slab with given `PageId`.
   void* PageStartFromId(PageId page_id) const;
@@ -110,8 +110,8 @@ class SlabManagerImpl {
   // allowing it to be allocated or merged into another slab.
   void RemoveFreeSlab(FreeSlab* slab);
 
-  // The heap that this SlabManager allocates slabs from.
-  bench::Heap* heap_;
+  // The heap factory that this SlabManager allocates slabs from.
+  bench::HeapFactory* heap_factory_;
   // Cache the heap start from `heap_`, which is guaranteed to never change.
   void* const heap_start_;
 
@@ -130,9 +130,11 @@ class SlabManagerImpl {
 };
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
-SlabManagerImpl<MetadataAlloc, SlabMap>::SlabManagerImpl(bench::Heap* heap,
-                                                         SlabMap* slab_map)
-    : heap_(heap), heap_start_(heap->Start()), slab_map_(slab_map) {}
+SlabManagerImpl<MetadataAlloc, SlabMap>::SlabManagerImpl(
+    bench::HeapFactory* heap_factory, SlabMap* slab_map)
+    : heap_factory_(heap_factory),
+      heap_start_(heap_factory->Instance(0)->Start()),
+      slab_map_(slab_map) {}
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
 void* SlabManagerImpl<MetadataAlloc, SlabMap>::PageStartFromId(
@@ -140,7 +142,7 @@ void* SlabManagerImpl<MetadataAlloc, SlabMap>::PageStartFromId(
   void* slab_start = static_cast<uint8_t*>(heap_start_) +
                      (static_cast<ptrdiff_t>(page_id.Idx()) * kPageSize);
   CK_ASSERT_GE(slab_start, heap_start_);
-  CK_ASSERT_LT(slab_start, heap_->End());
+  CK_ASSERT_LT(slab_start, heap_factory_->Instance(0)->End());
   return slab_start;
 }
 
@@ -148,7 +150,7 @@ template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
 PageId SlabManagerImpl<MetadataAlloc, SlabMap>::PageIdFromPtr(
     const void* ptr) const {
   CK_ASSERT_GE(ptr, heap_start_);
-  CK_ASSERT_LT(ptr, heap_->End());
+  CK_ASSERT_LT(ptr, heap_factory_->Instance(0)->End());
   ptrdiff_t diff =
       static_cast<const uint8_t*>(ptr) - static_cast<uint8_t*>(heap_start_);
   return PageId(static_cast<uint32_t>(diff / kPageSize));
@@ -308,14 +310,15 @@ Block* SlabManagerImpl<MetadataAlloc, SlabMap>::FirstBlockInBlockedSlab(
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
 size_t SlabManagerImpl<MetadataAlloc, SlabMap>::HeapSize() const {
-  return static_cast<uint8_t*>(heap_->End()) -
+  return static_cast<uint8_t*>(heap_factory_->Instance(0)->End()) -
          static_cast<uint8_t*>(heap_start_);
 }
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
 PageId SlabManagerImpl<MetadataAlloc, SlabMap>::HeapEndPageId() {
-  ptrdiff_t diff = static_cast<const uint8_t*>(heap_->End()) -
-                   static_cast<uint8_t*>(heap_start_);
+  ptrdiff_t diff =
+      static_cast<const uint8_t*>(heap_factory_->Instance(0)->End()) -
+      static_cast<uint8_t*>(heap_start_);
   return PageId(static_cast<uint32_t>(diff / kPageSize));
 }
 
@@ -400,7 +403,7 @@ SlabManagerImpl<MetadataAlloc, SlabMap>::AllocEndWithSbrk(uint32_t n_pages,
     start_id = new_memory_id;
   }
 
-  void* slab_start = heap_->sbrk(required_size);
+  void* slab_start = heap_factory_->Instance(0)->sbrk(required_size);
   if (slab_start == nullptr) {
     return std::nullopt;
   }

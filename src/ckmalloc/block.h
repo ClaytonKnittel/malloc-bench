@@ -3,6 +3,8 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "absl/status/status.h"
+
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/linked_list.h"
 #include "src/ckmalloc/util.h"

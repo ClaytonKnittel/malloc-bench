@@ -16,6 +16,7 @@ cc_library(
         ":common",
         ":linked_list",
         ":util",
+        "@abseil-cpp//absl/status",
     ],
 )
 
@@ -34,9 +35,6 @@ cc_test(
 cc_library(
     name = "common",
     hdrs = ["common.h"],
-    deps = [
-        "//src:singleton_heap",
-    ],
 )
 
 cc_library(
@@ -319,7 +317,7 @@ cc_library(
         ":slab",
         ":slab_map",
         ":util",
-        "//src:heap_interface",
+        "//src:heap_factory",
         "@cc-util//util:std_util",
     ],
 )
@@ -470,6 +468,7 @@ cc_library(
         ":small_allocator",
         ":util",
         "//src:heap_interface",
+        "//src:heap_factory",
     ],
 )
 
@@ -504,7 +503,7 @@ cc_binary(
         ":ckmalloc",
         ":heap_printer",
         ":state",
-        "//src:singleton_heap",
+        "//src:heap_factory",
         "//src:tracefile_executor",
         "//src:tracefile_reader",
         "@abseil-cpp//absl/flags:flag",
