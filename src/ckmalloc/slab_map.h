@@ -44,13 +44,6 @@ class SlabMapImpl {
   // (inclusive) to `slab`.
   void InsertRange(PageId start_id, PageId end_id, MappedSlab* slab);
 
-  // Clears a slab map entry if it is allocated, mapping it to `nullptr`,
-  // otherwise doing nothing.
-  void Clear(PageId page_id);
-
-  // Clears a range of slab map entries, similar to `Clear()`.
-  void ClearRange(PageId start_id, PageId end_id);
-
  private:
   class Leaf {
    public:
@@ -132,35 +125,6 @@ void SlabMapImpl<MetadataAlloc>::InsertRange(PageId start_id, PageId end_id,
          (root_idx != root_idxs.second ? kLeafSize - 1 : leaf_idxs.second);
          leaf_idx++) {
       leaf.SetLeaf(leaf_idx, slab);
-    }
-  }
-}
-
-template <MetadataAllocInterface MetadataAlloc>
-void SlabMapImpl<MetadataAlloc>::Clear(PageId page_id) {
-  Leaf* leaf = (*this)[RootIdx(page_id)];
-  if (leaf != nullptr) {
-    leaf->SetLeaf(LeafIdx(page_id), nullptr);
-  }
-}
-
-template <MetadataAllocInterface MetadataAlloc>
-void SlabMapImpl<MetadataAlloc>::ClearRange(PageId start_id, PageId end_id) {
-  auto root_idxs = std::make_pair(RootIdx(start_id), RootIdx(end_id));
-  auto leaf_idxs = std::make_pair(LeafIdx(start_id), LeafIdx(end_id));
-
-  for (size_t root_idx = root_idxs.first; root_idx <= root_idxs.second;
-       root_idx++) {
-    Leaf* leaf = (*this)[root_idx];
-    if (leaf == nullptr) {
-      continue;
-    }
-
-    for (size_t leaf_idx = (root_idx != root_idxs.first ? 0 : leaf_idxs.first);
-         leaf_idx <=
-         (root_idx != root_idxs.second ? kLeafSize - 1 : leaf_idxs.second);
-         leaf_idx++) {
-      leaf->SetLeaf(leaf_idx, nullptr);
     }
   }
 }

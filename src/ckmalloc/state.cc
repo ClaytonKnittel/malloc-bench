@@ -3,7 +3,6 @@
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/main_allocator.h"
 #include "src/ckmalloc/metadata_manager.h"
-#include "src/ckmalloc/page_id.h"
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/slab_map.h"
 #include "src/ckmalloc/util.h"
@@ -19,11 +18,15 @@ State* State::InitializeWithEmptyHeap(bench::HeapFactory* heap_factory) {
   CK_ASSERT_EQ(heap_factory->Instance(0), nullptr);
   auto result = heap_factory->NewInstance(kHeapSize);
   CK_ASSERT_TRUE(result.ok());
+  auto result2 = heap_factory->NewInstance(kHeapSize);
+  CK_ASSERT_TRUE(result2.ok());
+
   // Allocate a metadata slab and place ourselves at the beginning of it.
   size_t metadata_size = AlignUp(sizeof(State), kPageSize);
-  uint32_t n_pages = metadata_size / kPageSize;
-  void* heap_start = heap_factory->Instance(0)->sbrk(metadata_size);
-  auto* state = new (heap_start) State(heap_factory, PageId(n_pages - 1));
+  void* metadata_heap_start = heap_factory->Instance(0)->sbrk(metadata_size);
+  CK_ASSERT_NE(metadata_heap_start, nullptr);
+
+  auto* state = new (metadata_heap_start) State(heap_factory);
   state_ = state;
   return state;
 }
@@ -34,9 +37,9 @@ State* State::Instance() {
   return state_;
 }
 
-State::State(bench::HeapFactory* heap_factory, PageId last)
-    : slab_manager_(heap_factory, &slab_map_),
-      metadata_manager_(&slab_map_, &slab_manager_, last /*, sizeof(State)*/),
+State::State(bench::HeapFactory* heap_factory)
+    : slab_manager_(heap_factory, &slab_map_, /*heap_idx=*/1),
+      metadata_manager_(heap_factory, &slab_map_, /*heap_idx=*/0),
       small_alloc_(&slab_map_, &slab_manager_),
       main_allocator_(&slab_map_, &slab_manager_, &small_alloc_) {}
 

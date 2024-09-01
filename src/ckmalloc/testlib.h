@@ -148,7 +148,18 @@ class TestHeap : private AlignedAlloc, public bench::Heap {
 
 class TestHeapFactory : public bench::HeapFactory {
  public:
-  explicit TestHeapFactory(size_t initial_size);
+  TestHeapFactory() = default;
+
+  explicit TestHeapFactory(size_t initial_size) {
+    auto result = NewInstance(initial_size);
+    CK_ASSERT_TRUE(result.ok());
+  }
+  TestHeapFactory(size_t initial_size1, size_t initial_size2) {
+    auto result1 = NewInstance(initial_size1);
+    CK_ASSERT_TRUE(result1.ok());
+    auto result2 = NewInstance(initial_size2);
+    CK_ASSERT_TRUE(result2.ok());
+  }
 
   ~TestHeapFactory() override = default;
 

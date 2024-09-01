@@ -35,6 +35,7 @@ cc_test(
 cc_library(
     name = "common",
     hdrs = ["common.h"],
+    visibility = ["//visibility:public"],
 )
 
 cc_library(
@@ -182,11 +183,11 @@ cc_library(
     hdrs = ["metadata_manager.h"],
     deps = [
         ":common",
-        ":page_id",
         ":slab",
-        ":slab_manager",
         ":slab_map",
         ":util",
+        "//src:heap_factory",
+        "//src:heap_interface",
     ],
 )
 
@@ -196,9 +197,7 @@ cc_test(
     deps = [
         ":common",
         ":metadata_manager_test_fixture",
-        ":size_class",
         ":slab",
-        ":slab_manager_test_fixture",
         ":testlib",
         ":util",
         "@abseil-cpp//absl/status",
@@ -217,7 +216,6 @@ cc_library(
     deps = [
         ":metadata_manager",
         ":slab",
-        ":slab_manager_test_fixture",
         ":testlib",
         ":util",
         "//src:rng",
@@ -352,6 +350,7 @@ cc_library(
         ":slab_manager",
         ":testlib",
         ":util",
+        "//src:heap_interface",
         "//src:rng",
         "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/container:flat_hash_set",
@@ -465,7 +464,6 @@ cc_library(
         ":common",
         ":main_allocator",
         ":metadata_manager",
-        ":page_id",
         ":slab",
         ":slab_manager",
         ":slab_map",

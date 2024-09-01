@@ -11,6 +11,7 @@
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/slab_manager.h"
 #include "src/ckmalloc/testlib.h"
+#include "src/heap_interface.h"
 #include "src/rng.h"
 
 namespace ckmalloc {
@@ -20,7 +21,7 @@ class TestSlabManager {
   using SlabManagerT = SlabManagerImpl<TestGlobalMetadataAlloc, TestSlabMap>;
 
   TestSlabManager(class SlabManagerFixture* test_fixture, TestHeapFactory* heap,
-                  TestSlabMap* slab_map);
+                  TestSlabMap* slab_map, size_t heap_idx);
 
   SlabManagerT& Underlying() {
     return slab_manager_;
@@ -29,8 +30,6 @@ class TestSlabManager {
   void* PageStartFromId(PageId page_id) const;
 
   PageId PageIdFromPtr(const void* ptr) const;
-
-  std::optional<std::pair<PageId, Slab*>> Alloc(uint32_t n_pages);
 
   template <typename S, typename... Args>
   std::optional<std::pair<PageId, S*>> Alloc(uint32_t n_pages, Args...);
@@ -111,11 +110,11 @@ class SlabManagerFixture : public CkMallocTest {
   // Only used for initializing `TestSlabManager` via the default constructor,
   // which needs the heap and slab_map to have been defined already.
   SlabManagerFixture(std::shared_ptr<TestHeapFactory> heap_factory,
-                     std::shared_ptr<TestSlabMap> slab_map)
+                     std::shared_ptr<TestSlabMap> slab_map, size_t heap_idx)
       : heap_factory_(std::move(heap_factory)),
         slab_map_(std::move(slab_map)),
         slab_manager_(std::make_shared<TestSlabManager>(
-            this, heap_factory_.get(), slab_map_.get())),
+            this, heap_factory_.get(), slab_map_.get(), heap_idx)),
         rng_(1027, 3) {}
 
   const char* TestPrefix() const override {
@@ -124,6 +123,10 @@ class SlabManagerFixture : public CkMallocTest {
 
   TestHeapFactory& HeapFactory() {
     return *heap_factory_;
+  }
+
+  bench::Heap& SlabHeap() {
+    return *heap_factory_->Instance(slab_manager_->Underlying().heap_idx_);
   }
 
   TestSlabMap& SlabMap() {
@@ -139,7 +142,9 @@ class SlabManagerFixture : public CkMallocTest {
   }
 
   PageId HeapEndId() const {
-    return PageId(heap_factory_->Instance(0)->Size() / kPageSize);
+    return PageId(
+        heap_factory_->Instance(slab_manager_->Underlying().heap_idx_)->Size() /
+        kPageSize);
   }
 
   absl::Status ValidateHeap() override;
