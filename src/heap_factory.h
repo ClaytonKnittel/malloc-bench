@@ -27,12 +27,8 @@ class HeapFactory {
   // Clears the heap factory and deletes all allocated heaps.
   void Reset();
 
-  static HeapFactory* GlobalInstance();
-
  private:
   std::vector<MMapHeap> heaps_;
-
-  static HeapFactory global_instance_;
 };
 
 }  // namespace bench

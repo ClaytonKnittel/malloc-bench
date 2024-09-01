@@ -24,33 +24,28 @@ bool CorrectnessChecker::IsFailedTestStatus(const absl::Status& status) {
 
 /* static */
 absl::Status CorrectnessChecker::Check(const std::string& tracefile,
+                                       HeapFactory& heap_factory,
                                        bool verbose) {
   absl::btree_map<void*, uint32_t> allocated_blocks;
 
   DEFINE_OR_RETURN(TracefileReader, reader, TracefileReader::Open(tracefile));
 
-  CorrectnessChecker checker(std::move(reader));
+  CorrectnessChecker checker(std::move(reader), heap_factory);
   checker.verbose_ = verbose;
   return checker.Run();
 }
 
-CorrectnessChecker::CorrectnessChecker(TracefileReader&& reader)
-    : reader_(std::move(reader)), rng_(0, 1) {}
+CorrectnessChecker::CorrectnessChecker(TracefileReader&& reader,
+                                       HeapFactory& heap_factory)
+    : reader_(std::move(reader)), heap_factory_(&heap_factory), rng_(0, 1) {}
 
 absl::Status CorrectnessChecker::Run() {
-  HeapFactory* heap_factory = HeapFactory::GlobalInstance();
-  if (heap_factory == nullptr) {
-    return absl::InternalError(
-        "`HeapFactory()` returned `nullptr` heap factory.");
-  }
-  heap_factory_ = heap_factory;
-  heap_factory->Reset();
-  initialize_heap();
+  heap_factory_->Reset();
+  initialize_heap(*heap_factory_);
 
   absl::Status result = ProcessTracefile();
-  heap_factory->Reset();
-  initialize_heap();
-  heap_factory_ = nullptr;
+  heap_factory_->Reset();
+  initialize_heap(*heap_factory_);
   return result;
 }
 

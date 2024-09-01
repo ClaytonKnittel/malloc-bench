@@ -20,7 +20,8 @@ class CorrectnessChecker {
 
   static bool IsFailedTestStatus(const absl::Status& status);
 
-  static absl::Status Check(const std::string& tracefile, bool verbose = false);
+  static absl::Status Check(const std::string& tracefile,
+                            HeapFactory& heap_factory, bool verbose = false);
 
  private:
   struct AllocatedBlock {
@@ -31,7 +32,7 @@ class CorrectnessChecker {
   using Map = absl::btree_map<void*, AllocatedBlock>;
   using IdMap = absl::flat_hash_map<void*, void*>;
 
-  explicit CorrectnessChecker(TracefileReader&& reader);
+  CorrectnessChecker(TracefileReader&& reader, HeapFactory& heap_factory);
 
   absl::Status Run();
   absl::Status ProcessTracefile();
@@ -58,7 +59,7 @@ class CorrectnessChecker {
 
   TracefileReader reader_;
 
-  HeapFactory* heap_factory_;
+  HeapFactory* const heap_factory_;
 
   Map allocated_blocks_;
   // A map from the pointer value ID from the trace to the actual pointer value

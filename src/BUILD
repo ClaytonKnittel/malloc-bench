@@ -6,6 +6,7 @@ cc_binary(
     ],
     deps = [
         ":correctness_checker",
+        ":heap_factory",
         ":perftest",
         ":tracefile_reader",
         ":utiltest",
@@ -55,9 +56,10 @@ cc_library(
 
 cc_library(
     name = "allocator_interface",
+    srcs = ["allocator_interface.cc"],
     hdrs = ["allocator_interface.h"],
     deps = [
-        ":singleton_heap",
+        ":heap_factory",
     ],
 )
 
@@ -88,21 +90,11 @@ cc_test(
     ],
     deps = [
         ":correctness_checker",
+        ":heap_factory",
         "@abseil-cpp//absl/status",
         "@cc-util//util:gtest_util",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
-    ],
-)
-
-cc_library(
-    name = "singleton_heap",
-    srcs = ["singleton_heap.cc"],
-    hdrs = ["singleton_heap.h"],
-    visibility = ["//src:__subpackages__"],
-    deps = [
-        ":heap_factory",
-        ":heap_interface",
     ],
 )
 

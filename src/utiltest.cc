@@ -26,12 +26,13 @@ size_t RoundUp(size_t size) {
   return (size + 0xf) & ~0xf;
 }
 
-absl::StatusOr<double> MeasureUtilization(const std::string& tracefile) {
+absl::StatusOr<double> MeasureUtilization(const std::string& tracefile,
+                                          HeapFactory& heap_factory) {
   absl::flat_hash_map<void*, std::pair<void*, size_t>> id_to_ptrs;
   DEFINE_OR_RETURN(TracefileReader, reader, TracefileReader::Open(tracefile));
 
-  HeapFactory::GlobalInstance()->Reset();
-  initialize_heap();
+  heap_factory.Reset();
+  initialize_heap(heap_factory);
 
   size_t total_allocated_bytes = 0;
   size_t max_allocated_bytes = 0;
@@ -94,7 +95,7 @@ absl::StatusOr<double> MeasureUtilization(const std::string& tracefile) {
   }
 
   size_t total_size = 0;
-  for (const auto& heap : HeapFactory::GlobalInstance()->Instances()) {
+  for (const auto& heap : heap_factory.Instances()) {
     total_size += heap.Size();
   }
   return static_cast<double>(max_allocated_bytes) / total_size;

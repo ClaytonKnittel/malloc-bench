@@ -7,8 +7,6 @@
 
 namespace bench {
 
-HeapFactory HeapFactory::global_instance_ = HeapFactory();
-
 absl::StatusOr<std::pair<size_t, Heap*>> HeapFactory::NewInstance(size_t size) {
   DEFINE_OR_RETURN(MMapHeap, heap, MMapHeap::NewInstance(size));
   size_t idx = heaps_.size();
@@ -29,11 +27,6 @@ const std::vector<MMapHeap>& HeapFactory::Instances() const {
 
 void HeapFactory::Reset() {
   heaps_.clear();
-}
-
-/* static */
-HeapFactory* HeapFactory::GlobalInstance() {
-  return &global_instance_;
 }
 
 }  // namespace bench

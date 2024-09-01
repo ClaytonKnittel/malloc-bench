@@ -1,13 +1,23 @@
 #pragma once
 
+#include <cstdlib>
 #include <cstring>
 
-#include "src/singleton_heap.h"
+#include "src/heap_factory.h"
 
 namespace bench {
 
+extern HeapFactory* g_heap_factory;
+
 // Called before any allocations are made.
-inline void initialize_heap() {}
+inline void initialize_heap(HeapFactory& heap_factory) {
+  g_heap_factory = &heap_factory;
+  auto res = g_heap_factory->NewInstance(512 * (1 << 20));
+  if (!res.ok()) {
+    std::cerr << "Failed to initialize heap" << std::endl;
+    std::exit(-1);
+  }
+}
 
 inline void* malloc(size_t size) {
   // TODO: implement
@@ -15,7 +25,7 @@ inline void* malloc(size_t size) {
     return nullptr;
   }
   size_t round_up = (size + 0xf) & ~0xf;
-  return SingletonHeap::GlobalInstance()->sbrk(round_up);
+  return g_heap_factory->Instance(0)->sbrk(round_up);
 }
 
 inline void* calloc(size_t nmemb, size_t size) {
