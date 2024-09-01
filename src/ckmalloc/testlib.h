@@ -2,9 +2,11 @@
 
 #include <cinttypes>
 #include <cstddef>
+#include <memory>
 #include <vector>
 
 #include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 
@@ -15,6 +17,7 @@
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/slab_map.h"
 #include "src/ckmalloc/util.h"
+#include "src/heap_factory.h"
 #include "src/heap_interface.h"
 
 namespace ckmalloc {
@@ -143,8 +146,12 @@ class TestHeap : private AlignedAlloc, public bench::Heap {
         bench::Heap(RegionStart(), n_pages * kPageSize) {}
 };
 
-class TestHeapFactory {
+class TestHeapFactory : public bench::HeapFactory {
  public:
+  ~TestHeapFactory() override;
+
+ protected:
+  absl::StatusOr<std::unique_ptr<bench::Heap>> MakeHeap(size_t size) override;
 };
 
 class CkMallocTest {

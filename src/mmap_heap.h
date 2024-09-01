@@ -11,7 +11,7 @@ namespace bench {
 class MMapHeap : public Heap {
  public:
   MMapHeap(MMapHeap&&) = default;
-  ~MMapHeap();
+  ~MMapHeap() override;
 
   static absl::StatusOr<MMapHeap> New(size_t size);
 

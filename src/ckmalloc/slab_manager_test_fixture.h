@@ -110,20 +110,20 @@ class SlabManagerFixture : public CkMallocTest {
 
   // Only used for initializing `TestSlabManager` via the default constructor,
   // which needs the heap and slab_map to have been defined already.
-  SlabManagerFixture(std::shared_ptr<TestHeap> heap,
+  SlabManagerFixture(std::shared_ptr<TestHeapFactory> heap_factory,
                      std::shared_ptr<TestSlabMap> slab_map)
-      : heap_(std::move(heap)),
+      : heap_factory_(std::move(heap_factory)),
         slab_map_(std::move(slab_map)),
-        slab_manager_(std::make_shared<TestSlabManager>(this, heap_.get(),
-                                                        slab_map_.get())),
+        slab_manager_(std::make_shared<TestSlabManager>(
+            this, heap_factory_.get(), slab_map_.get())),
         rng_(1027, 3) {}
 
   const char* TestPrefix() const override {
     return kPrefix;
   }
 
-  TestHeap& Heap() {
-    return *heap_;
+  TestHeapFactory& HeapFactory() {
+    return *heap_factory_;
   }
 
   TestSlabMap& SlabMap() {
@@ -139,7 +139,7 @@ class SlabManagerFixture : public CkMallocTest {
   }
 
   PageId HeapEndId() const {
-    return PageId(heap_->Size() / kPageSize);
+    return PageId(heap_factory_->Instance(0)->Size() / kPageSize);
   }
 
   absl::Status ValidateHeap() override;
@@ -156,7 +156,7 @@ class SlabManagerFixture : public CkMallocTest {
 
   absl::Status CheckMagic(AllocatedSlab* slab, uint64_t magic);
 
-  std::shared_ptr<TestHeap> heap_;
+  std::shared_ptr<TestHeapFactory> heap_factory_;
   std::shared_ptr<TestSlabMap> slab_map_;
   std::shared_ptr<TestSlabManager> slab_manager_;
   util::Rng rng_;
