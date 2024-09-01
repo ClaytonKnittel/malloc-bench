@@ -14,6 +14,7 @@
 
 #include "src/correctness_checker.h"
 #include "src/heap_factory.h"
+#include "src/mmap_heap_factory.h"
 #include "src/perftest.h"
 #include "src/tracefile_reader.h"
 #include "src/utiltest.h"
@@ -194,7 +195,7 @@ absl::Status PrintTrace(const std::string& tracefile) {
 
 int RunAllTraces() {
   std::vector<bench::TraceResult> results;
-  HeapFactory heap_factory;
+  MMapHeapFactory heap_factory;
 
   for (const auto& tracefile : {
            "traces/bdd-aa32.trace",
@@ -261,7 +262,7 @@ int main(int argc, char* argv[]) {
     return bench::RunAllTraces();
   }
 
-  bench::HeapFactory heap_factory;
+  bench::MMapHeapFactory heap_factory;
   auto result = bench::RunTrace(tracefile, heap_factory);
   if (!result.ok()) {
     std::cerr << "Failed to run trace " << tracefile << ": " << result.status()

@@ -2,12 +2,12 @@
 #include "util/gtest_util.h"
 
 #include "src/correctness_checker.h"
-#include "src/heap_factory.h"
+#include "src/mmap_heap_factory.h"
 
 namespace bench {
 
 TEST(TestCorrectness, All) {
-  HeapFactory heap_factory;
+  MMapHeapFactory heap_factory;
   ASSERT_THAT(bench::CorrectnessChecker::Check("bdd-aa32.trace", heap_factory),
               util::IsOk());
   ASSERT_THAT(bench::CorrectnessChecker::Check("bdd-aa4.trace", heap_factory),
@@ -71,49 +71,49 @@ TEST(TestCorrectness, All) {
 }
 
 TEST(TestCorrectness, Server) {
-  HeapFactory heap_factory;
+  MMapHeapFactory heap_factory;
   ASSERT_THAT(
       bench::CorrectnessChecker::Check("traces/server.trace", heap_factory),
       util::IsOk());
 }
 
 TEST(TestCorrectness, Simple) {
-  HeapFactory heap_factory;
+  MMapHeapFactory heap_factory;
   ASSERT_THAT(
       bench::CorrectnessChecker::Check("traces/simple.trace", heap_factory),
       util::IsOk());
 }
 
 TEST(TestCorrectness, SimpleCalloc) {
-  HeapFactory heap_factory;
+  MMapHeapFactory heap_factory;
   ASSERT_THAT(bench::CorrectnessChecker::Check("traces/simple_calloc.trace",
                                                heap_factory),
               util::IsOk());
 }
 
 TEST(TestCorrectness, SimpleRealloc) {
-  HeapFactory heap_factory;
+  MMapHeapFactory heap_factory;
   ASSERT_THAT(bench::CorrectnessChecker::Check("traces/simple_realloc.trace",
                                                heap_factory),
               util::IsOk());
 }
 
 TEST(TestCorrectness, Onoro) {
-  HeapFactory heap_factory;
+  MMapHeapFactory heap_factory;
   ASSERT_THAT(
       bench::CorrectnessChecker::Check("traces/onoro.trace", heap_factory),
       util::IsOk());
 }
 
 TEST(TestCorrectness, OnoroCC) {
-  HeapFactory heap_factory;
+  MMapHeapFactory heap_factory;
   ASSERT_THAT(
       bench::CorrectnessChecker::Check("traces/onoro-cc.trace", heap_factory),
       util::IsOk());
 }
 
 TEST(TestCorrectness, Zero) {
-  HeapFactory heap_factory;
+  MMapHeapFactory heap_factory;
   ASSERT_THAT(
       bench::CorrectnessChecker::Check("traces/test-zero.trace", heap_factory),
       util::IsOk());

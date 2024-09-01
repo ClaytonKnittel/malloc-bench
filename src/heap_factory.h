@@ -7,7 +7,6 @@
 #include "absl/status/statusor.h"
 
 #include "src/heap_interface.h"
-#include "src/mmap_heap.h"
 
 namespace bench {
 
@@ -23,13 +22,16 @@ class HeapFactory {
   // Returns the heap instance at index `idx`.
   Heap* Instance(size_t idx);
 
-  const std::vector<std::unique_ptr<MMapHeap>>& Instances() const;
+  const std::vector<std::unique_ptr<Heap>>& Instances() const;
 
   // Clears the heap factory and deletes all allocated heaps.
   void Reset();
 
+ protected:
+  virtual absl::StatusOr<std::unique_ptr<Heap>> MakeHeap(size_t size) = 0;
+
  private:
-  std::vector<std::unique_ptr<MMapHeap>> heaps_;
+  std::vector<std::unique_ptr<Heap>> heaps_;
 };
 
 }  // namespace bench
