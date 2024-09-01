@@ -207,7 +207,8 @@ absl::Status MetadataManagerFixture::ValidateHeap() {
 absl::Status MetadataManagerFixture::TraceBlockAllocation(void* block,
                                                           size_t size,
                                                           size_t alignment) {
-  const auto* heap = HeapFactory().Instance(0);
+  const auto* heap =
+      HeapFactory().Instance(metadata_manager_->Underlying().heap_idx_);
   // Check that the pointer is aligned relative to the heap start. The heap
   // will be page-aligned in production, but may not be in tests.
   if ((PtrDistance(block, heap->Start()) & (alignment - 1)) != 0) {
