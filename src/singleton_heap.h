@@ -13,7 +13,7 @@ class SingletonHeap : public Heap {
 
  public:
   // Max heap size is 512 MB.
-  static constexpr size_t kHeapSize = 4096U * (1 << 20);
+  static constexpr size_t kHeapSize = 1024U * (1 << 20);
 
   SingletonHeap(SingletonHeap&&) = default;
   ~SingletonHeap();
