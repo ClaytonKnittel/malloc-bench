@@ -1,6 +1,7 @@
 #include <optional>
 
 #include "absl/container/flat_hash_map.h"
+#include "absl/flags/flag.h"
 #include "absl/status/statusor.h"
 #include "util/absl_util.h"
 
@@ -8,14 +9,21 @@
 #include "src/singleton_heap.h"
 #include "src/tracefile_reader.h"
 
+ABSL_FLAG(bool, effective_util, false,
+          "If set, uses a \"more fair\" measure of memory utilization, "
+          "rounding up each allocation size to its alignment requirement.");
+
 namespace bench {
 
 size_t RoundUp(size_t size) {
-  return size;
-  // if (size <= 8) {
-  //   return 8;
-  // }
-  // return (size + 0xf) & ~0xf;
+  if (!absl::GetFlag(FLAGS_effective_util)) {
+    return size;
+  }
+
+  if (size <= 8) {
+    return 8;
+  }
+  return (size + 0xf) & ~0xf;
 }
 
 absl::StatusOr<double> MeasureUtilization(const std::string& tracefile) {
