@@ -5,14 +5,13 @@
 #include "util/absl_util.h"
 
 #include "src/heap_interface.h"
-#include "src/mmap_heap.h"
 
 namespace bench {
 
 absl::StatusOr<std::pair<size_t, Heap*>> HeapFactory::NewInstance(size_t size) {
-  DEFINE_OR_RETURN(MMapHeap, heap, MMapHeap::New(size));
+  DEFINE_OR_RETURN(std::unique_ptr<Heap>, heap, MakeHeap(size));
   size_t idx = heaps_.size();
-  heaps_.emplace_back(std::make_unique<MMapHeap>(std::move(heap)));
+  heaps_.emplace_back(std::move(heap));
   return std::make_pair(idx, Instance(idx));
 }
 
@@ -23,7 +22,7 @@ Heap* HeapFactory::Instance(size_t idx) {
   return heaps_[idx].get();
 }
 
-const std::vector<std::unique_ptr<MMapHeap>>& HeapFactory::Instances() const {
+const std::vector<std::unique_ptr<Heap>>& HeapFactory::Instances() const {
   return heaps_;
 }
 

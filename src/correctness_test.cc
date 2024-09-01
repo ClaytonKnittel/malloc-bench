@@ -13,6 +13,7 @@
 #include "src/ckmalloc/small_allocator_test_fixture.h"
 #include "src/ckmalloc/testlib.h"
 #include "src/heap_factory.h"
+#include "src/mmap_heap_factory.h"
 #include "src/tracefile_executor.h"
 #include "src/tracefile_reader.h"
 
@@ -77,7 +78,7 @@ class TestCorrectness : public ::testing::Test {
 
   absl::Status RunTrace(const std::string& trace,
                         uint32_t validate_every_n = 1) {
-    HeapFactory heap_factory;
+    MMapHeapFactory heap_factory;
     DEFINE_OR_RETURN(TracefileReader, reader, TracefileReader::Open(trace));
     TestCkMalloc test(std::move(reader), heap_factory, this, validate_every_n);
     return test.Run();

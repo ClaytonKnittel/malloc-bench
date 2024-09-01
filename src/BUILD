@@ -7,6 +7,7 @@ cc_binary(
     deps = [
         ":correctness_checker",
         ":heap_factory",
+        ":mmap_heap_factory",
         ":perftest",
         ":tracefile_reader",
         ":utiltest",
@@ -105,6 +106,7 @@ cc_test(
     shard_count = 33,
     deps = [
         ":heap_factory",
+        ":mmap_heap_factory",
         ":tracefile_executor",
         ":tracefile_reader",
         "//src/ckmalloc:main_allocator_test_fixture",
@@ -128,9 +130,22 @@ cc_library(
     visibility = ["//src:__subpackages__"],
     deps = [
         ":heap_interface",
-        ":mmap_heap",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings:str_format",
+        "@cc-util//util:absl_util",
+    ],
+)
+
+cc_library(
+    name = "mmap_heap_factory",
+    srcs = ["mmap_heap_factory.cc"],
+    hdrs = ["mmap_heap_factory.h"],
+    visibility = ["//src:__subpackages__"],
+    deps = [
+        ":heap_factory",
+        ":heap_interface",
+        ":mmap_heap",
+        "@abseil-cpp//absl/status:statusor",
         "@cc-util//util:absl_util",
     ],
 )

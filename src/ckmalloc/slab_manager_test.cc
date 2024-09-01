@@ -19,12 +19,15 @@ class SlabManagerTest : public testing::Test {
   static constexpr size_t kNumPages = 64;
 
   SlabManagerTest()
-      : heap_(std::make_shared<TestHeap>(kNumPages)),
+      : heap_factory_(std::make_shared<TestHeapFactory>()),
         slab_map_(std::make_shared<TestSlabMap>()),
-        test_fixture_(heap_, slab_map_) {}
+        test_fixture_(heap_factory_, slab_map_) {
+    auto result = heap_factory_->NewInstance(kNumPages * kPageSize);
+    CK_ASSERT_TRUE(result.ok());
+  }
 
-  TestHeap& Heap() {
-    return *heap_;
+  TestHeapFactory& HeapFactory() {
+    return *heap_factory_;
   }
 
   TestSlabManager& SlabManager() {
@@ -44,22 +47,25 @@ class SlabManagerTest : public testing::Test {
   }
 
  private:
-  std::shared_ptr<TestHeap> heap_;
+  std::shared_ptr<TestHeapFactory> heap_factory_;
   std::shared_ptr<TestSlabMap> slab_map_;
   SlabManagerFixture test_fixture_;
 };
 
 TEST_F(SlabManagerTest, HeapStartIsPageIdZero) {
   ASSERT_THAT(Fixture().AllocateSlab(1), IsOk());
-  EXPECT_EQ(SlabManager().PageIdFromPtr(Heap().Start()), PageId(0));
+  ASSERT_EQ(HeapFactory().Instances().size(), 1);
+  EXPECT_EQ(SlabManager().PageIdFromPtr(HeapFactory().Instance(0)->Start()),
+            PageId(0));
 }
 
 TEST_F(SlabManagerTest, AllPtrsInFirstPageIdZero) {
   ASSERT_THAT(Fixture().AllocateSlab(1), IsOk());
   for (size_t offset = 0; offset < kPageSize; offset++) {
-    EXPECT_EQ(SlabManager().PageIdFromPtr(
-                  static_cast<uint8_t*>(Heap().Start()) + offset),
-              PageId(0));
+    EXPECT_EQ(
+        SlabManager().PageIdFromPtr(
+            static_cast<uint8_t*>(HeapFactory().Instance(0)->Start()) + offset),
+        PageId(0));
   }
 }
 
@@ -68,7 +74,8 @@ TEST_F(SlabManagerTest, PageIdIncreasesPerPage) {
   ASSERT_THAT(Fixture().AllocateSlab(kPages), IsOk());
   for (size_t page_n = 0; page_n < kPages; page_n++) {
     void* beginning =
-        static_cast<uint8_t*>(Heap().Start()) + page_n * kPageSize;
+        static_cast<uint8_t*>(HeapFactory().Instance(0)->Start()) +
+        page_n * kPageSize;
     void* end = static_cast<uint8_t*>(beginning) + kPageSize - 1;
     EXPECT_EQ(SlabManager().PageIdFromPtr(beginning), PageId(page_n));
     EXPECT_EQ(SlabManager().PageIdFromPtr(end), PageId(page_n));
@@ -80,7 +87,8 @@ TEST_F(SlabManagerTest, SlabStartFromId) {
   ASSERT_THAT(Fixture().AllocateSlab(kPages), IsOk());
   for (size_t page_n = 0; page_n < kPages; page_n++) {
     EXPECT_EQ(SlabManager().PageStartFromId(PageId(page_n)),
-              static_cast<uint8_t*>(Heap().Start()) + page_n * kPageSize);
+              static_cast<uint8_t*>(HeapFactory().Instance(0)->Start()) +
+                  page_n * kPageSize);
   }
 }
 
@@ -113,7 +121,7 @@ TEST_F(SlabManagerTest, SlabTooLargeDoesNotAllocate) {
   ASSERT_OK_AND_DEFINE(AllocatedSlab*, slab,
                        Fixture().AllocateSlab(kNumPages + 1));
   EXPECT_EQ(slab, nullptr);
-  EXPECT_EQ(Heap().Size(), 0);
+  EXPECT_EQ(HeapFactory().Instance(0)->Size(), 0);
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
@@ -179,7 +187,7 @@ TEST_F(SlabManagerTest, ReAllocateFreed) {
   ASSERT_THAT(Fixture().FreeSlab(slab1), IsOk());
   ASSERT_THAT(Fixture().AllocateSlab(1).status(), IsOk());
   EXPECT_THAT(ValidateHeap(), IsOk());
-  EXPECT_EQ(Heap().Size(), 2 * kPageSize);
+  EXPECT_EQ(HeapFactory().Instance(0)->Size(), 2 * kPageSize);
 }
 
 TEST_F(SlabManagerTest, ExtendHeapWithFreeAtEnd) {
@@ -187,7 +195,7 @@ TEST_F(SlabManagerTest, ExtendHeapWithFreeAtEnd) {
   ASSERT_THAT(Fixture().FreeSlab(slab1), IsOk());
   ASSERT_THAT(Fixture().AllocateSlab(3).status(), IsOk());
   EXPECT_THAT(ValidateHeap(), IsOk());
-  EXPECT_EQ(Heap().Size(), 3 * kPageSize);
+  EXPECT_EQ(HeapFactory().Instance(0)->Size(), 3 * kPageSize);
 }
 
 TEST_F(SlabManagerTest, BestFit) {
@@ -212,7 +220,7 @@ TEST_F(SlabManagerTest, BestFit) {
 
   // We should have found the perfect fit, which used to be slab 5.
   EXPECT_EQ(slab8->StartId(), slab5_start);
-  EXPECT_EQ(Heap().Size(), 24 * kPageSize);
+  EXPECT_EQ(HeapFactory().Instance(0)->Size(), 24 * kPageSize);
 }
 
 }  // namespace ckmalloc

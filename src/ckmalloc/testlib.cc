@@ -1,11 +1,14 @@
 #include "src/ckmalloc/testlib.h"
 
+#include <memory>
 #include <new>
 #include <vector>
 
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
+#include "absl/status/statusor.h"
 
+#include "src/ckmalloc/common.h"
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/util.h"
 
@@ -88,6 +91,12 @@ void TestGlobalMetadataAlloc::OverrideAllocator(
 /* static */
 void TestGlobalMetadataAlloc::ClearAllocatorOverride() {
   allocator_ = &default_detached_allocator;
+}
+
+absl::StatusOr<std::unique_ptr<bench::Heap>> TestHeapFactory::MakeHeap(
+    size_t size) {
+  CK_ASSERT_TRUE(IsAligned(size, kPageSize));
+  return std::make_unique<TestHeap>(size / kPageSize);
 }
 
 absl::Status ValidateBlockedSlabs(const std::vector<BlockedSlabInfo>& slabs,
