@@ -19,12 +19,9 @@ class SlabManagerTest : public testing::Test {
   static constexpr size_t kNumPages = 64;
 
   SlabManagerTest()
-      : heap_factory_(std::make_shared<TestHeapFactory>()),
+      : heap_factory_(std::make_shared<TestHeapFactory>(kNumPages * kPageSize)),
         slab_map_(std::make_shared<TestSlabMap>()),
-        test_fixture_(heap_factory_, slab_map_) {
-    auto result = heap_factory_->NewInstance(kNumPages * kPageSize);
-    CK_ASSERT_TRUE(result.ok());
-  }
+        test_fixture_(heap_factory_, slab_map_) {}
 
   TestHeapFactory& HeapFactory() {
     return *heap_factory_;
