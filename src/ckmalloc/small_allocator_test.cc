@@ -11,6 +11,7 @@
 #include "src/ckmalloc/slice.h"
 #include "src/ckmalloc/small_allocator_test_fixture.h"
 #include "src/ckmalloc/testlib.h"
+#include "src/heap_interface.h"
 
 namespace ckmalloc {
 
@@ -22,15 +23,19 @@ class SmallAllocatorTest : public ::testing::Test {
   static constexpr size_t kNumPages = 64;
 
   SmallAllocatorTest()
-      : heap_(std::make_shared<TestHeap>(kNumPages)),
+      : heap_factory_(std::make_shared<TestHeapFactory>(kNumPages * kPageSize)),
         slab_map_(std::make_shared<TestSlabMap>()),
         slab_manager_fixture_(
-            std::make_shared<SlabManagerFixture>(heap_, slab_map_)),
+            std::make_shared<SlabManagerFixture>(heap_factory_, slab_map_)),
         small_allocator_fixture_(std::make_shared<SmallAllocatorFixture>(
-            heap_, slab_map_, slab_manager_fixture_)) {}
+            heap_factory_, slab_map_, slab_manager_fixture_)) {}
 
-  TestHeap& Heap() {
-    return slab_manager_fixture_->Heap();
+  TestHeapFactory& HeapFactory() {
+    return slab_manager_fixture_->HeapFactory();
+  }
+
+  bench::Heap& Heap() {
+    return *HeapFactory().Instance(0);
   }
 
   TestSlabMap& SlabMap() {
@@ -64,7 +69,7 @@ class SmallAllocatorTest : public ::testing::Test {
   }
 
  private:
-  std::shared_ptr<TestHeap> heap_;
+  std::shared_ptr<TestHeapFactory> heap_factory_;
   std::shared_ptr<TestSlabMap> slab_map_;
   std::shared_ptr<SlabManagerFixture> slab_manager_fixture_;
   std::shared_ptr<SmallAllocatorFixture> small_allocator_fixture_;

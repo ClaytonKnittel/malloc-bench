@@ -15,6 +15,7 @@
 #include "src/ckmalloc/size_class.h"
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/slab_manager_test_fixture.h"
+#include "src/ckmalloc/testlib.h"
 #include "src/ckmalloc/util.h"
 
 namespace ckmalloc {
@@ -28,15 +29,19 @@ class MetadataManagerTest : public testing::Test {
   static constexpr size_t kNumPages = 64;
 
   MetadataManagerTest()
-      : heap_(std::make_shared<TestHeap>(kNumPages)),
+      : heap_factory_(std::make_shared<TestHeapFactory>(kNumPages * kPageSize)),
         slab_map_(std::make_shared<TestSlabMap>()),
         slab_manager_fixture_(
-            std::make_shared<SlabManagerFixture>(heap_, slab_map_)),
+            std::make_shared<SlabManagerFixture>(heap_factory_, slab_map_)),
         metadata_manager_fixture_(std::make_shared<MetadataManagerFixture>(
-            heap_, slab_map_, slab_manager_fixture_)) {}
+            heap_factory_, slab_map_, slab_manager_fixture_)) {}
 
-  TestHeap& Heap() {
-    return slab_manager_fixture_->Heap();
+  TestHeapFactory& HeapFactory() {
+    return slab_manager_fixture_->HeapFactory();
+  }
+
+  const bench::Heap& Heap() {
+    return *HeapFactory().Instance(0);
   }
 
   TestSlabManager& SlabManager() {
@@ -62,7 +67,7 @@ class MetadataManagerTest : public testing::Test {
   }
 
  private:
-  std::shared_ptr<TestHeap> heap_;
+  std::shared_ptr<TestHeapFactory> heap_factory_;
   std::shared_ptr<TestSlabMap> slab_map_;
   std::shared_ptr<SlabManagerFixture> slab_manager_fixture_;
   std::shared_ptr<MetadataManagerFixture> metadata_manager_fixture_;
@@ -184,11 +189,11 @@ TEST_F(MetadataManagerTest, AllocateWithOtherAllocators) {
 
   // Allocate another slab-sized metadata alloc.
   ASSERT_OK_AND_DEFINE(void*, v2, Fixture().Alloc(kPageSize));
+  ASSERT_EQ(Heap().Size(), 5 * kPageSize);
   // v2 should be allocated in a new slab after the two already-allocated slabs,
   // plus an additional 3 slabs caused by metadata allocation.
-  EXPECT_EQ(v2, SlabManager().PageStartFromId(PageId(5)));
+  EXPECT_EQ(v2, SlabManager().PageStartFromId(PageId(4)));
   EXPECT_THAT(ValidateHeap(), IsOk());
-  EXPECT_EQ(Heap().Size(), 6 * kPageSize);
 }
 
 TEST_F(MetadataManagerTest, AllocateSlabMeta) {

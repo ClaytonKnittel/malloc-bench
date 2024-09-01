@@ -19,7 +19,8 @@
 #include "src/ckmalloc/ckmalloc.h"
 #include "src/ckmalloc/heap_printer.h"
 #include "src/ckmalloc/state.h"
-#include "src/singleton_heap.h"
+#include "src/heap_factory.h"
+#include "src/mmap_heap_factory.h"
 #include "src/tracefile_executor.h"
 #include "src/tracefile_reader.h"
 
@@ -28,14 +29,15 @@ ABSL_FLAG(std::string, trace, "",
 
 namespace ckmalloc {
 
-using bench::SingletonHeap;
+using bench::HeapFactory;
 using bench::TracefileExecutor;
 using bench::TracefileReader;
 
 class TraceReplayer : public TracefileExecutor {
  public:
-  explicit TraceReplayer(TracefileReader&& reader)
-      : TracefileExecutor(std::move(reader)) {
+  TraceReplayer(TracefileReader&& reader, HeapFactory& heap_factory)
+      : TracefileExecutor(std::move(reader), heap_factory),
+        heap_factory_(&heap_factory) {
     std::cout << CSI_ALTERNATE_DISPLAY << CSI_HIDE << CSI_CHP(1, 1);
     SetNonCanonicalMode(/*enable=*/true);
   }
@@ -54,9 +56,8 @@ class TraceReplayer : public TracefileExecutor {
     return absl::OkStatus();
   }
 
-  void InitializeHeap() override {
-    SingletonHeap::GlobalInstance()->Reset();
-    State::InitializeWithEmptyHeap(SingletonHeap::GlobalInstance());
+  void InitializeHeap(HeapFactory& heap_factory) override {
+    State::InitializeWithEmptyHeap(&heap_factory);
   }
 
   absl::StatusOr<void*> Malloc(size_t size) override {
@@ -255,7 +256,7 @@ class TraceReplayer : public TracefileExecutor {
 
     DEFINE_OR_RETURN(uint16_t, term_height, TermHeight());
 
-    HeapPrinter p(SingletonHeap::GlobalInstance(), State::Instance()->SlabMap(),
+    HeapPrinter p(heap_factory_->Instance(0), State::Instance()->SlabMap(),
                   State::Instance()->SlabManager());
     std::string print = p.Print();
 
@@ -264,6 +265,8 @@ class TraceReplayer : public TracefileExecutor {
 
     return absl::OkStatus();
   }
+
+  HeapFactory* const heap_factory_;
 
   // The op about to be executed.
   Op op_;
@@ -285,7 +288,8 @@ class TraceReplayer : public TracefileExecutor {
 
 absl::Status Run(const std::string& tracefile) {
   DEFINE_OR_RETURN(TracefileReader, reader, TracefileReader::Open(tracefile));
-  TraceReplayer replayer(std::move(reader));
+  bench::MMapHeapFactory heap_factory;
+  TraceReplayer replayer(std::move(reader), heap_factory);
   RETURN_IF_ERROR(replayer.Run());
   RETURN_IF_ERROR(replayer.SetDone());
   while (true) {

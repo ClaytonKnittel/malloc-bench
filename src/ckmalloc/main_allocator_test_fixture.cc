@@ -103,7 +103,7 @@ absl::Status MainAllocatorFixture::ValidateHeap() {
   std::vector<BlockedSlabInfo> blocked_slabs;
 
   for (PageId page_id = PageId::Zero();
-       page_id < PageId(heap_->Size() / kPageSize);) {
+       page_id < PageId(HeapFactory().Instance(0)->Size() / kPageSize);) {
     Slab* slab = slab_map_->FindSlab(page_id);
     if (slab == nullptr) {
       // Assume this is a metadata slab.
