@@ -27,6 +27,8 @@ class Heap {
     heap.heap_end_ = nullptr;
   }
 
+  virtual ~Heap() = default;
+
   // Increments the size of the heap by `increment` bytes. The heap starts off
   // empty and must be increased by calling `sbrk()` before anything can be
   // written to it.
