@@ -3,8 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
-
-#include "src/singleton_heap.h"
+#include <utility>
 
 namespace ckmalloc {
 
@@ -18,9 +17,12 @@ static constexpr uint32_t kPageShift = 12;
 // The size of slabs in bytes.
 static constexpr size_t kPageSize = 1 << kPageShift;
 
-constexpr uint32_t kHeapSizeShift = 29;
+// The size of each mmapped heap allocaation.
+static constexpr size_t kHeapSize = 512 * (1 << 20);
+
+static constexpr uint32_t kHeapSizeShift = 29;
 // NOLINTNEXTLINE(google-readability-casting)
-static_assert(bench::SingletonHeap::kHeapSize == (size_t(1) << kHeapSizeShift));
+static_assert(kHeapSize == (size_t(1) << kHeapSizeShift));
 
 // The largest user-request size which will be allocated in small slabs. Any
 // size larger will go in large blocks.

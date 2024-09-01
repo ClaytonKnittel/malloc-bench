@@ -19,7 +19,7 @@ class TestSlabManager {
  public:
   using SlabManagerT = SlabManagerImpl<TestGlobalMetadataAlloc, TestSlabMap>;
 
-  TestSlabManager(class SlabManagerFixture* test_fixture, TestHeap* heap,
+  TestSlabManager(class SlabManagerFixture* test_fixture, TestHeapFactory* heap,
                   TestSlabMap* slab_map);
 
   SlabManagerT& Underlying() {

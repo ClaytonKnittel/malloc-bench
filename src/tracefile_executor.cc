@@ -6,15 +6,17 @@
 #include "absl/strings/str_format.h"
 #include "util/absl_util.h"
 
+#include "src/heap_factory.h"
 #include "src/tracefile_reader.h"
 
 namespace bench {
 
-TracefileExecutor::TracefileExecutor(TracefileReader&& reader)
-    : reader_(std::move(reader)) {}
+TracefileExecutor::TracefileExecutor(TracefileReader&& reader,
+                                     HeapFactory& heap_factory)
+    : reader_(std::move(reader)), heap_factory_(&heap_factory) {}
 
 absl::Status TracefileExecutor::Run() {
-  InitializeHeap();
+  InitializeHeap(*heap_factory_);
   return ProcessTracefile();
 }
 

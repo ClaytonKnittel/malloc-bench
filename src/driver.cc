@@ -13,8 +13,8 @@
 #include "util/absl_util.h"
 
 #include "src/correctness_checker.h"
+#include "src/heap_factory.h"
 #include "src/perftest.h"
-#include "src/singleton_heap.h"
 #include "src/tracefile_reader.h"
 #include "src/utiltest.h"
 
@@ -40,7 +40,8 @@ bool ShouldIgnoreForScoring(const std::string& trace) {
          trace.ends_with("ngram-fox1.trace");
 }
 
-absl::StatusOr<TraceResult> RunTrace(const std::string& tracefile) {
+absl::StatusOr<TraceResult> RunTrace(const std::string& tracefile,
+                                     HeapFactory& heap_factory) {
   TraceResult result{
     .trace = tracefile,
   };
@@ -48,7 +49,7 @@ absl::StatusOr<TraceResult> RunTrace(const std::string& tracefile) {
   // Check for correctness.
   if (!absl::GetFlag(FLAGS_skip_correctness)) {
     absl::Status correctness_status =
-        CorrectnessChecker::Check(tracefile, SingletonHeap::GlobalInstance());
+        CorrectnessChecker::Check(tracefile, heap_factory);
     if (correctness_status.ok()) {
       result.correct = true;
     } else {
@@ -65,8 +66,9 @@ absl::StatusOr<TraceResult> RunTrace(const std::string& tracefile) {
   }
 
   if (result.correct) {
-    DEFINE_OR_RETURN(double, mega_ops, TimeTrace(tracefile));
-    DEFINE_OR_RETURN(double, utilization, MeasureUtilization(tracefile));
+    DEFINE_OR_RETURN(double, mega_ops, TimeTrace(tracefile, heap_factory));
+    DEFINE_OR_RETURN(double, utilization,
+                     MeasureUtilization(tracefile, heap_factory));
 
     result.mega_ops = mega_ops;
     result.utilization = utilization;
@@ -192,6 +194,7 @@ absl::Status PrintTrace(const std::string& tracefile) {
 
 int RunAllTraces() {
   std::vector<bench::TraceResult> results;
+  HeapFactory heap_factory;
 
   for (const auto& tracefile : {
            "traces/bdd-aa32.trace",
@@ -234,7 +237,7 @@ int RunAllTraces() {
            "traces/test.trace",
            "traces/test-zero.trace",
        }) {
-    auto result = RunTrace(tracefile);
+    auto result = RunTrace(tracefile, heap_factory);
     if (!result.ok()) {
       std::cerr << "Failed to run trace " << tracefile << ": "
                 << result.status() << std::endl;
@@ -258,7 +261,8 @@ int main(int argc, char* argv[]) {
     return bench::RunAllTraces();
   }
 
-  auto result = bench::RunTrace(tracefile);
+  bench::HeapFactory heap_factory;
+  auto result = bench::RunTrace(tracefile, heap_factory);
   if (!result.ok()) {
     std::cerr << "Failed to run trace " << tracefile << ": " << result.status()
               << std::endl;

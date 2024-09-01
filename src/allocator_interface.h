@@ -1,16 +1,22 @@
 #pragma once
 
+#include <cstdlib>
 #include <cstring>
 
 #include "src/ckmalloc/ckmalloc.h"
 #include "src/ckmalloc/state.h"
-#include "src/singleton_heap.h"
+#include "src/heap_factory.h"
 
 namespace bench {
 
+static constexpr size_t kHeapSize = 512 * (1 << 20);
+
+extern HeapFactory* g_heap_factory;
+extern size_t g_heap_idx;
+
 // Called before any allocations are made.
-inline void initialize_heap() {
-  ckmalloc::State::InitializeWithEmptyHeap(SingletonHeap::GlobalInstance());
+inline void initialize_heap(HeapFactory& heap_factory) {
+  ckmalloc::State::InitializeWithEmptyHeap(&heap_factory);
 }
 
 inline void* malloc(size_t size) {
@@ -31,8 +37,8 @@ inline void free(void* ptr) {
 
 class CkMallocInterface {
  public:
-  static void initialize_heap() {
-    bench::initialize_heap();
+  static void initialize_heap(HeapFactory& heap_factory) {
+    bench::initialize_heap(heap_factory);
   }
 
   static void* malloc(size_t size) {

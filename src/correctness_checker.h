@@ -8,7 +8,7 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 
-#include "src/heap_interface.h"
+#include "src/heap_factory.h"
 #include "src/rng.h"
 #include "src/tracefile_executor.h"
 #include "src/tracefile_reader.h"
@@ -21,10 +21,10 @@ class CorrectnessChecker : private TracefileExecutor {
 
   static bool IsFailedTestStatus(const absl::Status& status);
 
-  static absl::Status Check(const std::string& tracefile, Heap* heap,
-                            bool verbose = false);
+  static absl::Status Check(const std::string& tracefile,
+                            HeapFactory& heap_factory, bool verbose = false);
 
-  void InitializeHeap() override;
+  void InitializeHeap(HeapFactory& heap_factory) override;
   absl::StatusOr<void*> Malloc(size_t size) override;
   absl::StatusOr<void*> Calloc(size_t nmemb, size_t size) override;
   absl::StatusOr<void*> Realloc(void* ptr, size_t size) override;
@@ -38,7 +38,7 @@ class CorrectnessChecker : private TracefileExecutor {
 
   using Map = absl::btree_map<void*, AllocatedBlock>;
 
-  CorrectnessChecker(TracefileReader&& reader, Heap* heap);
+  CorrectnessChecker(TracefileReader&& reader, HeapFactory& heap_factory);
 
   absl::StatusOr<void*> Alloc(size_t nmemb, size_t size, bool is_calloc);
 
@@ -58,7 +58,7 @@ class CorrectnessChecker : private TracefileExecutor {
   std::optional<typename Map::const_iterator> FindContainingBlock(
       void* ptr) const;
 
-  Heap* heap_;
+  HeapFactory* const heap_factory_;
 
   Map allocated_blocks_;
 

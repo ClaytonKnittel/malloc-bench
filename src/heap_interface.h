@@ -58,6 +58,10 @@ class Heap {
            static_cast<uint8_t*>(heap_start_);
   }
 
+  size_t MaxSize() const {
+    return max_size_;
+  }
+
  private:
   const size_t max_size_;
   void* heap_start_;
