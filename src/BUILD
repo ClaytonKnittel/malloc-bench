@@ -26,7 +26,7 @@ cc_library(
     ],
     deps = [
         ":allocator_interface",
-        ":singleton_heap",
+        ":heap_factory",
         ":tracefile_reader",
         "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/status:statusor",
@@ -44,7 +44,7 @@ cc_library(
     ],
     deps = [
         ":allocator_interface",
-        ":singleton_heap",
+        ":heap_factory",
         ":tracefile_reader",
         "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/flags:flag",
@@ -67,9 +67,10 @@ cc_library(
     hdrs = ["correctness_checker.h"],
     deps = [
         ":allocator_interface",
+        ":heap_factory",
         ":rng",
-        ":singleton_heap",
         ":tracefile_reader",
+        "@abseil-cpp//absl/algorithm:container",
         "@abseil-cpp//absl/container:btree",
         "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/status",
@@ -100,9 +101,22 @@ cc_library(
     hdrs = ["singleton_heap.h"],
     visibility = ["//src:__subpackages__"],
     deps = [
+        ":heap_factory",
         ":heap_interface",
+    ],
+)
+
+cc_library(
+    name = "heap_factory",
+    srcs = ["heap_factory.cc"],
+    hdrs = ["heap_factory.h"],
+    visibility = ["//src:__subpackages__"],
+    deps = [
+        ":heap_interface",
+        ":mmap_heap",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings:str_format",
+        "@cc-util//util:absl_util",
     ],
 )
 
@@ -112,6 +126,18 @@ cc_library(
     hdrs = ["heap_interface.h"],
     visibility = ["//src:__subpackages__"],
     deps = [
+    ],
+)
+
+cc_library(
+    name = "mmap_heap",
+    srcs = ["mmap_heap.cc"],
+    hdrs = ["mmap_heap.h"],
+    visibility = ["//src:__subpackages__"],
+    deps = [
+        ":heap_interface",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings:str_format",
     ],
 )
 

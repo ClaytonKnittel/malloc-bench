@@ -6,7 +6,7 @@
 #include "util/absl_util.h"
 
 #include "src/allocator_interface.h"
-#include "src/singleton_heap.h"
+#include "src/heap_factory.h"
 #include "src/tracefile_reader.h"
 
 ABSL_FLAG(bool, effective_util, false,
@@ -30,7 +30,7 @@ absl::StatusOr<double> MeasureUtilization(const std::string& tracefile) {
   absl::flat_hash_map<void*, std::pair<void*, size_t>> id_to_ptrs;
   DEFINE_OR_RETURN(TracefileReader, reader, TracefileReader::Open(tracefile));
 
-  SingletonHeap::GlobalInstance()->Reset();
+  HeapFactory::GlobalInstance()->Reset();
   initialize_heap();
 
   size_t total_allocated_bytes = 0;
@@ -93,8 +93,11 @@ absl::StatusOr<double> MeasureUtilization(const std::string& tracefile) {
         "Tracefile does not free all the memory it allocates.");
   }
 
-  return static_cast<double>(max_allocated_bytes) /
-         SingletonHeap::GlobalInstance()->Size();
+  size_t total_size = 0;
+  for (const auto& heap : HeapFactory::GlobalInstance()->Instances()) {
+    total_size += heap.Size();
+  }
+  return static_cast<double>(max_allocated_bytes) / total_size;
 }
 
 }  // namespace bench

@@ -8,7 +8,7 @@
 #include "util/absl_util.h"
 
 #include "src/allocator_interface.h"
-#include "src/singleton_heap.h"
+#include "src/heap_factory.h"
 #include "src/tracefile_reader.h"
 
 namespace bench {
@@ -132,7 +132,7 @@ absl::StatusOr<double> TimeTrace(const std::string& tracefile) {
 
   absl::Time start = absl::Now();
   for (size_t t = 0; t < num_repetitions; t++) {
-    SingletonHeap::GlobalInstance()->Reset();
+    HeapFactory::GlobalInstance()->Reset();
     initialize_heap();
 
     for (const TimeOp& op : ops) {

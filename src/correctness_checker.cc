@@ -4,14 +4,15 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "absl/algorithm/container.h"
 #include "absl/container/btree_map.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_format.h"
 #include "util/absl_util.h"
 
 #include "src/allocator_interface.h"
+#include "src/heap_factory.h"
 #include "src/rng.h"
-#include "src/singleton_heap.h"
 #include "src/tracefile_reader.h"
 
 namespace bench {
@@ -37,18 +38,19 @@ CorrectnessChecker::CorrectnessChecker(TracefileReader&& reader)
     : reader_(std::move(reader)), rng_(0, 1) {}
 
 absl::Status CorrectnessChecker::Run() {
-  SingletonHeap* heap = SingletonHeap::GlobalInstance();
-  if (heap == nullptr) {
-    return absl::InternalError("`HeapManager()` returned `nullptr` heap.");
+  HeapFactory* heap_factory = HeapFactory::GlobalInstance();
+  if (heap_factory == nullptr) {
+    return absl::InternalError(
+        "`HeapFactory()` returned `nullptr` heap factory.");
   }
-  heap_ = heap;
-  heap->Reset();
+  heap_factory_ = heap_factory;
+  heap_factory->Reset();
   initialize_heap();
 
   absl::Status result = ProcessTracefile();
-  heap->Reset();
+  heap_factory->Reset();
   initialize_heap();
-  heap_ = nullptr;
+  heap_factory_ = nullptr;
   return result;
 }
 
@@ -265,12 +267,15 @@ absl::Status CorrectnessChecker::ValidateNewBlock(void* ptr,
         "%s Bad nullptr alloc for size %zu, did you run out of memory?",
         kFailedTestPrefix, size));
   }
-  if (ptr < heap_->Start() ||
-      static_cast<uint8_t*>(ptr) + size > heap_->End()) {
-    return absl::InternalError(absl::StrFormat(
-        "%s Bad alloc of out-of-range block at %p of size %zu "
-        "(heap ranges from %p to %p)",
-        kFailedTestPrefix, ptr, size, heap_->Start(), heap_->End()));
+
+  if (!absl::c_any_of(heap_factory_->Instances(),
+                      [ptr, size](const auto& heap) {
+                        return ptr >= heap.Start() &&
+                               static_cast<uint8_t*>(ptr) + size <= heap.End();
+                      })) {
+    return absl::InternalError(
+        absl::StrFormat("%s Bad alloc of out-of-range block at %p of size %zu",
+                        kFailedTestPrefix, ptr, size));
   }
 
   auto block = FindContainingBlock(ptr);
