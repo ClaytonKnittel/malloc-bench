@@ -6,4 +6,6 @@ namespace bench {
 
 HeapFactory* g_heap_factory = nullptr;
 
-}
+size_t g_heap_idx = 0;
+
+}  // namespace bench

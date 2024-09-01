@@ -7,12 +7,16 @@
 
 namespace bench {
 
+static constexpr size_t kHeapSize = 512 * (1 << 20);
+
 extern HeapFactory* g_heap_factory;
+extern size_t g_heap_idx;
 
 // Called before any allocations are made.
 inline void initialize_heap(HeapFactory& heap_factory) {
   g_heap_factory = &heap_factory;
-  auto res = g_heap_factory->NewInstance(512 * (1 << 20));
+  g_heap_idx = 0;
+  auto res = g_heap_factory->NewInstance(kHeapSize);
   if (!res.ok()) {
     std::cerr << "Failed to initialize heap" << std::endl;
     std::exit(-1);
@@ -25,7 +29,15 @@ inline void* malloc(size_t size) {
     return nullptr;
   }
   size_t round_up = (size + 0xf) & ~0xf;
-  return g_heap_factory->Instance(0)->sbrk(round_up);
+  void* result;
+  while (true) {
+    result = g_heap_factory->Instance(g_heap_idx)->sbrk(round_up);
+    if (result == nullptr && g_heap_factory->NewInstance(kHeapSize).ok()) {
+      g_heap_idx++;
+      continue;
+    }
+    return result;
+  }
 }
 
 inline void* calloc(size_t nmemb, size_t size) {
