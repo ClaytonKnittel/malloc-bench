@@ -261,8 +261,8 @@ absl::Status CorrectnessChecker::ValidateNewBlock(void* ptr,
 
   if (!absl::c_any_of(heap_factory_->Instances(),
                       [ptr, size](const auto& heap) {
-                        return ptr >= heap.Start() &&
-                               static_cast<uint8_t*>(ptr) + size <= heap.End();
+                        return ptr >= heap->Start() &&
+                               static_cast<uint8_t*>(ptr) + size <= heap->End();
                       })) {
     return absl::InternalError(
         absl::StrFormat("%s Bad alloc of out-of-range block at %p of size %zu",

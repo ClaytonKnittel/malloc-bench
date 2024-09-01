@@ -96,7 +96,7 @@ absl::StatusOr<double> MeasureUtilization(const std::string& tracefile,
 
   size_t total_size = 0;
   for (const auto& heap : heap_factory.Instances()) {
-    total_size += heap.Size();
+    total_size += heap->Size();
   }
   return static_cast<double>(max_allocated_bytes) / total_size;
 }

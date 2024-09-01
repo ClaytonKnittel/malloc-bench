@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <memory>
 #include <vector>
 
 #include "absl/status/statusor.h"
@@ -22,13 +23,13 @@ class HeapFactory {
   // Returns the heap instance at index `idx`.
   Heap* Instance(size_t idx);
 
-  const std::vector<MMapHeap>& Instances() const;
+  const std::vector<std::unique_ptr<MMapHeap>>& Instances() const;
 
   // Clears the heap factory and deletes all allocated heaps.
   void Reset();
 
  private:
-  std::vector<MMapHeap> heaps_;
+  std::vector<std::unique_ptr<MMapHeap>> heaps_;
 };
 
 }  // namespace bench
