@@ -12,10 +12,100 @@
 #include "absl/strings/str_cat.h"
 #include "util/absl_util.h"
 
+#define PID_RE
+
 namespace bench {
 
-static const std::regex kLineRegex(
-    R"(--\d+-- ([a-zA-Z_]+)\(([0-9A-Fx]+)(,\d+)?\)( = ([0-9A-Fx]+))?)");
+namespace {
+
+template <typename T>
+absl::StatusOr<T> ParsePrimitive(const std::string& str,
+                                 const std::string& debug_name) {
+  T val;
+  if (!(std::istringstream(str) >> val).eof()) {
+    return absl::InternalError(
+        absl::StrCat("failed to parse ", str, " as ", debug_name));
+  }
+  return val;
+}
+
+absl::StatusOr<int32_t> ParsePid(const std::string& spid) {
+  return ParsePrimitive<int32_t>(spid, "pid");
+}
+
+absl::StatusOr<void*> ParsePtr(const std::string& sptr) {
+  return ParsePrimitive<void*>(sptr, "pointer");
+}
+
+absl::StatusOr<size_t> ParseSize(const std::string& ssize) {
+  return ParsePrimitive<size_t>(ssize, "size");
+}
+
+const std::regex kFreeRegex(
+    R"(--(\d+)-- (?:free|_ZdlPv|_ZdaPv|_ZdlPvm|_ZdaPvm)\(([0-9A-Fa-fx]+)\))");
+const std::regex kMallocRegex(
+    R"(--(\d+)-- (?:malloc|_Znwm|_Znam)\((\d+)\) = ([0-9A-Fa-fx]+))");
+const std::regex kCallocRegex(
+    R"(--(\d+)-- calloc\((\d+),(\d+)\) = ([0-9A-Fa-fx]+))");
+const std::regex kReallocRegex(
+    R"(--(\d+)-- realloc\(([0-9A-Fa-fx]+),(\d+)\)(?:malloc\(\d+\))? = ([0-9A-Fa-fx]+))");
+
+/**
+ * Matches a single line of valigrind --trace-malloc=yes output.
+ *
+ * Lines have one of the following formats:
+ *
+ * --{pid}-- free({ptr})
+ * --{pid}-- malloc({size}) = {ptr}
+ * --{pid}-- calloc({size},{nmemb}) = {ptr}
+ * --{pid}-- realloc({ptr},{size}) = {ptr}
+ * --{pid}-- realloc(0x0, {size})malloc({size}) = {ptr}
+ *
+ * Where pid, size, and nmemb are decimal numbers, and ptr is a hex value.
+ *
+ * "free" has aliases "_ZdlPv", "_ZdaPv", "_ZdlPvm", "_ZdaPvm", and
+ * "malloc" has aliases "_Znwm", "_Znam".
+ */
+absl::StatusOr<std::optional<TraceLine>> MatchLine(const std::string& line) {
+  TraceLine parsed;
+  std::smatch match;
+  if (std::regex_match(line, match, kFreeRegex)) {
+    parsed.op = TraceLine::Op::kFree;
+    ASSIGN_OR_RETURN(parsed.pid, ParsePid(match[1].str()));
+    ASSIGN_OR_RETURN(parsed.input_ptr, ParsePtr(match[2].str()));
+    return parsed;
+  }
+
+  if (std::regex_match(line, match, kMallocRegex)) {
+    parsed.op = TraceLine::Op::kMalloc;
+    ASSIGN_OR_RETURN(parsed.pid, ParsePid(match[1].str()));
+    ASSIGN_OR_RETURN(parsed.input_size, ParseSize(match[2].str()));
+    ASSIGN_OR_RETURN(parsed.result, ParsePtr(match[3].str()));
+    return parsed;
+  }
+
+  if (std::regex_match(line, match, kCallocRegex)) {
+    parsed.op = TraceLine::Op::kCalloc;
+    ASSIGN_OR_RETURN(parsed.pid, ParsePid(match[1].str()));
+    ASSIGN_OR_RETURN(parsed.input_size, ParseSize(match[2].str()));
+    ASSIGN_OR_RETURN(parsed.nmemb, ParseSize(match[3].str()));
+    ASSIGN_OR_RETURN(parsed.result, ParsePtr(match[4].str()));
+    return parsed;
+  }
+
+  if (std::regex_match(line, match, kReallocRegex)) {
+    parsed.op = TraceLine::Op::kRealloc;
+    ASSIGN_OR_RETURN(parsed.pid, ParsePid(match[1].str()));
+    ASSIGN_OR_RETURN(parsed.input_ptr, ParsePtr(match[2].str()));
+    ASSIGN_OR_RETURN(parsed.input_size, ParseSize(match[3].str()));
+    ASSIGN_OR_RETURN(parsed.result, ParsePtr(match[4].str()));
+    return parsed;
+  }
+
+  return std::nullopt;
+}
+
+}  // namespace
 
 /* static */
 absl::StatusOr<TracefileReader> TracefileReader::Open(
@@ -36,94 +126,9 @@ absl::StatusOr<std::optional<TraceLine>> TracefileReader::NextLine() {
       return std::nullopt;
     }
 
-    std::smatch match;
-    if (!std::regex_match(line, match, kLineRegex)) {
-      continue;
-    }
-
-    const std::string method = match[1].str();
-    const std::string sarg1 = match[2].str();
-    const std::string sarg2 = match[3].str();
-    const std::string sres = match[5].str();
-
-    if (method == "malloc" || method == "_Znwm" || method == "_Znam") {
-      size_t arg1;
-      void* res;
-      if (!(std::istringstream(sarg1) >> arg1).eof()) {
-        return absl::InternalError(
-            absl::StrCat("Failed to parse ", sarg1, " as integer for malloc"));
-      }
-      if (!(std::istringstream(sres) >> res).eof()) {
-        return absl::InternalError(
-            absl::StrCat("Failed to parse ", sres, " as pointer for malloc"));
-      }
-
-      return TraceLine{
-        .op = TraceLine::Op::kMalloc,
-        .input_size = arg1,
-        .result = res,
-      };
-    }
-    if (method == "calloc") {
-      size_t arg1;
-      size_t arg2;
-      void* res;
-      if (!(std::istringstream(sarg1) >> arg1).eof()) {
-        return absl::InternalError(
-            absl::StrCat("Failed to parse ", sarg1, " as integer for calloc"));
-      }
-      if (!(std::istringstream(sarg2.substr(1)) >> arg2).eof()) {
-        return absl::InternalError(absl::StrCat(
-            "Failed to parse ", sarg2.substr(1), " as integer for calloc"));
-      }
-      if (!(std::istringstream(sres) >> res).eof()) {
-        return absl::InternalError(
-            absl::StrCat("Failed to parse ", sres, " as pointer for calloc"));
-      }
-
-      return TraceLine{
-        .op = TraceLine::Op::kCalloc,
-        .input_size = arg2,
-        .nmemb = arg1,
-        .result = res,
-      };
-    }
-    if (method == "realloc") {
-      void* arg1;
-      size_t arg2;
-      void* res;
-      if (!(std::istringstream(sarg1) >> arg1).eof()) {
-        return absl::InternalError(
-            absl::StrCat("Failed to parse ", sarg1, " as pointer for realloc"));
-      }
-      if (!(std::istringstream(sarg2.substr(1)) >> arg2).eof()) {
-        return absl::InternalError(absl::StrCat(
-            "Failed to parse ", sarg2.substr(1), " as integer for realloc"));
-      }
-      if (!(std::istringstream(sres) >> res).eof()) {
-        return absl::InternalError(
-            absl::StrCat("Failed to parse ", sres, " as pointer for realloc"));
-      }
-
-      return TraceLine{
-        .op = TraceLine::Op::kRealloc,
-        .input_ptr = arg1,
-        .input_size = arg2,
-        .result = res,
-      };
-    }
-    if (method == "free" || method == "_ZdlPv" || method == "_ZdaPv" ||
-        method == "_ZdlPvm" || method == "_ZdaPvm") {
-      void* arg1;
-      if (!(std::istringstream(sarg1) >> arg1).eof()) {
-        return absl::InternalError(
-            absl::StrCat("Failed to parse ", sarg1, " as pointer for free"));
-      }
-
-      return TraceLine{
-        .op = TraceLine::Op::kFree,
-        .input_ptr = arg1,
-      };
+    DEFINE_OR_RETURN(std::optional<TraceLine>, trace_line, MatchLine(line));
+    if (trace_line.has_value()) {
+      return *trace_line;
     }
   }
 }

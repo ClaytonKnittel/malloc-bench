@@ -20,13 +20,15 @@ struct TraceLine {
   Op op;
 
   // For free/realloc, the input pointer.
-  void* input_ptr;
+  void* input_ptr = nullptr;
   // For malloc/calloc/realloc/free_hint, the requested size.
-  size_t input_size;
+  size_t input_size = 0;
   // For calloc, the nmemb argument.
-  size_t nmemb;
+  size_t nmemb = 0;
   // For malloc/calloc/realloc, the returned pointer.
-  void* result;
+  void* result = nullptr;
+  // Process ID.
+  int32_t pid = 0;
 };
 
 class TracefileReader {
