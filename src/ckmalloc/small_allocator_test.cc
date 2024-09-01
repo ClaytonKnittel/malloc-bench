@@ -25,8 +25,8 @@ class SmallAllocatorTest : public ::testing::Test {
   SmallAllocatorTest()
       : heap_factory_(std::make_shared<TestHeapFactory>(kNumPages * kPageSize)),
         slab_map_(std::make_shared<TestSlabMap>()),
-        slab_manager_fixture_(
-            std::make_shared<SlabManagerFixture>(heap_factory_, slab_map_)),
+        slab_manager_fixture_(std::make_shared<SlabManagerFixture>(
+            heap_factory_, slab_map_, /*heap_idx=*/0)),
         small_allocator_fixture_(std::make_shared<SmallAllocatorFixture>(
             heap_factory_, slab_map_, slab_manager_fixture_)) {}
 

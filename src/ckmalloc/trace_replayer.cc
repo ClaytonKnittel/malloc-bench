@@ -256,7 +256,7 @@ class TraceReplayer : public TracefileExecutor {
 
     DEFINE_OR_RETURN(uint16_t, term_height, TermHeight());
 
-    HeapPrinter p(heap_factory_->Instance(0), State::Instance()->SlabMap(),
+    HeapPrinter p(heap_factory_->Instance(1), State::Instance()->SlabMap(),
                   State::Instance()->SlabManager());
     std::string print = p.Print();
 

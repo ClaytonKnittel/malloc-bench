@@ -2,7 +2,7 @@
 
 #include "absl/status/statusor.h"
 
-#include "src/heap_factory.h"
+#include "src/mmap_heap_factory.h"
 #include "src/perftest.h"
 
 int main() {
@@ -18,7 +18,7 @@ int main() {
            "traces/syn-mix.trace",         "traces/syn-mix-realloc.trace",
            "traces/syn-string.trace",      "traces/syn-struct.trace",
        }) {
-    bench::HeapFactory heap_factory;
+    bench::MMapHeapFactory heap_factory;
     auto result = bench::TimeTrace(tracefile, heap_factory,
                                    /*min_desired_ops=*/100000000);
     if (result.ok()) {

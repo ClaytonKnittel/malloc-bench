@@ -103,12 +103,12 @@ absl::Status MainAllocatorFixture::ValidateHeap() {
   std::vector<BlockedSlabInfo> blocked_slabs;
 
   for (PageId page_id = PageId::Zero();
-       page_id < PageId(HeapFactory().Instance(0)->Size() / kPageSize);) {
+       page_id <
+       PageId(slab_manager_test_fixture_->SlabHeap().Size() / kPageSize);) {
     Slab* slab = slab_map_->FindSlab(page_id);
     if (slab == nullptr) {
-      // Assume this is a metadata slab.
-      ++page_id;
-      continue;
+      return FailedTest("Unexpected `nullptr` slab map entry for page %v",
+                        page_id);
     }
 
     switch (slab->Type()) {

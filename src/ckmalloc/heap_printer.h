@@ -53,13 +53,7 @@ std::string HeapPrinter<SlabMap, SlabManager>::Print() {
   for (PageId page_id = PageId::Zero();
        page_id < PageId(heap_->Size() / kPageSize);) {
     MappedSlab* slab = slab_map_->FindSlab(page_id);
-    if (slab == nullptr) {
-      // Assume this is a metadata slab.
-      result += PrintMetadata(page_id);
-      result += "\n";
-      ++page_id;
-      continue;
-    }
+    CK_ASSERT_NE(slab, nullptr);
 
     switch (slab->Type()) {
       case SlabType::kUnmapped: {

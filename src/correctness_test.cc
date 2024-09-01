@@ -7,6 +7,7 @@
 #include "util/absl_util.h"
 #include "util/gtest_util.h"
 
+#include "src/ckmalloc/common.h"
 #include "src/ckmalloc/main_allocator_test_fixture.h"
 #include "src/ckmalloc/metadata_manager_test_fixture.h"
 #include "src/ckmalloc/slab_manager_test_fixture.h"
@@ -19,6 +20,7 @@
 
 namespace bench {
 
+using ckmalloc::kPageSize;
 using util::IsOk;
 
 // #define PRINT
@@ -53,19 +55,20 @@ class TestCorrectness : public ::testing::Test {
       1 << (ckmalloc::kHeapSizeShift - ckmalloc::kPageShift);
 
   TestCorrectness()
-      : heap_(std::make_shared<ckmalloc::TestHeap>(kNumPages)),
+      : heap_factory_(std::make_shared<ckmalloc::TestHeapFactory>(
+            kNumPages * kPageSize, kNumPages * kPageSize)),
         slab_map_(std::make_shared<ckmalloc::TestSlabMap>()),
-        slab_manager_fixture_(
-            std::make_shared<ckmalloc::SlabManagerFixture>(heap_, slab_map_)),
+        slab_manager_fixture_(std::make_shared<ckmalloc::SlabManagerFixture>(
+            heap_factory_, slab_map_, /*heap_idx=*/1)),
         metadata_manager_fixture_(
             std::make_shared<ckmalloc::MetadataManagerFixture>(
-                heap_, slab_map_, slab_manager_fixture_)),
+                heap_factory_, slab_map_, /*heap_idx=*/0)),
         small_allocator_fixture_(
             std::make_shared<ckmalloc::SmallAllocatorFixture>(
-                heap_, slab_map_, slab_manager_fixture_)),
+                heap_factory_, slab_map_, slab_manager_fixture_)),
         main_allocator_fixture_(
             std::make_shared<ckmalloc::MainAllocatorFixture>(
-                heap_, slab_map_, slab_manager_fixture_,
+                heap_factory_, slab_map_, slab_manager_fixture_,
                 small_allocator_fixture_)) {}
 
   ckmalloc::TestMetadataManager& MetadataManager() {
@@ -100,7 +103,7 @@ class TestCorrectness : public ::testing::Test {
   }
 
  private:
-  std::shared_ptr<ckmalloc::TestHeap> heap_;
+  std::shared_ptr<ckmalloc::TestHeapFactory> heap_factory_;
   std::shared_ptr<ckmalloc::TestSlabMap> slab_map_;
   std::shared_ptr<ckmalloc::SlabManagerFixture> slab_manager_fixture_;
   std::shared_ptr<ckmalloc::MetadataManagerFixture> metadata_manager_fixture_;

@@ -26,7 +26,7 @@ cc_binary(
         "//traces",
     ],
     deps = [
-        ":heap_factory",
+        ":mmap_heap_factory",
         ":perftest",
         "@abseil-cpp//absl/status:statusor",
     ],
@@ -109,6 +109,7 @@ cc_test(
         ":mmap_heap_factory",
         ":tracefile_executor",
         ":tracefile_reader",
+        "//src/ckmalloc:common",
         "//src/ckmalloc:main_allocator_test_fixture",
         "//src/ckmalloc:metadata_manager_test_fixture",
         "//src/ckmalloc:slab_manager_test_fixture",
