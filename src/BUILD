@@ -92,7 +92,9 @@ cc_test(
     deps = [
         ":correctness_checker",
         ":mmap_heap_factory",
+        ":tracefile_reader",
         "@abseil-cpp//absl/status",
+        "@cc-util//util:absl_util",
         "@cc-util//util:gtest_util",
         "@googletest//:gtest",
         "@googletest//:gtest_main",

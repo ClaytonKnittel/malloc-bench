@@ -44,6 +44,7 @@ class TracefileReader {
   explicit TracefileReader(std::ifstream&& file);
 
   std::ifstream file_;
+  std::vector<TraceLine> lines_;
 };
 
 }  // namespace bench

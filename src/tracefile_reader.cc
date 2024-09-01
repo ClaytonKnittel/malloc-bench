@@ -126,24 +126,21 @@ absl::StatusOr<std::optional<TraceLine>> TracefileReader::NextLine() {
 
     DEFINE_OR_RETURN(std::optional<TraceLine>, trace_line, MatchLine(line));
     if (trace_line.has_value()) {
+      lines_.push_back(*trace_line);
       return *trace_line;
     }
   }
 }
 
 absl::StatusOr<std::vector<TraceLine>> TracefileReader::CollectLines() {
-  std::vector<TraceLine> lines;
-
   while (true) {
     DEFINE_OR_RETURN(std::optional<TraceLine>, line, NextLine());
     if (!line.has_value()) {
       break;
     }
-
-    lines.push_back(line.value());
   }
 
-  return lines;
+  return lines_;
 }
 
 TracefileReader::TracefileReader(std::ifstream&& file)

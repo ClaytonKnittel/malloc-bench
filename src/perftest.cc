@@ -118,11 +118,9 @@ std::pair<std::vector<TimeOp>, size_t> ComputeOps(
 }  // namespace
 
 // Runs at least 1000000 ops, and returns the average MOps/s.
-absl::StatusOr<double> TimeTrace(const std::string& tracefile,
+absl::StatusOr<double> TimeTrace(TracefileReader& reader,
                                  HeapFactory& heap_factory) {
   constexpr size_t kMinDesiredOps = 1000000;
-
-  DEFINE_OR_RETURN(TracefileReader, reader, TracefileReader::Open(tracefile));
 
   DEFINE_OR_RETURN(std::vector<TraceLine>, lines, reader.CollectLines());
 

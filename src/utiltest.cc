@@ -26,10 +26,9 @@ size_t RoundUp(size_t size) {
   return (size + 0xf) & ~0xf;
 }
 
-absl::StatusOr<double> MeasureUtilization(const std::string& tracefile,
+absl::StatusOr<double> MeasureUtilization(TracefileReader& reader,
                                           HeapFactory& heap_factory) {
   absl::flat_hash_map<void*, std::pair<void*, size_t>> id_to_ptrs;
-  DEFINE_OR_RETURN(TracefileReader, reader, TracefileReader::Open(tracefile));
 
   heap_factory.Reset();
   initialize_heap(heap_factory);
