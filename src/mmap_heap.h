@@ -13,7 +13,7 @@ class MMapHeap : public Heap {
   MMapHeap(MMapHeap&&) = default;
   ~MMapHeap();
 
-  static absl::StatusOr<MMapHeap> NewInstance(size_t size);
+  static absl::StatusOr<MMapHeap> New(size_t size);
 
  private:
   MMapHeap(void* heap_start, size_t size);

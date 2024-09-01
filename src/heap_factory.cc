@@ -10,7 +10,7 @@
 namespace bench {
 
 absl::StatusOr<std::pair<size_t, Heap*>> HeapFactory::NewInstance(size_t size) {
-  DEFINE_OR_RETURN(MMapHeap, heap, MMapHeap::NewInstance(size));
+  DEFINE_OR_RETURN(MMapHeap, heap, MMapHeap::New(size));
   size_t idx = heaps_.size();
   heaps_.emplace_back(std::make_unique<MMapHeap>(std::move(heap)));
   return std::make_pair(idx, Instance(idx));

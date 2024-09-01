@@ -23,7 +23,7 @@ MMapHeap::~MMapHeap() {
 MMapHeap::MMapHeap(void* heap_start, size_t size) : Heap(heap_start, size) {}
 
 /* static */
-absl::StatusOr<MMapHeap> MMapHeap::NewInstance(size_t size) {
+absl::StatusOr<MMapHeap> MMapHeap::New(size_t size) {
   void* heap_start = mmap(nullptr, size, PROT_READ | PROT_WRITE,
                           MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
   if (heap_start == MAP_FAILED) {
