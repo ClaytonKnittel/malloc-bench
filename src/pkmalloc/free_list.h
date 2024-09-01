@@ -4,29 +4,10 @@
 #include "src/pkmalloc/block.h"
 #include "src/pkmalloc/free_block.h"
 
-struct ListNode {
-  ListNode* left_;
-  Block* block;
-  ListNode* right_;
-  uint8_t size_;
-  bool free_;
-} list_node;
-
-// change this ^ later, bad because it takes up so much space
-// go back to using bit stuff to be most efficient
-
 class FreeList {
  public:
-  // initializes heap metedata structure and returns a pointer to it on the heap
-  ListNode* create_free_list_structure(FreeBlock* first_alloc_mem, size_t size);
-
-  // changes heap metadata structure to align with current state of heap
-  ListNode* edit_free_list_structure(ListNode* current_block);
-
-  // allocate more memory for heap metadata structure when it runs out of room
-  ListNode* realloc_free_list_structure();
-
-  // doubly linked list
+  // frees allocated block and adds its space to the free list
+  FreeBlock* add_free_block_to_list(AllocatedBlock* curr_block);
 
  private:
   // How to store this info? maybe make a meta struct item

@@ -1,37 +1,46 @@
 #include "src/pkmalloc/free_block.h"
 
-#include "src/pkmalloc/free_list.h"
+void FreeBlock::SetNext(FreeBlock* current_block, FreeBlock* next) {
+  current_block->next_ = next;
+}
 
-void FreeBlock::coalesce(ListNode* current) {
+FreeBlock* FreeBlock::GetNext(FreeBlock* current_block) {
+  return current_block->next_;
+}
+
+void FreeBlock::RemoveNext(FreeBlock* current_block, FreeBlock* next) {
+  SetNext(current_block, GetNext(next));
+}
+
+FreeBlock* FreeBlock::combine(FreeBlock* left_block, FreeBlock* right_block) {
+  // Do I need to track that address left < address right?
+  // this should happen in free list - edit free list struc
+  // merge two free blocks
+  left_block->SetFree(true);
+  left_block->SetBlockSize(left_block->GetBlockSize() +
+                           right_block->GetBlockSize());
+  RemoveNext(left_block, right_block);
+  left_block->next_ = right_block->next_;
+}
+
+void FreeBlock::coalesce(FreeBlock* current, FreeBlock* prev) {
   // check in both directions for free blocks, if free, combine
-  ListNode* left = current->left_;
-  ListNode* right = current->right_;
-  if (left != nullptr) {
-    if (left->free_) {
-      current = combine(current, left);
+  if (prev != nullptr) {
+    if (prev->IsFree()) {
+      current = combine(prev, current);
     }
   }
-  if (right != nullptr) {
-    if (right->free_) {
-      current = combine(current, right);
+  if (current->next_ != nullptr) {
+    if (current->next_->IsFree()) {
+      current = combine(current, current->next_);
     }
   }
   // update current free list to make these blocks only one in the linked list?
   // return current;
 }
 
-ListNode* FreeBlock::combine(ListNode* left_block, ListNode* right_block) {
-  // merge two free blocks
-  uint8_t size = left_block->size_;
-  size += right_block->size_;
-
-  // create new block that starts at left
-  ListNode new_node;
-  new_node.left_ = left_block->left_;
-  new_node.right_ = right_block->right_;
-  new_node.free_ = true;
-  new_node.size_ = size;
-
-  left_block->right_ = &new_node;
-  right_block->left_ = &new_node;
+FreeBlock* FreeBlock::alloc_to_free(AllocatedBlock* current_block) {
+  current_block->SetFree(true);
+  auto* result = reinterpret_cast<FreeBlock*>(current_block);
+  return result;
 }

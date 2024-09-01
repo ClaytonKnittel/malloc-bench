@@ -8,14 +8,13 @@
 
 uint64_t Block::GetBlockSize() const {
   uint64_t block_size = header_ & ~0xf;
-  CheckValid();
   MALLOC_ASSERT(block_size < bench::SingletonHeap::kHeapSize);
   MALLOC_ASSERT(block_size != 0);
   return block_size;
 }
 
 uint64_t Block::GetUserSize() const {
-  return GetBlockSize() - 8;
+  return GetBlockSize() - sizeof(header_);
 }
 
 bool Block::IsFree() const {
@@ -30,15 +29,8 @@ void Block::SetFree(bool free) {
   }
 }
 
-void Block::SetMagic() {
-  magic_value_ = 123456;
-}
-
-void Block::CheckValid() const {
-  MALLOC_ASSERT_EQ(magic_value_, 123456);
-}
-
 Block* Block::GetNextBlock() {
+  // ************ needs to make sure current block isnt end of heap ***********
   return reinterpret_cast<Block*>(reinterpret_cast<uint8_t*>(this) +
                                   GetBlockSize());
 }

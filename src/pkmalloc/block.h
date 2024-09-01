@@ -6,6 +6,9 @@
 
 class Block {
  public:
+  // returns the
+  uint64_t GetHeader() const;
+
   // gets the size of the block including the header size
   uint64_t GetBlockSize() const;
 
@@ -18,12 +21,6 @@ class Block {
   // switches free state of a block to be opposite of what it currently is
   void SetFree(bool free);
 
-  // sets magic value to be default value
-  void SetMagic();
-
-  // checks that indexing is valid by comparing that magic value is correct
-  void CheckValid() const;
-
   // increments to adjacent blocks in memory in increasing order
   Block* GetNextBlock();
 
@@ -33,6 +30,4 @@ class Block {
 
  private:
   uint64_t header_;
-  uint64_t magic_value_ = 123456;
-  uint64_t garbage_ = -0;
 };

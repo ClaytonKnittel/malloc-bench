@@ -26,16 +26,21 @@ AllocatedBlock* AllocatedBlock::create_block_extend_heap(size_t size) {
       bench::SingletonHeap::GlobalInstance()->sbrk(block_size));
   block->SetBlockSize(block_size);
   block->SetFree(false);
-  block->SetMagic();
   return block;
 }
 
 size_t AllocatedBlock::space_needed_with_header(const size_t& size) {
   // add size of header to size, 8 bytes
   size_t round_up = size + sizeof(AllocatedBlock);
-  // round up size of memory needed to be 16 byte aligned
+  // round up size of memory, needs to be 16 byte aligned
   round_up += 0xf;
   // zero out first four bits
   round_up = round_up & ~0xf;
   return round_up;
+}
+
+AllocatedBlock* AllocatedBlock::free_to_alloc(FreeBlock* current_block) {
+  current_block->SetFree(false);
+  auto* result = reinterpret_cast<AllocatedBlock*>(current_block);
+  return result;
 }
