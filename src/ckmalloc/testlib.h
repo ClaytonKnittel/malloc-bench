@@ -148,7 +148,9 @@ class TestHeap : private AlignedAlloc, public bench::Heap {
 
 class TestHeapFactory : public bench::HeapFactory {
  public:
-  ~TestHeapFactory() override;
+  explicit TestHeapFactory(size_t initial_size);
+
+  ~TestHeapFactory() override = default;
 
  protected:
   absl::StatusOr<std::unique_ptr<bench::Heap>> MakeHeap(size_t size) override;
