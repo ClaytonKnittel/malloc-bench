@@ -42,11 +42,7 @@ CorrectnessChecker::CorrectnessChecker(TracefileReader&& reader,
 absl::Status CorrectnessChecker::Run() {
   heap_factory_->Reset();
   initialize_heap(*heap_factory_);
-
-  absl::Status result = ProcessTracefile();
-  heap_factory_->Reset();
-  initialize_heap(*heap_factory_);
-  return result;
+  return ProcessTracefile();
 }
 
 absl::Status CorrectnessChecker::ProcessTracefile() {
