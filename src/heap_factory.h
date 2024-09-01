@@ -14,6 +14,7 @@ class HeapFactory {
  public:
   HeapFactory() = default;
   HeapFactory(HeapFactory&&) = default;
+  virtual ~HeapFactory() = default;
 
   // Allocates a new heap of the requested size, returning the index of the new
   // heap and a pointer to it.
