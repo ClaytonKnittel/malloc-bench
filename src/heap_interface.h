@@ -27,6 +27,8 @@ class Heap {
     heap.heap_end_ = nullptr;
   }
 
+  virtual ~Heap() = default;
+
   // Increments the size of the heap by `increment` bytes. The heap starts off
   // empty and must be increased by calling `sbrk()` before anything can be
   // written to it.
@@ -56,6 +58,10 @@ class Heap {
   size_t Size() const {
     return static_cast<uint8_t*>(heap_end_) -
            static_cast<uint8_t*>(heap_start_);
+  }
+
+  size_t MaxSize() const {
+    return max_size_;
   }
 
  private:

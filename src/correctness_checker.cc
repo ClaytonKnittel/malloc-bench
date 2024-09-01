@@ -4,14 +4,15 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "absl/algorithm/container.h"
 #include "absl/container/btree_map.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_format.h"
 #include "util/absl_util.h"
 
 #include "src/allocator_interface.h"
+#include "src/heap_factory.h"
 #include "src/rng.h"
-#include "src/singleton_heap.h"
 #include "src/tracefile_reader.h"
 
 namespace bench {
@@ -23,33 +24,25 @@ bool CorrectnessChecker::IsFailedTestStatus(const absl::Status& status) {
 
 /* static */
 absl::Status CorrectnessChecker::Check(const std::string& tracefile,
+                                       HeapFactory& heap_factory,
                                        bool verbose) {
   absl::btree_map<void*, uint32_t> allocated_blocks;
 
   DEFINE_OR_RETURN(TracefileReader, reader, TracefileReader::Open(tracefile));
 
-  CorrectnessChecker checker(std::move(reader));
+  CorrectnessChecker checker(std::move(reader), heap_factory);
   checker.verbose_ = verbose;
   return checker.Run();
 }
 
-CorrectnessChecker::CorrectnessChecker(TracefileReader&& reader)
-    : reader_(std::move(reader)), rng_(0, 1) {}
+CorrectnessChecker::CorrectnessChecker(TracefileReader&& reader,
+                                       HeapFactory& heap_factory)
+    : reader_(std::move(reader)), heap_factory_(&heap_factory), rng_(0, 1) {}
 
 absl::Status CorrectnessChecker::Run() {
-  SingletonHeap* heap = SingletonHeap::GlobalInstance();
-  if (heap == nullptr) {
-    return absl::InternalError("`HeapManager()` returned `nullptr` heap.");
-  }
-  heap_ = heap;
-  heap->Reset();
-  initialize_heap();
-
-  absl::Status result = ProcessTracefile();
-  heap->Reset();
-  initialize_heap();
-  heap_ = nullptr;
-  return result;
+  heap_factory_->Reset();
+  initialize_heap(*heap_factory_);
+  return ProcessTracefile();
 }
 
 absl::Status CorrectnessChecker::ProcessTracefile() {
@@ -265,12 +258,15 @@ absl::Status CorrectnessChecker::ValidateNewBlock(void* ptr,
         "%s Bad nullptr alloc for size %zu, did you run out of memory?",
         kFailedTestPrefix, size));
   }
-  if (ptr < heap_->Start() ||
-      static_cast<uint8_t*>(ptr) + size > heap_->End()) {
-    return absl::InternalError(absl::StrFormat(
-        "%s Bad alloc of out-of-range block at %p of size %zu "
-        "(heap ranges from %p to %p)",
-        kFailedTestPrefix, ptr, size, heap_->Start(), heap_->End()));
+
+  if (!absl::c_any_of(heap_factory_->Instances(),
+                      [ptr, size](const auto& heap) {
+                        return ptr >= heap->Start() &&
+                               static_cast<uint8_t*>(ptr) + size <= heap->End();
+                      })) {
+    return absl::InternalError(
+        absl::StrFormat("%s Bad alloc of out-of-range block at %p of size %zu",
+                        kFailedTestPrefix, ptr, size));
   }
 
   auto block = FindContainingBlock(ptr);
