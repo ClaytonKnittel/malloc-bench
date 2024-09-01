@@ -93,11 +93,6 @@ void TestGlobalMetadataAlloc::ClearAllocatorOverride() {
   allocator_ = &default_detached_allocator;
 }
 
-TestHeapFactory::TestHeapFactory(size_t initial_size) {
-  auto result = NewInstance(initial_size);
-  CK_ASSERT_TRUE(result.ok());
-}
-
 absl::StatusOr<std::unique_ptr<bench::Heap>> TestHeapFactory::MakeHeap(
     size_t size) {
   CK_ASSERT_TRUE(IsAligned(size, kPageSize));

@@ -17,8 +17,9 @@ namespace ckmalloc {
 
 TestSlabManager::TestSlabManager(SlabManagerFixture* test_fixture,
                                  TestHeapFactory* heap_factory,
-                                 TestSlabMap* slab_map)
-    : test_fixture_(test_fixture), slab_manager_(heap_factory, slab_map) {}
+                                 TestSlabMap* slab_map, size_t heap_idx)
+    : test_fixture_(test_fixture),
+      slab_manager_(heap_factory, slab_map, heap_idx) {}
 
 void* TestSlabManager::PageStartFromId(PageId page_id) const {
   return slab_manager_.PageStartFromId(page_id);
@@ -26,13 +27,6 @@ void* TestSlabManager::PageStartFromId(PageId page_id) const {
 
 PageId TestSlabManager::PageIdFromPtr(const void* ptr) const {
   return slab_manager_.PageIdFromPtr(ptr);
-}
-
-std::optional<std::pair<PageId, Slab*>> TestSlabManager::Alloc(
-    uint32_t n_pages) {
-  using AllocResult = std::pair<PageId, Slab*>;
-  DEFINE_OR_RETURN_OPT(AllocResult, result, slab_manager_.Alloc(n_pages));
-  return result;
 }
 
 void TestSlabManager::Free(AllocatedSlab* slab) {
@@ -55,12 +49,12 @@ void TestSlabManager::HandleAlloc(AllocatedSlab* slab) {
 }
 
 absl::Status SlabManagerFixture::ValidateHeap() {
-  for (size_t idx = 0; heap_factory_->Instance(idx) != nullptr; idx++) {
-    if (heap_factory_->Instance(idx)->Size() % kPageSize != 0) {
-      return FailedTest(
-          "Expected heap size to be a multiple of page size, but was %zu",
-          heap_factory_->Instance(idx)->Size());
-    }
+  if (heap_factory_->Instance(slab_manager_->Underlying().heap_idx_)->Size() %
+          kPageSize !=
+      0) {
+    return FailedTest(
+        "Expected heap size to be a multiple of page size, but was %zu",
+        heap_factory_->Instance(slab_manager_->Underlying().heap_idx_)->Size());
   }
 
   absl::flat_hash_set<MappedSlab*> visited_slabs;
@@ -73,10 +67,8 @@ absl::Status SlabManagerFixture::ValidateHeap() {
   while (page < end) {
     MappedSlab* slab = SlabMap().FindSlab(page);
     if (slab == nullptr) {
-      // This must be a metadata slab.
-      page += 1;
-      previous_was_free = false;
-      continue;
+      return FailedTest("Unexpected `nullptr` slab map entry at page id %v",
+                        page);
     }
     if (page != slab->StartId()) {
       return FailedTest(

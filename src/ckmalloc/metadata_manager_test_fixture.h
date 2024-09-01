@@ -35,7 +35,8 @@ class TestMetadataManager {
       MetadataManagerImpl<TestGlobalMetadataAlloc, TestSlabMap>;
 
   TestMetadataManager(class MetadataManagerFixture* test_fixture,
-                      TestHeapFactory* heap_factory, TestSlabMap* slab_map);
+                      TestHeapFactory* heap_factory, TestSlabMap* slab_map,
+                      size_t heap_idx);
 
   MetadataManagerT& Underlying() {
     return metadata_manager_;
@@ -63,11 +64,11 @@ class MetadataManagerFixture : public CkMallocTest {
   static constexpr const char* kPrefix = "[MetadataManagerFixture]";
 
   MetadataManagerFixture(std::shared_ptr<TestHeapFactory> heap_factory,
-                         std::shared_ptr<TestSlabMap> slab_map)
+                         std::shared_ptr<TestSlabMap> slab_map, size_t heap_idx)
       : heap_factory_(std::move(heap_factory)),
         slab_map_(std::move(slab_map)),
         metadata_manager_(std::make_shared<TestMetadataManager>(
-            this, heap_factory_.get(), slab_map_.get())),
+            this, heap_factory_.get(), slab_map_.get(), heap_idx)),
         allocator_(metadata_manager_.get()),
         rng_(2021, 5) {
     TestGlobalMetadataAlloc::OverrideAllocator(&allocator_);

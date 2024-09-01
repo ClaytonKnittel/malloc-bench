@@ -35,6 +35,7 @@ cc_test(
 cc_library(
     name = "common",
     hdrs = ["common.h"],
+    visibility = ["//visibility:public"],
 )
 
 cc_library(
@@ -349,6 +350,7 @@ cc_library(
         ":slab_manager",
         ":testlib",
         ":util",
+        "//src:heap_interface",
         "//src:rng",
         "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/container:flat_hash_set",
@@ -462,7 +464,6 @@ cc_library(
         ":common",
         ":main_allocator",
         ":metadata_manager",
-        ":page_id",
         ":slab",
         ":slab_manager",
         ":slab_map",

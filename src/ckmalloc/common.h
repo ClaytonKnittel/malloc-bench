@@ -57,32 +57,31 @@ concept SlabMapInterface =
     };
 
 template <typename T>
-concept SlabManagerInterface = requires(
-    const T const_slab_mgr, T slab_mgr, class PageId page_id, const void* ptr,
-    uint32_t n_pages, class AllocatedSlab* slab,
-    class BlockedSlab* blocked_slab) {
-  { const_slab_mgr.PageStartFromId(page_id) } -> std::convertible_to<void*>;
-  { const_slab_mgr.PageIdFromPtr(ptr) } -> std::convertible_to<class PageId>;
-  {
-    slab_mgr.Alloc(n_pages)
-  } -> std::convertible_to<std::optional<std::pair<class PageId, class Slab*>>>;
-  {
-    slab_mgr.template Alloc<class SmallSlab>(n_pages)
-  } -> std::convertible_to<
-      std::optional<std::pair<class PageId, class SmallSlab*>>>;
-  {
-    slab_mgr.template Alloc<class BlockedSlab>(n_pages)
-  } -> std::convertible_to<
-      std::optional<std::pair<class PageId, class BlockedSlab*>>>;
-  {
-    slab_mgr.template Alloc<class SingleAllocSlab>(n_pages)
-  } -> std::convertible_to<
-      std::optional<std::pair<class PageId, class SingleAllocSlab*>>>;
-  { slab_mgr.Free(slab) } -> std::same_as<void>;
-  {
-    slab_mgr.FirstBlockInBlockedSlab(blocked_slab)
-  } -> std::convertible_to<class Block*>;
-};
+concept SlabManagerInterface =
+    requires(const T const_slab_mgr, T slab_mgr, class PageId page_id,
+             const void* ptr, uint32_t n_pages, class AllocatedSlab* slab,
+             class BlockedSlab* blocked_slab) {
+      { const_slab_mgr.PageStartFromId(page_id) } -> std::convertible_to<void*>;
+      {
+        const_slab_mgr.PageIdFromPtr(ptr)
+      } -> std::convertible_to<class PageId>;
+      {
+        slab_mgr.template Alloc<class SmallSlab>(n_pages)
+      } -> std::convertible_to<
+          std::optional<std::pair<class PageId, class SmallSlab*>>>;
+      {
+        slab_mgr.template Alloc<class BlockedSlab>(n_pages)
+      } -> std::convertible_to<
+          std::optional<std::pair<class PageId, class BlockedSlab*>>>;
+      {
+        slab_mgr.template Alloc<class SingleAllocSlab>(n_pages)
+      } -> std::convertible_to<
+          std::optional<std::pair<class PageId, class SingleAllocSlab*>>>;
+      { slab_mgr.Free(slab) } -> std::same_as<void>;
+      {
+        slab_mgr.FirstBlockInBlockedSlab(blocked_slab)
+      } -> std::convertible_to<class Block*>;
+    };
 
 template <typename T>
 concept SmallAllocatorInterface =

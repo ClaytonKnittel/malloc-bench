@@ -16,17 +16,14 @@ class MetadataManagerImpl {
   friend class MetadataManagerFixture;
 
  public:
-  // The index of the metadata heap in the heap factory.
-  static constexpr size_t kMetadataHeapIdx = 0;
-
   // alloc_offset is by default kPageSize. Initializing this to kPageSize tricks
   // the manager into thinking the last allocated slab is full, even though we
   // have not allocated any slabs on initialization yet. If some metadata has
   // already been allocated, this number can be changed to reflect the number of
   // already-allocated bytes from the first page.
   explicit MetadataManagerImpl(bench::HeapFactory* heap_factory,
-                               SlabMap* slab_map)
-      : heap_factory_(heap_factory), slab_map_(slab_map) {}
+                               SlabMap* slab_map, size_t heap_idx)
+      : heap_factory_(heap_factory), heap_idx_(heap_idx), slab_map_(slab_map) {}
 
   // Allocates `size` bytes aligned to `alignment` and returns a pointer to the
   // beginning of that region. This memory cannot be released back to the
@@ -53,6 +50,9 @@ class MetadataManagerImpl {
   uint32_t alloc_offset_ = kPageSize;
 
   bench::HeapFactory* const heap_factory_;
+
+  // The index of the metadata heap in the heap factory.
+  const size_t heap_idx_;
 
   SlabMap* const slab_map_;
 
@@ -120,7 +120,7 @@ void MetadataManagerImpl<MetadataAlloc, SlabMap>::FreeSlabMeta(
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
 bench::Heap* MetadataManagerImpl<MetadataAlloc, SlabMap>::MetadataHeap() {
-  return heap_factory_->Instance(kMetadataHeapIdx);
+  return heap_factory_->Instance(heap_idx_);
 }
 
 using MetadataManager = MetadataManagerImpl<GlobalMetadataAlloc, SlabMap>;

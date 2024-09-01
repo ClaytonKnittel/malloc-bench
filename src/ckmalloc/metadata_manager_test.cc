@@ -30,7 +30,7 @@ class MetadataManagerTest : public testing::Test {
       : heap_factory_(std::make_shared<TestHeapFactory>(kNumPages * kPageSize)),
         slab_map_(std::make_shared<TestSlabMap>()),
         metadata_manager_fixture_(std::make_shared<MetadataManagerFixture>(
-            heap_factory_, slab_map_)) {}
+            heap_factory_, slab_map_, /*heap_idx=*/0)) {}
 
   TestHeapFactory& HeapFactory() {
     return *heap_factory_;

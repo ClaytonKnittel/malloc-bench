@@ -27,8 +27,9 @@ void* TestMetadataAlloc::Alloc(size_t size, size_t alignment) {
 
 TestMetadataManager::TestMetadataManager(MetadataManagerFixture* test_fixture,
                                          TestHeapFactory* heap_factory,
-                                         TestSlabMap* slab_map)
-    : test_fixture_(test_fixture), metadata_manager_(heap_factory, slab_map) {}
+                                         TestSlabMap* slab_map, size_t heap_idx)
+    : test_fixture_(test_fixture),
+      metadata_manager_(heap_factory, slab_map, heap_idx) {}
 
 void* TestMetadataManager::Alloc(size_t size, size_t alignment) {
   void* block = metadata_manager_.Alloc(size, alignment);
