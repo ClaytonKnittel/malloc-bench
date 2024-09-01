@@ -1,6 +1,8 @@
 #include "src/pkmalloc/allocated_block.h"
 
-#include "src/pkmalloc/malloc_assert.h"
+#include <cstddef>
+
+#include "src/singleton_heap.h"
 
 uint8_t* AllocatedBlock::GetBody() {
   return body_;

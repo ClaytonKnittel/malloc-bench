@@ -1,7 +1,6 @@
 #include "block.h"
 
 #include <cassert>
-#include <cstddef>
 
 #include "src/pkmalloc/malloc_assert.h"
 #include "src/singleton_heap.h"

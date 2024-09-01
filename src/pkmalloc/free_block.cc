@@ -1,15 +1,15 @@
 #include "src/pkmalloc/free_block.h"
 
-void FreeBlock::SetNext(FreeBlock* current_block, FreeBlock* next) {
-  current_block->next_ = next;
+void FreeBlock::SetNext(FreeBlock* current, FreeBlock* next) {
+  current->next_ = next;
 }
 
 FreeBlock* FreeBlock::GetNext(FreeBlock* current_block) {
   return current_block->next_;
 }
 
-void FreeBlock::RemoveNext(FreeBlock* current_block, FreeBlock* next) {
-  SetNext(current_block, GetNext(next));
+void FreeBlock::RemoveNext(FreeBlock* current, FreeBlock* next) {
+  SetNext(current, GetNext(next));
 }
 
 FreeBlock* FreeBlock::combine(FreeBlock* left_block, FreeBlock* right_block) {
@@ -20,6 +20,7 @@ FreeBlock* FreeBlock::combine(FreeBlock* left_block, FreeBlock* right_block) {
                            right_block->GetBlockSize());
   RemoveNext(left_block, right_block);
   left_block->next_ = right_block->next_;
+  return left_block;
 }
 
 void FreeBlock::coalesce(FreeBlock* current, FreeBlock* prev) {

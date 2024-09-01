@@ -2,8 +2,6 @@
 
 #include <cassert>
 
-#include "src/singleton_heap.h"
-
 class Block {
  public:
   // returns the

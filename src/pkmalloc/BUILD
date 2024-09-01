@@ -5,6 +5,7 @@ cc_library(
     deps = [
         ":block",
         ":free_block",
+        "//src:singleton_heap",
     ],
 )
 
@@ -23,7 +24,6 @@ cc_library(
     srcs = ["free_block.cc"],
     hdrs = ["free_block.h"],
     deps = [
-        ":allocated_block",
         ":block",
     ],
 )
@@ -36,6 +36,7 @@ cc_library(
         ":allocated_block",
         ":block",
         ":free_block",
+        "//src:singleton_heap",
     ],
 )
 
