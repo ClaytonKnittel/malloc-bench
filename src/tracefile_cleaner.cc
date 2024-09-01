@@ -105,7 +105,7 @@ class AllocationState {
   }
 
   bool Realloc(void* ptr, size_t size, void* result) {
-    return Free(ptr) && Malloc(size, result);
+    return (ptr == nullptr || Free(ptr)) && Malloc(size, result);
   }
 
   std::set<void*> allocated_ptrs_;
