@@ -22,7 +22,7 @@ inline void initialize_heap(HeapFactory& heap_factory) {
     std::cerr << "Failed to initialize heap" << std::endl;
     std::exit(-1);
   }
-  jsmalloc::initialize_heap(res);
+  jsmalloc::initialize_heap(*res->second);
 }
 
 inline void* malloc(size_t size) {
