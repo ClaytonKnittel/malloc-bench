@@ -26,10 +26,9 @@ void* TestMetadataAlloc::Alloc(size_t size, size_t alignment) {
 };
 
 TestMetadataManager::TestMetadataManager(MetadataManagerFixture* test_fixture,
-                                         TestSlabMap* slab_map,
-                                         TestSlabManager* slab_manager)
-    : test_fixture_(test_fixture),
-      metadata_manager_(slab_map, slab_manager, PageId::Zero()) {}
+                                         TestHeapFactory* heap_factory,
+                                         TestSlabMap* slab_map)
+    : test_fixture_(test_fixture), metadata_manager_(heap_factory, slab_map) {}
 
 void* TestMetadataManager::Alloc(size_t size, size_t alignment) {
   void* block = metadata_manager_.Alloc(size, alignment);
@@ -199,24 +198,6 @@ absl::Status MetadataManagerFixture::ValidateHeap() {
         "Freelist of slab metadata is not the expected length: found %zu, "
         "expected %zu",
         freelist_slabs.size(), freed_slab_metadata_.size());
-  }
-
-  absl::flat_hash_set<MappedSlab*> visited_slabs;
-  PageId page = PageId::Zero();
-  PageId end = slab_manager_test_fixture_->HeapEndId();
-  while (page < end) {
-    MappedSlab* slab = SlabMap().FindSlab(page);
-    if (slab == nullptr) {
-      // This must be a metadata slab.
-      page += 1;
-      continue;
-    }
-
-    if (freed_slab_metadata_.contains(slab)) {
-      return FailedTest("Found allocated slab %v in the freelist.", *slab);
-    }
-
-    page += slab->Pages();
   }
 
   return absl::OkStatus();

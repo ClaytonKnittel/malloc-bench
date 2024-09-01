@@ -36,7 +36,7 @@ class State {
   }
 
  private:
-  explicit State(bench::HeapFactory* heap_factory, PageId last);
+  explicit State(bench::HeapFactory* heap_factory);
 
   // This is the global state instance that is initialized with
   // `InitializeWithEmptyHeap`.

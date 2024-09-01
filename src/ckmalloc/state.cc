@@ -21,9 +21,10 @@ State* State::InitializeWithEmptyHeap(bench::HeapFactory* heap_factory) {
   CK_ASSERT_TRUE(result.ok());
   // Allocate a metadata slab and place ourselves at the beginning of it.
   size_t metadata_size = AlignUp(sizeof(State), kPageSize);
-  uint32_t n_pages = metadata_size / kPageSize;
   void* heap_start = heap_factory->Instance(0)->sbrk(metadata_size);
-  auto* state = new (heap_start) State(heap_factory, PageId(n_pages - 1));
+  CK_ASSERT_NE(heap_start, nullptr);
+
+  auto* state = new (heap_start) State(heap_factory);
   state_ = state;
   return state;
 }
@@ -34,9 +35,9 @@ State* State::Instance() {
   return state_;
 }
 
-State::State(bench::HeapFactory* heap_factory, PageId last)
+State::State(bench::HeapFactory* heap_factory)
     : slab_manager_(heap_factory, &slab_map_),
-      metadata_manager_(&slab_map_, &slab_manager_, last /*, sizeof(State)*/),
+      metadata_manager_(heap_factory, &slab_map_),
       small_alloc_(&slab_map_, &slab_manager_),
       main_allocator_(&slab_map_, &slab_manager_, &small_alloc_) {}
 
