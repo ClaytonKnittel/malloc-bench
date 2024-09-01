@@ -10,6 +10,9 @@
 namespace bench {
 
 class MMapHeapFactory : public HeapFactory {
+ public:
+  ~MMapHeapFactory() override = default;
+
  protected:
   absl::StatusOr<std::unique_ptr<Heap>> MakeHeap(size_t size) override;
 };
