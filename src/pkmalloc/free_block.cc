@@ -1,7 +1,7 @@
 #include "src/pkmalloc/free_block.h"
 
-void FreeBlock::SetNext(FreeBlock* current, FreeBlock* next) {
-  current->next_ = next;
+void FreeBlock::SetNext(FreeBlock* first, FreeBlock* second) {
+  first->next_ = second;
 }
 
 FreeBlock* FreeBlock::GetNext(FreeBlock* current_block) {

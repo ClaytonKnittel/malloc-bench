@@ -5,7 +5,7 @@
 class FreeBlock : public Block {
  public:
   // sets the current block's next to be next value
-  static void SetNext(FreeBlock* current_block, FreeBlock* next);
+  static void SetNext(FreeBlock* first, FreeBlock* second);
 
   // returns the next block relative to the current block
   static FreeBlock* GetNext(FreeBlock* current_block);

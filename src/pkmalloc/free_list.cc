@@ -68,7 +68,7 @@ AllocatedBlock* FindFreeBlockForAlloc(size_t size, FreeBlock* free_list_begin) {
 
 AllocatedBlock* mallocate(size_t size, FreeBlock* free_list_begin) {
   if (bench::SingletonHeap::GlobalInstance()->Size() == 0) {
-    return FreeList::EmptyHeapAlloc(size);
+    return EmptyHeapAlloc(size);
   }
-  return FreeList::FindFreeBlockForAlloc(size, free_list_begin);
+  return FindFreeBlockForAlloc(size, free_list_begin);
 }
