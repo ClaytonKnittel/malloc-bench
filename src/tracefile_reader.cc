@@ -10,6 +10,7 @@
 
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
+#include "absl/types/span.h"
 #include "util/absl_util.h"
 
 namespace bench {
@@ -117,7 +118,7 @@ absl::StatusOr<TracefileReader> TracefileReader::Open(
   return TracefileReader(std::move(file));
 }
 
-absl::StatusOr<std::vector<TraceLine>> TracefileReader::CollectLines() {
+absl::StatusOr<absl::Span<const TraceLine>> TracefileReader::CollectLines() {
   while (true) {
     DEFINE_OR_RETURN(std::optional<TraceLine>, line, NextLine());
     if (!line.has_value()) {

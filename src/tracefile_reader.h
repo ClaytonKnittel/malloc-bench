@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "absl/status/statusor.h"
+#include "absl/types/span.h"
 
 namespace bench {
 
@@ -36,7 +37,7 @@ class TracefileReader {
   static absl::StatusOr<TracefileReader> Open(const std::string& filename);
 
   // Reads all lines in a file into a vector.
-  absl::StatusOr<std::vector<TraceLine>> CollectLines();
+  absl::StatusOr<absl::Span<const TraceLine>> CollectLines();
 
  private:
   explicit TracefileReader(std::ifstream&& file);

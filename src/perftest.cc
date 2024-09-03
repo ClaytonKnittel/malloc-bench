@@ -5,6 +5,7 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/status/statusor.h"
 #include "absl/time/time.h"
+#include "absl/types/span.h"
 #include "util/absl_util.h"
 
 #include "src/allocator_interface.h"
@@ -22,7 +23,7 @@ struct TimeOp {
 namespace {
 
 std::pair<std::vector<TimeOp>, size_t> ComputeOps(
-    const std::vector<TraceLine>& lines) {
+    absl::Span<const TraceLine> lines) {
   absl::flat_hash_map<void*, size_t> idx_map;
   std::vector<size_t> free_idxs;
   size_t next_idx = 0;
@@ -122,7 +123,7 @@ absl::StatusOr<double> TimeTrace(TracefileReader& reader,
                                  HeapFactory& heap_factory) {
   constexpr size_t kMinDesiredOps = 1000000;
 
-  DEFINE_OR_RETURN(std::vector<TraceLine>, lines, reader.CollectLines());
+  DEFINE_OR_RETURN(absl::Span<const TraceLine>, lines, reader.CollectLines());
 
   size_t num_repetitions = (kMinDesiredOps - 1) / lines.size() + 1;
 

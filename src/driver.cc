@@ -10,6 +10,7 @@
 #include "absl/flags/parse.h"
 #include "absl/status/status.h"
 #include "absl/strings/match.h"
+#include "absl/types/span.h"
 #include "util/absl_util.h"
 
 #include "src/correctness_checker.h"
@@ -165,7 +166,7 @@ void PrintTestResults(const std::vector<TraceResult>& results) {
 absl::Status PrintTrace(const std::string& tracefile) {
   DEFINE_OR_RETURN(TracefileReader, reader, TracefileReader::Open(tracefile));
 
-  DEFINE_OR_RETURN(std::vector<TraceLine>, lines, reader.CollectLines());
+  DEFINE_OR_RETURN(absl::Span<const TraceLine>, lines, reader.CollectLines());
   for (TraceLine line : lines) {
     switch (line.op) {
       case TraceLine::Op::kMalloc:

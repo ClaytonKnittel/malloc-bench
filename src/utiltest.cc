@@ -1,8 +1,7 @@
-#include <vector>
-
 #include "absl/container/flat_hash_map.h"
 #include "absl/flags/flag.h"
 #include "absl/status/statusor.h"
+#include "absl/types/span.h"
 #include "util/absl_util.h"
 
 #include "src/allocator_interface.h"
@@ -35,7 +34,7 @@ absl::StatusOr<double> MeasureUtilization(TracefileReader& reader,
 
   size_t total_allocated_bytes = 0;
   size_t max_allocated_bytes = 0;
-  DEFINE_OR_RETURN(std::vector<TraceLine>, lines, reader.CollectLines());
+  DEFINE_OR_RETURN(absl::Span<const TraceLine>, lines, reader.CollectLines());
   for (TraceLine line : lines) {
     switch (line.op) {
       case TraceLine::Op::kMalloc: {
