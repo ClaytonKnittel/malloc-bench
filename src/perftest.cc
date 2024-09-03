@@ -5,8 +5,6 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/status/statusor.h"
 #include "absl/time/time.h"
-#include "absl/types/span.h"
-#include "util/absl_util.h"
 
 #include "src/allocator_interface.h"
 #include "src/heap_factory.h"
@@ -23,7 +21,7 @@ struct TimeOp {
 namespace {
 
 std::pair<std::vector<TimeOp>, size_t> ComputeOps(
-    absl::Span<const TraceLine> lines) {
+    const TracefileReader& reader) {
   absl::flat_hash_map<void*, size_t> idx_map;
   std::vector<size_t> free_idxs;
   size_t next_idx = 0;
@@ -41,8 +39,8 @@ std::pair<std::vector<TimeOp>, size_t> ComputeOps(
   auto free_idx = [&free_idxs](size_t idx) { free_idxs.push_back(idx); };
 
   std::vector<TimeOp> ops;
-  ops.reserve(lines.size());
-  for (const TraceLine& line : lines) {
+  ops.reserve(reader.size());
+  for (const TraceLine& line : reader) {
     switch (line.op) {
       case TraceLine::Op::kMalloc: {
         size_t idx = get_new_idx();
@@ -123,11 +121,9 @@ absl::StatusOr<double> TimeTrace(TracefileReader& reader,
                                  HeapFactory& heap_factory) {
   constexpr size_t kMinDesiredOps = 1000000;
 
-  DEFINE_OR_RETURN(absl::Span<const TraceLine>, lines, reader.CollectLines());
+  size_t num_repetitions = (kMinDesiredOps - 1) / reader.size() + 1;
 
-  size_t num_repetitions = (kMinDesiredOps - 1) / lines.size() + 1;
-
-  auto [ops, max_allocs] = ComputeOps(lines);
+  auto [ops, max_allocs] = ComputeOps(reader);
   std::vector<void*> ptrs(max_allocs);
 
   absl::Time start = absl::Now();

@@ -1,12 +1,10 @@
 #pragma once
 
-#include <fstream>
-#include <optional>
+#include <cstddef>
 #include <string>
 #include <vector>
 
 #include "absl/status/statusor.h"
-#include "absl/types/span.h"
 
 namespace bench {
 
@@ -34,18 +32,19 @@ struct TraceLine {
 
 class TracefileReader {
  public:
+  using const_iterator = std::vector<TraceLine>::const_iterator;
+
   static absl::StatusOr<TracefileReader> Open(const std::string& filename);
 
-  // Reads all lines in a file into a vector.
-  absl::StatusOr<absl::Span<const TraceLine>> CollectLines();
+  size_t size() const;
+
+  const_iterator begin() const;
+  const_iterator end() const;
 
  private:
-  explicit TracefileReader(std::ifstream&& file);
+  explicit TracefileReader(std::vector<TraceLine>&& lines);
 
-  absl::StatusOr<std::optional<TraceLine>> NextLine();
-
-  std::ifstream file_;
-  std::vector<TraceLine> lines_;
+  const std::vector<TraceLine> lines_;
 };
 
 }  // namespace bench

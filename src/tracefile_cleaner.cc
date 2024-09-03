@@ -9,7 +9,6 @@
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
 #include "absl/status/status.h"
-#include "absl/types/span.h"
 #include "util/absl_util.h"
 
 #include "src/tracefile_reader.h"
@@ -115,8 +114,7 @@ absl::Status CleanTracefile(absl::string_view input_path, std::ostream& out) {
                    TracefileReader::Open(std::string(input_path)));
   std::optional<int32_t> pid;
   AllocationState allocation_state;
-  DEFINE_OR_RETURN(absl::Span<const TraceLine>, lines, reader.CollectLines());
-  for (TraceLine line : lines) {
+  for (TraceLine line : reader) {
     if (!pid.has_value()) {
       pid = line.pid;
     }

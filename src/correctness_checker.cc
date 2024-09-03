@@ -8,7 +8,6 @@
 #include "absl/container/btree_map.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_format.h"
-#include "absl/types/span.h"
 #include "util/absl_util.h"
 
 #include "src/allocator_interface.h"
@@ -45,8 +44,7 @@ absl::Status CorrectnessChecker::Run() {
 }
 
 absl::Status CorrectnessChecker::ProcessTracefile() {
-  DEFINE_OR_RETURN(absl::Span<const TraceLine>, lines, reader_.CollectLines());
-  for (TraceLine line : lines) {
+  for (TraceLine line : reader_) {
     switch (line.op) {
       case TraceLine::Op::kMalloc:
         RETURN_IF_ERROR(
