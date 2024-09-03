@@ -1,5 +1,6 @@
 #include "src/tracefile_reader.h"
 
+#include <cstddef>
 #include <fstream>
 #include <iostream>
 #include <optional>
@@ -114,39 +115,37 @@ absl::StatusOr<TracefileReader> TracefileReader::Open(
     return absl::InternalError(absl::StrCat("Failed to open file ", filename));
   }
 
-  return TracefileReader(std::move(file));
-}
-
-absl::StatusOr<std::optional<TraceLine>> TracefileReader::NextLine() {
+  std::vector<TraceLine> lines;
   while (true) {
     std::string line;
-    if (std::getline(file_, line).eof()) {
-      return std::nullopt;
+    if (std::getline(file, line).eof()) {
+      break;
     }
 
     DEFINE_OR_RETURN(std::optional<TraceLine>, trace_line, MatchLine(line));
     if (trace_line.has_value()) {
-      return *trace_line;
+      lines.push_back(*trace_line);
     }
   }
+
+  file.close();
+
+  return TracefileReader(std::move(lines));
 }
 
-absl::StatusOr<std::vector<TraceLine>> TracefileReader::CollectLines() {
-  std::vector<TraceLine> lines;
-
-  while (true) {
-    DEFINE_OR_RETURN(std::optional<TraceLine>, line, NextLine());
-    if (!line.has_value()) {
-      break;
-    }
-
-    lines.push_back(line.value());
-  }
-
-  return lines;
+size_t TracefileReader::size() const {
+  return lines_.size();
 }
 
-TracefileReader::TracefileReader(std::ifstream&& file)
-    : file_(std::move(file)) {}
+TracefileReader::const_iterator TracefileReader::begin() const {
+  return lines_.cbegin();
+}
+
+TracefileReader::const_iterator TracefileReader::end() const {
+  return lines_.cend();
+}
+
+TracefileReader::TracefileReader(std::vector<TraceLine>&& lines)
+    : lines_(std::move(lines)) {}
 
 }  // namespace bench

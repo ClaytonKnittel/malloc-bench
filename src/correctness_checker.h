@@ -20,8 +20,8 @@ class CorrectnessChecker {
 
   static bool IsFailedTestStatus(const absl::Status& status);
 
-  static absl::Status Check(const std::string& tracefile,
-                            HeapFactory& heap_factory, bool verbose = false);
+  static absl::Status Check(TracefileReader& reader, HeapFactory& heap_factory,
+                            bool verbose = false);
 
  private:
   struct AllocatedBlock {
