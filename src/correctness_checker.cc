@@ -3,6 +3,7 @@
 #include <bit>
 #include <cstddef>
 #include <cstdint>
+#include <vector>
 
 #include "absl/algorithm/container.h"
 #include "absl/container/btree_map.h"
@@ -44,27 +45,22 @@ absl::Status CorrectnessChecker::Run() {
 }
 
 absl::Status CorrectnessChecker::ProcessTracefile() {
-  while (true) {
-    DEFINE_OR_RETURN(std::optional<TraceLine>, line, reader_.NextLine());
-    if (!line.has_value()) {
-      break;
-    }
-
-    switch (line->op) {
+  DEFINE_OR_RETURN(std::vector<TraceLine>, lines, reader_.CollectLines());
+  for (TraceLine line : lines) {
+    switch (line.op) {
       case TraceLine::Op::kMalloc:
         RETURN_IF_ERROR(
-            Malloc(1, line->input_size, line->result, /*is_calloc=*/false));
+            Malloc(1, line.input_size, line.result, /*is_calloc=*/false));
         break;
       case TraceLine::Op::kCalloc:
-        RETURN_IF_ERROR(Malloc(line->nmemb, line->input_size, line->result,
+        RETURN_IF_ERROR(Malloc(line.nmemb, line.input_size, line.result,
                                /*is_calloc=*/true));
         break;
       case TraceLine::Op::kRealloc:
-        RETURN_IF_ERROR(
-            Realloc(line->input_ptr, line->input_size, line->result));
+        RETURN_IF_ERROR(Realloc(line.input_ptr, line.input_size, line.result));
         break;
       case TraceLine::Op::kFree:
-        RETURN_IF_ERROR(Free(line->input_ptr));
+        RETURN_IF_ERROR(Free(line.input_ptr));
         break;
     }
   }

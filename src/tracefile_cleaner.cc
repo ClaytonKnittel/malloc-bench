@@ -1,5 +1,3 @@
-#include <cassert>
-#include <cmath>
 #include <cstdlib>
 #include <ios>
 #include <iostream>
@@ -116,25 +114,21 @@ absl::Status CleanTracefile(absl::string_view input_path, std::ostream& out) {
                    TracefileReader::Open(std::string(input_path)));
   std::optional<int32_t> pid;
   AllocationState allocation_state;
-  while (true) {
-    DEFINE_OR_RETURN(std::optional<TraceLine>, line, reader.NextLine());
-    if (!line.has_value()) {
-      break;
-    }
-
+  DEFINE_OR_RETURN(std::vector<TraceLine>, lines, reader.CollectLines());
+  for (TraceLine line : lines) {
     if (!pid.has_value()) {
-      pid = line->pid;
+      pid = line.pid;
     }
 
-    if (line->pid != pid) {
+    if (line.pid != pid) {
       continue;
     }
 
-    if (!allocation_state.Try(*line)) {
+    if (!allocation_state.Try(line)) {
       continue;
     }
 
-    out << FormatLine(*line) << std::endl;
+    out << FormatLine(line) << std::endl;
   }
 
   // Free all unfreed memory.

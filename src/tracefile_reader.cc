@@ -117,6 +117,20 @@ absl::StatusOr<TracefileReader> TracefileReader::Open(
   return TracefileReader(std::move(file));
 }
 
+absl::StatusOr<std::vector<TraceLine>> TracefileReader::CollectLines() {
+  while (true) {
+    DEFINE_OR_RETURN(std::optional<TraceLine>, line, NextLine());
+    if (!line.has_value()) {
+      break;
+    }
+  }
+
+  return lines_;
+}
+
+TracefileReader::TracefileReader(std::ifstream&& file)
+    : file_(std::move(file)) {}
+
 absl::StatusOr<std::optional<TraceLine>> TracefileReader::NextLine() {
   while (true) {
     std::string line;
@@ -131,19 +145,5 @@ absl::StatusOr<std::optional<TraceLine>> TracefileReader::NextLine() {
     }
   }
 }
-
-absl::StatusOr<std::vector<TraceLine>> TracefileReader::CollectLines() {
-  while (true) {
-    DEFINE_OR_RETURN(std::optional<TraceLine>, line, NextLine());
-    if (!line.has_value()) {
-      break;
-    }
-  }
-
-  return lines_;
-}
-
-TracefileReader::TracefileReader(std::ifstream&& file)
-    : file_(std::move(file)) {}
 
 }  // namespace bench
