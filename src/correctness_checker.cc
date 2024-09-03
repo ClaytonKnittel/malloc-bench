@@ -23,12 +23,10 @@ bool CorrectnessChecker::IsFailedTestStatus(const absl::Status& status) {
 }
 
 /* static */
-absl::Status CorrectnessChecker::Check(const std::string& tracefile,
+absl::Status CorrectnessChecker::Check(TracefileReader& reader,
                                        HeapFactory& heap_factory,
                                        bool verbose) {
   absl::btree_map<void*, uint32_t> allocated_blocks;
-
-  DEFINE_OR_RETURN(TracefileReader, reader, TracefileReader::Open(tracefile));
 
   CorrectnessChecker checker(std::move(reader), heap_factory);
   checker.verbose_ = verbose;
@@ -46,27 +44,21 @@ absl::Status CorrectnessChecker::Run() {
 }
 
 absl::Status CorrectnessChecker::ProcessTracefile() {
-  while (true) {
-    DEFINE_OR_RETURN(std::optional<TraceLine>, line, reader_.NextLine());
-    if (!line.has_value()) {
-      break;
-    }
-
-    switch (line->op) {
+  for (TraceLine line : reader_) {
+    switch (line.op) {
       case TraceLine::Op::kMalloc:
         RETURN_IF_ERROR(
-            Malloc(1, line->input_size, line->result, /*is_calloc=*/false));
+            Malloc(1, line.input_size, line.result, /*is_calloc=*/false));
         break;
       case TraceLine::Op::kCalloc:
-        RETURN_IF_ERROR(Malloc(line->nmemb, line->input_size, line->result,
+        RETURN_IF_ERROR(Malloc(line.nmemb, line.input_size, line.result,
                                /*is_calloc=*/true));
         break;
       case TraceLine::Op::kRealloc:
-        RETURN_IF_ERROR(
-            Realloc(line->input_ptr, line->input_size, line->result));
+        RETURN_IF_ERROR(Realloc(line.input_ptr, line.input_size, line.result));
         break;
       case TraceLine::Op::kFree:
-        RETURN_IF_ERROR(Free(line->input_ptr));
+        RETURN_IF_ERROR(Free(line.input_ptr));
         break;
     }
   }
