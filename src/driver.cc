@@ -47,10 +47,12 @@ absl::StatusOr<TraceResult> RunTrace(const std::string& tracefile,
     .trace = tracefile,
   };
 
+  DEFINE_OR_RETURN(TracefileReader, reader, TracefileReader::Open(tracefile));
+
   // Check for correctness.
   if (!absl::GetFlag(FLAGS_skip_correctness)) {
     absl::Status correctness_status =
-        CorrectnessChecker::Check(tracefile, heap_factory);
+        CorrectnessChecker::Check(reader, heap_factory);
     if (correctness_status.ok()) {
       result.correct = true;
     } else {
@@ -67,9 +69,9 @@ absl::StatusOr<TraceResult> RunTrace(const std::string& tracefile,
   }
 
   if (result.correct) {
-    DEFINE_OR_RETURN(double, mega_ops, TimeTrace(tracefile, heap_factory));
+    DEFINE_OR_RETURN(double, mega_ops, TimeTrace(reader, heap_factory));
     DEFINE_OR_RETURN(double, utilization,
-                     MeasureUtilization(tracefile, heap_factory));
+                     MeasureUtilization(reader, heap_factory));
 
     result.mega_ops = mega_ops;
     result.utilization = utilization;
@@ -163,28 +165,23 @@ void PrintTestResults(const std::vector<TraceResult>& results) {
 absl::Status PrintTrace(const std::string& tracefile) {
   DEFINE_OR_RETURN(TracefileReader, reader, TracefileReader::Open(tracefile));
 
-  while (true) {
-    DEFINE_OR_RETURN(std::optional<TraceLine>, line, reader.NextLine());
-    if (line.has_value()) {
-      break;
-    }
-
-    switch (line->op) {
+  for (TraceLine line : reader) {
+    switch (line.op) {
       case TraceLine::Op::kMalloc:
-        std::cout << "malloc(" << line->input_size << ") = " << line->result
+        std::cout << "malloc(" << line.input_size << ") = " << line.result
                   << std::endl;
         break;
       case TraceLine::Op::kCalloc:
-        std::cout << "calloc(" << line->nmemb << ", " << line->input_size
-                  << ") = " << line->result << std::endl;
+        std::cout << "calloc(" << line.nmemb << ", " << line.input_size
+                  << ") = " << line.result << std::endl;
         break;
       case TraceLine::Op::kRealloc:
-        std::cout << "realloc(" << line->input_ptr << ", " << line->input_size
-                  << ") = " << line->result << std::endl;
+        std::cout << "realloc(" << line.input_ptr << ", " << line.input_size
+                  << ") = " << line.result << std::endl;
         break;
       case TraceLine::Op::kFree:
-        if (line->input_ptr != nullptr) {
-          std::cout << "free(" << line->input_ptr << ")" << std::endl;
+        if (line.input_ptr != nullptr) {
+          std::cout << "free(" << line.input_ptr << ")" << std::endl;
         }
         break;
     }

@@ -28,6 +28,7 @@ cc_binary(
     deps = [
         ":mmap_heap_factory",
         ":perftest",
+        ":tracefile_reader",
         "@abseil-cpp//absl/status:statusor",
     ],
 )
@@ -46,7 +47,6 @@ cc_library(
         "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/time",
-        "@cc-util//util:absl_util",
     ],
 )
 
@@ -64,7 +64,6 @@ cc_library(
         "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/status:statusor",
-        "@cc-util//util:absl_util",
     ],
 )
 

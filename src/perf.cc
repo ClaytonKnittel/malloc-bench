@@ -4,6 +4,7 @@
 
 #include "src/mmap_heap_factory.h"
 #include "src/perftest.h"
+#include "src/tracefile_reader.h"
 
 int main() {
   for (const auto& tracefile : {
@@ -19,7 +20,14 @@ int main() {
            "traces/syn-string.trace",      "traces/syn-struct.trace",
        }) {
     bench::MMapHeapFactory heap_factory;
-    auto result = bench::TimeTrace(tracefile, heap_factory,
+    absl::StatusOr<bench::TracefileReader> reader =
+        bench::TracefileReader::Open(tracefile);
+    if (!reader.ok()) {
+      std::cerr << reader.status() << std::endl;
+      return -1;
+    }
+
+    auto result = bench::TimeTrace(reader.value(), heap_factory,
                                    /*min_desired_ops=*/100000000);
     if (result.ok()) {
       std::cout << tracefile << ": " << result.value() << " mega ops / s"
