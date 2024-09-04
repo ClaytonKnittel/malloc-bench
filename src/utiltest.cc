@@ -44,9 +44,10 @@ absl::StatusOr<double> MeasureUtilization(TracefileReader& reader,
       }
       case TraceLine::Op::kCalloc: {
         void* ptr = calloc(line.nmemb, line.input_size);
+        size_t allocated_bytes = line.nmemb * line.input_size;
         if (ptr != nullptr) {
-          id_to_ptrs[line.result] = { ptr, line.input_size };
-          total_allocated_bytes += RoundUp(line.input_size);
+          id_to_ptrs[line.result] = { ptr, allocated_bytes };
+          total_allocated_bytes += RoundUp(allocated_bytes);
         }
         break;
       }
