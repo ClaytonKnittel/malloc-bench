@@ -31,7 +31,7 @@ std::string FormatLine(const TraceLine& line) {
       ss << "malloc(" << line.input_size << ") = " << FormatPtr(line.result);
       break;
     case bench::TraceLine::Op::kCalloc:
-      ss << "calloc(" << line.input_size << "," << line.nmemb
+      ss << "calloc(" << line.nmemb << "," << line.input_size
          << ") = " << FormatPtr(line.result);
       break;
     case bench::TraceLine::Op::kRealloc:
