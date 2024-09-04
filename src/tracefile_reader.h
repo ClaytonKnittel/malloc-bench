@@ -1,7 +1,6 @@
 #pragma once
 
-#include <fstream>
-#include <optional>
+#include <cstddef>
 #include <string>
 #include <vector>
 
@@ -33,17 +32,19 @@ struct TraceLine {
 
 class TracefileReader {
  public:
+  using const_iterator = std::vector<TraceLine>::const_iterator;
+
   static absl::StatusOr<TracefileReader> Open(const std::string& filename);
 
-  absl::StatusOr<std::optional<TraceLine>> NextLine();
+  size_t size() const;
 
-  // Reads all lines in a file into a vector.
-  absl::StatusOr<std::vector<TraceLine>> CollectLines();
+  const_iterator begin() const;
+  const_iterator end() const;
 
  private:
-  explicit TracefileReader(std::ifstream&& file);
+  explicit TracefileReader(std::vector<TraceLine>&& lines);
 
-  std::ifstream file_;
+  const std::vector<TraceLine> lines_;
 };
 
 }  // namespace bench

@@ -4,22 +4,21 @@
 
 #include "src/mmap_heap_factory.h"
 #include "src/perftest.h"
+#include "src/tracefile_reader.h"
 
 int main() {
   for (const auto& tracefile : {
-           "traces/bdd-aa32.trace",        "traces/bdd-aa4.trace",
-           "traces/bdd-ma4.trace",         "traces/bdd-nq7.trace",
-           "traces/cbit-abs.trace",        "traces/cbit-parity.trace",
-           "traces/cbit-satadd.trace",     "traces/cbit-xyz.trace",
-           "traces/ngram-gulliver1.trace", "traces/ngram-gulliver2.trace",
-           "traces/ngram-moby1.trace",     "traces/ngram-shake1.trace",
-           "traces/onoro.trace",           "traces/onoro-cc.trace",
-           "traces/server.trace",          "traces/syn-array.trace",
-           "traces/syn-mix.trace",         "traces/syn-mix-realloc.trace",
-           "traces/syn-string.trace",      "traces/syn-struct.trace",
+           "traces/onoro.trace",
        }) {
     bench::MMapHeapFactory heap_factory;
-    auto result = bench::TimeTrace(tracefile, heap_factory,
+    absl::StatusOr<bench::TracefileReader> reader =
+        bench::TracefileReader::Open(tracefile);
+    if (!reader.ok()) {
+      std::cerr << reader.status() << std::endl;
+      return -1;
+    }
+
+    auto result = bench::TimeTrace(reader.value(), heap_factory,
                                    /*min_desired_ops=*/100000000);
     if (result.ok()) {
       std::cout << tracefile << ": " << result.value() << " mega ops / s"

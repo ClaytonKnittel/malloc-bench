@@ -22,6 +22,7 @@ class HeapFactory {
 
   // Returns the heap instance at index `idx`.
   Heap* Instance(size_t idx);
+  const Heap* Instance(size_t idx) const;
 
   const std::vector<std::unique_ptr<Heap>>& Instances() const;
 

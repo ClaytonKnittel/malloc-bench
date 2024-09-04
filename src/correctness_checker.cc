@@ -25,15 +25,11 @@ bool CorrectnessChecker::IsFailedTestStatus(const absl::Status& status) {
 }
 
 /* static */
-absl::Status CorrectnessChecker::Check(const std::string& tracefile,
+absl::Status CorrectnessChecker::Check(TracefileReader& reader,
                                        HeapFactory& heap_factory,
                                        bool verbose) {
   absl::btree_map<void*, uint32_t> allocated_blocks;
 
-  DEFINE_OR_RETURN(TracefileReader, reader, TracefileReader::Open(tracefile));
-
-  heap_factory.Reset();
-  initialize_heap(heap_factory);
   CorrectnessChecker checker(std::move(reader), heap_factory);
   checker.verbose_ = verbose;
   return checker.Run();
@@ -64,7 +60,7 @@ absl::StatusOr<void*> CorrectnessChecker::Realloc(void* ptr, size_t size) {
       std::cout << "realloc(nullptr, " << size << ")" << std::endl;
     }
 
-    void* new_ptr = realloc(nullptr, size);
+    void* new_ptr = bench::realloc(nullptr, size);
     RETURN_IF_ERROR(HandleNewAllocation(new_ptr, size, /*is_calloc=*/false));
     return new_ptr;
   }
@@ -80,7 +76,7 @@ absl::StatusOr<void*> CorrectnessChecker::Realloc(void* ptr, size_t size) {
   // Check that the block has not been corrupted.
   RETURN_IF_ERROR(CheckMagicBytes(ptr, orig_size, block.magic_bytes));
 
-  void* new_ptr = realloc(ptr, size);
+  void* new_ptr = bench::realloc(ptr, size);
 
   if (size == 0) {
     if (new_ptr != nullptr) {
@@ -129,7 +125,7 @@ absl::Status CorrectnessChecker::Free(void* ptr) {
   RETURN_IF_ERROR(CheckMagicBytes(ptr, block_it->second.size,
                                   block_it->second.magic_bytes));
 
-  free(ptr);
+  bench::free(ptr);
 
   allocated_blocks_.erase(block_it);
   return absl::OkStatus();
@@ -147,9 +143,9 @@ absl::StatusOr<void*> CorrectnessChecker::Alloc(size_t nmemb, size_t size,
 
   void* ptr;
   if (is_calloc) {
-    ptr = calloc(nmemb, size);
+    ptr = bench::calloc(nmemb, size);
   } else {
-    ptr = malloc(nmemb * size);
+    ptr = bench::malloc(nmemb * size);
   }
   size *= nmemb;
 

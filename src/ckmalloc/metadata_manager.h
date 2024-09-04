@@ -13,6 +13,7 @@ namespace ckmalloc {
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
 class MetadataManagerImpl {
+  friend class HeapPrinter;
   friend class MetadataManagerFixture;
 
  public:
@@ -41,6 +42,7 @@ class MetadataManagerImpl {
 
  private:
   bench::Heap* MetadataHeap();
+  const bench::Heap* MetadataHeap() const;
 
   // The most recently allocated metadata slab.
   void* page_start_ = nullptr;
@@ -120,6 +122,12 @@ void MetadataManagerImpl<MetadataAlloc, SlabMap>::FreeSlabMeta(
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
 bench::Heap* MetadataManagerImpl<MetadataAlloc, SlabMap>::MetadataHeap() {
+  return heap_factory_->Instance(heap_idx_);
+}
+
+template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
+const bench::Heap* MetadataManagerImpl<MetadataAlloc, SlabMap>::MetadataHeap()
+    const {
   return heap_factory_->Instance(heap_idx_);
 }
 
