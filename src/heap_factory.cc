@@ -22,6 +22,13 @@ Heap* HeapFactory::Instance(size_t idx) {
   return heaps_[idx].get();
 }
 
+const Heap* HeapFactory::Instance(size_t idx) const {
+  if (idx >= heaps_.size()) {
+    return nullptr;
+  }
+  return heaps_[idx].get();
+}
+
 const std::vector<std::unique_ptr<Heap>>& HeapFactory::Instances() const {
   return heaps_;
 }
