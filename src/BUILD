@@ -195,6 +195,7 @@ cc_library(
     deps = [
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:string_view",
         "@cc-util//util:absl_util",
     ],
 )
