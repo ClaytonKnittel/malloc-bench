@@ -29,6 +29,18 @@ PageId TestSlabManager::PageIdFromPtr(const void* ptr) const {
   return slab_manager_.PageIdFromPtr(ptr);
 }
 
+bool TestSlabManager::ResizeLarge(LargeSlab* slab, uint32_t new_size) {
+  if (!slab_manager_.ResizeLarge(slab, new_size)) {
+    return false;
+  }
+
+  auto it = test_fixture_->allocated_slabs_.find(slab);
+  CK_ASSERT_TRUE(it != test_fixture_->allocated_slabs_.end());
+  test_fixture_->allocated_slabs_.erase(it);
+  HandleAlloc(slab);
+  return true;
+}
+
 void TestSlabManager::Free(AllocatedSlab* slab) {
   auto it = test_fixture_->allocated_slabs_.find(slab);
   CK_ASSERT_FALSE(it == test_fixture_->allocated_slabs_.end());

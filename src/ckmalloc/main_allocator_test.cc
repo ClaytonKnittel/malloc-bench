@@ -215,12 +215,52 @@ TEST_F(MainAllocatorTest, FreePagesizeMultiple) {
   EXPECT_THAT(ValidateEmpty(), IsOk());
 }
 
+TEST_F(MainAllocatorTest, AllocSinglePageFromFreeSlabs) {
+  void* ptr1 = MainAllocator().Alloc(512);
+  MainAllocator().Free(ptr1);
+  MainAllocator().Alloc(kPageSize);
+
+  EXPECT_THAT(ValidateHeap(), IsOk());
+  EXPECT_EQ(Heap().Size(), kPageSize);
+}
+
 TEST_F(MainAllocatorTest, ReallocPagesizeMultiple) {
   void* ptr1 = MainAllocator().Alloc(2 * kPageSize);
   void* ptr2 = MainAllocator().Realloc(ptr1, kPageSize);
 
   EXPECT_EQ(ptr1, ptr2);
   EXPECT_EQ(Heap().Size(), 2 * kPageSize);
+  EXPECT_THAT(ValidateHeap(), IsOk());
+}
+
+TEST_F(MainAllocatorTest, ReallocExtendPagesizeMultiple) {
+  void* ptr1 = MainAllocator().Alloc(2 * kPageSize);
+  MainAllocator().Free(ptr1);
+  void* ptr2 = MainAllocator().Alloc(kPageSize);
+  void* ptr3 = MainAllocator().Realloc(ptr2, 2 * kPageSize);
+
+  EXPECT_EQ(ptr2, ptr3);
+  EXPECT_EQ(Heap().Size(), 2 * kPageSize);
+  EXPECT_THAT(ValidateHeap(), IsOk());
+}
+
+TEST_F(MainAllocatorTest, ReallocExtendHeapPagesizeMultiple) {
+  void* ptr1 = MainAllocator().Alloc(kPageSize);
+  void* ptr2 = MainAllocator().Realloc(ptr1, 2 * kPageSize);
+
+  EXPECT_EQ(ptr1, ptr2);
+  EXPECT_EQ(Heap().Size(), 2 * kPageSize);
+  EXPECT_THAT(ValidateHeap(), IsOk());
+}
+
+TEST_F(MainAllocatorTest, ReallocExtendHeapWithFreeSlabPagesizeMultiple) {
+  void* ptr1 = MainAllocator().Alloc(3 * kPageSize);
+  MainAllocator().Free(ptr1);
+  void* ptr2 = MainAllocator().Alloc(kPageSize);
+  void* ptr3 = MainAllocator().Realloc(ptr2, 4 * kPageSize);
+
+  EXPECT_EQ(ptr2, ptr3);
+  EXPECT_EQ(Heap().Size(), 4 * kPageSize);
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 

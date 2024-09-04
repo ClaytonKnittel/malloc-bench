@@ -34,6 +34,8 @@ class TestSlabManager {
   template <typename S, typename... Args>
   std::optional<std::pair<PageId, S*>> Alloc(uint32_t n_pages, Args...);
 
+  bool ResizeLarge(LargeSlab* slab, uint32_t new_size);
+
   void Free(AllocatedSlab* slab);
 
   Block* FirstBlockInBlockedSlab(const BlockedSlab* slab) const;

@@ -331,7 +331,7 @@ class LargeSlab : public AllocatedSlab {
   const class SmallSlab* ToSmall() const = delete;
 };
 
-class BlockedSlab : public AllocatedSlab {
+class BlockedSlab : public LargeSlab {
  public:
   class SingleAllocSlab* ToSingleAlloc() = delete;
   const class SingleAllocSlab* ToSingleAlloc() const = delete;
@@ -353,7 +353,7 @@ class BlockedSlab : public AllocatedSlab {
   uint64_t AllocatedBytes() const;
 };
 
-class SingleAllocSlab : public AllocatedSlab {
+class SingleAllocSlab : public LargeSlab {
  public:
   BlockedSlab* ToBlocked() = delete;
   const BlockedSlab* ToBlocked() const = delete;

@@ -60,7 +60,7 @@ template <typename T>
 concept SlabManagerInterface =
     requires(const T const_slab_mgr, T slab_mgr, class PageId page_id,
              const void* ptr, uint32_t n_pages, class AllocatedSlab* slab,
-             class BlockedSlab* blocked_slab) {
+             class LargeSlab* large_slab, class BlockedSlab* blocked_slab) {
       { const_slab_mgr.PageStartFromId(page_id) } -> std::convertible_to<void*>;
       {
         const_slab_mgr.PageIdFromPtr(ptr)
@@ -77,6 +77,9 @@ concept SlabManagerInterface =
         slab_mgr.template Alloc<class SingleAllocSlab>(n_pages)
       } -> std::convertible_to<
           std::optional<std::pair<class PageId, class SingleAllocSlab*>>>;
+      {
+        slab_mgr.ResizeLarge(large_slab, n_pages)
+      } -> std::convertible_to<bool>;
       { slab_mgr.Free(slab) } -> std::same_as<void>;
       {
         slab_mgr.FirstBlockInBlockedSlab(blocked_slab)
