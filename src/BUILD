@@ -33,7 +33,6 @@ cc_library(
         "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/time",
-        "@cc-util//util:absl_util",
     ],
 )
 
@@ -51,7 +50,6 @@ cc_library(
         "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/status:statusor",
-        "@cc-util//util:absl_util",
     ],
 )
 
@@ -73,11 +71,12 @@ cc_library(
         ":allocator_interface",
         ":heap_factory",
         ":rng",
+        ":tracefile_executor",
         ":tracefile_reader",
         "@abseil-cpp//absl/algorithm:container",
         "@abseil-cpp//absl/container:btree",
-        "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",
         "@cc-util//util:absl_util",
@@ -93,7 +92,9 @@ cc_test(
     deps = [
         ":correctness_checker",
         ":mmap_heap_factory",
+        ":tracefile_reader",
         "@abseil-cpp//absl/status",
+        "@cc-util//util:absl_util",
         "@cc-util//util:gtest_util",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
@@ -174,12 +175,28 @@ cc_binary(
 )
 
 cc_library(
+    name = "tracefile_executor",
+    srcs = ["tracefile_executor.cc"],
+    hdrs = ["tracefile_executor.h"],
+    deps = [
+        ":heap_factory",
+        ":tracefile_reader",
+        "@abseil-cpp//absl/container:flat_hash_map",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings:str_format",
+        "@cc-util//util:absl_util",
+    ],
+)
+
+cc_library(
     name = "tracefile_reader",
     srcs = ["tracefile_reader.cc"],
     hdrs = ["tracefile_reader.h"],
     deps = [
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:string_view",
         "@cc-util//util:absl_util",
     ],
 )
