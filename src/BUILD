@@ -177,7 +177,6 @@ cc_library(
     name = "tracefile_executor",
     srcs = ["tracefile_executor.cc"],
     hdrs = ["tracefile_executor.h"],
-    visibility = ["//:__subpackages__"],
     deps = [
         ":heap_factory",
         ":tracefile_reader",
