@@ -231,6 +231,26 @@ TEST_F(TestCorrectness, cbitxyz) {
   ASSERT_THAT(ValidateEmpty(), IsOk());
 }
 
+TEST_F(TestCorrectness, FourInARow) {
+  ASSERT_THAT(
+      RunTrace("traces/four-in-a-row.trace", /*validate_every_n=*/16384),
+      util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, Grep) {
+  ASSERT_THAT(RunTrace("traces/grep.trace", /*validate_every_n=*/1024),
+              util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, HaskellWebServer) {
+  ASSERT_THAT(
+      RunTrace("traces/haskell-web-server.trace", /*validate_every_n=*/16384),
+      util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
 TEST_F(TestCorrectness, McServerSmall) {
   ASSERT_THAT(
       RunTrace("traces/mc_server_small.trace", /*validate_every_n=*/1024),
@@ -281,6 +301,57 @@ TEST_F(TestCorrectness, NgramMoby1) {
 TEST_F(TestCorrectness, NgramShake1) {
   ASSERT_THAT(RunTrace("traces/ngram-shake1.trace",
                        /*validate_every_n=*/1024),
+              util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, Onoro) {
+  ASSERT_THAT(RunTrace("traces/onoro.trace", /*validate_every_n=*/16384),
+              util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, OnoroCC) {
+  ASSERT_THAT(RunTrace("traces/onoro-cc.trace", /*validate_every_n=*/4096),
+              util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, Scp) {
+  ASSERT_THAT(RunTrace("traces/scp.trace", /*validate_every_n=*/4096),
+              util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, Server) {
+  ASSERT_THAT(RunTrace("traces/server.trace", /*validate_every_n=*/1024),
+              util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, Simple) {
+  ASSERT_THAT(RunTrace("traces/simple.trace"), util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, SimpleCalloc) {
+  ASSERT_THAT(RunTrace("traces/simple_calloc.trace"), util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, SimpleRealloc) {
+  ASSERT_THAT(RunTrace("traces/simple_realloc.trace"), util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, Solitaire) {
+  ASSERT_THAT(RunTrace("traces/solitaire.trace", /*validate_every_n=*/1024),
+              util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, Ssh) {
+  ASSERT_THAT(RunTrace("traces/ssh.trace", /*validate_every_n=*/1024),
               util::IsOk());
   ASSERT_THAT(ValidateEmpty(), IsOk());
 }
@@ -341,40 +412,7 @@ TEST_F(TestCorrectness, Test) {
   ASSERT_THAT(ValidateEmpty(), IsOk());
 }
 
-TEST_F(TestCorrectness, Server) {
-  ASSERT_THAT(RunTrace("traces/server.trace", /*validate_every_n=*/1024),
-              util::IsOk());
-  ASSERT_THAT(ValidateEmpty(), IsOk());
-}
-
-TEST_F(TestCorrectness, Simple) {
-  ASSERT_THAT(RunTrace("traces/simple.trace"), util::IsOk());
-  ASSERT_THAT(ValidateEmpty(), IsOk());
-}
-
-TEST_F(TestCorrectness, SimpleCalloc) {
-  ASSERT_THAT(RunTrace("traces/simple_calloc.trace"), util::IsOk());
-  ASSERT_THAT(ValidateEmpty(), IsOk());
-}
-
-TEST_F(TestCorrectness, SimpleRealloc) {
-  ASSERT_THAT(RunTrace("traces/simple_realloc.trace"), util::IsOk());
-  ASSERT_THAT(ValidateEmpty(), IsOk());
-}
-
-TEST_F(TestCorrectness, Onoro) {
-  ASSERT_THAT(RunTrace("traces/onoro.trace", /*validate_every_n=*/16384),
-              util::IsOk());
-  ASSERT_THAT(ValidateEmpty(), IsOk());
-}
-
-TEST_F(TestCorrectness, OnoroCC) {
-  ASSERT_THAT(RunTrace("traces/onoro-cc.trace", /*validate_every_n=*/4096),
-              util::IsOk());
-  ASSERT_THAT(ValidateEmpty(), IsOk());
-}
-
-TEST_F(TestCorrectness, Zero) {
+TEST_F(TestCorrectness, TestZero) {
   ASSERT_THAT(RunTrace("traces/test-zero.trace"), util::IsOk());
   ASSERT_THAT(ValidateEmpty(), IsOk());
 }
