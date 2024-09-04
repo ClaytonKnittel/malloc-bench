@@ -4,7 +4,6 @@
 #include <cstdint>
 #include <fstream>
 #include <iostream>
-#include <optional>
 #include <regex>
 #include <string>
 #include <vector>
@@ -63,19 +62,21 @@ absl::StatusOr<void*> ParsePtr(absl::string_view sptr) {
  * "free" has aliases "_ZdlPv", "_ZdaPv", "_ZdlPvm", "_ZdaPvm", and
  * "malloc" has aliases "_Znwm", "_Znam".
  */
-absl::StatusOr<std::optional<TraceLine>> MatchLine(const std::string& line) {
+absl::StatusOr<TraceLine> MatchLine(const std::string& line) {
   TraceLine parsed;
   std::smatch match;
 
   auto x = absl::StrSplit(line, ' ');
   auto it = x.begin();
   if (it == x.end()) {
-    return std::nullopt;
+    return absl::InvalidArgumentError(
+        absl::StrCat("failed to parse ", line, " as operation"));
   }
   ASSIGN_OR_RETURN(parsed.pid, ParsePid(*it));
 
   if (++it == x.end()) {
-    return std::nullopt;
+    return absl::InvalidArgumentError(
+        absl::StrCat("failed to parse ", line, " as operation"));
   }
   absl::string_view op = *it;
   if (op.starts_with("free") || op.starts_with("_ZdlPv") ||
@@ -141,7 +142,7 @@ absl::StatusOr<std::optional<TraceLine>> MatchLine(const std::string& line) {
     ASSIGN_OR_RETURN(parsed.input_ptr, ParsePtr(op.substr(0, res)));
 
     if (parsed.input_ptr == nullptr) {
-      size_t res2 = op.find_first_of(')');
+      size_t res2 = op.find_first_of(')', res + 1);
       if (res2 == absl::string_view::npos) {
         res2 = op.size();
       }
@@ -150,12 +151,14 @@ absl::StatusOr<std::optional<TraceLine>> MatchLine(const std::string& line) {
       ASSIGN_OR_RETURN(parsed.input_size, ParseSize(op.substr(res + 1)));
     }
   } else {
-    return std::nullopt;
+    return absl::InvalidArgumentError(
+        absl::StrCat("failed to parse ", line, " as operation"));
   }
 
   if (parsed.op != TraceLine::Op::kFree) {
     if (++it == x.end() || ++it == x.end()) {
-      return std::nullopt;
+      return absl::InvalidArgumentError(
+          absl::StrCat("failed to parse ", line, " as operation"));
     }
     ASSIGN_OR_RETURN(parsed.result, ParsePtr(*it));
   }
@@ -181,10 +184,8 @@ absl::StatusOr<TracefileReader> TracefileReader::Open(
       break;
     }
 
-    DEFINE_OR_RETURN(std::optional<TraceLine>, trace_line, MatchLine(line));
-    if (trace_line.has_value()) {
-      lines.push_back(*trace_line);
-    }
+    DEFINE_OR_RETURN(TraceLine, trace_line, MatchLine(line));
+    lines.push_back(trace_line);
   }
 
   file.close();
