@@ -34,7 +34,7 @@ Slab* DetachedMetadataAlloc::SlabAlloc() {
 #endif
 }
 
-void DetachedMetadataAlloc::SlabFree(MappedSlab* slab) {
+void DetachedMetadataAlloc::SlabFree(Slab* slab) {
 #ifdef __cpp_aligned_new
   ::operator delete(slab, static_cast<std::align_val_t>(alignof(Slab)));
 #else
@@ -69,7 +69,7 @@ Slab* TestGlobalMetadataAlloc::SlabAlloc() {
   return allocator_->SlabAlloc();
 }
 
-void TestGlobalMetadataAlloc::SlabFree(MappedSlab* slab) {
+void TestGlobalMetadataAlloc::SlabFree(Slab* slab) {
   allocator_->SlabFree(slab);
 }
 
@@ -144,7 +144,7 @@ absl::Status ValidateBlockedSlabs(const std::vector<BlockedSlabInfo>& slabs,
     Block* block = reinterpret_cast<Block*>(slab_info.start);
     Block* prev_block = nullptr;
     uint64_t allocated_bytes = 0;
-    while (block->Size() != 0) {
+    while (!block->IsPhonyHeader()) {
       if (block < slab_info.start ||
           block->NextAdjacentBlock() >= slab_info.end) {
         return absl::FailedPreconditionError(absl::StrFormat(

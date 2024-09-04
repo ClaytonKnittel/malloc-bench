@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <cstring>
 
 #include "src/ckmalloc/block.h"
@@ -129,18 +130,71 @@ void* LargeAllocatorImpl<SlabMap, SlabManager>::ReallocLarge(LargeSlab* slab,
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
 void LargeAllocatorImpl<SlabMap, SlabManager>::FreeLarge(LargeSlab* slab,
                                                          void* ptr) {
-  if (slab->Type() == SlabType::kBlocked) {
-    BlockedSlab* blocked_slab = slab->ToBlocked();
-    AllocatedBlock* block = AllocatedBlock::FromUserDataPtr(ptr);
-    blocked_slab->RemoveAllocation(block->Size());
-    freelist_.MarkFree(block);
-
-    if (blocked_slab->AllocatedBytes() == 0) {
-      ReleaseBlockedSlab(blocked_slab);
-    }
-  } else {
-    CK_ASSERT_EQ(slab->Type(), SlabType::kSingleAlloc);
+  if (slab->Type() == SlabType::kSingleAlloc) {
     slab_manager_->Free(slab);
+    return;
+  }
+
+  CK_ASSERT_EQ(slab->Type(), SlabType::kBlocked);
+  BlockedSlab* blocked_slab = slab->ToBlocked();
+  AllocatedBlock* block = AllocatedBlock::FromUserDataPtr(ptr);
+  blocked_slab->RemoveAllocation(block->Size());
+  FreeBlock* free_block = freelist_.MarkFree(block);
+
+  if (blocked_slab->AllocatedBytes() == 0) {
+    ReleaseBlockedSlab(blocked_slab);
+    return;
+  }
+
+  Block* next_adjacent = free_block->NextAdjacentBlock();
+  // This is the starting page of the region of the slab we have to keep intact,
+  // as it contains allocated memory.
+  size_t first_intact_page =
+      reinterpret_cast<size_t>(next_adjacent) / kPageSize;
+  if (next_adjacent->IsPhonyHeader()) {
+    first_intact_page++;
+  }
+
+  // If the two ends of this newly freed block straddle at least a page, free
+  // the page in the middle and split the large slab.
+  uint64_t block_start = reinterpret_cast<uint64_t>(free_block);
+  size_t first_empty_page = block_start / kPageSize + 1;
+  if (first_empty_page < first_intact_page) {
+    size_t slab_start = reinterpret_cast<size_t>(
+                            slab_manager_->PageStartFromId(slab->StartId())) /
+                        kPageSize;
+    auto result = slab_manager_->Carve(blocked_slab,
+                                       /*from=*/first_empty_page - slab_start,
+                                       /*to=*/first_intact_page - slab_start);
+    if (!result.has_value()) {
+      // If carving the slab failed, we can gracefully terminate this operation,
+      // since no state has been modified since freeing the block.
+      return;
+    }
+
+    // If the carve succeeded, we need to cut the block short on both ends.
+    uint64_t new_size =
+        kPageSize - (block_start % kPageSize) - Block::kMetadataOverhead;
+    freelist_.TruncateBlock(free_block, new_size);
+
+    // If the carve left another blocked slab after the free slab in the middle,
+    // we need to fix it's start.
+    BlockedSlab* other_slab = result->second;
+    if (other_slab != nullptr) {
+      uint64_t start_size =
+          reinterpret_cast<uint64_t>(next_adjacent) % kPageSize -
+          Block::kMetadataOverhead;
+      // If this block previously went exactly to the beginning of a page, we
+      // just need to set the prev-free bit of the next adjacent block.
+      if (start_size == 0) {
+        next_adjacent->SetPrevFree(false);
+      } else {
+        // Otherwise, we can initialize a new free block here.
+        CK_ASSERT_GE(start_size, Block::kMinBlockSize);
+        freelist_.InitFree(PtrSub<Block>(next_adjacent, start_size),
+                           start_size);
+      }
+    }
   }
 }
 

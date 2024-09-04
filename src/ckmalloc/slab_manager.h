@@ -231,10 +231,11 @@ SlabManagerImpl<MetadataAlloc, SlabMap>::Carve(S* slab, uint32_t from,
     const PageId start = start_id + to;
     const PageId end = start_id + n_pages - 1;
     next_adjacent_meta =
-        alloc_meta->Init<S>(start, end, std::forward<Args>(args)...);
+        alloc_meta->Init<S>(start, n_pages - to, std::forward<Args>(args)...);
     slab_map_->InsertRange(start, end, next_adjacent_meta);
   }
 
+  slab->SetSize(from);
   FreeSlab* center_free_slab =
       FreeRegion(free_meta, start_id + from, to - from);
 

@@ -155,7 +155,7 @@ std::string HeapPrinter::PrintBlocked(const BlockedSlab* slab) {
 
   uint64_t offset = 1;
   for (Block* block = slab_manager_->FirstBlockInBlockedSlab(slab);
-       block->Size() != 0; block = block->NextAdjacentBlock()) {
+       !block->IsPhonyHeader(); block = block->NextAdjacentBlock()) {
     uint64_t block_size = block->Size() / kDefaultAlignment;
 
     if (!block->Free()) {

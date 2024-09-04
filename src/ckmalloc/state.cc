@@ -50,7 +50,7 @@ Slab* GlobalMetadataAlloc::SlabAlloc() {
   return State::Instance()->MetadataManager()->NewSlabMeta();
 }
 
-void GlobalMetadataAlloc::SlabFree(MappedSlab* slab) {
+void GlobalMetadataAlloc::SlabFree(Slab* slab) {
   State::Instance()->MetadataManager()->FreeSlabMeta(slab);
 }
 

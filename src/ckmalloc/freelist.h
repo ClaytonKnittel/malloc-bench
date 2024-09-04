@@ -53,6 +53,11 @@ class Freelist {
   // allocated block, then this returns `false` and the block is not modified.
   bool ResizeIfPossible(AllocatedBlock* block, uint64_t new_size);
 
+  // Truncates a block to a portion of its original size, writing a phony header
+  // after the end of it. This should be called only when resizing large slabs,
+  // since it assumes this shortened block will be at the end of the slab.
+  void TruncateBlock(FreeBlock* block, uint64_t new_size);
+
   // Deletes a block in the freelist, should only be called when a large slab is
   // deallocated.
   void DeleteBlock(TrackedBlock* block);

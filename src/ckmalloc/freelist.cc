@@ -128,6 +128,38 @@ bool Freelist::ResizeIfPossible(AllocatedBlock* block, uint64_t new_size) {
   return false;
 }
 
+void Freelist::TruncateBlock(FreeBlock* block, uint64_t new_size) {
+  CK_ASSERT_LT(new_size, block->Size());
+
+  // We should only be able to truncate large blocks that straddle at least a
+  // page. This is most certainly a tracked size.
+  if (CK_EXPECT_TRUE(!block->IsUntracked())) {
+    RemoveBlock(block->ToTracked());
+  }
+
+  Block* new_block;
+  bool prev_free;
+  if (new_size < Block::kMinBlockSize) {
+    // If this new size will be too small, absorb this block into the previous
+    // one.
+    AllocatedBlock* prev_block = block->PrevAdjacentBlock()->ToAllocated();
+    prev_block->SetSize(prev_block->Size() + new_size);
+    new_block = prev_block;
+    prev_free = false;
+  } else {
+    // If this size is large enough to be its own block, initialize a new free
+    // block of this size.
+    block->SetSize(new_size);
+    if (!block->IsUntracked()) {
+      AddBlock(block->ToTracked());
+    }
+    new_block = block;
+    prev_free = true;
+  }
+
+  new_block->NextAdjacentBlock()->InitPhonyHeader(prev_free);
+}
+
 void Freelist::DeleteBlock(TrackedBlock* block) {
   RemoveBlock(block);
 }

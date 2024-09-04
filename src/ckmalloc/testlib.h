@@ -25,7 +25,7 @@ namespace ckmalloc {
 class TestMetadataAllocInterface {
  public:
   virtual Slab* SlabAlloc() = 0;
-  virtual void SlabFree(MappedSlab* slab) = 0;
+  virtual void SlabFree(Slab* slab) = 0;
   virtual void* Alloc(size_t size, size_t alignment) = 0;
 
   // Test-only function to delete memory allocted by `Alloc`.
@@ -35,7 +35,7 @@ class TestMetadataAllocInterface {
 class DetachedMetadataAlloc : public TestMetadataAllocInterface {
  public:
   Slab* SlabAlloc() override;
-  void SlabFree(MappedSlab* slab) override;
+  void SlabFree(Slab* slab) override;
   void* Alloc(size_t size, size_t alignment) override;
 
   void ClearAllAllocs() override;
@@ -44,7 +44,7 @@ class DetachedMetadataAlloc : public TestMetadataAllocInterface {
 class TestGlobalMetadataAlloc {
  public:
   static Slab* SlabAlloc();
-  static void SlabFree(MappedSlab* slab);
+  static void SlabFree(Slab* slab);
   static void* Alloc(size_t size, size_t alignment);
 
   // Test-only function to delete memory allocted by `Alloc`.

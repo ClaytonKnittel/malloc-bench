@@ -34,6 +34,10 @@ class TestSlabManager {
   template <typename S, typename... Args>
   std::optional<std::pair<PageId, S*>> Alloc(uint32_t n_pages, Args...);
 
+  template <typename S, typename... Args>
+  std::optional<std::pair<FreeSlab*, S*>> Carve(S* slab, uint32_t from,
+                                                uint32_t to, Args...);
+
   bool Resize(AllocatedSlab* slab, uint32_t new_size);
 
   void Free(AllocatedSlab* slab);
@@ -189,7 +193,29 @@ std::optional<std::pair<PageId, S*>> TestSlabManager::Alloc(uint32_t n_pages,
 
   // Allocated slabs must map every page to their metadata.
   HandleAlloc(slab);
-  return std::make_pair(page_id, slab);
+  return result;
+}
+
+template <typename S, typename... Args>
+std::optional<std::pair<FreeSlab*, S*>> TestSlabManager::Carve(S* slab,
+                                                               uint32_t from,
+                                                               uint32_t to,
+                                                               Args... args) {
+  using AllocResult = std::pair<FreeSlab*, S*>;
+  DEFINE_OR_RETURN_OPT(AllocResult, result,
+                       slab_manager_.template Carve<S>(
+                           slab, from, to, std::forward<Args>(args)...));
+  auto [free_slab, next_alloc_slab] = result;
+
+  auto it = test_fixture_->allocated_slabs_.find(slab);
+  CK_ASSERT_TRUE(it != test_fixture_->allocated_slabs_.end());
+  test_fixture_->allocated_slabs_.erase(it);
+
+  HandleAlloc(slab);
+  if (next_alloc_slab != nullptr) {
+    HandleAlloc(next_alloc_slab);
+  }
+  return result;
 }
 
 }  // namespace ckmalloc

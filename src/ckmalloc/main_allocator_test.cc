@@ -15,6 +15,8 @@
 namespace ckmalloc {
 
 using testing::ElementsAre;
+using testing::Pointee;
+using testing::Property;
 using util::IsOk;
 
 class MainAllocatorTest : public ::testing::Test {
@@ -38,6 +40,10 @@ class MainAllocatorTest : public ::testing::Test {
 
   bench::Heap& Heap() {
     return *HeapFactory().Instance(0);
+  }
+
+  TestSlabMap& SlabMap() {
+    return *slab_map_;
   }
 
   TestSlabManager& SlabManager() {
@@ -186,6 +192,42 @@ TEST_F(MainAllocatorTest, ReallocMove) {
   EXPECT_NE(ptr1, ptr2);
   EXPECT_THAT(ValidateHeap(), IsOk());
   EXPECT_EQ(FreelistSize(), 2);
+}
+
+TEST_F(MainAllocatorTest, FreeCarveEnd) {
+  void* ptr1 = MainAllocator().Alloc(6000);
+  void* ptr2 = MainAllocator().Alloc(160);
+  void* ptr3 = MainAllocator().Realloc(ptr1, 160);
+  MainAllocator().Free(ptr2);
+
+  MappedSlab* slab = SlabMap().FindSlab(SlabManager().PageIdFromPtr(ptr3));
+  ASSERT_THAT(slab, Pointee(Property(&Slab::Type, SlabType::kBlocked)));
+  EXPECT_EQ(slab->Pages(), 1);
+  EXPECT_EQ(Heap().Size(), 2 * kPageSize);
+  EXPECT_THAT(ValidateHeap(), IsOk());
+}
+
+TEST_F(MainAllocatorTest, FreeCarveCenterEnd) {
+  void* ptr1 = MainAllocator().Alloc(12000);
+  void* ptr2 = MainAllocator().Alloc(160);
+  void* ptr3 = MainAllocator().Realloc(ptr1, 6000);
+  void* ptr4 = MainAllocator().Alloc(160);
+  void* ptr5 = MainAllocator().Realloc(ptr3, 160);
+  MainAllocator().Free(ptr4);
+
+  MappedSlab* left_slab = SlabMap().FindSlab(SlabManager().PageIdFromPtr(ptr5));
+  MappedSlab* middle_slab =
+      SlabMap().FindSlab(SlabManager().PageIdFromPtr(ptr4));
+  MappedSlab* right_slab =
+      SlabMap().FindSlab(SlabManager().PageIdFromPtr(ptr2));
+  ASSERT_THAT(left_slab, Pointee(Property(&Slab::Type, SlabType::kBlocked)));
+  ASSERT_THAT(middle_slab, Pointee(Property(&Slab::Type, SlabType::kFree)));
+  ASSERT_THAT(right_slab, Pointee(Property(&Slab::Type, SlabType::kBlocked)));
+  EXPECT_EQ(left_slab->Pages(), 1);
+  EXPECT_EQ(middle_slab->Pages(), 1);
+  EXPECT_EQ(right_slab->Pages(), 1);
+  EXPECT_EQ(Heap().Size(), 3 * kPageSize);
+  EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
 TEST_F(MainAllocatorTest, AllocPagesizeMultiple) {
