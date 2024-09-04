@@ -228,6 +228,7 @@ SlabManagerImpl<MetadataAlloc, SlabMap>::Carve(S* slab, uint32_t from,
       return std::nullopt;
     }
 
+    // TODO: need to update allocated bytes of both halves.
     const PageId start = start_id + to;
     const PageId end = start_id + n_pages - 1;
     next_adjacent_meta =
