@@ -24,12 +24,6 @@ class CorrectnessChecker : private TracefileExecutor {
   static absl::Status Check(TracefileReader& reader, HeapFactory& heap_factory,
                             bool verbose = false);
 
-  void InitializeHeap(HeapFactory& heap_factory) override;
-  absl::StatusOr<void*> Malloc(size_t size) override;
-  absl::StatusOr<void*> Calloc(size_t nmemb, size_t size) override;
-  absl::StatusOr<void*> Realloc(void* ptr, size_t size) override;
-  absl::Status Free(void* ptr) override;
-
  private:
   struct AllocatedBlock {
     size_t size;
@@ -39,6 +33,12 @@ class CorrectnessChecker : private TracefileExecutor {
   using Map = absl::btree_map<void*, AllocatedBlock>;
 
   CorrectnessChecker(TracefileReader&& reader, HeapFactory& heap_factory);
+
+  void InitializeHeap(HeapFactory& heap_factory) override;
+  absl::StatusOr<void*> Malloc(size_t size) override;
+  absl::StatusOr<void*> Calloc(size_t nmemb, size_t size) override;
+  absl::StatusOr<void*> Realloc(void* ptr, size_t size) override;
+  absl::Status Free(void* ptr) override;
 
   absl::StatusOr<void*> Alloc(size_t nmemb, size_t size, bool is_calloc);
 
