@@ -240,7 +240,7 @@ bool LargeAllocatorImpl<SlabMap, SlabManager>::ResizeSingleAllocIfPossible(
   }
 
   uint32_t n_pages = SingleAllocSlab::NPagesForAlloc(new_size);
-  return slab_manager_->ResizeLarge(slab, n_pages);
+  return slab_manager_->Resize(slab, n_pages);
 }
 
 using LargeAllocator = LargeAllocatorImpl<SlabMap, SlabManager>;

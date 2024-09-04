@@ -37,11 +37,23 @@ class SlabManagerImpl {
   template <typename S, typename... Args>
   std::optional<std::pair<PageId, S*>> Alloc(uint32_t n_pages, Args...);
 
-  // Attempts to resize the large slab in-place, extending it or shrinking it
-  // without changing the start id of the slab. If this returns true, the resize
-  // was successful, and the slab metadata will have been updated. If this
+  // Attemps to carve the middle out of a slab, starting from offset `from`
+  // pages from the beginning of the slab, ranging to offset `to` pages from
+  // the beginning of the slab (exclusive).
+  //
+  // This returns a pair of the newly freed slab in the middle, and the newly
+  // created next adjacent allocated slab (if to != slab->Pages()). If a new
+  // allocated slab is created, then `Args...` are passed to its initialization
+  // routine.
+  template <typename S, typename... Args>
+  std::optional<std::pair<FreeSlab*, S*>> Carve(S* slab, uint32_t from,
+                                                uint32_t to, Args...);
+
+  // Attempts to resize the slab in-place, extending it or shrinking it without
+  // changing the start id of the slab. If this returns true, the resize was
+  // successful, and the slab size metadata will have been updated. If this
   // returns false, then no modifications will have been made.
-  bool ResizeLarge(LargeSlab* slab, uint32_t new_size);
+  bool Resize(AllocatedSlab* slab, uint32_t new_size);
 
   // Frees the slab and takes ownership of the `Slab` metadata object.
   void Free(AllocatedSlab* slab);
@@ -94,7 +106,10 @@ class SlabManagerImpl {
   // pages, initializes the `Slab` metadata to describe this region as free, and
   // inserts it into the necessary data structures to track this free region.
   // This does not coalesce with neighbors.
-  void FreeRegion(Slab* slab, PageId start_id, uint32_t n_pages);
+  //
+  // This returns `slab` down-cast to `FreeSlab`, since it is initialized by
+  // this method.
+  FreeSlab* FreeRegion(Slab* slab, PageId start_id, uint32_t n_pages);
 
   // Removes a single-page free slab from the slab freelist, allowing it to be
   // allocated or merged into another slab.
@@ -191,8 +206,44 @@ SlabManagerImpl<MetadataAlloc, SlabMap>::Alloc(uint32_t n_pages, Args... args) {
 }
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
-bool SlabManagerImpl<MetadataAlloc, SlabMap>::ResizeLarge(LargeSlab* slab,
-                                                          uint32_t new_size) {
+template <typename S, typename... Args>
+std::optional<std::pair<FreeSlab*, S*>>
+SlabManagerImpl<MetadataAlloc, SlabMap>::Carve(S* slab, uint32_t from,
+                                               uint32_t to, Args... args) {
+  const uint32_t n_pages = slab->Pages();
+  CK_ASSERT_LT(from, to);
+  CK_ASSERT_LE(to, n_pages);
+
+  const PageId start_id = slab->StartId();
+  Slab* free_meta = MetadataAlloc::SlabAlloc();
+  if (free_meta == nullptr) {
+    return std::nullopt;
+  }
+
+  S* next_adjacent_meta = nullptr;
+  if (to != n_pages) {
+    Slab* alloc_meta = MetadataAlloc::SlabAlloc();
+    if (alloc_meta == nullptr) {
+      MetadataAlloc::SlabFree(free_meta);
+      return std::nullopt;
+    }
+
+    const PageId start = start_id + to;
+    const PageId end = start_id + n_pages - 1;
+    next_adjacent_meta =
+        alloc_meta->Init<S>(start, end, std::forward<Args>(args)...);
+    slab_map_->InsertRange(start, end, next_adjacent_meta);
+  }
+
+  FreeSlab* center_free_slab =
+      FreeRegion(free_meta, start_id + from, to - from);
+
+  return std::make_pair(center_free_slab, next_adjacent_meta);
+}
+
+template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
+bool SlabManagerImpl<MetadataAlloc, SlabMap>::Resize(AllocatedSlab* slab,
+                                                     uint32_t new_size) {
   CK_ASSERT_NE(new_size, 0);
 
   uint32_t n_pages = slab->Pages();
@@ -465,9 +516,8 @@ void SlabManagerImpl<MetadataAlloc, SlabMap>::InsertMultiPageFreeSlab(
 }
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
-void SlabManagerImpl<MetadataAlloc, SlabMap>::FreeRegion(Slab* slab,
-                                                         PageId start_id,
-                                                         uint32_t n_pages) {
+FreeSlab* SlabManagerImpl<MetadataAlloc, SlabMap>::FreeRegion(
+    Slab* slab, PageId start_id, uint32_t n_pages) {
   PageId end_id = start_id + n_pages - 1;
 
   FreeSlab* free_slab = slab->Init<FreeSlab>(start_id, n_pages);
@@ -485,6 +535,8 @@ void SlabManagerImpl<MetadataAlloc, SlabMap>::FreeRegion(Slab* slab,
     auto* slab = new (slab_start) FreeMultiPageSlab(n_pages);
     InsertMultiPageFreeSlab(slab, n_pages);
   }
+
+  return free_slab;
 }
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>

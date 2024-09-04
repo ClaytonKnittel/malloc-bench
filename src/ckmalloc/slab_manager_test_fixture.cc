@@ -29,8 +29,8 @@ PageId TestSlabManager::PageIdFromPtr(const void* ptr) const {
   return slab_manager_.PageIdFromPtr(ptr);
 }
 
-bool TestSlabManager::ResizeLarge(LargeSlab* slab, uint32_t new_size) {
-  if (!slab_manager_.ResizeLarge(slab, new_size)) {
+bool TestSlabManager::Resize(AllocatedSlab* slab, uint32_t new_size) {
+  if (!slab_manager_.Resize(slab, new_size)) {
     return false;
   }
 
