@@ -152,6 +152,15 @@ class TraceReplayer : public TracefileExecutor {
           ScrollBy(-(term_height - kUiLines) / 2, term_height);
           break;
         }
+        case '0':
+        case '1': {
+          size_t idx = static_cast<size_t>(c) - static_cast<size_t>('0');
+          if (heap_factory_->Instance(idx) != nullptr) {
+            heap_idx_ = idx;
+            RETURN_IF_ERROR(RefreshPrintedHeap());
+          }
+          break;
+        }
         default: {
           break;
         }
@@ -191,7 +200,8 @@ class TraceReplayer : public TracefileExecutor {
 
     std::cout << CSI_CHP(1, 1) << CSI_ED(CSI_CURSOR_ALL);
 
-    std::cout << "Next: [n], scroll down: [j], scroll up: [k], quit: [q]"
+    std::cout << "Next: [n/m(50)/c(1024)], scroll down: [j/d], scroll up: "
+                 "[k/u], heap index: [0/1/...], quit: [q]"
               << std::endl;
 
     std::cout << "Next op: " << std::left << std::setw(28);
@@ -256,8 +266,9 @@ class TraceReplayer : public TracefileExecutor {
 
     DEFINE_OR_RETURN(uint16_t, term_height, TermHeight());
 
-    HeapPrinter p(heap_factory_->Instance(1), State::Instance()->SlabMap(),
-                  State::Instance()->SlabManager());
+    HeapPrinter p(
+        heap_factory_->Instance(heap_idx_), State::Instance()->SlabMap(),
+        State::Instance()->SlabManager(), State::Instance()->MetadataManager());
     std::string print = p.Print();
 
     printed_heap_ = absl::StrSplit(print, '\n');
@@ -276,6 +287,9 @@ class TraceReplayer : public TracefileExecutor {
   size_t input_nmemb_;
   // For malloc/calloc/realloc/free_hint, the requested size.
   size_t input_size_;
+
+  // Which heap we are currently looking at.
+  size_t heap_idx_ = 1;
 
   uint64_t iter_ = 0;
   uint64_t skips_ = 0;

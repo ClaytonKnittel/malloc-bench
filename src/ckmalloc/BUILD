@@ -77,11 +77,16 @@ cc_test(
 
 cc_library(
     name = "heap_printer",
+    srcs = ["heap_printer.cc"],
     hdrs = ["heap_printer.h"],
     deps = [
+        ":block",
         ":common",
+        ":metadata_manager",
         ":page_id",
+        ":size_class",
         ":slab",
+        ":slab_manager",
         ":slab_map",
         ":util",
         "//src:heap_interface",
