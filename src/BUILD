@@ -102,7 +102,7 @@ cc_test(
     data = [
         "//traces",
     ],
-    shard_count = 33,
+    shard_count = 36,
     deps = [
         ":heap_factory",
         ":mmap_heap_factory",
