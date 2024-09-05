@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <optional>
+#include <tuple>
 #include <utility>
 
 #include "util/std_util.h"
@@ -41,13 +42,13 @@ class SlabManagerImpl {
   // pages from the beginning of the slab, ranging to offset `to` pages from
   // the beginning of the slab (exclusive).
   //
-  // This returns a pair of the newly freed slab in the middle, and the newly
-  // created next adjacent allocated slab (if to != slab->Pages()). If a new
-  // allocated slab is created, then `Args...` are passed to its initialization
-  // routine.
+  // This returns a tuple of the first allocated slab (if from != 0), the newly
+  // freed slab in the middle, and the second allocated slab (if to !=
+  // slab->Pages()). If a new allocated slab is created, then `Args...` are
+  // passed to its initialization routine.
   template <typename S, typename... Args>
-  std::optional<std::pair<FreeSlab*, S*>> Carve(S* slab, uint32_t from,
-                                                uint32_t to, Args...);
+  std::optional<std::tuple<S*, FreeSlab*, S*>> Carve(S* slab, uint32_t from,
+                                                     uint32_t to, Args...);
 
   // Attempts to resize the slab in-place, extending it or shrinking it without
   // changing the start id of the slab. If this returns true, the resize was
@@ -207,40 +208,89 @@ SlabManagerImpl<MetadataAlloc, SlabMap>::Alloc(uint32_t n_pages, Args... args) {
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
 template <typename S, typename... Args>
-std::optional<std::pair<FreeSlab*, S*>>
+std::optional<std::tuple<S*, FreeSlab*, S*>>
 SlabManagerImpl<MetadataAlloc, SlabMap>::Carve(S* slab, uint32_t from,
                                                uint32_t to, Args... args) {
   const uint32_t n_pages = slab->Pages();
   CK_ASSERT_LT(from, to);
   CK_ASSERT_LE(to, n_pages);
+  // You cannot free a whole slab with `Carve()`.
+  CK_ASSERT_FALSE(from == 0 && to == n_pages);
 
   const PageId start_id = slab->StartId();
-  Slab* free_meta = MetadataAlloc::SlabAlloc();
-  if (free_meta == nullptr) {
-    return std::nullopt;
-  }
+  PageId free_start = start_id + from;
+  uint32_t free_size = to - from;
+  Slab* free_meta = nullptr;
 
-  S* next_adjacent_meta = nullptr;
-  if (to != n_pages) {
+  S* left_slab = nullptr;
+  S* right_slab = nullptr;
+
+  if (from == 0) {
+    // Check if the previous slab is free. If so we can extend it.
+    if (MappedSlab * prev_slab;
+        start_id != PageId::Zero() &&
+        (prev_slab = slab_map_->FindSlab(start_id - 1))->Type() ==
+            SlabType::kFree) {
+      FreeSlab* prev_free_slab = prev_slab->ToFree();
+      free_start = prev_free_slab->StartId();
+      free_size += prev_free_slab->Pages();
+      free_meta = prev_free_slab;
+
+      // Remove the slab from the freelist since we'll be changing its size.
+      RemoveFreeSlab(prev_free_slab);
+    }
+
+    slab->SetSize(n_pages - to);
+    slab->SetStartId(start_id + to);
+    right_slab = slab;
+  } else if (to == n_pages) {
+    MappedSlab* next_slab = slab_map_->FindSlab(slab->EndId() + 1);
+    if (next_slab != nullptr && next_slab->Type() == SlabType::kFree) {
+      FreeSlab* next_free_slab = next_slab->ToFree();
+      free_meta = next_free_slab;
+      free_size += next_free_slab->Pages();
+
+      RemoveFreeSlab(next_free_slab);
+    }
+
+    slab->SetSize(from);
+    left_slab = slab;
+  } else {
+    // Try allocating the free slab's metadata early here. If it fails, we don't
+    // want to have modified anything that would leave the heap in an invalid
+    // state.
+    free_meta = MetadataAlloc::SlabAlloc();
+    if (free_meta == nullptr) {
+      return std::nullopt;
+    }
+
     Slab* alloc_meta = MetadataAlloc::SlabAlloc();
     if (alloc_meta == nullptr) {
       MetadataAlloc::SlabFree(free_meta);
       return std::nullopt;
     }
 
-    // TODO: need to update allocated bytes of both halves.
     const PageId start = start_id + to;
     const PageId end = start_id + n_pages - 1;
-    next_adjacent_meta =
+    right_slab =
         alloc_meta->Init<S>(start, n_pages - to, std::forward<Args>(args)...);
-    slab_map_->InsertRange(start, end, next_adjacent_meta);
+    slab_map_->InsertRange(start, end, right_slab);
+
+    slab->SetSize(from);
+    left_slab = slab;
   }
 
-  slab->SetSize(from);
-  FreeSlab* center_free_slab =
-      FreeRegion(free_meta, start_id + from, to - from);
+  // This condition should only be possible if no modifications have been made
+  // so far.
+  if (free_meta == nullptr) {
+    free_meta = MetadataAlloc::SlabAlloc();
+    if (free_meta == nullptr) {
+      return std::nullopt;
+    }
+  }
 
-  return std::make_pair(center_free_slab, next_adjacent_meta);
+  FreeSlab* center_free_slab = FreeRegion(free_meta, free_start, free_size);
+  return std::make_tuple(left_slab, center_free_slab, right_slab);
 }
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>

@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <tuple>
 #include <utility>
 
 namespace ckmalloc {
@@ -38,7 +39,7 @@ enum class SlabType : uint8_t;
 
 template <typename T>
 concept MetadataAllocInterface =
-    requires(size_t size, size_t alignment, class MappedSlab* slab) {
+    requires(size_t size, size_t alignment, class Slab* slab) {
       { T::SlabAlloc() } -> std::convertible_to<class Slab*>;
       { T::SlabFree(slab) } -> std::same_as<void>;
       { T::Alloc(size, alignment) } -> std::convertible_to<void*>;
@@ -79,8 +80,8 @@ concept SlabManagerInterface =
           std::optional<std::pair<class PageId, class SingleAllocSlab*>>>;
       {
         slab_mgr.template Carve<class BlockedSlab>(blocked_slab, from, to)
-      } -> std::convertible_to<
-          std::optional<std::pair<class FreeSlab*, class BlockedSlab*>>>;
+      } -> std::convertible_to<std::optional<
+          std::tuple<class BlockedSlab*, class FreeSlab*, class BlockedSlab*>>>;
       { slab_mgr.Resize(slab, n_pages) } -> std::convertible_to<bool>;
       { slab_mgr.Free(slab) } -> std::same_as<void>;
       {

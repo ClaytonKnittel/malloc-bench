@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <tuple>
 
 #include "src/ckmalloc/block.h"
 #include "src/ckmalloc/common.h"
@@ -142,22 +143,32 @@ void LargeAllocatorImpl<SlabMap, SlabManager>::FreeLarge(LargeSlab* slab,
   }
 
   Block* next_adjacent = free_block->NextAdjacentBlock();
+  const size_t slab_start =
+      reinterpret_cast<size_t>(
+          slab_manager_->PageStartFromId(slab->StartId())) /
+      kPageSize;
+
+  uint64_t block_start = reinterpret_cast<uint64_t>(free_block);
+  // This is the starting page of the region of the slab that is safe to free.
+  size_t first_empty_page = block_start / kPageSize + 1;
   // This is the starting page of the region of the slab we have to keep intact,
   // as it contains allocated memory.
   size_t first_intact_page =
       reinterpret_cast<size_t>(next_adjacent) / kPageSize;
+
   if (next_adjacent->IsPhonyHeader()) {
+    // If this is the last block, we don't need to keep the phony header intact.
     first_intact_page++;
+  } else if (free_block ==
+             slab_manager_->FirstBlockInBlockedSlab(blocked_slab)) {
+    // If this is the first block in the slab, we can free starting from the
+    // beginning.
+    first_empty_page = slab_start;
   }
 
   // If the two ends of this newly freed block straddle at least a page, free
   // the page in the middle and split the large slab.
-  uint64_t block_start = reinterpret_cast<uint64_t>(free_block);
-  size_t first_empty_page = block_start / kPageSize + 1;
   if (first_empty_page < first_intact_page) {
-    size_t slab_start = reinterpret_cast<size_t>(
-                            slab_manager_->PageStartFromId(slab->StartId())) /
-                        kPageSize;
     auto result = slab_manager_->Carve(blocked_slab,
                                        /*from=*/first_empty_page - slab_start,
                                        /*to=*/first_intact_page - slab_start);
@@ -168,14 +179,18 @@ void LargeAllocatorImpl<SlabMap, SlabManager>::FreeLarge(LargeSlab* slab,
     }
 
     // If the carve succeeded, we need to cut the block short on both ends.
-    uint64_t new_size =
-        kPageSize - (block_start % kPageSize) - Block::kMetadataOverhead;
-    freelist_.TruncateBlock(free_block, new_size);
+    BlockedSlab* left_slab = std::get<0>(result.value());
+    BlockedSlab* right_slab = std::get<2>(result.value());
 
-    // If the carve left another blocked slab after the free slab in the middle,
-    // we need to fix it's start.
-    BlockedSlab* other_slab = result->second;
-    if (other_slab != nullptr) {
+    if (left_slab != nullptr) {
+      uint64_t new_size =
+          kPageSize - (block_start % kPageSize) - Block::kMetadataOverhead;
+      freelist_.TruncateBlock(free_block, new_size);
+    }
+
+    // If the carve left a blocked slab after the free slab in the middle, we
+    // need to fix it's start.
+    if (right_slab != nullptr) {
       uint64_t start_size =
           reinterpret_cast<uint64_t>(next_adjacent) % kPageSize -
           Block::kMetadataOverhead;

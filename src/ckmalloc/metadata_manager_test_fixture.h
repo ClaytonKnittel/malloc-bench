@@ -50,7 +50,7 @@ class TestMetadataManager {
 
   Slab* NewSlabMeta();
 
-  void FreeSlabMeta(MappedSlab* slab);
+  void FreeSlabMeta(Slab* slab);
 
  private:
   class MetadataManagerFixture* test_fixture_;

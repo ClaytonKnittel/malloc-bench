@@ -241,7 +241,9 @@ absl::Status ValidateBlockedSlabs(const std::vector<BlockedSlabInfo>& slabs,
           *prev_block));
     }
 
-    if (allocated_bytes == 0) {
+    // nullptr slab means this is the freelist test, which does not use the slab
+    // map. For all other tests, this check will run.
+    if (slab_info.slab != nullptr && allocated_bytes == 0) {
       return absl::FailedPreconditionError(
           absl::StrFormat("Found empty blocked slab %v", *slab_info.slab));
     }

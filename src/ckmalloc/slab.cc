@@ -322,6 +322,11 @@ uint32_t MappedSlab::Pages() const {
   return mapped.n_pages_;
 }
 
+void MappedSlab::SetStartId(PageId start_id) {
+  CK_ASSERT_NE(type_, SlabType::kUnmapped);
+  mapped.id_ = start_id;
+}
+
 void MappedSlab::SetSize(uint32_t n_pages) {
   CK_ASSERT_NE(type_, SlabType::kUnmapped);
   mapped.n_pages_ = n_pages;
@@ -430,11 +435,12 @@ Block* BlockedSlab::FirstBlock(void* slab_start) {
 }
 
 uint64_t BlockedSlab::MaxBlockSize() const {
+  static_assert(
+      IsAligned(Block::kFirstBlockInSlabOffset + Block::kMetadataOverhead,
+                kDefaultAlignment));
   CK_ASSERT_EQ(Type(), SlabType::kBlocked);
-  return AlignDown(mapped.n_pages_ * kPageSize -
-                       Block::kFirstBlockInSlabOffset -
-                       Block::kMetadataOverhead,
-                   kDefaultAlignment);
+  return mapped.n_pages_ * kPageSize -
+         (Block::kFirstBlockInSlabOffset + Block::kMetadataOverhead);
 }
 
 bool BlockedSlab::SpansWholeSlab(Block* block) const {

@@ -251,6 +251,10 @@ class MappedSlab : public Slab {
   // freed slab metadata.
   uint32_t Pages() const;
 
+  // Changes the start id of the slab to `start_id`. This should only be called
+  // by the slab manager.
+  void SetStartId(PageId start_id);
+
   // Changes the size of the slab to `n_pages`. This should only be called by
   // the slab manager.
   void SetSize(uint32_t n_pages);
