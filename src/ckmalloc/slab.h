@@ -202,8 +202,6 @@ class Slab {
           PageId prev_free_;
         } small;
         struct {
-          // Tracks the total number of allocated bytes in this block.
-          uint64_t allocated_bytes_;
         } large;
         struct {
         } page_multiple;
@@ -341,16 +339,16 @@ class BlockedSlab : public LargeSlab {
   // satisfy this allocation.
   static uint32_t NPagesForBlock(size_t user_size);
 
+  // Given a pointer to the start of a blocked slab, returns a pointer to the
+  // first block.
+  static Block* FirstBlock(void* slab_start);
+
   // Returns the largest block size that can fit in this large slab.
   uint64_t MaxBlockSize() const;
 
-  // Adds `n_bytes` to the total allocated byte count of the slab.
-  void AddAllocation(uint64_t n_bytes);
-
-  // Removes `n_bytes` from the total allocated byte count of the slab.
-  void RemoveAllocation(uint64_t n_bytes);
-
-  uint64_t AllocatedBytes() const;
+  // If true, this block spans the whole slab, meaning there are no other free
+  // or allocated blocks in this slab.
+  bool SpansWholeSlab(Block* block) const;
 };
 
 class SingleAllocSlab : public LargeSlab {

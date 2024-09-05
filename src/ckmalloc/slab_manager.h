@@ -385,8 +385,7 @@ void SlabManagerImpl<MetadataAlloc, SlabMap>::Free(AllocatedSlab* slab) {
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
 Block* SlabManagerImpl<MetadataAlloc, SlabMap>::FirstBlockInBlockedSlab(
     const BlockedSlab* slab) const {
-  return PtrAdd<Block>(PageStartFromId(slab->StartId()),
-                       Block::kFirstBlockInSlabOffset);
+  return BlockedSlab::FirstBlock(PageStartFromId(slab->StartId()));
 }
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>

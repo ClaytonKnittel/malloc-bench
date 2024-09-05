@@ -103,11 +103,9 @@ void AbslStringify(Sink& sink, const Slab& slab) {
     }
     case SlabType::kBlocked: {
       const BlockedSlab& blocked_slab = *slab.ToBlocked();
-      absl::Format(&sink,
-                   "Slab: [type=%v, pages=%" PRIu32
-                   ", start_id=%v, allocated_bytes=%" PRIu64 "]",
+      absl::Format(&sink, "Slab: [type=%v, pages=%" PRIu32 ", start_id=%v]",
                    blocked_slab.Type(), blocked_slab.Pages(),
-                   blocked_slab.StartId(), blocked_slab.AllocatedBytes());
+                   blocked_slab.StartId());
       break;
     }
   }

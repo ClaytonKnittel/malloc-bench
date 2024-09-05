@@ -241,12 +241,9 @@ absl::Status ValidateBlockedSlabs(const std::vector<BlockedSlabInfo>& slabs,
           *prev_block));
     }
 
-    if (slab_info.slab != nullptr &&
-        allocated_bytes != slab_info.slab->AllocatedBytes()) {
+    if (allocated_bytes == 0) {
       return absl::FailedPreconditionError(
-          absl::StrFormat("Large slab allocated byte count is incorrect for "
-                          "%v, expected %" PRIu64 " allocated bytes",
-                          *slab_info.slab, allocated_bytes));
+          absl::StrFormat("Found empty blocked slab %v", *slab_info.slab));
     }
   }
 

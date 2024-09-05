@@ -188,9 +188,7 @@ BlockedSlab* Slab::Init(PageId start_id, uint32_t n_pages) {
   mapped = {
     .id_ = start_id,
     .n_pages_ = n_pages,
-    .large = {
-      .allocated_bytes_ = 0,
-    },
+    .large = {},
   };
 
   BlockedSlab* slab = static_cast<BlockedSlab*>(this);
@@ -426,6 +424,11 @@ uint32_t BlockedSlab::NPagesForBlock(size_t user_size) {
                                        kPageSize));
 }
 
+/* static */
+Block* BlockedSlab::FirstBlock(void* slab_start) {
+  return PtrAdd<Block>(slab_start, Block::kFirstBlockInSlabOffset);
+}
+
 uint64_t BlockedSlab::MaxBlockSize() const {
   CK_ASSERT_EQ(Type(), SlabType::kBlocked);
   return AlignDown(mapped.n_pages_ * kPageSize -
@@ -434,19 +437,9 @@ uint64_t BlockedSlab::MaxBlockSize() const {
                    kDefaultAlignment);
 }
 
-void BlockedSlab::AddAllocation(uint64_t n_bytes) {
+bool BlockedSlab::SpansWholeSlab(Block* block) const {
   CK_ASSERT_EQ(Type(), SlabType::kBlocked);
-  mapped.large.allocated_bytes_ += n_bytes;
-}
-
-void BlockedSlab::RemoveAllocation(uint64_t n_bytes) {
-  CK_ASSERT_EQ(Type(), SlabType::kBlocked);
-  mapped.large.allocated_bytes_ -= n_bytes;
-}
-
-uint64_t BlockedSlab::AllocatedBytes() const {
-  CK_ASSERT_EQ(Type(), SlabType::kBlocked);
-  return mapped.large.allocated_bytes_;
+  return block->Size() == MaxBlockSize();
 }
 
 /* static */

@@ -92,16 +92,12 @@ void* LargeAllocatorImpl<SlabMap, SlabManager>::ReallocLarge(LargeSlab* slab,
 
   uint64_t block_size;
   if (slab->Type() == SlabType::kBlocked) {
-    BlockedSlab* blocked_slab = slab->ToBlocked();
     AllocatedBlock* block = AllocatedBlock::FromUserDataPtr(ptr);
-    uint64_t block_size = block->Size();
     uint64_t new_block_size = Block::BlockSizeForUserSize(user_size);
 
     // If we can resize the block in-place, then we don't need to copy any data
     // and can return the same pointer back to the user.
     if (freelist_.ResizeIfPossible(block, new_block_size)) {
-      blocked_slab->AddAllocation(new_block_size);
-      blocked_slab->RemoveAllocation(block_size);
       return ptr;
     }
 
@@ -138,10 +134,9 @@ void LargeAllocatorImpl<SlabMap, SlabManager>::FreeLarge(LargeSlab* slab,
   CK_ASSERT_EQ(slab->Type(), SlabType::kBlocked);
   BlockedSlab* blocked_slab = slab->ToBlocked();
   AllocatedBlock* block = AllocatedBlock::FromUserDataPtr(ptr);
-  blocked_slab->RemoveAllocation(block->Size());
   FreeBlock* free_block = freelist_.MarkFree(block);
 
-  if (blocked_slab->AllocatedBytes() == 0) {
+  if (blocked_slab->SpansWholeSlab(free_block)) {
     ReleaseBlockedSlab(blocked_slab);
     return;
   }
@@ -202,7 +197,6 @@ template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
 void LargeAllocatorImpl<SlabMap, SlabManager>::ReleaseBlockedSlab(
     BlockedSlab* slab) {
   BlockedSlab* blocked_slab = slab->ToBlocked();
-  CK_ASSERT_EQ(blocked_slab->AllocatedBytes(), 0);
 
   Block* only_block = slab_manager_->FirstBlockInBlockedSlab(blocked_slab);
   CK_ASSERT_EQ(only_block->Size(), blocked_slab->MaxBlockSize());
@@ -222,14 +216,8 @@ AllocatedBlock* LargeAllocatorImpl<SlabMap, SlabManager>::MakeBlockFromFreelist(
     return nullptr;
   }
 
-  BlockedSlab* slab =
-      slab_map_->FindSlab(slab_manager_->PageIdFromPtr(free_block))
-          ->ToBlocked();
-
   auto [allocated_block, remainder_block] =
       freelist_.Split(free_block, Block::BlockSizeForUserSize(user_size));
-
-  slab->AddAllocation(allocated_block->Size());
   return allocated_block;
 }
 
@@ -253,7 +241,6 @@ LargeAllocatorImpl<SlabMap, SlabManager>::AllocBlockedSlabAndMakeBlock(
   AllocatedBlock* block =
       slab_manager_->FirstBlockInBlockedSlab(slab)->InitAllocated(
           block_size, /*prev_free=*/false);
-  slab->AddAllocation(block_size);
 
   // Write a phony header for an allocated block of size 0 at the end of the
   // slab, which will trick the last block in the slab into never trying to
