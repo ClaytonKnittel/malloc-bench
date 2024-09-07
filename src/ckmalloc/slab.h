@@ -56,6 +56,8 @@ class SmallSlabMetadata {
                 "SmallSlabMetadata can only be instantiated with `uint8_t` or "
                 "`uint16_t`");
 
+  friend class HeapPrinter;
+
   friend constexpr size_t TinySizeClassOffset();
   friend constexpr size_t SmallSizeClassOffset();
 
@@ -280,6 +282,8 @@ class AllocatedSlab : public MappedSlab {
 
 // Small slabs hold many duplicates of a single size of block.
 class SmallSlab : public AllocatedSlab {
+  friend class HeapPrinter;
+
  public:
   class BlockedSlab* ToBlocked() = delete;
   const class BlockedSlab* ToBlocked() const = delete;
@@ -325,6 +329,7 @@ class SmallSlab : public AllocatedSlab {
   // slices.
   bool IsTiny() const;
 };
+
 class LargeSlab : public AllocatedSlab {
  public:
   class SmallSlab* ToSmall() = delete;

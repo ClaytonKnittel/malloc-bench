@@ -79,4 +79,7 @@ std::ostream& operator<<(std::ostream& ostr, const SliceId<T>& slice_id) {
   return ostr << static_cast<uint32_t>(slice_id.Id());
 }
 
+using SmallSliceId = SliceId<uint8_t>;
+using TinySliceId = SliceId<uint16_t>;
+
 }  // namespace ckmalloc
