@@ -2,6 +2,8 @@
 
 #include <string>
 
+#include "absl/container/flat_hash_map.h"
+
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/metadata_manager.h"
 #include "src/ckmalloc/page_id.h"
@@ -17,6 +19,8 @@ class HeapPrinter {
   HeapPrinter(const bench::Heap* heap, const SlabMap* slab_map,
               const SlabManager* slab_manager,
               const MetadataManager* metadata_manager);
+
+  HeapPrinter& WithHighlightAddr(void* addr, const char* color_fmt);
 
   std::string Print();
 
@@ -37,6 +41,9 @@ class HeapPrinter {
   const SlabMap* const slab_map_;
   const SlabManager* const slab_manager_;
   const MetadataManager* const metadata_manager_;
+
+  // Addresses to highlight using the given format strings.
+  absl::flat_hash_map<void*, const char*> highlight_addrs_;
 };
 
 }  // namespace ckmalloc
