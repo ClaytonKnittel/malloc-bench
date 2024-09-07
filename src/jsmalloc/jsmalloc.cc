@@ -3,6 +3,7 @@
 #include <cassert>
 #include <cstddef>
 
+#include "src/heap_factory.h"
 #include "src/heap_interface.h"
 #include "src/jsmalloc/allocator.h"
 #include "src/jsmalloc/blocks/block.h"
@@ -17,21 +18,27 @@ namespace jsmalloc {
 
 namespace {
 
+constexpr size_t kHeapSize = 512 << 20;
+
 class HeapGlobals {
  public:
-  explicit HeapGlobals(bench::Heap& heap)
-      : heap_allocator_(&heap),
-        sentinel_block_allocator_(heap_allocator_),
-        free_block_allocator_(sentinel_block_allocator_),
+  explicit HeapGlobals(bench::HeapFactory& heap_factory, bench::Heap& heap)
+      : heap_factory_(heap_factory),
+        heap_(heap),
+        heap_adaptor_(&heap),
+        sentinel_block_heap_(heap_adaptor_),
+        free_block_allocator_(sentinel_block_heap_),
         large_block_allocator_(free_block_allocator_),
         small_block_allocator_(free_block_allocator_) {}
 
   void Start() {
-    sentinel_block_allocator_.Start();
+    sentinel_block_heap_.Init();
   }
 
-  HeapAllocator heap_allocator_;
-  blocks::SentinelBlockAllocator sentinel_block_allocator_;
+  bench::HeapFactory& heap_factory_;
+  bench::Heap& heap_;
+  HeapAdaptor heap_adaptor_;
+  blocks::SentinelBlockHeap sentinel_block_heap_;
   blocks::FreeBlockAllocator free_block_allocator_;
   blocks::LargeBlockAllocator large_block_allocator_;
   blocks::SmallBlockAllocator small_block_allocator_;
@@ -47,9 +54,16 @@ void* sbrk_16b(bench::Heap& heap, size_t size) {
 }
 
 // Called before any allocations are made.
-void initialize_heap(bench::Heap& heap) {
-  heap_globals = new (sbrk_16b(heap, math::round_16b(sizeof(HeapGlobals))))
-      HeapGlobals(heap);
+void initialize_heap(bench::HeapFactory& heap_factory) {
+  auto heap = heap_factory.NewInstance(kHeapSize);
+  if (!heap.ok()) {
+    std::cerr << "Failed to initialize heap" << std::endl;
+    std::exit(-1);
+  }
+
+  heap_globals =
+      new (sbrk_16b(*heap->second, math::round_16b(sizeof(HeapGlobals))))
+          HeapGlobals(heap_factory, *heap->second);
   heap_globals->Start();
 }
 

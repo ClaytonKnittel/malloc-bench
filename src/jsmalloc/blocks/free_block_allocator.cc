@@ -1,15 +1,15 @@
 #include "src/jsmalloc/blocks/free_block_allocator.h"
 
-#include "src/jsmalloc/allocator.h"
 #include "src/jsmalloc/blocks/block.h"
 #include "src/jsmalloc/blocks/free_block.h"
+#include "src/jsmalloc/blocks/sentinel_block_allocator.h"
 #include "src/jsmalloc/util/assert.h"
 
 namespace jsmalloc {
 namespace blocks {
 
-FreeBlockAllocator::FreeBlockAllocator(Allocator& allocator)
-    : allocator_(allocator){};
+FreeBlockAllocator::FreeBlockAllocator(SentinelBlockHeap& heap)
+    : heap_(heap){};
 
 FreeBlock* FreeBlockAllocator::Allocate(size_t size) {
   DCHECK_EQ(size % 16, 0);
@@ -38,7 +38,7 @@ FreeBlock* FreeBlockAllocator::Allocate(size_t size) {
     return &free_block;
   }
 
-  FreeBlock* block = FreeBlock::New(allocator_, size);
+  FreeBlock* block = FreeBlock::New(heap_, size);
   if (block == nullptr) {
     return nullptr;
   }

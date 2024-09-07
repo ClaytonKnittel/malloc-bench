@@ -12,9 +12,18 @@ namespace blocks {
 // Minimum size that FreeBlockAllocator will bother saving blocks for.
 constexpr size_t kMinSavedBlockSize = 256;
 
-TEST(TestFreeBlockAllocator, AllocatesExistingBlocks) {
-  testing::StackFreeBlockAllocator allocator;
+class FreeBlockAllocatorTest : public ::testing::Test {
+ public:
+  void SetUp() override {
+    sentinel_heap.Init();
+  }
 
+  jsmalloc::testing::TestHeap heap;
+  SentinelBlockHeap sentinel_heap = SentinelBlockHeap(heap);
+  FreeBlockAllocator allocator = FreeBlockAllocator(sentinel_heap);
+};
+
+TEST_F(FreeBlockAllocatorTest, AllocatesExistingBlocks) {
   FreeBlock* b1 = allocator.Allocate(kMinSavedBlockSize);
   FreeBlock* b2 = allocator.Allocate(kMinSavedBlockSize + 16);
   FreeBlock* b3 = allocator.Allocate(kMinSavedBlockSize + 32);
@@ -29,9 +38,7 @@ TEST(TestFreeBlockAllocator, AllocatesExistingBlocks) {
   EXPECT_EQ(b3, allocator.Allocate(kMinSavedBlockSize + 32));
 }
 
-TEST(TestFreeBlockAllocator, SplitsBlocks) {
-  testing::StackFreeBlockAllocator allocator;
-
+TEST_F(FreeBlockAllocatorTest, SplitsBlocks) {
   FreeBlock* b = allocator.Allocate(kMinSavedBlockSize * 3);
   allocator.Free(b->Header());
 

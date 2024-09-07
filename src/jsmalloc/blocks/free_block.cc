@@ -4,6 +4,7 @@
 
 #include "src/jsmalloc/allocator.h"
 #include "src/jsmalloc/blocks/block.h"
+#include "src/jsmalloc/blocks/sentinel_block_allocator.h"
 #include "src/jsmalloc/util/assert.h"
 #include "src/jsmalloc/util/math.h"
 
@@ -16,9 +17,9 @@ constexpr size_t kMinFreeBlockSize =
 
 }  // namespace
 
-FreeBlock* FreeBlock::New(Allocator& allocator, size_t size) {
+FreeBlock* FreeBlock::New(SentinelBlockHeap& heap, size_t size) {
   DCHECK_TRUE(size >= kMinFreeBlockSize);
-  void* ptr = allocator.Allocate(size);
+  void* ptr = heap.sbrk(size);
   if (ptr == nullptr) {
     return nullptr;
   }
@@ -28,7 +29,7 @@ FreeBlock* FreeBlock::New(Allocator& allocator, size_t size) {
   // so we get a reference to that here,
   // but it's not clear from the type of `allocator` that
   // this is true.
-  BlockHeader* hdr = reinterpret_cast<BlockHeader*>(ptr);
+  auto* hdr = reinterpret_cast<BlockHeader*>(ptr);
   return new (ptr) FreeBlock(size, hdr->PrevBlockIsFree());
 }
 

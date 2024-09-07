@@ -15,14 +15,7 @@ extern size_t g_heap_idx;
 
 // Called before any allocations are made.
 inline void initialize_heap(HeapFactory& heap_factory) {
-  g_heap_factory = &heap_factory;
-  g_heap_idx = 0;
-  auto res = g_heap_factory->NewInstance(kHeapSize);
-  if (!res.ok()) {
-    std::cerr << "Failed to initialize heap" << std::endl;
-    std::exit(-1);
-  }
-  jsmalloc::initialize_heap(*res->second);
+  jsmalloc::initialize_heap(heap_factory);
 }
 
 inline void* malloc(size_t size) {

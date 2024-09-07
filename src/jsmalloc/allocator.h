@@ -1,64 +1,94 @@
 #pragma once
 
-#include <cstddef>
+#include <cstdint>
 
+#include "src/heap_factory.h"
 #include "src/heap_interface.h"
-#include "src/jsmalloc/util/assert.h"
 #include "src/jsmalloc/util/twiddle.h"
 
 namespace jsmalloc {
 
-class Allocator {
+class MemRegion {
  public:
-  virtual void* Allocate(size_t size) = 0;
-  virtual void Free(void* ptr) = 0;
+  /** Extends a memory region by the provided amount. */
+  virtual void* Extend(intptr_t increment) = 0;
+  // virtual ~MemRegion() = 0;
 };
 
-/** Mallocator that thinly wraps a bench::Heap. */
-class HeapAllocator : public Allocator {
+class MemRegionAllocator {
  public:
-  explicit HeapAllocator(bench::Heap* heap) : heap_(*DCHECK_NON_NULL(heap)) {}
+  /** Returns a pointer to a new memory region. */
+  virtual MemRegion* New(size_t max_size) = 0;
+  // virtual ~MemRegionAllocator() = 0;
+};
 
-  void* Allocate(size_t size) override {
-    DCHECK_EQ(size % 16, 0);
-    return heap_.sbrk(size);
+class HeapAdaptor : public MemRegion {
+ public:
+  explicit HeapAdaptor(bench::Heap* heap) : heap_(heap){};
+  // ~HeapAdaptor() override = default;
+
+  void* Extend(intptr_t increment) override {
+    return heap_->sbrk(increment);
   }
 
-  void Free(void* ptr) override {}
+ private:
+  bench::Heap* heap_;
+};
+
+class HeapFactoryAdaptor : public MemRegionAllocator {
+ public:
+  explicit HeapFactoryAdaptor(bench::HeapFactory* heap_factory)
+      : heap_factory_(heap_factory){};
+  // ~HeapFactoryAdaptor() override = default;
+
+  MemRegion* New(size_t size) override {
+    auto s = heap_factory_->NewInstance(size);
+    if (!s.ok()) {
+      return nullptr;
+    }
+    bench::Heap* heap = s->second;
+    regions_.emplace_back(heap);
+    return &regions_.back();
+  }
 
  private:
-  bench::Heap& heap_;
+  bench::HeapFactory* heap_factory_;
+  std::vector<HeapAdaptor> regions_;
 };
+
+namespace testing {
 
 /**
  * Allocator for testing.
  */
 template <size_t N>
-class StackAllocator : public Allocator {
+class FixedSizeTestHeap : public MemRegion {
  public:
-  void* Allocate(size_t size) override {
-    DCHECK_EQ(size % 16, 0);
-    DCHECK_LE(size, N);
-    if (end_ + size >= N) {
+  // ~FixedSizeTestHeap() override = default;
+
+  void* Extend(intptr_t increment) override {
+    DCHECK_EQ(increment % 16, 0);
+    DCHECK_LE(increment, N);
+    if (end_ + increment >= N) {
       return nullptr;
     }
     // Ensure we give out 16-byte aligned addresses.
-    uint32_t initial_offset = 16 - (twiddle::PtrValue(this) % 16);
-    void* ptr = static_cast<void*>(&data_[end_ + initial_offset]);
-    end_ += size;
+    void* ptr = static_cast<void*>(&data_[end_ + Start()]);
+    end_ += increment;
     return ptr;
   }
 
-  void Free(void* ptr) override {}
+  intptr_t Start() {
+    return 16 - (twiddle::PtrValue(this) % 16);
+  }
 
  private:
-  class Block {};
-
   size_t end_ = 0;
   uint8_t data_[N];
 };
 
-/** A StackAllocator that should be large enough for most testing. */
-using BigStackAllocator = StackAllocator<1 << 16>;
+using TestHeap = FixedSizeTestHeap<1 << 20>;
+
+}  // namespace testing
 
 }  // namespace jsmalloc

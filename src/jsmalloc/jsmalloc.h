@@ -2,12 +2,12 @@
 
 #include <cstring>
 
-#include "src/heap_interface.h"
+#include "src/heap_factory.h"
 
 namespace jsmalloc {
 
 // Called before any allocations are made.
-void initialize_heap(bench::Heap& heap);
+void initialize_heap(bench::HeapFactory& heap);
 
 void* malloc(size_t size);
 

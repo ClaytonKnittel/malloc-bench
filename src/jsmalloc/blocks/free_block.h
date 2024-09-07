@@ -4,6 +4,7 @@
 
 #include "src/jsmalloc/allocator.h"
 #include "src/jsmalloc/blocks/block.h"
+#include "src/jsmalloc/blocks/sentinel_block_allocator.h"
 #include "src/jsmalloc/collections/intrusive_linked_list.h"
 
 namespace jsmalloc {
@@ -20,7 +21,7 @@ struct FreeBlockFooter {
 class FreeBlock {
  public:
   /** Creates a new free block. */
-  static FreeBlock* New(Allocator& allocator, size_t size);
+  static FreeBlock* New(SentinelBlockHeap& heap, size_t size);
 
   /** Marks the provided block as free. */
   static FreeBlock* MarkFree(BlockHeader* block);
