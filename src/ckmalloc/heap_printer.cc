@@ -1,8 +1,12 @@
 #include "src/ckmalloc/heap_printer.h"
 
+#include <cstdint>
 #include <string>
 
+#include "absl/container/flat_hash_map.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
+#include "util/print_colors.h"
 
 #include "src/ckmalloc/block.h"
 #include "src/ckmalloc/common.h"
@@ -12,6 +16,7 @@
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/slab_manager.h"
 #include "src/ckmalloc/slab_map.h"
+#include "src/ckmalloc/slice_id.h"
 #include "src/ckmalloc/util.h"
 #include "src/heap_interface.h"
 
@@ -24,6 +29,11 @@ HeapPrinter::HeapPrinter(const bench::Heap* heap, const SlabMap* slab_map,
       slab_map_(slab_map),
       slab_manager_(slab_manager),
       metadata_manager_(metadata_manager) {}
+
+HeapPrinter& HeapPrinter::WithHighlightAddr(void* addr, const char* color_fmt) {
+  highlight_addrs_.insert_or_assign(addr, color_fmt);
+  return *this;
+}
 
 std::string HeapPrinter::Print() {
   std::string result;
@@ -93,9 +103,10 @@ std::string HeapPrinter::PrintSmall(const SmallSlab* slab) {
   // Track which slices in the small slab are free. Start off with all marked as
   // allocated, then go through and mark each free slab in the freelist as free.
   std::vector<bool> free_slots(slab->SizeClass().MaxSlicesPerSlab(), false);
-  slab->IterateSlices(
-      slab_manager_->PageStartFromId(slab->StartId()),
-      [&free_slots](uint32_t slice_idx) { free_slots[slice_idx] = true; });
+  void* const slab_start = slab_manager_->PageStartFromId(slab->StartId());
+  slab->IterateSlices(slab_start, [&free_slots](uint32_t slice_idx) {
+    free_slots[slice_idx] = true;
+  });
 
   result += "\n";
   uint32_t offset = 0;
@@ -104,6 +115,23 @@ std::string HeapPrinter::PrintSmall(const SmallSlab* slab) {
       if (offset == kMaxRowLength) {
         result += "\n";
         offset = 0;
+      }
+
+      void* slice1 = slab->mapped.small.tiny_meta_
+                         .SliceFromId(slab_start, TinySliceId::FromIdx(i))
+                         ->ToAllocated()
+                         ->UserDataPtr();
+      void* slice2 = slab->mapped.small.tiny_meta_
+                         .SliceFromId(slab_start, TinySliceId::FromIdx(i + 1))
+                         ->ToAllocated()
+                         ->UserDataPtr();
+
+      auto it1 = highlight_addrs_.find(slice1);
+      auto it2 = highlight_addrs_.find(slice2);
+      if (it1 != highlight_addrs_.end()) {
+        result += it1->second;
+      } else if (it2 != highlight_addrs_.end()) {
+        result += it2->second;
       }
 
       if (free_slots[i] && free_slots[i + 1]) {
@@ -116,21 +144,48 @@ std::string HeapPrinter::PrintSmall(const SmallSlab* slab) {
         result += '\\';
       }
 
+      if (it1 != highlight_addrs_.end() || it2 != highlight_addrs_.end()) {
+        result += P_RESET;
+      }
+
       offset++;
     }
   } else {
     uint32_t width = slab->SizeClass().SliceSize() / kDefaultAlignment;
-    for (bool free_slot : free_slots) {
+    for (uint32_t i = 0; i < free_slots.size(); i++) {
+      void* slice;
+      if (slab->IsTiny()) {
+        slice = slab->mapped.small.tiny_meta_
+                    .SliceFromId(slab_start, TinySliceId::FromIdx(i))
+                    ->ToAllocated()
+                    ->UserDataPtr();
+      } else {
+        slice = slab->mapped.small.small_meta_
+                    .SliceFromId(slab_start, SmallSliceId::FromIdx(i))
+                    ->ToAllocated()
+                    ->UserDataPtr();
+      }
+
+      auto it = highlight_addrs_.find(slice);
+      const char* fmt_start = "";
+      const char* fmt_end = "";
+      if (it != highlight_addrs_.end()) {
+        fmt_start = it->second;
+        fmt_end = P_RESET;
+      }
+
+      result += fmt_start;
       for (size_t w = 0; w < width; w++) {
         if (offset == kMaxRowLength) {
-          result += "\n";
+          result += absl::StrCat(fmt_end, "\n", fmt_start);
           offset = 0;
         }
 
         result +=
-            free_slot ? '.' : (w == 0 ? '[' : (w == width - 1 ? ']' : 'X'));
+            free_slots[i] ? '.' : (w == 0 ? '[' : (w == width - 1 ? ']' : 'X'));
         offset++;
       }
+      result += fmt_end;
     }
   }
 
@@ -153,28 +208,53 @@ std::string HeapPrinter::PrintBlocked(const BlockedSlab* slab) {
           : absl::StrFormat(" - %v", slab->EndId()),
       100.F * allocated_bytes / static_cast<float>(slab->Pages() * kPageSize));
 
-  std::vector<std::string> rows(2 * slab->Pages(),
-                                std::string(kMaxRowLength, '.'));
+  std::vector<std::string> rows(2 * slab->Pages());
 
-  auto set_row = [&rows](uint64_t i, char c) {
-    rows[i / kMaxRowLength][i % kMaxRowLength] = c;
+  uint64_t offset = 0;
+  auto push_entry_silent = [&rows, &offset](const char* str) {
+    if (offset != rows.size() * kMaxRowLength) {
+      rows[offset / kMaxRowLength] += str;
+    }
+  };
+  auto push_entry = [&rows, &offset](char c, const char* fmt = "") {
+    rows[offset / kMaxRowLength] += c;
+    if ((offset + 1) % kMaxRowLength == 0) {
+      rows[offset / kMaxRowLength] += P_RESET;
+    }
+    ++offset;
+    if (offset < rows.size() * kMaxRowLength && offset % kMaxRowLength == 0) {
+      rows[offset / kMaxRowLength] += fmt;
+    }
   };
 
-  uint64_t offset = 1;
+  push_entry('.');
+
   for (Block* block = slab_manager_->FirstBlockInBlockedSlab(slab);
        !block->IsPhonyHeader(); block = block->NextAdjacentBlock()) {
     uint64_t block_size = block->Size() / kDefaultAlignment;
 
     if (!block->Free()) {
-      set_row(offset, '[');
-      for (uint64_t i = offset + 1; i < offset + block_size - 1; i++) {
-        set_row(i, '=');
+      auto it = highlight_addrs_.find(block->ToAllocated()->UserDataPtr());
+      const char* fmt = "";
+      if (it != highlight_addrs_.end()) {
+        fmt = it->second;
+        push_entry_silent(it->second);
       }
 
-      set_row(offset + block_size - 1, ']');
-    }
+      push_entry('[', fmt);
+      for (uint64_t i = 0; i < block_size - 2; i++) {
+        push_entry('=', fmt);
+      }
+      push_entry(']', fmt);
 
-    offset += block_size;
+      if (it != highlight_addrs_.end()) {
+        push_entry_silent(P_RESET);
+      }
+    } else {
+      for (uint64_t i = 0; i < block_size; i++) {
+        push_entry('.');
+      }
+    }
   }
 
   for (const auto& row : rows) {
@@ -191,9 +271,19 @@ std::string HeapPrinter::PrintSingleAlloc(const SingleAllocSlab* slab) {
                           ? ""
                           : absl::StrFormat(" - %v", slab->EndId()));
 
+  void* alloc = slab_manager_->PageStartFromId(slab->StartId());
+  auto it = highlight_addrs_.find(alloc);
+
   for (const auto& row :
        std::vector(2 * slab->Pages(), std::string(kMaxRowLength, '='))) {
-    result += '\n' + row;
+    result += '\n';
+    if (it != highlight_addrs_.end()) {
+      result += it->second;
+    }
+    result += row;
+    if (it != highlight_addrs_.end()) {
+      result += P_RESET;
+    }
   }
 
   return result;

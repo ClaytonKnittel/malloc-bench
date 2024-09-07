@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <ios>
+#include <limits>
 #include <string>
 #include <sys/ioctl.h>
 #include <termios.h>
@@ -15,6 +16,7 @@
 #include "absl/strings/str_split.h"
 #include "util/absl_util.h"
 #include "util/csi.h"
+#include "util/print_colors.h"
 
 #include "src/ckmalloc/ckmalloc.h"
 #include "src/ckmalloc/heap_printer.h"
@@ -27,24 +29,51 @@
 ABSL_FLAG(std::string, trace, "",
           "A path to the tracefile to run (must start with \"traces/\").");
 
+ABSL_FLAG(bool, test_run, false,
+          "If set, instead of printing to the screen, the program will "
+          "silently render the heap after every allocation in the background. "
+          "Used for debugging.");
+
+#define ALLOC_COLOR P_GREEN
+#define FREE_COLOR  P_RED
+
 namespace ckmalloc {
 
 using bench::HeapFactory;
 using bench::TracefileExecutor;
 using bench::TracefileReader;
+using Op = bench::TraceLine::Op;
+
+struct TraceOp {
+  Op op;
+  // For free/realloc, the input pointer.
+  void* input_ptr;
+  // For calloc, the requested nmemb.
+  size_t input_nmemb;
+  // For malloc/calloc/realloc/free_hint, the requested size.
+  size_t input_size;
+
+  // For malloc/calloc/realloc, the result of this operation (only defined after
+  // the operation has occurred).
+  void* result;
+};
 
 class TraceReplayer : public TracefileExecutor {
  public:
   TraceReplayer(TracefileReader&& reader, HeapFactory& heap_factory)
       : TracefileExecutor(std::move(reader), heap_factory),
         heap_factory_(&heap_factory) {
-    std::cout << CSI_ALTERNATE_DISPLAY << CSI_HIDE << CSI_CHP(1, 1);
-    SetNonCanonicalMode(/*enable=*/true);
+    if (!absl::GetFlag(FLAGS_test_run)) {
+      std::cout << CSI_ALTERNATE_DISPLAY << CSI_HIDE << CSI_CHP(1, 1);
+      SetNonCanonicalMode(/*enable=*/true);
+    }
   }
 
   ~TraceReplayer() {
-    SetNonCanonicalMode(/*enable=*/false);
-    std::cout << CSI_SHOW << CSI_MAIN_DISPLAY;
+    if (!absl::GetFlag(FLAGS_test_run)) {
+      SetNonCanonicalMode(/*enable=*/false);
+      std::cout << CSI_SHOW << CSI_MAIN_DISPLAY;
+    }
   }
 
   absl::Status SetDone() {
@@ -61,44 +90,59 @@ class TraceReplayer : public TracefileExecutor {
   }
 
   absl::StatusOr<void*> Malloc(size_t size) override {
+    prev_op_ = next_op_;
+    next_op_ = {
+      .op = Op::kMalloc,
+      .input_size = size,
+    };
     RETURN_IF_ERROR(RefreshPrintedHeap());
-    op_ = Op::kMalloc;
-    input_size_ = size;
 
     RETURN_IF_ERROR(AwaitInput());
 
     DEFINE_OR_RETURN(void*, result, ckmalloc::malloc(size));
+    next_op_.result = result;
     return result;
   }
 
   absl::StatusOr<void*> Calloc(size_t nmemb, size_t size) override {
+    prev_op_ = next_op_;
+    next_op_ = {
+      .op = Op::kCalloc,
+      .input_nmemb = nmemb,
+      .input_size = size,
+    };
     RETURN_IF_ERROR(RefreshPrintedHeap());
-    op_ = Op::kCalloc;
-    input_nmemb_ = nmemb;
-    input_size_ = size;
 
     RETURN_IF_ERROR(AwaitInput());
 
     DEFINE_OR_RETURN(void*, result, ckmalloc::calloc(nmemb, size));
+    next_op_.result = result;
     return result;
   }
 
   absl::StatusOr<void*> Realloc(void* ptr, size_t size) override {
+    prev_op_ = next_op_;
+    next_op_ = {
+      .op = Op::kRealloc,
+      .input_ptr = ptr,
+      .input_size = size,
+    };
     RETURN_IF_ERROR(RefreshPrintedHeap());
-    op_ = Op::kRealloc;
-    input_ptr_ = ptr;
-    input_size_ = size;
 
     RETURN_IF_ERROR(AwaitInput());
 
     DEFINE_OR_RETURN(void*, result, ckmalloc::realloc(ptr, size));
+    next_op_.result = result;
     return result;
   }
 
   absl::Status Free(void* ptr) override {
+    prev_op_ = next_op_;
+    next_op_ = {
+      .op = Op::kFree,
+      .input_ptr = ptr,
+    };
     RETURN_IF_ERROR(RefreshPrintedHeap());
-    op_ = Op::kFree;
-    input_ptr_ = ptr;
 
     RETURN_IF_ERROR(AwaitInput());
 
@@ -107,6 +151,10 @@ class TraceReplayer : public TracefileExecutor {
   }
 
   absl::Status AwaitInput() {
+    if (absl::GetFlag(FLAGS_test_run)) {
+      return absl::OkStatus();
+    }
+
     if (!done_) {
       iter_++;
       if (skips_ != 0) {
@@ -173,13 +221,6 @@ class TraceReplayer : public TracefileExecutor {
  private:
   static constexpr size_t kUiLines = 2;
 
-  enum class Op {
-    kMalloc,
-    kCalloc,
-    kRealloc,
-    kFree,
-  };
-
   static void SetNonCanonicalMode(bool enable) {
     struct termios t;
     tcgetattr(STDIN_FILENO, &t);
@@ -197,31 +238,36 @@ class TraceReplayer : public TracefileExecutor {
 
   absl::Status Display() {
     DEFINE_OR_RETURN(uint16_t, term_height, TermHeight());
+    if (absl::GetFlag(FLAGS_test_run)) {
+      term_height = std::numeric_limits<uint16_t>::max();
+    }
 
-    std::cout << CSI_CHP(1, 1) << CSI_ED(CSI_CURSOR_ALL);
+    if (!absl::GetFlag(FLAGS_test_run)) {
+      std::cout << CSI_CHP(1, 1) << CSI_ED(CSI_CURSOR_ALL);
+    }
 
     std::cout << "Next: [n/m(50)/c(1024)], scroll down: [j/d], scroll up: "
                  "[k/u], heap index: [0/1/...], quit: [q]"
               << std::endl;
 
     std::cout << "Next op: " << std::left << std::setw(28);
-    switch (op_) {
+    switch (next_op_.op) {
       case Op::kMalloc: {
-        std::cout << absl::StrFormat("malloc(%zu)", input_size_);
+        std::cout << absl::StrFormat("malloc(%zu)", next_op_.input_size);
         break;
       }
       case Op::kCalloc: {
-        std::cout << absl::StrFormat("calloc(%zu, %zu)", input_nmemb_,
-                                     input_size_);
+        std::cout << absl::StrFormat("calloc(%zu, %zu)", next_op_.input_nmemb,
+                                     next_op_.input_size);
         break;
       }
       case Op::kRealloc: {
-        std::cout << absl::StrFormat("realloc(%p, %zu)", input_ptr_,
-                                     input_size_);
+        std::cout << absl::StrFormat("realloc(%p, %zu)", next_op_.input_ptr,
+                                     next_op_.input_size);
         break;
       }
       case Op::kFree: {
-        std::cout << absl::StrFormat("free(%p)", input_ptr_);
+        std::cout << absl::StrFormat("free(%p)", next_op_.input_ptr);
         break;
       }
     }
@@ -269,6 +315,14 @@ class TraceReplayer : public TracefileExecutor {
     HeapPrinter p(
         heap_factory_->Instance(heap_idx_), State::Instance()->SlabMap(),
         State::Instance()->SlabManager(), State::Instance()->MetadataManager());
+
+    if (prev_op_.has_value() && prev_op_->op != Op::kFree) {
+      p.WithHighlightAddr(prev_op_->result, ALLOC_COLOR);
+    }
+    if (next_op_.op == Op::kFree || next_op_.op == Op::kRealloc) {
+      p.WithHighlightAddr(next_op_.input_ptr, FREE_COLOR);
+    }
+
     std::string print = p.Print();
 
     printed_heap_ = absl::StrSplit(print, '\n');
@@ -280,13 +334,10 @@ class TraceReplayer : public TracefileExecutor {
   HeapFactory* const heap_factory_;
 
   // The op about to be executed.
-  Op op_;
-  // For free/realloc, the input pointer.
-  void* input_ptr_;
-  // For calloc, the requested nmemb.
-  size_t input_nmemb_;
-  // For malloc/calloc/realloc/free_hint, the requested size.
-  size_t input_size_;
+  TraceOp next_op_;
+  // The op that was just executed. If nullopt, then there was no previous op
+  // (i.e. `next_op_` is the first op in the trace).
+  std::optional<TraceOp> prev_op_;
 
   // Which heap we are currently looking at.
   size_t heap_idx_ = 1;
@@ -298,7 +349,7 @@ class TraceReplayer : public TracefileExecutor {
 
   std::vector<std::string> printed_heap_;
   uint32_t scroll_ = 0;
-};
+};  // namespace ckmalloc
 
 absl::Status Run(const std::string& tracefile) {
   DEFINE_OR_RETURN(TracefileReader, reader, TracefileReader::Open(tracefile));

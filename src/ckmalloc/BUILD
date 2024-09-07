@@ -88,9 +88,13 @@ cc_library(
         ":slab",
         ":slab_manager",
         ":slab_map",
+        ":slice_id",
         ":util",
         "//src:heap_interface",
+        "@abseil-cpp//absl/container:flat_hash_map",
+        "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",
+        "@cc-util//util:print_colors",
     ],
 )
 
@@ -524,6 +528,7 @@ cc_binary(
         "@abseil-cpp//absl/strings:str_format",
         "@cc-util//util:absl_util",
         "@cc-util//util:csi",
+        "@cc-util//util:print_colors",
     ],
 )
 
