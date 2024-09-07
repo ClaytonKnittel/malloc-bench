@@ -35,7 +35,12 @@ class FreeBlock {
   FreeBlock* MarkUsed(size_t new_block_size);
 
   /**
-   * Whether `Resize` can be called.
+   * Marks this block as used.
+   */
+  FreeBlock* MarkUsed();
+
+  /**
+   * Whether `MarkUsed` can be called with a resize.
    */
   bool CanMarkUsed(size_t new_block_size) const;
 

@@ -83,6 +83,7 @@ FreeBlock* FreeBlock::MarkUsed(size_t new_block_size) {
   size_t next_block_size = BlockSize() - new_block_size;
   if (next_block_size == 0) {
     this->Header()->SignalFreeToNextBlock(false);
+    this->Header()->SetKind(BlockKind::kLeasedFreeBlock);
     return nullptr;
   }
 
@@ -91,6 +92,10 @@ FreeBlock* FreeBlock::MarkUsed(size_t new_block_size) {
   void* next_block_ptr = twiddle::AddPtrOffset<void*>(this, new_block_size);
   return new (next_block_ptr)
       FreeBlock(next_block_size, /*prev_block_is_free=*/false);
+}
+
+FreeBlock* FreeBlock::MarkUsed() {
+  return MarkUsed(BlockSize());
 }
 
 size_t FreeBlock::BlockSize() const {

@@ -97,6 +97,10 @@ void* malloc(size_t size) {
   if (size <= blocks::SmallBlockAllocator::kMaxDataSize) {
     return heap_globals->small_block_allocator_.Allocate(size);
   }
+  void* exact_match = heap_globals->large_block_allocator_.EfficientlyAllocateFromExistingBlock(size);
+  if (exact_match != nullptr) {
+    return exact_match;
+  }
   return heap_globals->large_block_allocator_.Allocate(size);
 }
 

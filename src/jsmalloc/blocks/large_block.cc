@@ -36,16 +36,15 @@ void* LargeBlock::Data() {
   return static_cast<void*>(data_);
 }
 
-LargeBlock* LargeBlock::New(FreeBlockAllocator& allocator, size_t data_size) {
+size_t LargeBlock::BlockSize(size_t data_size) {
   size_t block_size = offsetof(LargeBlock, data_) + math::round_16b(data_size);
   DCHECK_EQ(block_size % 16, 0);
+  return block_size;
+}
 
-  FreeBlock* block = allocator.Allocate(block_size);
-  if (block == nullptr) {
-    return nullptr;
-  }
-
-  return new (block) LargeBlock(block_size, block->Header()->PrevBlockIsFree());
+LargeBlock* LargeBlock::Init(FreeBlock* block) {
+  return new (block)
+      LargeBlock(block->BlockSize(), block->Header()->PrevBlockIsFree());
 }
 
 }  // namespace blocks

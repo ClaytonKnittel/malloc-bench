@@ -22,7 +22,8 @@ class LargeBlockTest : public ::testing::Test {
 };
 
 TEST_F(LargeBlockTest, FromDataPtr) {
-  LargeBlock* block = LargeBlock::New(free_block_allocator, 50);
+  LargeBlock* block = LargeBlock::Init(
+      free_block_allocator.Allocate(LargeBlock::BlockSize(50)));
   void* ptr = block->Data();
   auto* block_from_ptr =
       reinterpret_cast<LargeBlock*>(BlockHeader::FromDataPtr(ptr));
@@ -30,7 +31,8 @@ TEST_F(LargeBlockTest, FromDataPtr) {
 }
 
 TEST_F(LargeBlockTest, ComputesSize) {
-  LargeBlock* large_block = LargeBlock::New(free_block_allocator, 100);
+  LargeBlock* large_block = LargeBlock::Init(
+      free_block_allocator.Allocate(LargeBlock::BlockSize(100)));
   auto* block = reinterpret_cast<BlockHeader*>(large_block);
 
   EXPECT_GT(block->BlockSize(), 100);
