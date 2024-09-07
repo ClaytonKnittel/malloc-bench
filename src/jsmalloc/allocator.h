@@ -12,20 +12,19 @@ class MemRegion {
  public:
   /** Extends a memory region by the provided amount. */
   virtual void* Extend(intptr_t increment) = 0;
-  // virtual ~MemRegion() = 0;
+  virtual ~MemRegion() = default;
 };
 
 class MemRegionAllocator {
  public:
   /** Returns a pointer to a new memory region. */
   virtual MemRegion* New(size_t max_size) = 0;
-  // virtual ~MemRegionAllocator() = 0;
+  virtual ~MemRegionAllocator() = default;
 };
 
 class HeapAdaptor : public MemRegion {
  public:
   explicit HeapAdaptor(bench::Heap* heap) : heap_(heap){};
-  // ~HeapAdaptor() override = default;
 
   void* Extend(intptr_t increment) override {
     return heap_->sbrk(increment);
@@ -39,7 +38,6 @@ class HeapFactoryAdaptor : public MemRegionAllocator {
  public:
   explicit HeapFactoryAdaptor(bench::HeapFactory* heap_factory)
       : heap_factory_(heap_factory){};
-  // ~HeapFactoryAdaptor() override = default;
 
   MemRegion* New(size_t size) override {
     auto s = heap_factory_->NewInstance(size);
