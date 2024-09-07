@@ -7,8 +7,11 @@
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "util/absl_util.h"
 
+#include "src/ckmalloc/block.h"
 #include "src/ckmalloc/common.h"
+#include "src/ckmalloc/freelist.h"
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/util.h"
 
@@ -102,8 +105,8 @@ absl::StatusOr<std::unique_ptr<bench::Heap>> TestHeapFactory::MakeHeap(
 absl::Status ValidateBlockedSlabs(const std::vector<BlockedSlabInfo>& slabs,
                                   const Freelist& freelist) {
   absl::flat_hash_set<const Block*> free_blocks;
-  // Iterate over the freelist.
-  for (const FreeBlock& block : freelist.free_blocks_) {
+  const auto track_block =
+      [&slabs, &free_blocks](const FreeBlock& block) -> absl::Status {
     auto it =
         absl::c_find_if(slabs, [&block](const BlockedSlabInfo& slab_info) {
           return &block >= slab_info.start &&
@@ -135,6 +138,37 @@ absl::Status ValidateBlockedSlabs(const std::vector<BlockedSlabInfo>& slabs,
     if (!inserted) {
       return absl::FailedPreconditionError(
           absl::StrFormat("Detected loop in freelist at block %v", block));
+    }
+
+    return absl::OkStatus();
+  };
+
+  // Iterate over the freelist.
+  const FreeBlock* prev_block = nullptr;
+  for (const FreeBlock& block : freelist.free_blocks_) {
+    RETURN_IF_ERROR(track_block(block));
+
+    if (prev_block != nullptr && prev_block->Size() > block.Size()) {
+      return absl::FailedPreconditionError(absl::StrFormat(
+          "Freelist not sorted by block size: %v > %v", *prev_block, block));
+    }
+    prev_block = &block;
+  }
+
+  // Iterate over all exact-size bins.
+  for (size_t idx = 0; idx < Freelist::kNumExactSizeBins; idx++) {
+    const uint64_t expected_block_size =
+        kMaxSmallSize + kDefaultAlignment * (idx + 1);
+
+    for (const TrackedBlock& block : freelist.exact_size_bins_[idx]) {
+      RETURN_IF_ERROR(track_block(block));
+
+      if (block.Size() != expected_block_size) {
+        return absl::FailedPreconditionError(
+            absl::StrFormat("Found block with unexpected size in freelist idx "
+                            "%v: expected size=%v, found size=%v",
+                            idx, expected_block_size, block.Size()));
+      }
     }
   }
 

@@ -1,22 +1,35 @@
 #include "src/ckmalloc/freelist.h"
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+
 #include "src/ckmalloc/block.h"
+#include "src/ckmalloc/common.h"
 #include "src/ckmalloc/linked_list.h"
 #include "src/ckmalloc/util.h"
 
 namespace ckmalloc {
 
 TrackedBlock* Freelist::FindFree(size_t user_size) {
-  TrackedBlock* best = nullptr;
-  // TODO make bins for large sizes.
-  for (TrackedBlock& block : free_blocks_) {
-    if (block.UserDataSize() >= user_size &&
-        (best == nullptr || block.UserDataSize() < best->UserDataSize())) {
-      best = &block;
+  uint64_t block_size = Block::BlockSizeForUserSize(user_size);
+  if (block_size <= kMaxExactSizeBlock) {
+    for (size_t idx = ExactSizeIdx(block_size); idx < kNumExactSizeBins;
+         idx++) {
+      TrackedBlock* block = exact_size_bins_[idx].Front();
+      if (block != nullptr) {
+        return block;
+      }
     }
   }
 
-  return best;
+  for (TrackedBlock& block : free_blocks_) {
+    if (block.UserDataSize() >= user_size) {
+      return &block;
+    }
+  }
+
+  return nullptr;
 }
 
 FreeBlock* Freelist::InitFree(Block* block, uint64_t size) {
@@ -132,8 +145,24 @@ void Freelist::DeleteBlock(TrackedBlock* block) {
   RemoveBlock(block);
 }
 
+/* static */
+size_t Freelist::ExactSizeIdx(uint64_t block_size) {
+  CK_ASSERT_GT(block_size, kMaxSmallSize);
+  CK_ASSERT_LE(block_size, kMaxExactSizeBlock);
+  return (block_size - kMaxSmallSize) / kDefaultAlignment - 1;
+}
+
 void Freelist::AddBlock(TrackedBlock* block) {
-  free_blocks_.InsertFront(block);
+  uint64_t block_size = block->Size();
+  if (block_size <= kMaxExactSizeBlock) {
+    exact_size_bins_[ExactSizeIdx(block_size)].InsertFront(block);
+  } else {
+    auto it = std::find_if(free_blocks_.begin(), free_blocks_.end(),
+                           [block_size](const TrackedBlock& block) -> bool {
+                             return block.Size() >= block_size;
+                           });
+    free_blocks_.InsertBefore(it, block);
+  }
 }
 
 void Freelist::RemoveBlock(TrackedBlock* block) {

@@ -1,9 +1,11 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <cstring>
 
 #include "src/ckmalloc/block.h"
+#include "src/ckmalloc/common.h"
 #include "src/ckmalloc/linked_list.h"
 
 namespace ckmalloc {
@@ -17,6 +19,10 @@ class Freelist {
   friend class absl::Status ValidateBlockedSlabs(
       const class std::vector<struct BlockedSlabInfo>&,
       const class Freelist& freelist);
+
+  static constexpr uint64_t kMaxExactSizeBlock = 4096;
+  static constexpr size_t kNumExactSizeBins =
+      (kMaxExactSizeBlock - kMaxSmallSize) / kDefaultAlignment;
 
  public:
   // Searches the freelists for a block large enough to fit `user_size`. If none
@@ -58,6 +64,8 @@ class Freelist {
   void DeleteBlock(TrackedBlock* block);
 
  private:
+  static size_t ExactSizeIdx(uint64_t block_size);
+
   // Adds the block to the freelist.
   void AddBlock(TrackedBlock* block);
 
@@ -69,6 +77,7 @@ class Freelist {
   // `new_size`.
   void MoveBlockHeader(FreeBlock* block, Block* new_head, uint64_t new_size);
 
+  LinkedList<TrackedBlock> exact_size_bins_[kNumExactSizeBins];
   LinkedList<TrackedBlock> free_blocks_;
 };
 
