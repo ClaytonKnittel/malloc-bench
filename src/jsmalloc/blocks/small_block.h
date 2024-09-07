@@ -3,6 +3,7 @@
 #include <cstddef>
 
 #include "src/jsmalloc/blocks/block.h"
+#include "src/jsmalloc/blocks/free_block.h"
 #include "src/jsmalloc/blocks/free_block_allocator.h"
 #include "src/jsmalloc/collections/intrusive_linked_list.h"
 
@@ -16,11 +17,14 @@ class SmallBlock {
 
  public:
   /**
-   * Allocates and returns a new SmallBlock that
-   * can lease out data_size byte chunks.
+   * Returns a new SmallBlock that can lease out data_size byte chunks.
    */
-  static SmallBlock* New(FreeBlockAllocator& allocator, size_t data_size,
-                         size_t bin_count);
+  static SmallBlock* Init(FreeBlock* block, size_t data_size, size_t bin_count);
+
+  /**
+   * The block size required for the provided configuration.
+   */
+  static size_t BlockSize(size_t data_size, size_t bin_count);
 
   /** Frees the memory associated with the provided data pointer. */
   void Free(void* ptr);

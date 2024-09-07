@@ -11,6 +11,10 @@ class SentinelBlock {
   SentinelBlock()
       : header_(sizeof(SentinelBlock), BlockKind::kBeginOrEnd, false){};
 
+  BlockHeader* Header() {
+    return &header_;
+  }
+
  private:
   BlockHeader header_;
   [[maybe_unused]] uint8_t alignment_[12];
@@ -33,7 +37,7 @@ class SentinelBlockHeap {
     new (ptr) SentinelBlock();
   }
 
-  void* sbrk(intptr_t increment) {
+  SentinelBlock* sbrk(intptr_t increment) {
     void* ptr = mem_region_.Extend(increment);
     if (ptr == nullptr) {
       return nullptr;
@@ -43,7 +47,7 @@ class SentinelBlockHeap {
         twiddle::AddPtrOffset<void>(ptr, increment - sizeof(SentinelBlock));
     new (new_sentinel_ptr) SentinelBlock();
 
-    return twiddle::AddPtrOffset<void>(
+    return twiddle::AddPtrOffset<SentinelBlock>(
         ptr, -static_cast<int32_t>(sizeof(SentinelBlock)));
   }
 

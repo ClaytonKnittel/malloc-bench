@@ -5,6 +5,7 @@
 #include <exception>
 
 #include "src/jsmalloc/blocks/block.h"
+#include "src/jsmalloc/blocks/free_block.h"
 #include "src/jsmalloc/blocks/free_block_allocator.h"
 #include "src/jsmalloc/blocks/small_block.h"
 #include "src/jsmalloc/util/assert.h"
@@ -69,8 +70,14 @@ SmallBlock::List& SmallBlockAllocator::SmallBlockList(size_t data_size) {
 
 SmallBlock* SmallBlockAllocator::NewSmallBlock(size_t data_size) {
   uint32_t size_class = small::SizeClass(data_size);
-  return SmallBlock::New(allocator_, small::DataSizeForSizeClass(size_class),
-                         small::BinCountForSizeClass(size_class));
+  FreeBlock* free_block = allocator_.Allocate(
+      SmallBlock::BlockSize(small::DataSizeForSizeClass(size_class),
+                            small::BinCountForSizeClass(size_class)));
+  if (free_block == nullptr) {
+    return nullptr;
+  }
+  return SmallBlock::Init(free_block, small::DataSizeForSizeClass(size_class),
+                          small::BinCountForSizeClass(size_class));
 }
 
 void* SmallBlockAllocator::Allocate(size_t size) {

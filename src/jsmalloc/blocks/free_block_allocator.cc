@@ -62,7 +62,10 @@ FreeBlock* FreeBlockAllocator::AllocateExistingBlock(size_t min_size,
     return nullptr;
   }
   free_blocks_.remove(*best_fit);
-  best_fit->MarkUsed();
+  FreeBlock* remainder = best_fit->MarkUsed(min_size);
+  if (remainder != nullptr) {
+    free_blocks_.insert_back(*remainder);
+  }
   return best_fit;
 }
 

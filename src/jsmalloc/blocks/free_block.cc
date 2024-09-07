@@ -19,18 +19,11 @@ constexpr size_t kMinFreeBlockSize =
 
 FreeBlock* FreeBlock::New(SentinelBlockHeap& heap, size_t size) {
   DCHECK_TRUE(size >= kMinFreeBlockSize);
-  void* ptr = heap.sbrk(size);
+  SentinelBlock* ptr = heap.sbrk(size);
   if (ptr == nullptr) {
     return nullptr;
   }
-  // TODO(jtstogel): Refactor `Allocator` to make it clear that
-  // we'll always get a valid BlockHeader* reference.
-  // We have a sentinel BlockHeader* at the end of the heap,
-  // so we get a reference to that here,
-  // but it's not clear from the type of `allocator` that
-  // this is true.
-  auto* hdr = reinterpret_cast<BlockHeader*>(ptr);
-  return new (ptr) FreeBlock(size, hdr->PrevBlockIsFree());
+  return new (ptr) FreeBlock(size, ptr->Header()->PrevBlockIsFree());
 }
 
 FreeBlock* FreeBlock::MarkFree(BlockHeader* block_header) {

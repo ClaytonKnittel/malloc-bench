@@ -17,17 +17,16 @@ class SmallBlockHelper {
   static_assert(offsetof(SmallBlock::Bin, data_) % 16 == 4);
 };
 
-SmallBlock* SmallBlock::New(FreeBlockAllocator& allocator, size_t data_size,
-                            size_t bin_count) {
-  size_t block_size =
-      math::round_16b(offsetof(SmallBlock, bins_) +
-                      (offsetof(Bin, data_) + data_size) * bin_count);
-  FreeBlock* block = allocator.Allocate(block_size);
-  if (block == nullptr) {
-    return nullptr;
-  }
-  return new (block) SmallBlock(block_size, block->Header()->PrevBlockIsFree(),
-                                data_size, bin_count);
+size_t SmallBlock::BlockSize(size_t data_size, size_t bin_count) {
+  return math::round_16b(offsetof(SmallBlock, bins_) +
+                         (offsetof(Bin, data_) + data_size) * bin_count);
+}
+
+SmallBlock* SmallBlock::Init(FreeBlock* free_block, size_t data_size,
+                             size_t bin_count) {
+  return new (free_block)
+      SmallBlock(free_block->BlockSize(),
+                 free_block->Header()->PrevBlockIsFree(), data_size, bin_count);
 }
 
 size_t SmallBlock::BlockSize() const {

@@ -94,12 +94,13 @@ void* malloc(size_t size) {
   if (size == 0) {
     return nullptr;
   }
-  if (size <= blocks::SmallBlockAllocator::kMaxDataSize) {
-    return heap_globals->small_block_allocator_.Allocate(size);
-  }
+  // TODO: Remove, I don't think this helps.
   void* exact_match = heap_globals->large_block_allocator_.EfficientlyAllocateFromExistingBlock(size);
   if (exact_match != nullptr) {
     return exact_match;
+  }
+  if (size <= blocks::SmallBlockAllocator::kMaxDataSize) {
+    return heap_globals->small_block_allocator_.Allocate(size);
   }
   return heap_globals->large_block_allocator_.Allocate(size);
 }
