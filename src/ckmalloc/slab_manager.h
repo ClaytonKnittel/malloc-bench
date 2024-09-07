@@ -56,6 +56,12 @@ class SlabManagerImpl {
   // returns false, then no modifications will have been made.
   bool Resize(AllocatedSlab* slab, uint32_t new_size);
 
+  // Merges two slabs into one, keeping the first's metadata and freeing the
+  // second. This method returns the new slab metadata. `prev` and `next` must
+  // already be adjacent slabs, with `prev` coming before `next`.
+  template <typename S>
+  S* Merge(S* prev, S* next);
+
   // Frees the slab and takes ownership of the `Slab` metadata object.
   void Free(AllocatedSlab* slab);
 
@@ -398,6 +404,16 @@ bool SlabManagerImpl<MetadataAlloc, SlabMap>::Resize(AllocatedSlab* slab,
   }
   slab->SetSize(new_size);
   return true;
+}
+
+template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
+template <typename S>
+S* SlabManagerImpl<MetadataAlloc, SlabMap>::Merge(S* prev, S* next) {
+  CK_ASSERT_EQ(prev->EndId() + 1, next->StartId());
+  prev->SetSize(prev->Pages() + next->Pages());
+  slab_map_->InsertRange(next->StartId(), next->EndId(), prev);
+  MetadataAlloc::SlabFree(next);
+  return prev;
 }
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>

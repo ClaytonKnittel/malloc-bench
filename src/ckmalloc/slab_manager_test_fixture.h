@@ -41,6 +41,9 @@ class TestSlabManager {
 
   bool Resize(AllocatedSlab* slab, uint32_t new_size);
 
+  template <typename S>
+  S* Merge(S* prev, S* next);
+
   void Free(AllocatedSlab* slab);
 
   Block* FirstBlockInBlockedSlab(const BlockedSlab* slab) const;
@@ -217,6 +220,24 @@ std::optional<std::tuple<S*, FreeSlab*, S*>> TestSlabManager::Carve(
     HandleAlloc(right_slab);
   }
   return result;
+}
+
+template <typename S>
+S* TestSlabManager::Merge(S* prev, S* next) {
+  S* res = slab_manager_.template Merge<S>(prev, next);
+  if (res == nullptr) {
+    return res;
+  }
+
+  auto it1 = test_fixture_->allocated_slabs_.find(prev);
+  CK_ASSERT_TRUE(it1 != test_fixture_->allocated_slabs_.end());
+  test_fixture_->allocated_slabs_.erase(it1);
+  auto it2 = test_fixture_->allocated_slabs_.find(next);
+  CK_ASSERT_TRUE(it2 != test_fixture_->allocated_slabs_.end());
+  test_fixture_->allocated_slabs_.erase(it2);
+
+  HandleAlloc(res);
+  return res;
 }
 
 }  // namespace ckmalloc

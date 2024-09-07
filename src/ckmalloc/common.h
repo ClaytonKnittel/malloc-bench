@@ -83,6 +83,9 @@ concept SlabManagerInterface =
       } -> std::convertible_to<std::optional<
           std::tuple<class BlockedSlab*, class FreeSlab*, class BlockedSlab*>>>;
       { slab_mgr.Resize(slab, n_pages) } -> std::convertible_to<bool>;
+      {
+        slab_mgr.Merge(blocked_slab, blocked_slab)
+      } -> std::convertible_to<class BlockedSlab*>;
       { slab_mgr.Free(slab) } -> std::same_as<void>;
       {
         slab_mgr.FirstBlockInBlockedSlab(blocked_slab)

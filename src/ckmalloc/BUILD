@@ -53,6 +53,7 @@ cc_library(
     hdrs = ["freelist.h"],
     deps = [
         ":block",
+        ":common",
         ":linked_list",
         ":util",
     ],

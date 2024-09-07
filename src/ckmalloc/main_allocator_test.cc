@@ -261,6 +261,19 @@ TEST_F(MainAllocatorTest, FreeCarveEnd) {
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
+TEST_F(MainAllocatorTest, FreeCarveEndExactMultiple) {
+  void* ptr1 = Alloc(6000);
+  void* ptr2 = Alloc(160);
+  void* ptr3 = Realloc(ptr1, 4072);
+  Free(ptr2);
+
+  MappedSlab* slab = SlabMap().FindSlab(SlabManager().PageIdFromPtr(ptr3));
+  ASSERT_THAT(slab, Pointee(Property(&Slab::Type, SlabType::kBlocked)));
+  EXPECT_EQ(slab->Pages(), 1);
+  EXPECT_EQ(Heap().Size(), 2 * kPageSize);
+  EXPECT_THAT(ValidateHeap(), IsOk());
+}
+
 TEST_F(MainAllocatorTest, FreeCarveCenterEnd) {
   void* ptr1 = Alloc(12000);
   void* ptr2 = Alloc(160);
@@ -357,6 +370,29 @@ TEST_F(MainAllocatorTest, ReallocExtendHeapWithFreeSlabPagesizeMultiple) {
 
   EXPECT_EQ(ptr2, ptr3);
   EXPECT_EQ(Heap().Size(), 4 * kPageSize);
+  EXPECT_THAT(ValidateHeap(), IsOk());
+}
+
+TEST_F(MainAllocatorTest, AllocLargeBlockIntoNextFreeSlab) {
+  void* ptr1 = Alloc(6000);
+  Realloc(ptr1, 500);
+  Alloc(4200);
+
+  EXPECT_EQ(Heap().Size(), 2 * kPageSize);
+  EXPECT_THAT(ValidateHeap(), IsOk());
+}
+
+TEST_F(MainAllocatorTest,
+       AllocLargeBlockIntoNextFreeSlabAndNextLargeSlabAfter) {
+  Alloc(3500);
+  void* ptr2 = Alloc(8);
+  void* ptr3 = Alloc(3000);
+  Alloc(1000);
+  Free(ptr2);
+  Free(ptr3);
+  Alloc(7600);
+
+  EXPECT_EQ(Heap().Size(), 3 * kPageSize);
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 

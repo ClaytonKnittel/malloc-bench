@@ -1,6 +1,9 @@
 #include "src/ckmalloc/freelist.h"
 
+#include <utility>
+
 #include "src/ckmalloc/block.h"
+#include "src/ckmalloc/common.h"
 #include "src/ckmalloc/linked_list.h"
 #include "src/ckmalloc/util.h"
 
@@ -17,6 +20,38 @@ TrackedBlock* Freelist::FindFree(size_t user_size) {
   }
 
   return best;
+}
+
+std::pair<AllocatedBlock*, FreeBlock*> Freelist::InitializeSlabEnd(
+    Block* block, uint64_t total_size, uint64_t alloc_size) {
+  AllocatedBlock* allocated_block;
+  Block* slab_end_header;
+  if (alloc_size != 0) {
+    allocated_block = block->InitAllocated(alloc_size, /*prev_free=*/false);
+    slab_end_header = allocated_block->NextAdjacentBlock();
+  } else {
+    allocated_block = nullptr;
+    slab_end_header = block;
+  }
+
+  // Write a phony header for an allocated block of size 0 at the end of the
+  // slab, which will trick the last block in the slab into never trying to
+  // coalesce with its next adjacent neighbor.
+  FreeBlock* free_block;
+  const uint64_t remainder_size =
+      total_size - alloc_size - Block::kMetadataOverhead;
+  if (remainder_size != 0) {
+    Block* next_adjacent = slab_end_header;
+    free_block = InitFree(next_adjacent, remainder_size);
+
+    slab_end_header = next_adjacent->NextAdjacentBlock();
+    slab_end_header->InitPhonyHeader(/*prev_free=*/true);
+  } else {
+    free_block = nullptr;
+    slab_end_header->InitPhonyHeader(/*prev_free=*/false);
+  }
+
+  return std::make_pair(allocated_block, free_block);
 }
 
 FreeBlock* Freelist::InitFree(Block* block, uint64_t size) {
@@ -126,38 +161,6 @@ bool Freelist::ResizeIfPossible(AllocatedBlock* block, uint64_t new_size) {
   }
 
   return false;
-}
-
-void Freelist::TruncateBlock(FreeBlock* block, uint64_t new_size) {
-  CK_ASSERT_LT(new_size, block->Size());
-
-  // We should only be able to truncate large blocks that straddle at least a
-  // page. This is most certainly a tracked size.
-  if (CK_EXPECT_TRUE(!block->IsUntracked())) {
-    RemoveBlock(block->ToTracked());
-  }
-
-  Block* new_block;
-  bool prev_free;
-  if (new_size < Block::kMinBlockSize) {
-    // If this new size will be too small, absorb this block into the previous
-    // one.
-    AllocatedBlock* prev_block = block->PrevAdjacentBlock()->ToAllocated();
-    prev_block->SetSize(prev_block->Size() + new_size);
-    new_block = prev_block;
-    prev_free = false;
-  } else {
-    // If this size is large enough to be its own block, initialize a new free
-    // block of this size.
-    block->SetSize(new_size);
-    if (!block->IsUntracked()) {
-      InsertBlock(block->ToTracked());
-    }
-    new_block = block;
-    prev_free = true;
-  }
-
-  new_block->NextAdjacentBlock()->InitPhonyHeader(prev_free);
 }
 
 void Freelist::InsertBlock(TrackedBlock* block) {
