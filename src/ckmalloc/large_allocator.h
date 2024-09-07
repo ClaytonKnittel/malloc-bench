@@ -148,7 +148,7 @@ void LargeAllocatorImpl<SlabMap, SlabManager>::FreeLarge(LargeSlab* slab,
           slab_manager_->PageStartFromId(slab->StartId())) /
       kPageSize;
 
-  uint64_t block_start = reinterpret_cast<uint64_t>(free_block);
+  const uint64_t block_start = reinterpret_cast<uint64_t>(free_block);
   // This is the starting page of the region of the slab that is safe to free.
   size_t first_empty_page = block_start / kPageSize + 1;
   // This is the starting page of the region of the slab we have to keep intact,
@@ -169,6 +169,11 @@ void LargeAllocatorImpl<SlabMap, SlabManager>::FreeLarge(LargeSlab* slab,
   // If the two ends of this newly freed block straddle at least a page, free
   // the page in the middle and split the large slab.
   if (first_empty_page < first_intact_page) {
+    // If this block is tracked, we need to remove it from the freelist.
+    if (!free_block->IsUntracked()) {
+      freelist_.DeleteBlock(free_block->ToTracked());
+    }
+
     auto result = slab_manager_->Carve(blocked_slab,
                                        /*from=*/first_empty_page - slab_start,
                                        /*to=*/first_intact_page - slab_start);
