@@ -3,7 +3,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
-#include <tuple>
 
 #include "src/ckmalloc/block.h"
 #include "src/ckmalloc/common.h"
