@@ -68,6 +68,18 @@ class MainAllocatorTest : public ::testing::Test {
         [](const auto&) { return true; });
   }
 
+  void* Alloc(size_t user_size) {
+    return MainAllocator().Alloc(user_size);
+  }
+
+  void* Realloc(void* ptr, size_t user_size) {
+    return MainAllocator().Realloc(ptr, user_size);
+  }
+
+  void Free(void* ptr) {
+    MainAllocator().Free(ptr);
+  }
+
   absl::Status ValidateHeap() {
     RETURN_IF_ERROR(slab_manager_fixture_->ValidateHeap());
     RETURN_IF_ERROR(small_allocator_fixture_->ValidateHeap());
@@ -96,14 +108,14 @@ TEST_F(MainAllocatorTest, Empty) {
 }
 
 TEST_F(MainAllocatorTest, AllocSmall) {
-  MainAllocator().Alloc(50);
+  Alloc(50);
   EXPECT_NE(Heap().Size(), 0);
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
 TEST_F(MainAllocatorTest, AllocManySmall) {
   for (uint64_t size = 1; size <= kMaxSmallSize; size++) {
-    MainAllocator().Alloc(size);
+    Alloc(size);
   }
 
   EXPECT_NE(Heap().Size(), 0);
@@ -111,37 +123,37 @@ TEST_F(MainAllocatorTest, AllocManySmall) {
 }
 
 TEST_F(MainAllocatorTest, FreeSmall) {
-  void* ptr = MainAllocator().Alloc(60);
-  MainAllocator().Free(ptr);
+  void* ptr = Alloc(60);
+  Free(ptr);
 
   EXPECT_THAT(ValidateHeap(), IsOk());
   EXPECT_THAT(ValidateEmpty(), IsOk());
 }
 
 TEST_F(MainAllocatorTest, FreeTwoSmall) {
-  void* ptr1 = MainAllocator().Alloc(10);
-  MainAllocator().Alloc(10);
-  MainAllocator().Free(ptr1);
+  void* ptr1 = Alloc(10);
+  Alloc(10);
+  Free(ptr1);
 
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
 TEST_F(MainAllocatorTest, AllocLarge) {
-  MainAllocator().Alloc(500);
+  Alloc(500);
   EXPECT_NE(Heap().Size(), 0);
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
 TEST_F(MainAllocatorTest, AllocHuge) {
-  MainAllocator().Alloc(472);
-  MainAllocator().Alloc(kPageSize + 1);
+  Alloc(472);
+  Alloc(kPageSize + 1);
   EXPECT_EQ(Heap().Size(), 3 * kPageSize);
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
 TEST_F(MainAllocatorTest, AllocManyLarge) {
   for (uint64_t size = 400; size < 800; size += 20) {
-    MainAllocator().Alloc(size);
+    Alloc(size);
   }
 
   EXPECT_NE(Heap().Size(), 0);
@@ -149,8 +161,8 @@ TEST_F(MainAllocatorTest, AllocManyLarge) {
 }
 
 TEST_F(MainAllocatorTest, FreeLarge) {
-  void* ptr = MainAllocator().Alloc(500);
-  MainAllocator().Free(ptr);
+  void* ptr = Alloc(500);
+  Free(ptr);
 
   EXPECT_THAT(ValidateHeap(), IsOk());
   EXPECT_THAT(FreelistList(), ElementsAre());
@@ -158,17 +170,17 @@ TEST_F(MainAllocatorTest, FreeLarge) {
 }
 
 TEST_F(MainAllocatorTest, FreeTwoLarge) {
-  void* ptr1 = MainAllocator().Alloc(500);
-  MainAllocator().Alloc(1000);
-  MainAllocator().Free(ptr1);
+  void* ptr1 = Alloc(500);
+  Alloc(1000);
+  Free(ptr1);
 
   EXPECT_THAT(ValidateHeap(), IsOk());
   EXPECT_EQ(FreelistSize(), 2);
 }
 
 TEST_F(MainAllocatorTest, ReallocOnce) {
-  void* ptr1 = MainAllocator().Alloc(500);
-  void* ptr2 = MainAllocator().Realloc(ptr1, 1000);
+  void* ptr1 = Alloc(500);
+  void* ptr2 = Realloc(ptr1, 1000);
 
   EXPECT_EQ(ptr1, ptr2);
   EXPECT_THAT(ValidateHeap(), IsOk());
@@ -176,8 +188,8 @@ TEST_F(MainAllocatorTest, ReallocOnce) {
 }
 
 TEST_F(MainAllocatorTest, ReallocSmaller) {
-  void* ptr1 = MainAllocator().Alloc(500);
-  void* ptr2 = MainAllocator().Realloc(ptr1, 200);
+  void* ptr1 = Alloc(500);
+  void* ptr2 = Realloc(ptr1, 200);
 
   EXPECT_EQ(ptr1, ptr2);
   EXPECT_THAT(ValidateHeap(), IsOk());
@@ -185,9 +197,9 @@ TEST_F(MainAllocatorTest, ReallocSmaller) {
 }
 
 TEST_F(MainAllocatorTest, ReallocMove) {
-  void* ptr1 = MainAllocator().Alloc(500);
-  MainAllocator().Alloc(200);
-  void* ptr2 = MainAllocator().Realloc(ptr1, 550);
+  void* ptr1 = Alloc(500);
+  Alloc(200);
+  void* ptr2 = Realloc(ptr1, 550);
 
   EXPECT_NE(ptr1, ptr2);
   EXPECT_THAT(ValidateHeap(), IsOk());
@@ -195,9 +207,9 @@ TEST_F(MainAllocatorTest, ReallocMove) {
 }
 
 TEST_F(MainAllocatorTest, FreeCarveBeginning) {
-  void* ptr1 = MainAllocator().Alloc(6000);
-  void* ptr2 = MainAllocator().Alloc(160);
-  MainAllocator().Free(ptr1);
+  void* ptr1 = Alloc(6000);
+  void* ptr2 = Alloc(160);
+  Free(ptr1);
 
   MappedSlab* right_slab =
       SlabMap().FindSlab(SlabManager().PageIdFromPtr(ptr2));
@@ -208,12 +220,12 @@ TEST_F(MainAllocatorTest, FreeCarveBeginning) {
 }
 
 TEST_F(MainAllocatorTest, FreeCarveBeginningSmall) {
-  void* ptr1 = MainAllocator().Alloc(6200);
-  void* ptr2 = MainAllocator().Alloc(160);
-  void* ptr3 = MainAllocator().Realloc(ptr1, 4000);
-  void* ptr4 = MainAllocator().Alloc(200);
-  MainAllocator().Free(ptr3);
-  MainAllocator().Free(ptr4);
+  void* ptr1 = Alloc(6200);
+  void* ptr2 = Alloc(160);
+  void* ptr3 = Realloc(ptr1, 4000);
+  void* ptr4 = Alloc(200);
+  Free(ptr3);
+  Free(ptr4);
 
   MappedSlab* right_slab =
       SlabMap().FindSlab(SlabManager().PageIdFromPtr(ptr2));
@@ -224,9 +236,9 @@ TEST_F(MainAllocatorTest, FreeCarveBeginningSmall) {
 }
 
 TEST_F(MainAllocatorTest, FreeCarveBeginningLarge) {
-  void* ptr1 = MainAllocator().Alloc(9904);
-  void* ptr2 = MainAllocator().Alloc(840);
-  MainAllocator().Free(ptr1);
+  void* ptr1 = Alloc(9904);
+  void* ptr2 = Alloc(840);
+  Free(ptr1);
 
   MappedSlab* right_slab =
       SlabMap().FindSlab(SlabManager().PageIdFromPtr(ptr2));
@@ -237,10 +249,10 @@ TEST_F(MainAllocatorTest, FreeCarveBeginningLarge) {
 }
 
 TEST_F(MainAllocatorTest, FreeCarveEnd) {
-  void* ptr1 = MainAllocator().Alloc(6000);
-  void* ptr2 = MainAllocator().Alloc(160);
-  void* ptr3 = MainAllocator().Realloc(ptr1, 160);
-  MainAllocator().Free(ptr2);
+  void* ptr1 = Alloc(6000);
+  void* ptr2 = Alloc(160);
+  void* ptr3 = Realloc(ptr1, 160);
+  Free(ptr2);
 
   MappedSlab* slab = SlabMap().FindSlab(SlabManager().PageIdFromPtr(ptr3));
   ASSERT_THAT(slab, Pointee(Property(&Slab::Type, SlabType::kBlocked)));
@@ -250,12 +262,12 @@ TEST_F(MainAllocatorTest, FreeCarveEnd) {
 }
 
 TEST_F(MainAllocatorTest, FreeCarveCenterEnd) {
-  void* ptr1 = MainAllocator().Alloc(12000);
-  void* ptr2 = MainAllocator().Alloc(160);
-  void* ptr3 = MainAllocator().Realloc(ptr1, 6000);
-  void* ptr4 = MainAllocator().Alloc(160);
-  void* ptr5 = MainAllocator().Realloc(ptr3, 160);
-  MainAllocator().Free(ptr4);
+  void* ptr1 = Alloc(12000);
+  void* ptr2 = Alloc(160);
+  void* ptr3 = Realloc(ptr1, 6000);
+  void* ptr4 = Alloc(160);
+  void* ptr5 = Realloc(ptr3, 160);
+  Free(ptr4);
 
   MappedSlab* left_slab = SlabMap().FindSlab(SlabManager().PageIdFromPtr(ptr5));
   MappedSlab* middle_slab =
@@ -273,26 +285,26 @@ TEST_F(MainAllocatorTest, FreeCarveCenterEnd) {
 }
 
 TEST_F(MainAllocatorTest, AllocPagesizeMultiple) {
-  MainAllocator().Alloc(kPageSize);
+  Alloc(kPageSize);
   EXPECT_EQ(Heap().Size(), kPageSize);
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
 TEST_F(MainAllocatorTest, AllocSmallerThanPagesize) {
-  MainAllocator().Alloc(kPageSize - 15);
+  Alloc(kPageSize - 15);
   EXPECT_EQ(Heap().Size(), kPageSize);
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
 TEST_F(MainAllocatorTest, AllocLargePagesizeMultiple) {
-  MainAllocator().Alloc(14 * kPageSize);
+  Alloc(14 * kPageSize);
   EXPECT_EQ(Heap().Size(), 14 * kPageSize);
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
 TEST_F(MainAllocatorTest, FreePagesizeMultiple) {
-  void* ptr = MainAllocator().Alloc(kPageSize);
-  MainAllocator().Free(ptr);
+  void* ptr = Alloc(kPageSize);
+  Free(ptr);
 
   EXPECT_EQ(Heap().Size(), kPageSize);
   EXPECT_THAT(ValidateHeap(), IsOk());
@@ -300,17 +312,17 @@ TEST_F(MainAllocatorTest, FreePagesizeMultiple) {
 }
 
 TEST_F(MainAllocatorTest, AllocSinglePageFromFreeSlabs) {
-  void* ptr1 = MainAllocator().Alloc(512);
-  MainAllocator().Free(ptr1);
-  MainAllocator().Alloc(kPageSize);
+  void* ptr1 = Alloc(512);
+  Free(ptr1);
+  Alloc(kPageSize);
 
   EXPECT_THAT(ValidateHeap(), IsOk());
   EXPECT_EQ(Heap().Size(), kPageSize);
 }
 
 TEST_F(MainAllocatorTest, ReallocPagesizeMultiple) {
-  void* ptr1 = MainAllocator().Alloc(2 * kPageSize);
-  void* ptr2 = MainAllocator().Realloc(ptr1, kPageSize);
+  void* ptr1 = Alloc(2 * kPageSize);
+  void* ptr2 = Realloc(ptr1, kPageSize);
 
   EXPECT_EQ(ptr1, ptr2);
   EXPECT_EQ(Heap().Size(), 2 * kPageSize);
@@ -318,10 +330,10 @@ TEST_F(MainAllocatorTest, ReallocPagesizeMultiple) {
 }
 
 TEST_F(MainAllocatorTest, ReallocExtendPagesizeMultiple) {
-  void* ptr1 = MainAllocator().Alloc(2 * kPageSize);
-  MainAllocator().Free(ptr1);
-  void* ptr2 = MainAllocator().Alloc(kPageSize);
-  void* ptr3 = MainAllocator().Realloc(ptr2, 2 * kPageSize);
+  void* ptr1 = Alloc(2 * kPageSize);
+  Free(ptr1);
+  void* ptr2 = Alloc(kPageSize);
+  void* ptr3 = Realloc(ptr2, 2 * kPageSize);
 
   EXPECT_EQ(ptr2, ptr3);
   EXPECT_EQ(Heap().Size(), 2 * kPageSize);
@@ -329,8 +341,8 @@ TEST_F(MainAllocatorTest, ReallocExtendPagesizeMultiple) {
 }
 
 TEST_F(MainAllocatorTest, ReallocExtendHeapPagesizeMultiple) {
-  void* ptr1 = MainAllocator().Alloc(kPageSize);
-  void* ptr2 = MainAllocator().Realloc(ptr1, 2 * kPageSize);
+  void* ptr1 = Alloc(kPageSize);
+  void* ptr2 = Realloc(ptr1, 2 * kPageSize);
 
   EXPECT_EQ(ptr1, ptr2);
   EXPECT_EQ(Heap().Size(), 2 * kPageSize);
@@ -338,10 +350,10 @@ TEST_F(MainAllocatorTest, ReallocExtendHeapPagesizeMultiple) {
 }
 
 TEST_F(MainAllocatorTest, ReallocExtendHeapWithFreeSlabPagesizeMultiple) {
-  void* ptr1 = MainAllocator().Alloc(3 * kPageSize);
-  MainAllocator().Free(ptr1);
-  void* ptr2 = MainAllocator().Alloc(kPageSize);
-  void* ptr3 = MainAllocator().Realloc(ptr2, 4 * kPageSize);
+  void* ptr1 = Alloc(3 * kPageSize);
+  Free(ptr1);
+  void* ptr2 = Alloc(kPageSize);
+  void* ptr3 = Realloc(ptr2, 4 * kPageSize);
 
   EXPECT_EQ(ptr2, ptr3);
   EXPECT_EQ(Heap().Size(), 4 * kPageSize);
