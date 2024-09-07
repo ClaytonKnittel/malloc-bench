@@ -357,6 +357,10 @@ absl::Status Run(const std::string& tracefile) {
   TraceReplayer replayer(std::move(reader), heap_factory);
   RETURN_IF_ERROR(replayer.Run());
   RETURN_IF_ERROR(replayer.SetDone());
+  if (absl::GetFlag(FLAGS_test_run)) {
+    return absl::OkStatus();
+  }
+
   while (true) {
     RETURN_IF_ERROR(replayer.AwaitInput());
   }
