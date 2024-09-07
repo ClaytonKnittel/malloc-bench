@@ -207,7 +207,23 @@ TEST_F(MainAllocatorTest, FreeCarveBeginning) {
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
-TEST_F(MainAllocatorTest, FreeCarveBeginning2) {
+TEST_F(MainAllocatorTest, FreeCarveBeginningSmall) {
+  void* ptr1 = MainAllocator().Alloc(6200);
+  void* ptr2 = MainAllocator().Alloc(160);
+  void* ptr3 = MainAllocator().Realloc(ptr1, 4000);
+  void* ptr4 = MainAllocator().Alloc(200);
+  MainAllocator().Free(ptr3);
+  MainAllocator().Free(ptr4);
+
+  MappedSlab* right_slab =
+      SlabMap().FindSlab(SlabManager().PageIdFromPtr(ptr2));
+  ASSERT_THAT(right_slab, Pointee(Property(&Slab::Type, SlabType::kBlocked)));
+  EXPECT_EQ(right_slab->Pages(), 1);
+  EXPECT_EQ(Heap().Size(), 2 * kPageSize);
+  EXPECT_THAT(ValidateHeap(), IsOk());
+}
+
+TEST_F(MainAllocatorTest, FreeCarveBeginningLarge) {
   void* ptr1 = MainAllocator().Alloc(9904);
   void* ptr2 = MainAllocator().Alloc(840);
   MainAllocator().Free(ptr1);

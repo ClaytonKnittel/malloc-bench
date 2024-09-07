@@ -178,8 +178,10 @@ void LargeAllocatorImpl<SlabMap, SlabManager>::FreeLarge(LargeSlab* slab,
                                        /*from=*/first_empty_page - slab_start,
                                        /*to=*/first_intact_page - slab_start);
     if (!result.has_value()) {
-      // If carving the slab failed, we can gracefully terminate this operation,
-      // since no state has been modified since freeing the block.
+      // If carving the slab failed, we can gracefully terminate this operation
+      // after re-inserting the free block into the freelist, since no other
+      // state has been modified since freeing the block.
+      freelist_.InsertBlock(free_block->ToTracked());
       return;
     }
 

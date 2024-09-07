@@ -58,14 +58,16 @@ class Freelist {
   // since it assumes this shortened block will be at the end of the slab.
   void TruncateBlock(FreeBlock* block, uint64_t new_size);
 
+  // Adds a free block to the freelist. Should only be called externally for an
+  // already-freed block which for some reason was removed from the freelist
+  // (i.e. may be called when undoing modifications after a failed operation).
+  void InsertBlock(TrackedBlock* block);
+
   // Deletes a block in the freelist, should only be called when a large slab is
   // deallocated.
   void DeleteBlock(TrackedBlock* block);
 
  private:
-  // Adds the block to the freelist.
-  void AddBlock(TrackedBlock* block);
-
   // Removes the block from the freelist.
   void RemoveBlock(TrackedBlock* block);
 

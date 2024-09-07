@@ -27,7 +27,7 @@ FreeBlock* Freelist::InitFree(Block* block, uint64_t size) {
   block->WriteFooterAndPrevFree();
 
   if (!Block::IsUntrackedSize(size)) {
-    AddBlock(block->ToTracked());
+    InsertBlock(block->ToTracked());
   }
 
   return block->ToFree();
@@ -91,7 +91,7 @@ FreeBlock* Freelist::MarkFree(AllocatedBlock* block) {
 
   if (!Block::IsUntrackedSize(size)) {
     TrackedBlock* free_block = block_start->ToTracked();
-    AddBlock(free_block);
+    InsertBlock(free_block);
   }
   return block_start->ToFree();
 }
@@ -151,7 +151,7 @@ void Freelist::TruncateBlock(FreeBlock* block, uint64_t new_size) {
     // block of this size.
     block->SetSize(new_size);
     if (!block->IsUntracked()) {
-      AddBlock(block->ToTracked());
+      InsertBlock(block->ToTracked());
     }
     new_block = block;
     prev_free = true;
@@ -160,12 +160,12 @@ void Freelist::TruncateBlock(FreeBlock* block, uint64_t new_size) {
   new_block->NextAdjacentBlock()->InitPhonyHeader(prev_free);
 }
 
-void Freelist::DeleteBlock(TrackedBlock* block) {
-  RemoveBlock(block);
+void Freelist::InsertBlock(TrackedBlock* block) {
+  free_blocks_.InsertFront(block);
 }
 
-void Freelist::AddBlock(TrackedBlock* block) {
-  free_blocks_.InsertFront(block);
+void Freelist::DeleteBlock(TrackedBlock* block) {
+  RemoveBlock(block);
 }
 
 void Freelist::RemoveBlock(TrackedBlock* block) {
