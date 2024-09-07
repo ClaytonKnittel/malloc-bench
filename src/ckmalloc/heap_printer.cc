@@ -88,10 +88,19 @@ std::string HeapPrinter::PrintMetadata(PageId page_id) {
 
 /* static */
 std::string HeapPrinter::PrintFree(const FreeSlab* slab) {
-  return absl::StrFormat("Pages %v%v: free", slab->StartId(),
-                         slab->StartId() == slab->EndId()
-                             ? ""
-                             : absl::StrFormat(" - %v", slab->EndId()));
+  std::string result =
+      absl::StrFormat("Pages %v%v: free", slab->StartId(),
+                      slab->StartId() == slab->EndId()
+                          ? ""
+                          : absl::StrFormat(" - %v", slab->EndId()));
+
+  std::vector<std::string> rows(2 * slab->Pages(),
+                                std::string(kMaxRowLength, '.'));
+  for (const auto& row : rows) {
+    result += "\n" + row;
+  }
+
+  return result;
 }
 
 std::string HeapPrinter::PrintSmall(const SmallSlab* slab) {
