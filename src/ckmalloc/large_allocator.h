@@ -89,7 +89,7 @@ void* LargeAllocatorImpl<SlabMap, SlabManager>::ReallocLarge(LargeSlab* slab,
                                                              size_t user_size) {
   CK_ASSERT_GT(user_size, kMaxSmallSize);
 
-  uint64_t block_size;
+  uint64_t orig_user_size;
   if (slab->Type() == SlabType::kBlocked) {
     BlockedSlab* blocked_slab = slab->ToBlocked();
     AllocatedBlock* block = AllocatedBlock::FromUserDataPtr(ptr);
@@ -104,7 +104,7 @@ void* LargeAllocatorImpl<SlabMap, SlabManager>::ReallocLarge(LargeSlab* slab,
       return ptr;
     }
 
-    block_size = block->UserDataSize();
+    orig_user_size = block->UserDataSize();
   } else {
     CK_ASSERT_EQ(slab->Type(), SlabType::kSingleAlloc);
     SingleAllocSlab* single_slab = slab->ToSingleAlloc();
@@ -113,14 +113,14 @@ void* LargeAllocatorImpl<SlabMap, SlabManager>::ReallocLarge(LargeSlab* slab,
       return ptr;
     }
 
-    block_size = single_slab->Pages() * kPageSize;
+    orig_user_size = single_slab->Pages() * kPageSize;
   }
 
   // Otherwise, if resizing in-place didn't work, then we have to allocate a new
   // block and copy the contents of this one over to the new one.
   void* new_ptr = AllocLarge(user_size);
   if (new_ptr != nullptr) {
-    std::memcpy(new_ptr, ptr, std::min<size_t>(user_size, block_size));
+    std::memcpy(new_ptr, ptr, std::min<size_t>(user_size, orig_user_size));
     FreeLarge(slab, ptr);
   }
   return new_ptr;

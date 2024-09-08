@@ -1,6 +1,10 @@
 #include "src/ckmalloc/freelist.h"
 
+#include <algorithm>
+#include <cstddef>
 #include <cstdint>
+#include <iterator>
+#include <vector>
 
 #include "absl/status/status.h"
 #include "gmock/gmock.h"
@@ -15,7 +19,6 @@
 
 namespace ckmalloc {
 
-using testing::Address;
 using testing::AnyOf;
 using testing::ElementsAre;
 using testing::UnorderedElementsAre;
@@ -27,8 +30,20 @@ class FreelistTest : public ::testing::Test {
     return freelist_;
   }
 
-  LinkedList<TrackedBlock>& FreelistList() {
-    return freelist_.free_blocks_;
+  // TODO: consolidate this with main_allocator_test.cc impl, use fixture for
+  // large blocks.
+  std::vector<const TrackedBlock*> FreelistList() const {
+    std::vector<const TrackedBlock*> tracked_blocks;
+    for (const auto& exact_size_bin : freelist_.exact_size_bins_) {
+      std::transform(exact_size_bin.begin(), exact_size_bin.end(),
+                     std::back_inserter(tracked_blocks),
+                     [](const TrackedBlock& block) { return &block; });
+    }
+    std::transform(freelist_.large_blocks_tree_.begin(),
+                   freelist_.large_blocks_tree_.end(),
+                   std::back_inserter(tracked_blocks),
+                   [](const TrackedBlock& block) { return &block; });
+    return tracked_blocks;
   }
 
   static bool PrevFree(const Block* block) {
@@ -150,7 +165,7 @@ TEST_F(FreelistTest, FreeBlock) {
   // This should not trigger an assertion failure.
   block->ToTracked();
 
-  EXPECT_THAT(FreelistList(), ElementsAre(Address(block)));
+  EXPECT_THAT(FreelistList(), ElementsAre(block));
 }
 
 TEST_F(FreelistTest, UntrackedBlock) {
@@ -230,7 +245,7 @@ TEST_F(FreelistTest, OneFree) {
   EXPECT_THAT(ValidateHeap(), IsOk());
 
   // The freelist should remain empty with allocated or untracked blocks only.
-  EXPECT_THAT(FreelistList(), ElementsAre(Address(block)));
+  EXPECT_THAT(FreelistList(), ElementsAre(block));
   size_t max_req_size = Block::UserSizeForBlockSize(0x100);
   EXPECT_EQ(Freelist().FindFree(max_req_size), block);
   EXPECT_EQ(Freelist().FindFree(max_req_size + 1), nullptr);
@@ -250,8 +265,7 @@ TEST_F(FreelistTest, ManyFree) {
   EXPECT_THAT(ValidateHeap(), IsOk());
 
   // The freelist should remain empty with allocated or untracked blocks only.
-  EXPECT_THAT(FreelistList(), UnorderedElementsAre(Address(b1), Address(b2),
-                                                   Address(b3), Address(b4)));
+  EXPECT_THAT(FreelistList(), UnorderedElementsAre(b1, b2, b3, b4));
 
   size_t max_req_size = Block::UserSizeForBlockSize(0x900);
   EXPECT_EQ(Freelist().FindFree(max_req_size), b3);
@@ -277,7 +291,7 @@ TEST_F(FreelistTest, FreeAsOnlyBlock) {
   EXPECT_THAT(ValidateHeap(), IsOk());
   EXPECT_EQ(free_block->Size(), kBlockSize);
 
-  EXPECT_THAT(FreelistList(), ElementsAre(Address(free_block)));
+  EXPECT_THAT(FreelistList(), ElementsAre(free_block));
 }
 
 TEST_F(FreelistTest, FreeWithAllocatedNeighbors) {
@@ -292,7 +306,7 @@ TEST_F(FreelistTest, FreeWithAllocatedNeighbors) {
   EXPECT_THAT(ValidateHeap(), IsOk());
   EXPECT_EQ(free_block->Size(), kBlockSize);
 
-  EXPECT_THAT(FreelistList(), ElementsAre(Address(free_block)));
+  EXPECT_THAT(FreelistList(), ElementsAre(free_block));
 }
 
 TEST_F(FreelistTest, FreeWithFreePrev) {
@@ -303,14 +317,14 @@ TEST_F(FreelistTest, FreeWithFreePrev) {
   AllocatedBlock* b2 = PushAllocated(kBlockSize);
   PushAllocated(0x800);
   PushPhony();
-  EXPECT_THAT(FreelistList(), ElementsAre(Address(b1)));
+  EXPECT_THAT(FreelistList(), ElementsAre(b1));
 
   FreeBlock* free_block = Freelist().MarkFree(b2);
   EXPECT_THAT(ValidateHeap(), IsOk());
   EXPECT_EQ(free_block, b1);
   EXPECT_EQ(free_block->Size(), kPrevSize + kBlockSize);
 
-  EXPECT_THAT(FreelistList(), ElementsAre(Address(free_block)));
+  EXPECT_THAT(FreelistList(), ElementsAre(free_block));
 }
 
 TEST_F(FreelistTest, FreeWithFreeNext) {
@@ -321,14 +335,14 @@ TEST_F(FreelistTest, FreeWithFreeNext) {
   AllocatedBlock* b1 = PushAllocated(kBlockSize);
   TrackedBlock* b2 = PushFree(kNextSize);
   PushPhony();
-  EXPECT_THAT(FreelistList(), ElementsAre(Address(b2)));
+  EXPECT_THAT(FreelistList(), ElementsAre(b2));
 
   FreeBlock* free_block = Freelist().MarkFree(b1);
   EXPECT_THAT(ValidateHeap(), IsOk());
   EXPECT_EQ(free_block, static_cast<Block*>(b1));
   EXPECT_EQ(free_block->Size(), kBlockSize + kNextSize);
 
-  EXPECT_THAT(FreelistList(), ElementsAre(Address(free_block)));
+  EXPECT_THAT(FreelistList(), ElementsAre(free_block));
 }
 
 TEST_F(FreelistTest, FreeWithFreeNextAndPrev) {
@@ -340,14 +354,14 @@ TEST_F(FreelistTest, FreeWithFreeNextAndPrev) {
   AllocatedBlock* b2 = PushAllocated(kBlockSize);
   TrackedBlock* b3 = PushFree(kNextSize);
   PushPhony();
-  EXPECT_THAT(FreelistList(), UnorderedElementsAre(Address(b1), Address(b3)));
+  EXPECT_THAT(FreelistList(), UnorderedElementsAre(b1, b3));
 
   FreeBlock* free_block = Freelist().MarkFree(b2);
   EXPECT_THAT(ValidateHeap(), IsOk());
   EXPECT_EQ(free_block, b1);
   EXPECT_EQ(free_block->Size(), kPrevSize + kBlockSize + kNextSize);
 
-  EXPECT_THAT(FreelistList(), ElementsAre(Address(free_block)));
+  EXPECT_THAT(FreelistList(), ElementsAre(free_block));
 }
 
 TEST_F(FreelistTest, FreeWithUntrackedNeighbors) {
@@ -366,7 +380,7 @@ TEST_F(FreelistTest, FreeWithUntrackedNeighbors) {
   EXPECT_EQ(free_block, static_cast<Block*>(b1));
   EXPECT_EQ(free_block->Size(), kPrevSize + kBlockSize + kNextSize);
 
-  EXPECT_THAT(FreelistList(), ElementsAre(Address(free_block)));
+  EXPECT_THAT(FreelistList(), ElementsAre(free_block));
 }
 
 TEST_F(FreelistTest, ResizeDown) {
@@ -387,7 +401,7 @@ TEST_F(FreelistTest, ResizeDown) {
   EXPECT_EQ(next->NextAdjacentBlock(), b2);
 
   EXPECT_THAT(ValidateHeap(), IsOk());
-  EXPECT_THAT(FreelistList(), ElementsAre(Address(next)));
+  EXPECT_THAT(FreelistList(), ElementsAre(next));
 }
 
 TEST_F(FreelistTest, ResizeDownBeforeFree) {
@@ -408,7 +422,7 @@ TEST_F(FreelistTest, ResizeDownBeforeFree) {
   EXPECT_EQ(next->NextAdjacentBlock(), end_block);
 
   EXPECT_THAT(ValidateHeap(), IsOk());
-  EXPECT_THAT(FreelistList(), ElementsAre(Address(next)));
+  EXPECT_THAT(FreelistList(), ElementsAre(next));
 }
 
 TEST_F(FreelistTest, ResizeUpBeforeAllocated) {
@@ -444,7 +458,7 @@ TEST_F(FreelistTest, ResizeUpBeforeFree) {
   EXPECT_EQ(next->NextAdjacentBlock(), end_block);
 
   EXPECT_THAT(ValidateHeap(), IsOk());
-  EXPECT_THAT(FreelistList(), ElementsAre(Address(next)));
+  EXPECT_THAT(FreelistList(), ElementsAre(next));
 }
 
 TEST_F(FreelistTest, ResizeUpBeforeFreeExact) {
@@ -476,7 +490,7 @@ TEST_F(FreelistTest, ResizeUpBeforeFreeTooLarge) {
   EXPECT_EQ(b1->Size(), kBlockSize);
 
   EXPECT_THAT(ValidateHeap(), IsOk());
-  EXPECT_THAT(FreelistList(), ElementsAre(Address(b2)));
+  EXPECT_THAT(FreelistList(), ElementsAre(b2));
 }
 
 }  // namespace ckmalloc

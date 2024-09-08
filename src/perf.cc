@@ -8,7 +8,14 @@
 
 int main() {
   for (const auto& tracefile : {
+           "traces/four-in-a-row.trace",
+           "traces/grep.trace",
+           "traces/haskell-web-server.trace",
            "traces/onoro.trace",
+           "traces/onoro-cc.trace",
+           "traces/scp.trace",
+           "traces/solitaire.trace",
+           "traces/ssh.trace",
        }) {
     bench::MMapHeapFactory heap_factory;
     absl::StatusOr<bench::TracefileReader> reader =
@@ -19,7 +26,7 @@ int main() {
     }
 
     auto result = bench::TimeTrace(reader.value(), heap_factory,
-                                   /*min_desired_ops=*/100000000);
+                                   /*min_desired_ops=*/500000000);
     if (result.ok()) {
       std::cout << tracefile << ": " << result.value() << " mega ops / s"
                 << std::endl;

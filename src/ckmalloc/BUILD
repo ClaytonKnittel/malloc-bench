@@ -15,6 +15,7 @@ cc_library(
     deps = [
         ":common",
         ":linked_list",
+        ":red_black_tree",
         ":util",
         "@abseil-cpp//absl/status",
     ],
@@ -53,8 +54,11 @@ cc_library(
     hdrs = ["freelist.h"],
     deps = [
         ":block",
+        ":common",
         ":linked_list",
+        ":red_black_tree",
         ":util",
+        "@cc-util//util:bit_set",
     ],
 )
 
@@ -503,6 +507,7 @@ cc_library(
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",
+        "@cc-util//util:absl_util",
     ],
 )
 

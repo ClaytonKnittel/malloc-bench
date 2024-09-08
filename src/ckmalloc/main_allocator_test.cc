@@ -52,14 +52,29 @@ class MainAllocatorTest : public ::testing::Test {
     return *main_allocator_fixture_;
   }
 
-  LinkedList<TrackedBlock>& FreelistList() {
-    return main_allocator_fixture_->MainAllocator().Freelist().free_blocks_;
+  // TODO: consolidate this with freelist_test.cc impl, use fixture for large
+  // blocks.
+  std::vector<const TrackedBlock*> FreelistList() const {
+    std::vector<const TrackedBlock*> tracked_blocks;
+    for (const auto& exact_size_bin :
+         main_allocator_fixture_->MainAllocator().Freelist().exact_size_bins_) {
+      std::transform(exact_size_bin.begin(), exact_size_bin.end(),
+                     std::back_inserter(tracked_blocks),
+                     [](const TrackedBlock& block) { return &block; });
+    }
+    std::transform(main_allocator_fixture_->MainAllocator()
+                       .Freelist()
+                       .large_blocks_tree_.begin(),
+                   main_allocator_fixture_->MainAllocator()
+                       .Freelist()
+                       .large_blocks_tree_.end(),
+                   std::back_inserter(tracked_blocks),
+                   [](const TrackedBlock& block) { return &block; });
+    return tracked_blocks;
   }
 
-  size_t FreelistSize() {
-    return absl::c_count_if(
-        main_allocator_fixture_->MainAllocator().Freelist().free_blocks_,
-        [](const auto&) { return true; });
+  size_t FreelistSize() const {
+    return FreelistList().size();
   }
 
   absl::Status ValidateHeap() {
