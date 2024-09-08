@@ -4,4 +4,4 @@ build --action_env=CXX=clang++-18
 build --features=layering_check
 build --cxxopt=-std=c++20
 build:opt --action_env=NDEBUG=1 --features=thin_lto
-build:profile --linkopt=-lprofiler --copt=-g3
+build:profile --copt=-O1 --linkopt=-lprofiler --copt=-g3 --action_env=NDEBUG=1
