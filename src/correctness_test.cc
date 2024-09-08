@@ -8,6 +8,7 @@
 #include "util/gtest_util.h"
 
 #include "src/ckmalloc/common.h"
+#include "src/ckmalloc/large_allocator_test_fixture.h"
 #include "src/ckmalloc/main_allocator_test_fixture.h"
 #include "src/ckmalloc/metadata_manager_test_fixture.h"
 #include "src/ckmalloc/slab_manager_test_fixture.h"
@@ -66,6 +67,9 @@ class TestCorrectness : public ::testing::Test {
         small_allocator_fixture_(
             std::make_shared<ckmalloc::SmallAllocatorFixture>(
                 heap_factory_, slab_map_, slab_manager_fixture_)),
+        large_allocator_fixture_(
+            std::make_shared<ckmalloc::LargeAllocatorFixture>(
+                heap_factory_, slab_map_, slab_manager_fixture_)),
         main_allocator_fixture_(
             std::make_shared<ckmalloc::MainAllocatorFixture>(
                 heap_factory_, slab_map_, slab_manager_fixture_,
@@ -91,6 +95,7 @@ class TestCorrectness : public ::testing::Test {
     RETURN_IF_ERROR(slab_manager_fixture_->ValidateHeap());
     RETURN_IF_ERROR(metadata_manager_fixture_->ValidateHeap());
     RETURN_IF_ERROR(small_allocator_fixture_->ValidateHeap());
+    RETURN_IF_ERROR(large_allocator_fixture_->ValidateHeap());
     RETURN_IF_ERROR(main_allocator_fixture_->ValidateHeap());
     return absl::OkStatus();
   }
@@ -98,6 +103,7 @@ class TestCorrectness : public ::testing::Test {
   absl::Status ValidateEmpty() const {
     RETURN_IF_ERROR(slab_manager_fixture_->ValidateEmpty());
     RETURN_IF_ERROR(small_allocator_fixture_->ValidateEmpty());
+    RETURN_IF_ERROR(large_allocator_fixture_->ValidateEmpty());
     RETURN_IF_ERROR(main_allocator_fixture_->ValidateEmpty());
     return absl::OkStatus();
   }
@@ -108,6 +114,7 @@ class TestCorrectness : public ::testing::Test {
   std::shared_ptr<ckmalloc::SlabManagerFixture> slab_manager_fixture_;
   std::shared_ptr<ckmalloc::MetadataManagerFixture> metadata_manager_fixture_;
   std::shared_ptr<ckmalloc::SmallAllocatorFixture> small_allocator_fixture_;
+  std::shared_ptr<ckmalloc::LargeAllocatorFixture> large_allocator_fixture_;
   std::shared_ptr<ckmalloc::MainAllocatorFixture> main_allocator_fixture_;
 };
 

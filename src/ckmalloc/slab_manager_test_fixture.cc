@@ -276,9 +276,9 @@ absl::Status SlabManagerFixture::ValidateEmpty() {
   while (page < end) {
     MappedSlab* slab = SlabMap().FindSlab(page);
     if (slab == nullptr) {
-      // This must be a metadata slab.
-      page += 1;
-      continue;
+      return FailedTest(
+          "Encountered unexpected `nullptr` slab map entry at page id %v",
+          page);
     }
 
     if (slab->Type() != SlabType::kFree) {

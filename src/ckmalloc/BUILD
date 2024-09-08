@@ -17,7 +17,6 @@ cc_library(
         ":linked_list",
         ":red_black_tree",
         ":util",
-        "@abseil-cpp//absl/status",
     ],
 )
 
@@ -117,6 +116,27 @@ cc_library(
 )
 
 cc_library(
+    name = "large_allocator_test_fixture",
+    srcs = ["large_allocator_test_fixture.cc"],
+    hdrs = ["large_allocator_test_fixture.h"],
+    deps = [
+        ":block",
+        ":common",
+        ":freelist",
+        ":large_allocator",
+        ":page_id",
+        ":slab",
+        ":slab_manager_test_fixture",
+        ":util",
+        ":testlib",
+        "@abseil-cpp//absl/container:flat_hash_set",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/strings:str_format",
+        "@cc-util//util:absl_util",
+    ],
+)
+
+cc_library(
     name = "linked_list",
     srcs = ["linked_list.cc"],
     hdrs = ["linked_list.h"],
@@ -175,11 +195,8 @@ cc_library(
     hdrs = ["main_allocator_test_fixture.h"],
     visibility = ["//visibility:public"],
     deps = [
-        ":common",
         ":freelist",
         ":main_allocator",
-        ":page_id",
-        ":slab",
         ":slab_manager_test_fixture",
         ":small_allocator_test_fixture",
         ":testlib",

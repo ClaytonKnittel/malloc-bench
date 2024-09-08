@@ -199,13 +199,4 @@ class CkMallocTest {
   virtual absl::Status ValidateHeap() = 0;
 };
 
-struct BlockedSlabInfo {
-  void* start;
-  void* end;
-  BlockedSlab* slab;
-};
-
-absl::Status ValidateBlockedSlabs(const std::vector<BlockedSlabInfo>& slabs,
-                                  const Freelist& freelist);
-
 }  // namespace ckmalloc
