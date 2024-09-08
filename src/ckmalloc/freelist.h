@@ -5,6 +5,7 @@
 #include <cstring>
 #include <optional>
 
+#include "absl/status/status.h"
 #include "util/bit_set.h"
 
 #include "src/ckmalloc/block.h"

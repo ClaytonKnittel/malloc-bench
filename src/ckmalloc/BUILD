@@ -57,24 +57,8 @@ cc_library(
         ":linked_list",
         ":red_black_tree",
         ":util",
-        "@cc-util//util:bit_set",
-    ],
-)
-
-cc_test(
-    name = "freelist_test",
-    srcs = ["freelist_test.cc"],
-    deps = [
-        ":block",
-        ":common",
-        ":freelist",
-        ":linked_list",
-        ":testlib",
-        ":util",
         "@abseil-cpp//absl/status",
-        "@cc-util//util:gtest_util",
-        "@googletest//:gtest",
-        "@googletest//:gtest_main",
+        "@cc-util//util:bit_set",
     ],
 )
 
@@ -115,10 +99,28 @@ cc_library(
     ],
 )
 
+cc_test(
+    name = "large_allocator_test",
+    srcs = ["large_allocator_test.cc"],
+    deps = [
+        ":common",
+        ":large_allocator_test_fixture",
+        ":slab",
+        ":slab_manager_test_fixture",
+        ":testlib",
+        "//src:heap_interface",
+        "@abseil-cpp//absl/status",
+        "@cc-util//util:absl_util",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
 cc_library(
     name = "large_allocator_test_fixture",
     srcs = ["large_allocator_test_fixture.cc"],
     hdrs = ["large_allocator_test_fixture.h"],
+    visibility = ["//visibility:public"],
     deps = [
         ":block",
         ":common",
@@ -127,8 +129,8 @@ cc_library(
         ":page_id",
         ":slab",
         ":slab_manager_test_fixture",
-        ":util",
         ":testlib",
+        ":util",
         "@abseil-cpp//absl/container:flat_hash_set",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/strings:str_format",
@@ -175,7 +177,7 @@ cc_test(
     deps = [
         ":block",
         ":common",
-        ":linked_list",
+        ":large_allocator_test_fixture",
         ":main_allocator",
         ":main_allocator_test_fixture",
         ":slab_manager_test_fixture",
@@ -196,6 +198,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":freelist",
+        ":large_allocator_test_fixture",
         ":main_allocator",
         ":slab_manager_test_fixture",
         ":small_allocator_test_fixture",
