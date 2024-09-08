@@ -62,13 +62,14 @@ class MainAllocatorTest : public ::testing::Test {
                      std::back_inserter(tracked_blocks),
                      [](const TrackedBlock& block) { return &block; });
     }
-    std::transform(
-        main_allocator_fixture_->MainAllocator()
-            .Freelist()
-            .free_blocks_.begin(),
-        main_allocator_fixture_->MainAllocator().Freelist().free_blocks_.end(),
-        std::back_inserter(tracked_blocks),
-        [](const TrackedBlock& block) { return &block; });
+    std::transform(main_allocator_fixture_->MainAllocator()
+                       .Freelist()
+                       .large_blocks_tree_.begin(),
+                   main_allocator_fixture_->MainAllocator()
+                       .Freelist()
+                       .large_blocks_tree_.end(),
+                   std::back_inserter(tracked_blocks),
+                   [](const TrackedBlock& block) { return &block; });
     return tracked_blocks;
   }
 

@@ -39,7 +39,8 @@ class FreelistTest : public ::testing::Test {
                      std::back_inserter(tracked_blocks),
                      [](const TrackedBlock& block) { return &block; });
     }
-    std::transform(freelist_.free_blocks_.begin(), freelist_.free_blocks_.end(),
+    std::transform(freelist_.large_blocks_tree_.begin(),
+                   freelist_.large_blocks_tree_.end(),
                    std::back_inserter(tracked_blocks),
                    [](const TrackedBlock& block) { return &block; });
     return tracked_blocks;

@@ -81,10 +81,19 @@ class Freelist {
   // `new_size`.
   void MoveBlockHeader(FreeBlock* block, Block* new_head, uint64_t new_size);
 
+  // The skip list is a bit-set of potentially non-empty exact-size bins. When
+  // new blocks are added to an exact-size bin, they set the corresponding bit
+  // in the exact-bin skiplist, but this bit is only zeroed out when searching
+  // the freelist and the bin is found to be empty.
   util::BitSet<kNumExactSizeBins> exact_bin_skiplist_;
+  // The exact-size bins are a bunch of doubly-linked lists of blocks of all the
+  // same size, ranging from the smallest allowed large block size to
+  // `kMaxExactSizeBlock`.
   LinkedList<ExactSizeBlock> exact_size_bins_[kNumExactSizeBins];
 
-  RbTree<TreeBlock> free_blocks_;
+  // The large blocks tree is a tree of blocks too large to go in the exact-size
+  // bins sorted by size.
+  RbTree<TreeBlock> large_blocks_tree_;
 };
 
 }  // namespace ckmalloc

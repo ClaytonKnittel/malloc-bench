@@ -13,6 +13,8 @@ namespace ckmalloc {
 
 TrackedBlock* Freelist::FindFree(size_t user_size) {
   uint64_t block_size = Block::BlockSizeForUserSize(user_size);
+  // If the required block size is small enough for the exact-size bins, check
+  // those first in order of size, starting from `block_size`.
   if (block_size <= Block::kMaxExactSizeBlock) {
     for (auto it = exact_bin_skiplist_.begin(/*from=*/ExactSizeIdx(block_size));
          it != exact_bin_skiplist_.end(); ++it) {
@@ -27,9 +29,10 @@ TrackedBlock* Freelist::FindFree(size_t user_size) {
     }
   }
 
-  return free_blocks_.LowerBound([user_size](const TreeBlock& tree_block) {
-    return tree_block.UserDataSize() >= user_size;
-  });
+  return large_blocks_tree_.LowerBound(
+      [user_size](const TreeBlock& tree_block) {
+        return tree_block.UserDataSize() >= user_size;
+      });
 }
 
 FreeBlock* Freelist::InitFree(Block* block, uint64_t size) {
@@ -164,7 +167,7 @@ void Freelist::AddBlock(TrackedBlock* block) {
     exact_bin_skiplist_.Set(idx);
   } else {
     new (static_cast<RbNode*>(block->ToTree())) RbNode();
-    free_blocks_.Insert(block->ToTree());
+    large_blocks_tree_.Insert(block->ToTree());
   }
 }
 
@@ -172,7 +175,7 @@ void Freelist::RemoveBlock(TrackedBlock* block) {
   if (block->Size() <= Block::kMaxExactSizeBlock) {
     block->ToExactSize()->LinkedListNode::Remove();
   } else {
-    free_blocks_.Remove(block->ToTree());
+    large_blocks_tree_.Remove(block->ToTree());
   }
 }
 

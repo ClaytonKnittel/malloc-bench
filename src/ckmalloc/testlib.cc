@@ -145,7 +145,7 @@ absl::Status ValidateBlockedSlabs(const std::vector<BlockedSlabInfo>& slabs,
 
   // Iterate over the freelist.
   const FreeBlock* prev_block = nullptr;
-  for (const FreeBlock& block : freelist.free_blocks_) {
+  for (const FreeBlock& block : freelist.large_blocks_tree_) {
     RETURN_IF_ERROR(track_block(block));
 
     if (prev_block != nullptr && prev_block->Size() > block.Size()) {
