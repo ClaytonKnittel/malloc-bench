@@ -125,11 +125,11 @@ absl::StatusOr<double> TimeTrace(TracefileReader& reader,
   auto [ops, max_allocs] = ComputeOps(reader);
   std::vector<void*> ptrs(max_allocs);
 
-  absl::Time start = absl::Now();
-  for (size_t t = 0; t < num_repetitions; t++) {
-    heap_factory.Reset();
-    initialize_heap(heap_factory);
+  heap_factory.Reset();
 
+  absl::Time start = absl::Now();
+  initialize_heap(heap_factory);
+  for (size_t t = 0; t < num_repetitions; t++) {
     for (const TimeOp& op : ops) {
       switch (op.line.op) {
         case TraceLine::Op::kMalloc: {
