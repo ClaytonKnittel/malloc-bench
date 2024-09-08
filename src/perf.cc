@@ -26,7 +26,7 @@ int main() {
     }
 
     auto result = bench::TimeTrace(reader.value(), heap_factory,
-                                   /*min_desired_ops=*/100000000);
+                                   /*min_desired_ops=*/500000000);
     if (result.ok()) {
       std::cout << tracefile << ": " << result.value() << " mega ops / s"
                 << std::endl;
