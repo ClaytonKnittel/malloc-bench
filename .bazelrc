@@ -1,9 +1,9 @@
-build --repo_env=CC=clang
+# build:clang --linkopt=-fuse-ld=lld
+build --action_env=CC=clang-18
+build --action_env=CXX=clang++-18
 build --features=layering_check
 # Turn off these flags to not confuse the compile commands generator when building abseil.
 build --process_headers_in_dependencies=false --features=-parse_headers
 build --cxxopt=-std=c++20
-build:opt --action_env=NDEBUG=1
-# build:opt --copt=-flto=thin --linkopt=-flto=thin
-build --linkopt=-lprofiler --copt=-g3
-build --action_env=NDEBUG=1
+build:opt --action_env=NDEBUG=1 --features=thin_lto
+build:profile --linkopt=-lprofiler --copt=-g3
