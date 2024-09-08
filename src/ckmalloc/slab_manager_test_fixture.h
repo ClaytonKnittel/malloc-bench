@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <tuple>
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/status/status.h"
@@ -33,6 +34,15 @@ class TestSlabManager {
 
   template <typename S, typename... Args>
   std::optional<std::pair<PageId, S*>> Alloc(uint32_t n_pages, Args...);
+
+  template <typename S, typename... Args>
+  std::optional<std::tuple<S*, FreeSlab*, S*>> Carve(S* slab, uint32_t from,
+                                                     uint32_t to, Args...);
+
+  bool Resize(AllocatedSlab* slab, uint32_t new_size);
+
+  template <typename S>
+  S* Merge(S* prev, S* next);
 
   void Free(AllocatedSlab* slab);
 
@@ -187,7 +197,47 @@ std::optional<std::pair<PageId, S*>> TestSlabManager::Alloc(uint32_t n_pages,
 
   // Allocated slabs must map every page to their metadata.
   HandleAlloc(slab);
-  return std::make_pair(page_id, slab);
+  return result;
+}
+
+template <typename S, typename... Args>
+std::optional<std::tuple<S*, FreeSlab*, S*>> TestSlabManager::Carve(
+    S* slab, uint32_t from, uint32_t to, Args... args) {
+  using AllocResult = std::tuple<S*, FreeSlab*, S*>;
+  DEFINE_OR_RETURN_OPT(AllocResult, result,
+                       slab_manager_.template Carve<S>(
+                           slab, from, to, std::forward<Args>(args)...));
+  auto [left_slab, free_slab, right_slab] = result;
+
+  auto it = test_fixture_->allocated_slabs_.find(slab);
+  CK_ASSERT_TRUE(it != test_fixture_->allocated_slabs_.end());
+  test_fixture_->allocated_slabs_.erase(it);
+
+  if (left_slab != nullptr) {
+    HandleAlloc(left_slab);
+  }
+  if (right_slab != nullptr) {
+    HandleAlloc(right_slab);
+  }
+  return result;
+}
+
+template <typename S>
+S* TestSlabManager::Merge(S* prev, S* next) {
+  S* res = slab_manager_.template Merge<S>(prev, next);
+  if (res == nullptr) {
+    return res;
+  }
+
+  auto it1 = test_fixture_->allocated_slabs_.find(prev);
+  CK_ASSERT_TRUE(it1 != test_fixture_->allocated_slabs_.end());
+  test_fixture_->allocated_slabs_.erase(it1);
+  auto it2 = test_fixture_->allocated_slabs_.find(next);
+  CK_ASSERT_TRUE(it2 != test_fixture_->allocated_slabs_.end());
+  test_fixture_->allocated_slabs_.erase(it2);
+
+  HandleAlloc(res);
+  return res;
 }
 
 }  // namespace ckmalloc

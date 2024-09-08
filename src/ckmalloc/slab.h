@@ -204,8 +204,6 @@ class Slab {
           PageId prev_free_;
         } small;
         struct {
-          // Tracks the total number of allocated bytes in this block.
-          uint64_t allocated_bytes_;
         } large;
         struct {
         } page_multiple;
@@ -254,6 +252,10 @@ class MappedSlab : public Slab {
   // Returns the number of pages that this slab manages. This slab must not be a
   // freed slab metadata.
   uint32_t Pages() const;
+
+  // Changes the start id of the slab to `start_id`. This should only be called
+  // by the slab manager.
+  void SetStartId(PageId start_id);
 
   // Changes the size of the slab to `n_pages`. This should only be called by
   // the slab manager.
@@ -336,7 +338,7 @@ class LargeSlab : public AllocatedSlab {
   const class SmallSlab* ToSmall() const = delete;
 };
 
-class BlockedSlab : public AllocatedSlab {
+class BlockedSlab : public LargeSlab {
  public:
   class SingleAllocSlab* ToSingleAlloc() = delete;
   const class SingleAllocSlab* ToSingleAlloc() const = delete;
@@ -346,19 +348,19 @@ class BlockedSlab : public AllocatedSlab {
   // satisfy this allocation.
   static uint32_t NPagesForBlock(size_t user_size);
 
+  // Given a pointer to the start of a blocked slab, returns a pointer to the
+  // first block.
+  static Block* FirstBlock(void* slab_start);
+
   // Returns the largest block size that can fit in this large slab.
   uint64_t MaxBlockSize() const;
 
-  // Adds `n_bytes` to the total allocated byte count of the slab.
-  void AddAllocation(uint64_t n_bytes);
-
-  // Removes `n_bytes` from the total allocated byte count of the slab.
-  void RemoveAllocation(uint64_t n_bytes);
-
-  uint64_t AllocatedBytes() const;
+  // If true, this block spans the whole slab, meaning there are no other free
+  // or allocated blocks in this slab.
+  bool SpansWholeSlab(Block* block) const;
 };
 
-class SingleAllocSlab : public AllocatedSlab {
+class SingleAllocSlab : public LargeSlab {
  public:
   BlockedSlab* ToBlocked() = delete;
   const BlockedSlab* ToBlocked() const = delete;

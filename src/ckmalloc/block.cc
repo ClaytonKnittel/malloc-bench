@@ -60,6 +60,10 @@ bool Block::IsUntracked() const {
   return IsUntrackedSize(Size());
 }
 
+bool Block::IsPhonyHeader() const {
+  return Size() == 0;
+}
+
 AllocatedBlock* Block::ToAllocated() {
   CK_ASSERT_FALSE(Free());
   CK_ASSERT_GE(Size(), kMinLargeSize);

@@ -16,9 +16,12 @@ namespace ckmalloc {
 class Block {
   friend class AllocatedBlock;
   friend class BlockTest;
-  friend class TrackedBlock;
   friend class Freelist;
   friend class FreelistTest;
+  friend class TrackedBlock;
+
+  template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
+  friend class LargeAllocatorImpl;
 
   template <typename Sink>
   friend void AbslStringify(Sink& sink, const Block& block);
@@ -79,6 +82,9 @@ class Block {
   // If true, this block is not large enough to hold large block allocations,
   // and should not be allocated or placed in the freelist.
   bool IsUntracked() const;
+
+  // Returns true if this block is the phony block at the end of the large slab.
+  bool IsPhonyHeader() const;
 
   class AllocatedBlock* ToAllocated();
   const class AllocatedBlock* ToAllocated() const;

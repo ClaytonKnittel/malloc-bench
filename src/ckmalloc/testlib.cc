@@ -34,7 +34,7 @@ Slab* DetachedMetadataAlloc::SlabAlloc() {
 #endif
 }
 
-void DetachedMetadataAlloc::SlabFree(MappedSlab* slab) {
+void DetachedMetadataAlloc::SlabFree(Slab* slab) {
 #ifdef __cpp_aligned_new
   ::operator delete(slab, static_cast<std::align_val_t>(alignof(Slab)));
 #else
@@ -69,7 +69,7 @@ Slab* TestGlobalMetadataAlloc::SlabAlloc() {
   return allocator_->SlabAlloc();
 }
 
-void TestGlobalMetadataAlloc::SlabFree(MappedSlab* slab) {
+void TestGlobalMetadataAlloc::SlabFree(Slab* slab) {
   allocator_->SlabFree(slab);
 }
 
@@ -144,7 +144,7 @@ absl::Status ValidateBlockedSlabs(const std::vector<BlockedSlabInfo>& slabs,
     Block* block = reinterpret_cast<Block*>(slab_info.start);
     Block* prev_block = nullptr;
     uint64_t allocated_bytes = 0;
-    while (block->Size() != 0) {
+    while (!block->IsPhonyHeader()) {
       if (block < slab_info.start ||
           block->NextAdjacentBlock() >= slab_info.end) {
         return absl::FailedPreconditionError(absl::StrFormat(
@@ -241,12 +241,11 @@ absl::Status ValidateBlockedSlabs(const std::vector<BlockedSlabInfo>& slabs,
           *prev_block));
     }
 
-    if (slab_info.slab != nullptr &&
-        allocated_bytes != slab_info.slab->AllocatedBytes()) {
+    // nullptr slab means this is the freelist test, which does not use the slab
+    // map. For all other tests, this check will run.
+    if (slab_info.slab != nullptr && allocated_bytes == 0) {
       return absl::FailedPreconditionError(
-          absl::StrFormat("Large slab allocated byte count is incorrect for "
-                          "%v, expected %" PRIu64 " allocated bytes",
-                          *slab_info.slab, allocated_bytes));
+          absl::StrFormat("Found empty blocked slab %v", *slab_info.slab));
     }
   }
 

@@ -1,6 +1,9 @@
 #include "src/ckmalloc/freelist.h"
 
+#include <utility>
+
 #include "src/ckmalloc/block.h"
+#include "src/ckmalloc/common.h"
 #include "src/ckmalloc/linked_list.h"
 #include "src/ckmalloc/util.h"
 
@@ -19,6 +22,38 @@ TrackedBlock* Freelist::FindFree(size_t user_size) {
   return best;
 }
 
+std::pair<AllocatedBlock*, FreeBlock*> Freelist::InitializeSlabEnd(
+    Block* block, uint64_t total_size, uint64_t alloc_size) {
+  AllocatedBlock* allocated_block;
+  Block* slab_end_header;
+  if (alloc_size != 0) {
+    allocated_block = block->InitAllocated(alloc_size, /*prev_free=*/false);
+    slab_end_header = allocated_block->NextAdjacentBlock();
+  } else {
+    allocated_block = nullptr;
+    slab_end_header = block;
+  }
+
+  // Write a phony header for an allocated block of size 0 at the end of the
+  // slab, which will trick the last block in the slab into never trying to
+  // coalesce with its next adjacent neighbor.
+  FreeBlock* free_block;
+  const uint64_t remainder_size =
+      total_size - alloc_size - Block::kMetadataOverhead;
+  if (remainder_size != 0) {
+    Block* next_adjacent = slab_end_header;
+    free_block = InitFree(next_adjacent, remainder_size);
+
+    slab_end_header = next_adjacent->NextAdjacentBlock();
+    slab_end_header->InitPhonyHeader(/*prev_free=*/true);
+  } else {
+    free_block = nullptr;
+    slab_end_header->InitPhonyHeader(/*prev_free=*/false);
+  }
+
+  return std::make_pair(allocated_block, free_block);
+}
+
 FreeBlock* Freelist::InitFree(Block* block, uint64_t size) {
   CK_ASSERT_NE(size, 0);
   CK_ASSERT_TRUE(IsAligned(size, kDefaultAlignment));
@@ -27,7 +62,7 @@ FreeBlock* Freelist::InitFree(Block* block, uint64_t size) {
   block->WriteFooterAndPrevFree();
 
   if (!Block::IsUntrackedSize(size)) {
-    AddBlock(block->ToTracked());
+    InsertBlock(block->ToTracked());
   }
 
   return block->ToFree();
@@ -91,7 +126,7 @@ FreeBlock* Freelist::MarkFree(AllocatedBlock* block) {
 
   if (!Block::IsUntrackedSize(size)) {
     TrackedBlock* free_block = block_start->ToTracked();
-    AddBlock(free_block);
+    InsertBlock(free_block);
   }
   return block_start->ToFree();
 }
@@ -128,12 +163,12 @@ bool Freelist::ResizeIfPossible(AllocatedBlock* block, uint64_t new_size) {
   return false;
 }
 
-void Freelist::DeleteBlock(TrackedBlock* block) {
-  RemoveBlock(block);
+void Freelist::InsertBlock(TrackedBlock* block) {
+  free_blocks_.InsertFront(block);
 }
 
-void Freelist::AddBlock(TrackedBlock* block) {
-  free_blocks_.InsertFront(block);
+void Freelist::DeleteBlock(TrackedBlock* block) {
+  RemoveBlock(block);
 }
 
 void Freelist::RemoveBlock(TrackedBlock* block) {

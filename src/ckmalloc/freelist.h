@@ -23,6 +23,17 @@ class Freelist {
   // is found, `nullptr` is returned.
   TrackedBlock* FindFree(size_t user_size);
 
+  template <typename Fn>
+  TrackedBlock* FindFree(size_t user_size, const Fn& fn);
+
+  // Initializes a region of memory beginning from `start` and spanning
+  // `total_size` bytes, placing an allocated block of size `alloc_size` at the
+  // beginning, potentially followed by a free block, and ending with a phony
+  // header.
+  std::pair<AllocatedBlock*, FreeBlock*> InitializeSlabEnd(Block* block,
+                                                           uint64_t total_size,
+                                                           uint64_t alloc_size);
+
   // Initializes an uninitialized block to free with given size, inserting it
   // into the given freelist if the size is large enough, and returning `block`
   // down-cast to `FreeBlock`.
@@ -53,14 +64,16 @@ class Freelist {
   // allocated block, then this returns `false` and the block is not modified.
   bool ResizeIfPossible(AllocatedBlock* block, uint64_t new_size);
 
+  // Adds a free block to the freelist. Should only be called externally for an
+  // already-freed block which for some reason was removed from the freelist
+  // (i.e. may be called when undoing modifications after a failed operation).
+  void InsertBlock(TrackedBlock* block);
+
   // Deletes a block in the freelist, should only be called when a large slab is
   // deallocated.
   void DeleteBlock(TrackedBlock* block);
 
  private:
-  // Adds the block to the freelist.
-  void AddBlock(TrackedBlock* block);
-
   // Removes the block from the freelist.
   void RemoveBlock(TrackedBlock* block);
 
@@ -71,5 +84,20 @@ class Freelist {
 
   LinkedList<TrackedBlock> free_blocks_;
 };
+
+template <typename Fn>
+TrackedBlock* Freelist::FindFree(size_t user_size, const Fn& fn) {
+  TrackedBlock* best = nullptr;
+  uint64_t best_size = 0;
+  for (TrackedBlock& block : free_blocks_) {
+    uint64_t size = fn(&block);
+    if (size >= user_size && (best == nullptr || size < best_size)) {
+      best = &block;
+      best_size = size;
+    }
+  }
+
+  return best;
+}
 
 }  // namespace ckmalloc

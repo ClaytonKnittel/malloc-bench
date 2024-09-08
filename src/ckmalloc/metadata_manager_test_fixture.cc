@@ -17,7 +17,7 @@ Slab* TestMetadataAlloc::SlabAlloc() {
   return manager_->NewSlabMeta();
 }
 
-void TestMetadataAlloc::SlabFree(MappedSlab* slab) {
+void TestMetadataAlloc::SlabFree(Slab* slab) {
   manager_->FreeSlabMeta(slab);
 }
 
@@ -64,7 +64,7 @@ Slab* TestMetadataManager::NewSlabMeta() {
   return slab;
 }
 
-void TestMetadataManager::FreeSlabMeta(MappedSlab* slab) {
+void TestMetadataManager::FreeSlabMeta(Slab* slab) {
   metadata_manager_.FreeSlabMeta(slab);
 
   auto [_, inserted] = test_fixture_->freed_slab_metadata_.insert(

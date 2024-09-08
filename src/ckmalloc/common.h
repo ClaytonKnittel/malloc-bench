@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <tuple>
 #include <utility>
 
 namespace ckmalloc {
@@ -38,7 +39,7 @@ enum class SlabType : uint8_t;
 
 template <typename T>
 concept MetadataAllocInterface =
-    requires(size_t size, size_t alignment, class MappedSlab* slab) {
+    requires(size_t size, size_t alignment, class Slab* slab) {
       { T::SlabAlloc() } -> std::convertible_to<class Slab*>;
       { T::SlabFree(slab) } -> std::same_as<void>;
       { T::Alloc(size, alignment) } -> std::convertible_to<void*>;
@@ -59,8 +60,8 @@ concept SlabMapInterface =
 template <typename T>
 concept SlabManagerInterface =
     requires(const T const_slab_mgr, T slab_mgr, class PageId page_id,
-             const void* ptr, uint32_t n_pages, class AllocatedSlab* slab,
-             class BlockedSlab* blocked_slab) {
+             const void* ptr, uint32_t n_pages, uint32_t from, uint32_t to,
+             class AllocatedSlab* slab, class BlockedSlab* blocked_slab) {
       { const_slab_mgr.PageStartFromId(page_id) } -> std::convertible_to<void*>;
       {
         const_slab_mgr.PageIdFromPtr(ptr)
@@ -77,6 +78,14 @@ concept SlabManagerInterface =
         slab_mgr.template Alloc<class SingleAllocSlab>(n_pages)
       } -> std::convertible_to<
           std::optional<std::pair<class PageId, class SingleAllocSlab*>>>;
+      {
+        slab_mgr.template Carve<class BlockedSlab>(blocked_slab, from, to)
+      } -> std::convertible_to<std::optional<
+          std::tuple<class BlockedSlab*, class FreeSlab*, class BlockedSlab*>>>;
+      { slab_mgr.Resize(slab, n_pages) } -> std::convertible_to<bool>;
+      {
+        slab_mgr.Merge(blocked_slab, blocked_slab)
+      } -> std::convertible_to<class BlockedSlab*>;
       { slab_mgr.Free(slab) } -> std::same_as<void>;
       {
         slab_mgr.FirstBlockInBlockedSlab(blocked_slab)
@@ -104,7 +113,7 @@ class GlobalMetadataAlloc {
   static Slab* SlabAlloc();
 
   // Frees slab metadata for later use.
-  static void SlabFree(MappedSlab* slab);
+  static void SlabFree(Slab* slab);
 
   // Allocates raw memory from the metadata allocator which cannot be freed.
   // This is only intended for metadata allocation, never user data allocation.

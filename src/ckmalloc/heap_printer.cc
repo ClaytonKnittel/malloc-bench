@@ -193,13 +193,20 @@ std::string HeapPrinter::PrintSmall(const SmallSlab* slab) {
 }
 
 std::string HeapPrinter::PrintBlocked(const BlockedSlab* slab) {
-  std::string result =
-      absl::StrFormat("Pages %v%v: large %v%% full", slab->StartId(),
-                      slab->StartId() == slab->EndId()
-                          ? ""
-                          : absl::StrFormat(" - %v", slab->EndId()),
-                      100.F * slab->AllocatedBytes() /
-                          static_cast<float>(slab->Pages() * kPageSize));
+  uint64_t allocated_bytes = 0;
+  for (Block* block = slab_manager_->FirstBlockInBlockedSlab(slab);
+       !block->IsPhonyHeader(); block = block->NextAdjacentBlock()) {
+    if (!block->Free()) {
+      allocated_bytes += block->Size();
+    }
+  }
+
+  std::string result = absl::StrFormat(
+      "Pages %v%v: large %v%% full", slab->StartId(),
+      slab->StartId() == slab->EndId()
+          ? ""
+          : absl::StrFormat(" - %v", slab->EndId()),
+      100.F * allocated_bytes / static_cast<float>(slab->Pages() * kPageSize));
 
   std::vector<std::string> rows(2 * slab->Pages());
 
@@ -223,7 +230,7 @@ std::string HeapPrinter::PrintBlocked(const BlockedSlab* slab) {
   push_entry('.');
 
   for (Block* block = slab_manager_->FirstBlockInBlockedSlab(slab);
-       block->Size() != 0; block = block->NextAdjacentBlock()) {
+       !block->IsPhonyHeader(); block = block->NextAdjacentBlock()) {
     uint64_t block_size = block->Size() / kDefaultAlignment;
 
     if (!block->Free()) {

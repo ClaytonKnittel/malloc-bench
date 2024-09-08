@@ -38,7 +38,7 @@ class MetadataManagerImpl {
 
   // Frees a slab metadata. This freed slab can be returned from
   // `NewSlabMeta()`.
-  void FreeSlabMeta(MappedSlab* slab);
+  void FreeSlabMeta(Slab* slab);
 
  private:
   bench::Heap* MetadataHeap();
@@ -114,10 +114,9 @@ Slab* MetadataManagerImpl<MetadataAlloc, SlabMap>::NewSlabMeta() {
 }
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
-void MetadataManagerImpl<MetadataAlloc, SlabMap>::FreeSlabMeta(
-    MappedSlab* slab) {
+void MetadataManagerImpl<MetadataAlloc, SlabMap>::FreeSlabMeta(Slab* slab) {
   slab->Init<UnmappedSlab>(last_free_slab_);
-  last_free_slab_ = static_cast<Slab*>(slab)->ToUnmapped();
+  last_free_slab_ = slab->ToUnmapped();
 }
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>

@@ -1,11 +1,13 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <cstring>
 
 #include "src/ckmalloc/block.h"
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/freelist.h"
+#include "src/ckmalloc/page_id.h"
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/slab_manager.h"
 #include "src/ckmalloc/slab_map.h"
@@ -91,16 +93,12 @@ void* LargeAllocatorImpl<SlabMap, SlabManager>::ReallocLarge(LargeSlab* slab,
 
   uint64_t block_size;
   if (slab->Type() == SlabType::kBlocked) {
-    BlockedSlab* blocked_slab = slab->ToBlocked();
     AllocatedBlock* block = AllocatedBlock::FromUserDataPtr(ptr);
-    uint64_t block_size = block->Size();
     uint64_t new_block_size = Block::BlockSizeForUserSize(user_size);
 
     // If we can resize the block in-place, then we don't need to copy any data
     // and can return the same pointer back to the user.
     if (freelist_.ResizeIfPossible(block, new_block_size)) {
-      blocked_slab->AddAllocation(new_block_size);
-      blocked_slab->RemoveAllocation(block_size);
       return ptr;
     }
 
@@ -129,18 +127,90 @@ void* LargeAllocatorImpl<SlabMap, SlabManager>::ReallocLarge(LargeSlab* slab,
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
 void LargeAllocatorImpl<SlabMap, SlabManager>::FreeLarge(LargeSlab* slab,
                                                          void* ptr) {
-  if (slab->Type() == SlabType::kBlocked) {
-    BlockedSlab* blocked_slab = slab->ToBlocked();
-    AllocatedBlock* block = AllocatedBlock::FromUserDataPtr(ptr);
-    blocked_slab->RemoveAllocation(block->Size());
-    freelist_.MarkFree(block);
-
-    if (blocked_slab->AllocatedBytes() == 0) {
-      ReleaseBlockedSlab(blocked_slab);
-    }
-  } else {
-    CK_ASSERT_EQ(slab->Type(), SlabType::kSingleAlloc);
+  if (slab->Type() == SlabType::kSingleAlloc) {
     slab_manager_->Free(slab);
+    return;
+  }
+
+  CK_ASSERT_EQ(slab->Type(), SlabType::kBlocked);
+  BlockedSlab* blocked_slab = slab->ToBlocked();
+  AllocatedBlock* block = AllocatedBlock::FromUserDataPtr(ptr);
+  FreeBlock* free_block = freelist_.MarkFree(block);
+
+  if (blocked_slab->SpansWholeSlab(free_block)) {
+    ReleaseBlockedSlab(blocked_slab);
+    return;
+  }
+
+  Block* next_adjacent = free_block->NextAdjacentBlock();
+  const size_t slab_start =
+      reinterpret_cast<size_t>(
+          slab_manager_->PageStartFromId(slab->StartId())) /
+      kPageSize;
+
+  const uint64_t block_start = reinterpret_cast<uint64_t>(free_block);
+  // This is the starting page of the region of the slab that is safe to free.
+  size_t first_empty_page = block_start / kPageSize + 1;
+  // This is the starting page of the region of the slab we have to keep intact,
+  // as it contains allocated memory.
+  size_t first_intact_page =
+      reinterpret_cast<size_t>(next_adjacent) / kPageSize;
+
+  if (next_adjacent->IsPhonyHeader()) {
+    // If this is the last block, we don't need to keep the phony header intact.
+    first_intact_page++;
+  } else if (free_block ==
+             slab_manager_->FirstBlockInBlockedSlab(blocked_slab)) {
+    // If this is the first block in the slab, we can free starting from the
+    // beginning.
+    first_empty_page = slab_start;
+  }
+
+  // If the two ends of this newly freed block straddle at least a page, free
+  // the page in the middle and split the large slab.
+  if (first_empty_page < first_intact_page) {
+    // If this block is tracked, we need to remove it from the freelist.
+    if (!free_block->IsUntracked()) {
+      freelist_.DeleteBlock(free_block->ToTracked());
+    }
+
+    auto result = slab_manager_->Carve(blocked_slab,
+                                       /*from=*/first_empty_page - slab_start,
+                                       /*to=*/first_intact_page - slab_start);
+    if (!result.has_value()) {
+      // If carving the slab failed, we can gracefully terminate this operation
+      // after re-inserting the free block into the freelist, since no other
+      // state has been modified since freeing the block.
+      freelist_.InsertBlock(free_block->ToTracked());
+      return;
+    }
+
+    // If the carve succeeded, we need to cut the block short on both ends.
+    BlockedSlab* left_slab = std::get<0>(result.value());
+    BlockedSlab* right_slab = std::get<2>(result.value());
+
+    if (left_slab != nullptr) {
+      uint64_t remainder_size = kPageSize - (block_start % kPageSize);
+      freelist_.InitializeSlabEnd(free_block, remainder_size, /*alloc_size=*/0);
+    }
+
+    // If the carve left a blocked slab after the free slab in the middle, we
+    // need to fix it's start.
+    if (right_slab != nullptr) {
+      uint64_t start_size =
+          reinterpret_cast<uint64_t>(next_adjacent) % kPageSize -
+          Block::kMetadataOverhead;
+      // If this block previously went exactly to the beginning of a page, we
+      // just need to set the prev-free bit of the next adjacent block.
+      if (start_size == 0) {
+        next_adjacent->SetPrevFree(false);
+      } else {
+        // Otherwise, we can initialize a new free block here.
+        CK_ASSERT_GE(start_size, Block::kMinBlockSize);
+        freelist_.InitFree(PtrSub<Block>(next_adjacent, start_size),
+                           start_size);
+      }
+    }
   }
 }
 
@@ -148,7 +218,6 @@ template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
 void LargeAllocatorImpl<SlabMap, SlabManager>::ReleaseBlockedSlab(
     BlockedSlab* slab) {
   BlockedSlab* blocked_slab = slab->ToBlocked();
-  CK_ASSERT_EQ(blocked_slab->AllocatedBytes(), 0);
 
   Block* only_block = slab_manager_->FirstBlockInBlockedSlab(blocked_slab);
   CK_ASSERT_EQ(only_block->Size(), blocked_slab->MaxBlockSize());
@@ -163,19 +232,94 @@ void LargeAllocatorImpl<SlabMap, SlabManager>::ReleaseBlockedSlab(
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
 AllocatedBlock* LargeAllocatorImpl<SlabMap, SlabManager>::MakeBlockFromFreelist(
     size_t user_size) {
-  TrackedBlock* free_block = freelist_.FindFree(user_size);
+  TrackedBlock* free_block = freelist_.FindFree(
+      user_size, [this](const TrackedBlock* block) -> uint64_t {
+        uint64_t size = block->Size();
+        const Block* next = block->NextAdjacentBlock();
+        if (next->IsPhonyHeader()) {
+          LargeSlab* slab =
+              slab_map_->FindSlab(slab_manager_->PageIdFromPtr(block))
+                  ->ToLarge();
+          MappedSlab* next = slab_map_->FindSlab(slab->EndId() + 1);
+          if (next != nullptr && next->Type() == SlabType::kFree) {
+            size += next->Pages() * kPageSize;
+            next = slab_map_->FindSlab(next->EndId() + 1);
+          }
+          if (next != nullptr && next->Type() == SlabType::kBlocked) {
+            size += Block::kMetadataOverhead + Block::kFirstBlockInSlabOffset;
+            Block* first = BlockedSlab::FirstBlock(
+                slab_manager_->PageStartFromId(next->StartId()));
+            if (first->Free()) {
+              size += first->Size();
+            }
+          }
+        }
+        return Block::UserSizeForBlockSize(size);
+      });
   if (free_block == nullptr) {
     return nullptr;
   }
 
-  BlockedSlab* slab =
-      slab_map_->FindSlab(slab_manager_->PageIdFromPtr(free_block))
-          ->ToBlocked();
+  // TODO make this way better.
+  if (user_size > free_block->UserDataSize()) {
+    uint64_t req_block_size = Block::BlockSizeForUserSize(user_size);
+
+    LargeSlab* slab =
+        slab_map_->FindSlab(slab_manager_->PageIdFromPtr(free_block))
+            ->ToLarge();
+
+    AllocatedBlock* block = freelist_.MarkAllocated(free_block);
+
+    MappedSlab* next_slab = slab_map_->FindSlab(slab->EndId() + 1);
+    uint64_t block_size = block->Size();
+    if (next_slab != nullptr && next_slab->Type() == SlabType::kFree) {
+      const uint64_t required_extra_space = req_block_size - block->Size();
+      const uint32_t n_pages_req = std::min<uint32_t>(
+          CeilDiv(required_extra_space, kPageSize), next_slab->Pages());
+
+      block_size += n_pages_req * kPageSize;
+      bool result = slab_manager_->Resize(slab, slab->Pages() + n_pages_req);
+      CK_ASSERT_TRUE(result);
+
+      next_slab = slab_map_->FindSlab(slab->EndId() + 1);
+    }
+    if (next_slab != nullptr && next_slab->Type() == SlabType::kBlocked &&
+        req_block_size > block_size) {
+      block_size += Block::kMetadataOverhead + Block::kFirstBlockInSlabOffset;
+      Block* first = BlockedSlab::FirstBlock(
+          slab_manager_->PageStartFromId(next_slab->StartId()));
+      if (first->Free()) {
+        block_size += first->Size();
+
+        if (!first->IsUntracked()) {
+          freelist_.MarkAllocated(first->ToTracked());
+        }
+      }
+
+      slab = slab_manager_->Merge(slab, next_slab->ToLarge());
+      CK_ASSERT_NE(slab, nullptr);
+      block->SetSize(block_size);
+    } else {
+      block->SetSize(block_size);
+      block->NextAdjacentBlock()->InitPhonyHeader(/*prev_free=*/false);
+    }
+
+    free_block = freelist_.MarkFree(block)->ToTracked();
+
+    // block->SetSize(req_block_size);
+    // uint64_t remainder_size = n_pages * kPageSize - required_extra_space;
+    // Block* next_block = block->NextAdjacentBlock();
+    // if (remainder_size != 0) {
+    //   freelist_.InitFree(next_block, remainder_size);
+    //   next_block = next_block->NextAdjacentBlock();
+    // }
+    // next_block->InitPhonyHeader(
+    //     /*prev_free=*/remainder_size != 0);
+    // return block;
+  }
 
   auto [allocated_block, remainder_block] =
       freelist_.Split(free_block, Block::BlockSizeForUserSize(user_size));
-
-  slab->AddAllocation(allocated_block->Size());
   return allocated_block;
 }
 
@@ -190,33 +334,11 @@ LargeAllocatorImpl<SlabMap, SlabManager>::AllocBlockedSlabAndMakeBlock(
   }
   BlockedSlab* slab = result->second;
 
-  uint64_t block_size = Block::BlockSizeForUserSize(user_size);
-  CK_ASSERT_LE(block_size, slab->MaxBlockSize());
-
-  uint64_t remainder_size = slab->MaxBlockSize() - block_size;
-  CK_ASSERT_TRUE(IsAligned(remainder_size, kDefaultAlignment));
-
-  AllocatedBlock* block =
-      slab_manager_->FirstBlockInBlockedSlab(slab)->InitAllocated(
-          block_size, /*prev_free=*/false);
-  slab->AddAllocation(block_size);
-
-  // Write a phony header for an allocated block of size 0 at the end of the
-  // slab, which will trick the last block in the slab into never trying to
-  // coalesce with its next adjacent neighbor.
-  Block* slab_end_header = block->NextAdjacentBlock();
-
-  if (remainder_size != 0) {
-    Block* next_adjacent = slab_end_header;
-    freelist_.InitFree(next_adjacent, remainder_size);
-
-    slab_end_header = next_adjacent->NextAdjacentBlock();
-    slab_end_header->InitPhonyHeader(/*prev_free=*/true);
-  } else {
-    slab_end_header->InitPhonyHeader(/*prev_free=*/false);
-  }
-
-  return block;
+  auto [allocated_block, free_block] = freelist_.InitializeSlabEnd(
+      slab_manager_->FirstBlockInBlockedSlab(slab),
+      slab->MaxBlockSize() + Block::kMetadataOverhead,
+      Block::BlockSizeForUserSize(user_size));
+  return allocated_block;
 }
 
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
@@ -235,8 +357,12 @@ void* LargeAllocatorImpl<SlabMap, SlabManager>::AllocSingleAllocSlab(
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
 bool LargeAllocatorImpl<SlabMap, SlabManager>::ResizeSingleAllocIfPossible(
     SingleAllocSlab* slab, size_t new_size) {
-  // TODO
-  return false;
+  if (!SingleAllocSlab::SizeSuitableForSingleAlloc(new_size)) {
+    return false;
+  }
+
+  uint32_t n_pages = SingleAllocSlab::NPagesForAlloc(new_size);
+  return slab_manager_->Resize(slab, n_pages);
 }
 
 using LargeAllocator = LargeAllocatorImpl<SlabMap, SlabManager>;

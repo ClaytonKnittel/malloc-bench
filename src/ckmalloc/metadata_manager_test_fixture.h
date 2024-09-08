@@ -20,7 +20,7 @@ class TestMetadataAlloc : public ckmalloc::TestMetadataAllocInterface {
       : manager_(manager) {}
 
   ckmalloc::Slab* SlabAlloc() override;
-  void SlabFree(ckmalloc::MappedSlab* slab) override;
+  void SlabFree(ckmalloc::Slab* slab) override;
   void* Alloc(size_t size, size_t alignment) override;
 
   void ClearAllAllocs() override {}
@@ -50,7 +50,7 @@ class TestMetadataManager {
 
   Slab* NewSlabMeta();
 
-  void FreeSlabMeta(MappedSlab* slab);
+  void FreeSlabMeta(Slab* slab);
 
  private:
   class MetadataManagerFixture* test_fixture_;
