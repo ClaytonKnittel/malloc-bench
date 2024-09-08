@@ -25,6 +25,8 @@ ABSL_FLAG(std::string, trace, "",
 ABSL_FLAG(bool, skip_correctness, false,
           "If true, correctness checking is skipped.");
 
+ABSL_FLAG(bool, ignore_test, false, "If true, test traces are not run.");
+
 namespace bench {
 
 struct TraceResult {
@@ -235,6 +237,10 @@ int RunAllTraces() {
            "traces/test.trace",
            "traces/test-zero.trace",
        }) {
+    if (absl::GetFlag(FLAGS_ignore_test) && ShouldIgnoreForScoring(tracefile)) {
+      continue;
+    }
+
     auto result = RunTrace(tracefile, heap_factory);
     if (!result.ok()) {
       std::cerr << "Failed to run trace " << tracefile << ": "
