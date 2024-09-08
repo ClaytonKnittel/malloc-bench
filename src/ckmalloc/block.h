@@ -7,6 +7,7 @@
 
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/linked_list.h"
+#include "src/ckmalloc/red_black_tree.h"
 #include "src/ckmalloc/util.h"
 
 namespace ckmalloc {
@@ -16,7 +17,8 @@ namespace ckmalloc {
 class Block {
   friend class AllocatedBlock;
   friend class BlockTest;
-  friend class TrackedBlock;
+  friend class ExactSizeBlock;
+  friend class TreeBlock;
   friend class Freelist;
   friend class FreelistTest;
 
@@ -46,6 +48,10 @@ class Block {
   // Sizes smaller than this go in small slabs, as having a heterogenous list of
   // free blocks for small size classes is extra overhead we want to avoid.
   static const size_t kMinLargeSize;
+
+  // The largest sized blocks which are tracked in single-size lists. All blocks
+  // larger than this are stored in a red-black tree ordered by size.
+  static constexpr uint64_t kMaxExactSizeBlock = 4096;
 
   // Returns the maximum user size that fits in a block of size `block_size`.
   static constexpr size_t UserSizeForBlockSize(uint64_t block_size);
@@ -80,6 +86,10 @@ class Block {
   // and should not be allocated or placed in the freelist.
   bool IsUntracked() const;
 
+  // If true, this block is in the exact-size bins. Otherwise it is in the free
+  // block rb tree.
+  bool IsExactSize() const;
+
   class AllocatedBlock* ToAllocated();
   const class AllocatedBlock* ToAllocated() const;
 
@@ -88,6 +98,12 @@ class Block {
 
   class TrackedBlock* ToTracked();
   const class TrackedBlock* ToTracked() const;
+
+  class ExactSizeBlock* ToExactSize();
+  const class ExactSizeBlock* ToExactSize() const;
+
+  class TreeBlock* ToTree();
+  const class TreeBlock* ToTree() const;
 
   class UntrackedBlock* ToUntracked();
   const class UntrackedBlock* ToUntracked() const;
@@ -162,19 +178,39 @@ class FreeBlock : public Block {
   bool Free() const = delete;
 };
 
-// Tracked blocks are free blocks that are in the freelist.
-class TrackedBlock : public FreeBlock, public LinkedListNode {
+// Tracked blocks are large blocks large enough to be tracked in the freelist.
+class TrackedBlock : public FreeBlock {
  public:
-  // Tracked blocks are not tracked by definition.
   bool IsUntracked() const = delete;
 };
 
+// Exact size blocks are free blocks that are in a list of blocks of the same
+// size.
+class ExactSizeBlock : public TrackedBlock, public LinkedListNode {
+ public:
+  bool IsExactSize() const = delete;
+};
+
+// Tree blocks are free blocks that are in the tree of large blocks ordered by
+// size.
+class TreeBlock : public TrackedBlock, public RbNode {
+ public:
+  bool IsExactSize() const = delete;
+
+  bool operator<(const TreeBlock& block) const {
+    return Size() < block.Size();
+  }
+};
+
 // Untracked blocks are free blocks that aren't in the freelist to avoid having
-// heterogenous freelists for small size classes.
+// heterogenous freelists for small size classes. This means they are not
+// allocatable until they merge with adjacent free blocks and become large
+// enough to be tracked.
 class UntrackedBlock : public FreeBlock {
  public:
   // Untracked blocks are untracked by definition.
   bool IsUntracked() const = delete;
+  bool IsExactSize() const = delete;
 };
 
 /* static */

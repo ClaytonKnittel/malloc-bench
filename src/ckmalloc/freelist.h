@@ -3,10 +3,12 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <optional>
 
 #include "src/ckmalloc/block.h"
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/linked_list.h"
+#include "src/ckmalloc/red_black_tree.h"
 
 namespace ckmalloc {
 
@@ -20,9 +22,8 @@ class Freelist {
       const class std::vector<struct BlockedSlabInfo>&,
       const class Freelist& freelist);
 
-  static constexpr uint64_t kMaxExactSizeBlock = 4096;
   static constexpr size_t kNumExactSizeBins =
-      (kMaxExactSizeBlock - kMaxSmallSize) / kDefaultAlignment;
+      (Block::kMaxExactSizeBlock - kMaxSmallSize) / kDefaultAlignment;
 
  public:
   // Searches the freelists for a block large enough to fit `user_size`. If none
@@ -33,11 +34,6 @@ class Freelist {
   // into the given freelist if the size is large enough, and returning `block`
   // down-cast to `FreeBlock`.
   FreeBlock* InitFree(Block* block, uint64_t size);
-
-  // This method marks this block as allocated, removes it from the free list,
-  // and returns a pointer to `block` down-cast to `AllocatedBlock`, now that
-  // the block has been allocated.
-  AllocatedBlock* MarkAllocated(TrackedBlock* block);
 
   // Splits this block into two blocks, allocating the first and keeping the
   // second free. The allocated block will be at least `block_size` large, and
@@ -66,6 +62,12 @@ class Freelist {
  private:
   static size_t ExactSizeIdx(uint64_t block_size);
 
+  // This method marks this block as allocated, removes it from the free list,
+  // and returns a pointer to `block` down-cast to `AllocatedBlock`, now that
+  // the block has been allocated.
+  AllocatedBlock* MarkAllocated(
+      TrackedBlock* block, std::optional<uint64_t> new_size = std::nullopt);
+
   // Adds the block to the freelist.
   void AddBlock(TrackedBlock* block);
 
@@ -77,8 +79,8 @@ class Freelist {
   // `new_size`.
   void MoveBlockHeader(FreeBlock* block, Block* new_head, uint64_t new_size);
 
-  LinkedList<TrackedBlock> exact_size_bins_[kNumExactSizeBins];
-  LinkedList<TrackedBlock> free_blocks_;
+  LinkedList<ExactSizeBlock> exact_size_bins_[kNumExactSizeBins];
+  RbTree<TreeBlock> free_blocks_;
 };
 
 }  // namespace ckmalloc

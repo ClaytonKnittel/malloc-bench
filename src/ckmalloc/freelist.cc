@@ -1,19 +1,19 @@
 #include "src/ckmalloc/freelist.h"
 
-#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 
 #include "src/ckmalloc/block.h"
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/linked_list.h"
+#include "src/ckmalloc/red_black_tree.h"
 #include "src/ckmalloc/util.h"
 
 namespace ckmalloc {
 
 TrackedBlock* Freelist::FindFree(size_t user_size) {
   uint64_t block_size = Block::BlockSizeForUserSize(user_size);
-  if (block_size <= kMaxExactSizeBlock) {
+  if (block_size <= Block::kMaxExactSizeBlock) {
     for (size_t idx = ExactSizeIdx(block_size); idx < kNumExactSizeBins;
          idx++) {
       TrackedBlock* block = exact_size_bins_[idx].Front();
@@ -46,17 +46,6 @@ FreeBlock* Freelist::InitFree(Block* block, uint64_t size) {
   return block->ToFree();
 }
 
-AllocatedBlock* Freelist::MarkAllocated(TrackedBlock* block) {
-  // Remove ourselves from the freelist we are in.
-  RemoveBlock(block);
-
-  // Clear the free bit.
-  block->header_ &= ~Block::kFreeBitMask;
-  // Clear the prev-free bit of the next adjacent block.
-  block->NextAdjacentBlock()->SetPrevFree(false);
-  return block->ToAllocated();
-}
-
 std::pair<AllocatedBlock*, FreeBlock*> Freelist::Split(TrackedBlock* block,
                                                        uint64_t block_size) {
   uint64_t size = block->Size();
@@ -68,8 +57,8 @@ std::pair<AllocatedBlock*, FreeBlock*> Freelist::Split(TrackedBlock* block,
     return std::make_pair(allocated_block, nullptr);
   }
 
-  block->SetSize(block_size);
-  AllocatedBlock* allocated_block = MarkAllocated(block);
+  AllocatedBlock* allocated_block =
+      MarkAllocated(block, /*new_size=*/block_size);
 
   FreeBlock* remainder_block =
       InitFree(allocated_block->NextAdjacentBlock(), remainder);
@@ -103,8 +92,7 @@ FreeBlock* Freelist::MarkFree(AllocatedBlock* block) {
   block_start->WriteFooterAndPrevFree();
 
   if (!Block::IsUntrackedSize(size)) {
-    TrackedBlock* free_block = block_start->ToTracked();
-    AddBlock(free_block);
+    AddBlock(block_start->ToTracked());
   }
   return block_start->ToFree();
 }
@@ -148,25 +136,43 @@ void Freelist::DeleteBlock(TrackedBlock* block) {
 /* static */
 size_t Freelist::ExactSizeIdx(uint64_t block_size) {
   CK_ASSERT_GT(block_size, kMaxSmallSize);
-  CK_ASSERT_LE(block_size, kMaxExactSizeBlock);
+  CK_ASSERT_LE(block_size, Block::kMaxExactSizeBlock);
   return (block_size - kMaxSmallSize) / kDefaultAlignment - 1;
+}
+
+AllocatedBlock* Freelist::MarkAllocated(TrackedBlock* block,
+                                        std::optional<uint64_t> new_size) {
+  // Remove ourselves from the freelist we are in.
+  RemoveBlock(block);
+
+  // Clear the free bit.
+  block->header_ &= ~Block::kFreeBitMask;
+  // Update the size if requested.
+  if (new_size.has_value()) {
+    block->SetSize(new_size.value());
+  }
+  // Clear the prev-free bit of the next adjacent block.
+  block->NextAdjacentBlock()->SetPrevFree(false);
+  return block->ToAllocated();
 }
 
 void Freelist::AddBlock(TrackedBlock* block) {
   uint64_t block_size = block->Size();
-  if (block_size <= kMaxExactSizeBlock) {
-    exact_size_bins_[ExactSizeIdx(block_size)].InsertFront(block);
+  if (block_size <= Block::kMaxExactSizeBlock) {
+    exact_size_bins_[ExactSizeIdx(block_size)].InsertFront(
+        block->ToExactSize());
   } else {
-    auto it = std::find_if(free_blocks_.begin(), free_blocks_.end(),
-                           [block_size](const TrackedBlock& block) -> bool {
-                             return block.Size() >= block_size;
-                           });
-    free_blocks_.InsertBefore(it, block);
+    new (static_cast<RbNode*>(block->ToTree())) RbNode();
+    free_blocks_.Insert(block->ToTree());
   }
 }
 
 void Freelist::RemoveBlock(TrackedBlock* block) {
-  block->LinkedListNode::Remove();
+  if (block->Size() <= Block::kMaxExactSizeBlock) {
+    block->ToExactSize()->LinkedListNode::Remove();
+  } else {
+    free_blocks_.Remove(block->ToTree());
+  }
 }
 
 void Freelist::MoveBlockHeader(FreeBlock* block, Block* new_head,

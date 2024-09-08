@@ -8,7 +8,9 @@ namespace ckmalloc {
 constexpr size_t HeaderOffset() {
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
-  return offsetof(TrackedBlock, header_);
+  static_assert(offsetof(ExactSizeBlock, header_) ==
+                offsetof(TreeBlock, header_));
+  return offsetof(ExactSizeBlock, header_);
 #pragma clang diagnostic pop
 }
 
@@ -24,8 +26,10 @@ constexpr bool UserDataOffsetValid() {
 }
 
 static_assert(HeaderOffset() == 0, "FreeBlock header offset must be 0");
-static_assert(sizeof(TrackedBlock) <= 24,
-              "FreeBlock size is larger than 24 bytes");
+static_assert(sizeof(ExactSizeBlock) <= kMaxSmallSize,
+              "ExactSizeBlock size is larger than the max small size.");
+static_assert(sizeof(TreeBlock) <= kMaxSmallSize,
+              "TreeBlock size is larger than the max small size.");
 static_assert(
     UserDataOffsetValid(),
     "User data region starts at the incorrect offset in allocated blocks.");
@@ -60,6 +64,10 @@ bool Block::IsUntracked() const {
   return IsUntrackedSize(Size());
 }
 
+bool Block::IsExactSize() const {
+  return !IsUntrackedSize(Size()) && Size() <= kMaxExactSizeBlock;
+}
+
 AllocatedBlock* Block::ToAllocated() {
   CK_ASSERT_FALSE(Free());
   CK_ASSERT_GE(Size(), kMinLargeSize);
@@ -92,6 +100,32 @@ const TrackedBlock* Block::ToTracked() const {
   CK_ASSERT_TRUE(Free());
   CK_ASSERT_GE(Size(), kMinLargeSize);
   return static_cast<const TrackedBlock*>(this);
+}
+
+ExactSizeBlock* Block::ToExactSize() {
+  CK_ASSERT_TRUE(Free());
+  CK_ASSERT_GE(Size(), kMinLargeSize);
+  CK_ASSERT_LE(Size(), kMaxExactSizeBlock);
+  return static_cast<ExactSizeBlock*>(this);
+}
+
+const ExactSizeBlock* Block::ToExactSize() const {
+  CK_ASSERT_TRUE(Free());
+  CK_ASSERT_GE(Size(), kMinLargeSize);
+  CK_ASSERT_LE(Size(), kMaxExactSizeBlock);
+  return static_cast<const ExactSizeBlock*>(this);
+}
+
+TreeBlock* Block::ToTree() {
+  CK_ASSERT_TRUE(Free());
+  CK_ASSERT_GT(Size(), kMaxExactSizeBlock);
+  return static_cast<TreeBlock*>(this);
+}
+
+const TreeBlock* Block::ToTree() const {
+  CK_ASSERT_TRUE(Free());
+  CK_ASSERT_GT(Size(), kMaxExactSizeBlock);
+  return static_cast<const TreeBlock*>(this);
 }
 
 UntrackedBlock* Block::ToUntracked() {

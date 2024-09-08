@@ -15,6 +15,7 @@ cc_library(
     deps = [
         ":common",
         ":linked_list",
+        ":red_black_tree",
         ":util",
         "@abseil-cpp//absl/status",
     ],
@@ -55,6 +56,7 @@ cc_library(
         ":block",
         ":common",
         ":linked_list",
+        ":red_black_tree",
         ":util",
     ],
 )
