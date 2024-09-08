@@ -23,13 +23,9 @@ TrackedBlock* Freelist::FindFree(size_t user_size) {
     }
   }
 
-  for (TrackedBlock& block : free_blocks_) {
-    if (block.UserDataSize() >= user_size) {
-      return &block;
-    }
-  }
-
-  return nullptr;
+  return free_blocks_.LowerBound([user_size](const TreeBlock& tree_block) {
+    return tree_block.UserDataSize() >= user_size;
+  });
 }
 
 FreeBlock* Freelist::InitFree(Block* block, uint64_t size) {
