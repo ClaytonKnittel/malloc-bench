@@ -140,7 +140,7 @@ void Freelist::DeleteBlock(TrackedBlock* block) {
 size_t Freelist::ExactSizeIdx(uint64_t block_size) {
   CK_ASSERT_GT(block_size, kMaxSmallSize);
   CK_ASSERT_LE(block_size, Block::kMaxExactSizeBlock);
-  return (block_size - kMaxSmallSize) / kDefaultAlignment - 1;
+  return (block_size - kMaxSmallSize - kDefaultAlignment) / kDefaultAlignment;
 }
 
 AllocatedBlock* Freelist::MarkAllocated(TrackedBlock* block,
