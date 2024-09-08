@@ -1,5 +1,6 @@
 #pragma once
 
+#include <iterator>
 #include <type_traits>
 
 #include "src/ckmalloc/util.h"
@@ -55,6 +56,9 @@ class LinkedListIterator {
   using node_type = std::conditional_t<std::is_const_v<value_type>,
                                        const LinkedListNode, LinkedListNode>;
   using difference_type = size_t;
+  using pointer = value_type*;
+  using reference = value_type&;
+  using iterator_category = std::forward_iterator_tag;
 
   LinkedListIterator(const LinkedListIterator&) = default;
 
@@ -164,6 +168,10 @@ class LinkedList {
 
   void InsertAfter(iterator it, T* item) {
     static_cast<LinkedListNode*>(item)->InsertAfter(*it.node_);
+  }
+
+  void InsertBefore(iterator it, T* item) {
+    static_cast<LinkedListNode*>(item)->InsertBefore(*it.node_);
   }
 
   void Remove(T* item) {
