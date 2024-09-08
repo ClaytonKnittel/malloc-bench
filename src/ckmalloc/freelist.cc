@@ -14,12 +14,16 @@ namespace ckmalloc {
 TrackedBlock* Freelist::FindFree(size_t user_size) {
   uint64_t block_size = Block::BlockSizeForUserSize(user_size);
   if (block_size <= Block::kMaxExactSizeBlock) {
-    for (size_t idx = ExactSizeIdx(block_size); idx < kNumExactSizeBins;
-         idx++) {
-      TrackedBlock* block = exact_size_bins_[idx].Front();
+    for (auto it = exact_bin_skiplist_.begin(/*from=*/ExactSizeIdx(block_size));
+         it != exact_bin_skiplist_.end(); ++it) {
+      TrackedBlock* block = exact_size_bins_[*it].Front();
       if (block != nullptr) {
         return block;
       }
+
+      // If this list was empty, clear the corresponding skiplist bit so we
+      // don't check it again before filling it with something.
+      it.ClearAt();
     }
   }
 
@@ -155,8 +159,9 @@ AllocatedBlock* Freelist::MarkAllocated(TrackedBlock* block,
 void Freelist::AddBlock(TrackedBlock* block) {
   uint64_t block_size = block->Size();
   if (block_size <= Block::kMaxExactSizeBlock) {
-    exact_size_bins_[ExactSizeIdx(block_size)].InsertFront(
-        block->ToExactSize());
+    size_t idx = ExactSizeIdx(block_size);
+    exact_size_bins_[idx].InsertFront(block->ToExactSize());
+    exact_bin_skiplist_.Set(idx);
   } else {
     new (static_cast<RbNode*>(block->ToTree())) RbNode();
     free_blocks_.Insert(block->ToTree());

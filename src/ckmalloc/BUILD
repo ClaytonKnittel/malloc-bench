@@ -58,6 +58,7 @@ cc_library(
         ":linked_list",
         ":red_black_tree",
         ":util",
+        "@cc-util//util:bit_set",
     ],
 )
 

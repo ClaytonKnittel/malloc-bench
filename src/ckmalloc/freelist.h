@@ -5,6 +5,8 @@
 #include <cstring>
 #include <optional>
 
+#include "util/bit_set.h"
+
 #include "src/ckmalloc/block.h"
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/linked_list.h"
@@ -79,7 +81,9 @@ class Freelist {
   // `new_size`.
   void MoveBlockHeader(FreeBlock* block, Block* new_head, uint64_t new_size);
 
+  util::BitSet<kNumExactSizeBins> exact_bin_skiplist_;
   LinkedList<ExactSizeBlock> exact_size_bins_[kNumExactSizeBins];
+
   RbTree<TreeBlock> free_blocks_;
 };
 

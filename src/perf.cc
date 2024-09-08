@@ -8,7 +8,14 @@
 
 int main() {
   for (const auto& tracefile : {
+           "traces/four-in-a-row.trace",
+           "traces/grep.trace",
+           "traces/haskell-web-server.trace",
            "traces/onoro.trace",
+           "traces/onoro-cc.trace",
+           "traces/scp.trace",
+           "traces/solitaire.trace",
+           "traces/ssh.trace",
        }) {
     bench::MMapHeapFactory heap_factory;
     absl::StatusOr<bench::TracefileReader> reader =
