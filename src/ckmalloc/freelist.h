@@ -5,7 +5,6 @@
 #include <cstring>
 #include <optional>
 
-#include "absl/status/status.h"
 #include "util/bit_set.h"
 
 #include "src/ckmalloc/block.h"
@@ -19,10 +18,6 @@ namespace ckmalloc {
 // memory larger than what fit into small slabs.
 class Freelist {
   friend class LargeAllocatorFixture;
-
-  friend class absl::Status ValidateBlockedSlabs(
-      const class std::vector<struct BlockedSlabInfo>&,
-      const class Freelist& freelist);
 
   static constexpr size_t kNumExactSizeBins =
       (Block::kMaxExactSizeBlock - kMaxSmallSize) / kDefaultAlignment;

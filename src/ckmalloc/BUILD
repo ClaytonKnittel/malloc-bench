@@ -57,7 +57,6 @@ cc_library(
         ":linked_list",
         ":red_black_tree",
         ":util",
-        "@abseil-cpp//absl/status",
         "@cc-util//util:bit_set",
     ],
 )
