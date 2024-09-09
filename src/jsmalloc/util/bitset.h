@@ -7,9 +7,6 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
-#include <iostream>
-#include <memory>
-#include <type_traits>
 
 #include "src/jsmalloc/util/allocable.h"
 
@@ -36,7 +33,7 @@ concept PrimitiveBitsT =
  * A bitset with a primitive backing.
  */
 template <PrimitiveBitsT T = uint64_t>
-class PrimitiveBitSet {
+class PrimitiveBitSet : public DefaultAllocable<PrimitiveBitSet<T>, size_t> {
  public:
   static constexpr size_t kMaxBits = sizeof(T) * 8;
 
@@ -44,13 +41,7 @@ class PrimitiveBitSet {
   static constexpr auto kOne = static_cast<T>(1);
 
  public:
-  static constexpr size_t RequiredSize(size_t /*num_bits*/) {
-    return sizeof(PrimitiveBitSet<T>);
-  }
-
-  static PrimitiveBitSet<T>* Init(void* ptr, size_t /*num_bits*/) {
-    return new (ptr) PrimitiveBitSet<T>();
-  }
+  explicit PrimitiveBitSet(size_t /*num_bits*/) {}
 
   void set(size_t pos, bool value = true) {
     bits_ &= ~(kOne << pos);
@@ -181,22 +172,8 @@ class MultiLevelBitSet {
 
 using BitSet32 = internal::PrimitiveBitSet<uint32_t>;
 using BitSet64 = internal::PrimitiveBitSet<uint64_t>;
+using BitSet1024 = internal::MultiLevelBitSet<uint32_t, BitSet32>;
 using BitSet4096 = internal::MultiLevelBitSet<uint64_t, BitSet64>;
 using BitSet262144 = internal::MultiLevelBitSet<uint64_t, BitSet4096>;
-
-/** A bitset that statically selects one of the above bitsets. */
-template <size_t N>
-using BitSet = std::conditional<
-    N <= 32, BitSet32,
-    typename std::conditional<
-        N <= 64, BitSet64,
-        typename std::conditional<N <= 4096, BitSet4096,
-                                  BitSet262144>::type>::type>::type;
-
-/** A dynamically allocated bitset. */
-template <size_t N>
-std::unique_ptr<BitSet<N>> MakeBitSet() {
-  return MakeAllocable<BitSet<N>>(N);
-}
 
 }  // namespace jsmalloc

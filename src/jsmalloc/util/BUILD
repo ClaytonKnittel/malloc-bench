@@ -41,6 +41,7 @@ cc_test(
     visibility = ["//visibility:public"],
     deps = [
         ":bitset",
+        ":allocable",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
