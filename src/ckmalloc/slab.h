@@ -346,6 +346,10 @@ class BlockedSlab : public AllocatedSlab {
   // satisfy this allocation.
   static uint32_t NPagesForBlock(size_t user_size);
 
+  // Given a pointer to the start of a blocked slab, returns a pointer to the
+  // first block.
+  static Block* FirstBlock(void* slab_start);
+
   // Returns the largest block size that can fit in this large slab.
   uint64_t MaxBlockSize() const;
 
