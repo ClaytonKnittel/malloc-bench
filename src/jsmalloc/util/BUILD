@@ -21,3 +21,20 @@ cc_library(
         "@abseil-cpp//absl/strings",
     ],
 )
+
+cc_library(
+    name = "bitset",
+    hdrs = ["bitset.h"],
+    visibility = ["//visibility:public"],
+)
+
+cc_test(
+    name = "bitset_test",
+    srcs = ["bitset_test.cc"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":bitset",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
