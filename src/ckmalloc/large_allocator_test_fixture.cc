@@ -37,8 +37,10 @@ absl::Status LargeAllocatorFixture::ValidateHeap() {
           &block, block.Size(), *slab);
     }
 
-    size_t block_offset_bytes =
-        PtrDistance(&block, slab_manager_->PageStartFromId(slab->StartId()));
+    size_t block_offset_bytes = PtrDistance(
+        static_cast<const AllocatedBlock*>(static_cast<const Block*>(&block))
+            ->UserDataPtr(),
+        slab_manager_->PageStartFromId(slab->StartId()));
     if (!IsAligned<uint64_t>(block_offset_bytes, kDefaultAlignment)) {
       return FailedTest(
           "Encountered unaligned block in freelist at offset %zu from heap "
@@ -111,47 +113,45 @@ absl::Status LargeAllocatorFixture::ValidateHeap() {
     uint64_t allocated_bytes = 0;
     while (block->Size() != 0) {
       if (block < slab_start || block->NextAdjacentBlock() >= slab_end) {
-        return absl::FailedPreconditionError(absl::StrFormat(
+        return FailedTest(
             "Encountered block outside the range of the heap while iterating "
             "over heap: block at %p, heap ranges from %p to %p",
-            &block, slab_start, slab_end));
+            &block, slab_start, slab_end);
       }
 
       size_t block_offset_bytes = PtrDistance(
           static_cast<AllocatedBlock*>(block)->UserDataPtr(), slab_start);
       if (!IsAligned<uint64_t>(block_offset_bytes, kDefaultAlignment)) {
-        return absl::FailedPreconditionError(absl::StrFormat(
+        return FailedTest(
             "Encountered unaligned block while iterating heap at "
             "offset %zu from heap start: %v",
-            block_offset_bytes, *block));
+            block_offset_bytes, *block);
       }
 
       if (block->Free()) {
         bool in_freelist = free_blocks.contains(block);
         if (block->IsUntracked() && in_freelist) {
-          return absl::FailedPreconditionError(absl::StrFormat(
-              "Encountered untracked block in the freelist: %v", *block));
+          return FailedTest("Encountered untracked block in the freelist: %v",
+                            *block);
         }
         if (!block->IsUntracked()) {
           if (!in_freelist) {
-            return absl::FailedPreconditionError(absl::StrFormat(
-                "Encountered free block which was not in freelist: %v",
-                *block));
+            return FailedTest(
+                "Encountered free block which was not in freelist: %v", *block);
           }
           n_free_blocks++;
         }
 
         if (prev_block != nullptr && prev_block->Free()) {
-          return absl::FailedPreconditionError(
-              absl::StrFormat("Encountered two free blocks in a row: %v and %v",
-                              *prev_block, *block));
+          return FailedTest("Encountered two free blocks in a row: %v and %v",
+                            *prev_block, *block);
         }
       } else {
         if (block->Size() < Block::kMinLargeSize) {
-          return absl::FailedPreconditionError(
-              absl::StrFormat("Encountered small-sized allocated block, which "
-                              "should not be possible: %v",
-                              *block));
+          return FailedTest(
+              "Encountered small-sized allocated block, which should not be "
+              "possible: %v",
+              *block);
         }
 
         allocated_bytes += block->Size();
@@ -159,33 +159,32 @@ absl::Status LargeAllocatorFixture::ValidateHeap() {
 
       if (prev_block != nullptr && prev_block->Free()) {
         if (!block->PrevFree()) {
-          return absl::FailedPreconditionError(absl::StrFormat(
-              "Prev-free bit not set in block after free block: "
-              "%v followed by %v",
-              *prev_block, *block));
+          return FailedTest(
+              "Prev-free bit not set in block after free block: %v followed by "
+              "%v",
+              *prev_block, *block);
         }
         if (block->PrevSize() != prev_block->Size()) {
-          return absl::FailedPreconditionError(
-              absl::StrFormat("Prev-size incorrect for block after free block: "
-                              "%v followed by %v",
-                              *prev_block, *block));
+          return FailedTest(
+              "Prev-size incorrect for block after free block: %v followed by "
+              "%v",
+              *prev_block, *block);
         }
       } else if (block->PrevFree()) {
         if (prev_block == nullptr) {
-          return absl::FailedPreconditionError(absl::StrFormat(
+          return FailedTest(
               "Prev free not set correctly in block %v at beginning of slab",
-              *block));
+              *block);
         }
-        return absl::FailedPreconditionError(
-            absl::StrFormat("Prev free not set correctly in block %v, prev %v",
-                            *block, *prev_block));
+        return FailedTest("Prev free not set correctly in block %v, prev %v",
+                          *block, *prev_block);
       }
 
       if (block->Size() > PtrDistance(slab_end, block)) {
-        return absl::FailedPreconditionError(
-            absl::StrFormat("Encountered block with size larger than remainder "
-                            "of heap: %v, heap has %zu bytes left",
-                            *block, PtrDistance(slab_end, block)));
+        return FailedTest(
+            "Encountered block with size larger than remainder of heap: %v, "
+            "heap has %zu bytes left",
+            *block, PtrDistance(slab_end, block));
       }
 
       prev_block = block;
@@ -195,33 +194,33 @@ absl::Status LargeAllocatorFixture::ValidateHeap() {
     Block* const phony_header =
         PtrSub<Block>(slab_end, Block::kMetadataOverhead);
     if (block != phony_header) {
-      return absl::FailedPreconditionError(
-          absl::StrFormat("Ended heap iteration on block not at end of heap: "
-                          "%p, end of heap is %p",
-                          block, phony_header));
+      return FailedTest(
+          "Ended heap iteration on block not at end of heap: %p, end of heap "
+          "is %p",
+          block, phony_header);
     }
 
     if (prev_block != nullptr && block->PrevFree() != prev_block->Free()) {
-      return absl::FailedPreconditionError(absl::StrFormat(
+      return FailedTest(
           "Prev-free bit of phony header is incorrect: %v, prev %v", *block,
-          *prev_block));
+          *prev_block);
     }
 
     if (allocated_bytes != slab->AllocatedBytes()) {
-      return absl::FailedPreconditionError(
-          absl::StrFormat("Large slab allocated byte count is incorrect for "
-                          "%v, expected %" PRIu64 " allocated bytes",
-                          *slab, allocated_bytes));
+      return FailedTest(
+          "Large slab allocated byte count is incorrect for %v, expected "
+          "%" PRIu64 " allocated bytes",
+          *slab, allocated_bytes);
     }
 
     page += mapped_slab->Pages();
   }
 
   if (n_free_blocks != free_blocks.size()) {
-    return absl::FailedPreconditionError(
-        absl::StrFormat("Encountered %zu free blocks when iterating over the "
-                        "heap, but %zu free blocks in the freelist",
-                        n_free_blocks, free_blocks.size()));
+    return FailedTest(
+        "Encountered %zu free blocks when iterating over the heap, but %zu "
+        "free blocks in the freelist",
+        n_free_blocks, free_blocks.size());
   }
 
   return absl::OkStatus();

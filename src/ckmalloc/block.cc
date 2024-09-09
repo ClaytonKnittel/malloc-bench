@@ -198,6 +198,10 @@ void* AllocatedBlock::UserDataPtr() {
   return data_;
 }
 
+const void* AllocatedBlock::UserDataPtr() const {
+  return data_;
+}
+
 /* static */
 AllocatedBlock* AllocatedBlock::FromUserDataPtr(void* ptr) {
   return PtrSub<AllocatedBlock>(ptr, UserDataOffset());

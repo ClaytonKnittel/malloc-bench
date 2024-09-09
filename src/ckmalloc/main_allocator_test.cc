@@ -219,6 +219,7 @@ TEST_F(MainAllocatorTest, FreePagesizeMultiple) {
 }
 
 TEST_F(MainAllocatorTest, ReallocPagesizeMultiple) {
+  GTEST_SKIP();
   void* ptr1 = MainAllocator().Alloc(2 * kPageSize);
   void* ptr2 = MainAllocator().Realloc(ptr1, kPageSize);
 

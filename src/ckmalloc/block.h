@@ -17,8 +17,8 @@ class Block {
   friend class BlockTest;
   friend class ExactSizeBlock;
   friend class Freelist;
-  friend class FreelistTest;
   friend class LargeAllocatorFixture;
+  friend class LargeAllocatorTest;
   friend class TreeBlock;
 
   template <typename Sink>
@@ -153,6 +153,7 @@ class AllocatedBlock : public Block {
   // Returns a pointer to the beginning of the user-allocatable region of memory
   // in this block.
   void* UserDataPtr();
+  const void* UserDataPtr() const;
 
   // Given a user data pointer, returns the allocated block containing this
   // pointer.
