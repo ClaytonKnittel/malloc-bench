@@ -45,6 +45,7 @@ class State {
   ckmalloc::SlabManager slab_manager_;
   ckmalloc::MetadataManager metadata_manager_;
   ckmalloc::SmallAllocator small_alloc_;
+  ckmalloc::LargeAllocator large_alloc_;
   ckmalloc::MainAllocator main_allocator_;
 };
 
