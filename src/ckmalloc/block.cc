@@ -68,6 +68,10 @@ bool Block::IsExactSize() const {
   return !IsUntrackedSize(Size()) && Size() <= kMaxExactSizeBlock;
 }
 
+bool Block::IsPhonyHeader() const {
+  return Size() == 0;
+}
+
 AllocatedBlock* Block::ToAllocated() {
   CK_ASSERT_FALSE(Free());
   CK_ASSERT_GE(Size(), kMinLargeSize);

@@ -77,6 +77,7 @@ concept SlabManagerInterface =
         slab_mgr.template Alloc<class SingleAllocSlab>(n_pages)
       } -> std::convertible_to<
           std::optional<std::pair<class PageId, class SingleAllocSlab*>>>;
+      { slab_mgr.Resize(slab, n_pages) } -> std::convertible_to<bool>;
       { slab_mgr.Free(slab) } -> std::same_as<void>;
       {
         slab_mgr.FirstBlockInBlockedSlab(blocked_slab)

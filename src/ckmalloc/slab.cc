@@ -426,6 +426,11 @@ uint32_t BlockedSlab::NPagesForBlock(size_t user_size) {
                                        kPageSize));
 }
 
+/* static */
+Block* BlockedSlab::FirstBlock(void* slab_start) {
+  return PtrAdd<Block>(slab_start, Block::kFirstBlockInSlabOffset);
+}
+
 uint64_t BlockedSlab::MaxBlockSize() const {
   CK_ASSERT_EQ(Type(), SlabType::kBlocked);
   return AlignDown(mapped.n_pages_ * kPageSize -
