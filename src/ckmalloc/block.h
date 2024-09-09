@@ -3,8 +3,6 @@
 #include <cstddef>
 #include <cstdint>
 
-#include "absl/status/status.h"
-
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/linked_list.h"
 #include "src/ckmalloc/red_black_tree.h"
@@ -18,16 +16,13 @@ class Block {
   friend class AllocatedBlock;
   friend class BlockTest;
   friend class ExactSizeBlock;
-  friend class TreeBlock;
   friend class Freelist;
-  friend class FreelistTest;
+  friend class LargeAllocatorFixture;
+  friend class LargeAllocatorTest;
+  friend class TreeBlock;
 
   template <typename Sink>
   friend void AbslStringify(Sink& sink, const Block& block);
-
-  friend class absl::Status ValidateBlockedSlabs(
-      const class std::vector<struct BlockedSlabInfo>&,
-      const class Freelist& freelist);
 
   friend constexpr size_t HeaderOffset();
 
@@ -158,6 +153,7 @@ class AllocatedBlock : public Block {
   // Returns a pointer to the beginning of the user-allocatable region of memory
   // in this block.
   void* UserDataPtr();
+  const void* UserDataPtr() const;
 
   // Given a user data pointer, returns the allocated block containing this
   // pointer.

@@ -6,9 +6,6 @@
 #include "absl/status/status.h"
 #include "util/absl_util.h"
 
-#include "src/ckmalloc/common.h"
-#include "src/ckmalloc/page_id.h"
-#include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/testlib.h"
 #include "src/ckmalloc/util.h"
 
@@ -17,9 +14,10 @@ namespace ckmalloc {
 TestMainAllocator::TestMainAllocator(MainAllocatorFixture* test_fixture,
                                      TestSlabMap* slab_map,
                                      TestSlabManager* slab_manager,
-                                     TestSmallAllocator* small_alloc)
+                                     TestSmallAllocator* small_alloc,
+                                     TestLargeAllocator* large_alloc)
     : test_fixture_(test_fixture),
-      main_allocator_(slab_map, slab_manager, small_alloc) {}
+      main_allocator_(slab_map, slab_manager, small_alloc, large_alloc) {}
 
 void* TestMainAllocator::Alloc(size_t user_size) {
   void* alloc = main_allocator_.Alloc(user_size);
@@ -98,50 +96,6 @@ absl::Status MainAllocatorFixture::ValidateHeap() {
 
     it = next_it;
   }
-
-  // Validate all large slabs.
-  std::vector<BlockedSlabInfo> blocked_slabs;
-
-  for (PageId page_id = PageId::Zero();
-       page_id <
-       PageId(slab_manager_test_fixture_->SlabHeap().Size() / kPageSize);) {
-    Slab* slab = slab_map_->FindSlab(page_id);
-    if (slab == nullptr) {
-      return FailedTest("Unexpected `nullptr` slab map entry for page %v",
-                        page_id);
-    }
-
-    switch (slab->Type()) {
-      case SlabType::kUnmapped: {
-        return FailedTest(
-            "Unexpected unmapped slab ID encountered in slab map at %v",
-            page_id);
-      }
-      case SlabType::kFree:
-      case SlabType::kSmall:
-      case SlabType::kSingleAlloc: {
-        break;
-      }
-      case SlabType::kBlocked: {
-        BlockedSlab* blocked_slab = slab->ToBlocked();
-        blocked_slabs.push_back(BlockedSlabInfo{
-            .start =
-                static_cast<uint8_t*>(slab_manager_->PageStartFromId(page_id)) +
-                Block::kFirstBlockInSlabOffset,
-            .end = static_cast<uint8_t*>(
-                       slab_manager_->PageStartFromId(blocked_slab->EndId())) +
-                   kPageSize,
-            .slab = blocked_slab,
-        });
-        break;
-      }
-    }
-
-    page_id += slab->ToMapped()->Pages();
-  }
-
-  RETURN_IF_ERROR(
-      ValidateBlockedSlabs(blocked_slabs, main_allocator_->Freelist()));
 
   return absl::OkStatus();
 }

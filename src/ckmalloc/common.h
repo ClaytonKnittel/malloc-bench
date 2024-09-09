@@ -96,6 +96,16 @@ concept SmallAllocatorInterface =
       { small_alloc.FreeSlice(slab, slice) } -> std::same_as<void>;
     };
 
+template <typename T>
+concept LargeAllocatorInterface = requires(T large_alloc, size_t user_size,
+                                           class LargeSlab* slab, void* ptr) {
+  { large_alloc.AllocLarge(user_size) } -> std::convertible_to<void*>;
+  {
+    large_alloc.ReallocLarge(slab, ptr, user_size)
+  } -> std::convertible_to<void*>;
+  { large_alloc.FreeLarge(slab, ptr) } -> std::same_as<void>;
+};
+
 // This is defined in `state.cc` to avoid circular dependencies.
 class GlobalMetadataAlloc {
  public:

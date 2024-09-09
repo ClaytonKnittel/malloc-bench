@@ -41,7 +41,9 @@ State::State(bench::HeapFactory* heap_factory)
     : slab_manager_(heap_factory, &slab_map_, /*heap_idx=*/1),
       metadata_manager_(heap_factory, &slab_map_, /*heap_idx=*/0),
       small_alloc_(&slab_map_, &slab_manager_),
-      main_allocator_(&slab_map_, &slab_manager_, &small_alloc_) {}
+      large_alloc_(&slab_map_, &slab_manager_),
+      main_allocator_(&slab_map_, &slab_manager_, &small_alloc_,
+                      &large_alloc_) {}
 
 // template <>
 // TestState* TestState::state_ = nullptr;
