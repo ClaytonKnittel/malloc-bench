@@ -6,15 +6,10 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
+#include <type_traits>
 
 namespace jsmalloc {
-
-/** A type that can be dynamically allocated. */
-template <typename T, typename InitArg>
-concept AllocableT = requires(void* ptr, InitArg arg) {
-  { T::RequiredSize(arg) } -> std::same_as<size_t>;
-  { T::Init(ptr, arg) } -> std::same_as<T*>;
-};
+namespace internal {
 
 template <typename B>
 concept BitSetT =
@@ -22,9 +17,8 @@ concept BitSetT =
       { bitset.set(pos, value) } -> std::same_as<void>;
       { bitset.set(pos) } -> std::same_as<void>;
       { bitset.test(pos) } -> std::same_as<bool>;
-      { bitset.full() } -> std::same_as<bool>;
       { bitset.countr_one() } -> std::same_as<size_t>;
-      { B::kMaxBits } -> std::convertible_to<size_t>;
+      { B::kBits } -> std::convertible_to<size_t>;
     };
 
 template <typename T>
@@ -35,14 +29,13 @@ concept PrimitiveBitsT =
 /**
  * A bitset with a primitive backing.
  */
-template <PrimitiveBitsT T = uint64_t, size_t N = sizeof(T) * 8>
-class PrimBitSet {
+template <PrimitiveBitsT T = uint64_t>
+class PrimitiveBitSet {
  public:
-  static constexpr size_t kMaxBits = sizeof(T) * 8;
+  static constexpr size_t kBits = sizeof(T) * 8;
 
  private:
   static constexpr auto kOne = static_cast<T>(1);
-  static constexpr size_t kFullBits = (-kOne) >> (kMaxBits - N);
 
  public:
   void set(size_t pos, bool value = true) {
@@ -52,10 +45,6 @@ class PrimBitSet {
 
   bool test(size_t pos) const {
     return static_cast<bool>(bits_ & (kOne << pos));
-  }
-
-  bool full() const {
-    return bits_ == kFullBits;
   }
 
   size_t popcount() const {
@@ -70,7 +59,7 @@ class PrimBitSet {
   T bits_ = 0;
 };
 
-static_assert(BitSetT<PrimBitSet<uint64_t>>);
+static_assert(BitSetT<PrimitiveBitSet<uint64_t>>);
 
 /**
  * A multi-level bitset.
@@ -78,61 +67,45 @@ static_assert(BitSetT<PrimBitSet<uint64_t>>);
  * Allows composing BitSetT classes to an arbitrary depth,
  * while supporting logarithmic countr_one.
  */
-template <PrimitiveBitsT P, template <size_t> class SecondLevel,
-          size_t N = PrimBitSet<P>::kMaxBits * SecondLevel<1>::kMaxBits>
-requires BitSetT<SecondLevel<1>>
+template <BitSetT FirstLevel, BitSetT SecondLevel,
+          size_t N = FirstLevel::kBits * SecondLevel::kBits>
 class MultiLevelBitSet {
  private:
-  using FirstLevel = PrimBitSet<P>;
-  static constexpr size_t kSecondLevelMaxBits = SecondLevel<1>::kMaxBits;
   static constexpr size_t kSecondLevelLen =
-      (N + kSecondLevelMaxBits - 1) / kSecondLevelMaxBits;
-
-  static_assert(N % kSecondLevelLen == 0);
-  static constexpr size_t kBitsPerSecondLevel = N / kSecondLevelLen;
+      (N + SecondLevel::kBits - 1) / SecondLevel::kBits;
 
  public:
-  static constexpr size_t kMaxBits =
-      PrimBitSet<P>::kMaxBits * kSecondLevelMaxBits;
-  static_assert(N <= kMaxBits);
+  static constexpr size_t kBits = FirstLevel::kBits * SecondLevel::kBits;
 
   void set(size_t pos, bool value = true) {
-    assert(pos >= 0);
-    assert(pos < kMaxBits);
+    assert(0 <= pos && pos < kBits);
 
-    size_t quot = pos / kBitsPerSecondLevel;
-    size_t rem = pos % kBitsPerSecondLevel;
+    size_t quot = pos / SecondLevel::kBits;
+    size_t rem = pos % SecondLevel::kBits;
     second_level_[quot].set(rem, value);
-    first_level_.set(quot, second_level_[quot].full());
+
+    bool full = second_level_[quot].countr_one() == SecondLevel::kBits;
+    first_level_.set(quot, full);
   }
 
   bool test(size_t pos) const {
-    assert(pos >= 0);
-    assert(pos < kMaxBits);
+    assert(0 <= pos && pos < kBits);
 
-    size_t quot = pos / kBitsPerSecondLevel;
-    size_t rem = pos % kBitsPerSecondLevel;
+    size_t quot = pos / SecondLevel::kBits;
+    size_t rem = pos % SecondLevel::kBits;
     return second_level_[quot].test(rem);
-  }
-
-  bool full() const {
-    return first_level_.full();
   }
 
   size_t countr_one() const {
     size_t first_level_ones = first_level_.countr_one();
-
-    // These ternaries compile to cmov's.
+    // If every second level block is full,
+    // then subtract one from the index to avoid going out of bounds.
     //
-    // It's probably better to just branch here instead.
-    // Most of the time a bitset will not be full anyway.
-    //
-    // This is more fun.
-    bool full = first_level_ones == kSecondLevelLen;
-    size_t first_level_count = first_level_ones * kBitsPerSecondLevel;
-    size_t idx = full ? 0 : first_level_ones;
-    size_t remainder_block_count = second_level_[idx].countr_one();
-    return full ? first_level_count : first_level_count + remainder_block_count;
+    // We could alternatively return early here, but this way is *branchless*.
+    size_t idx = first_level_ones == FirstLevel::kBits ? first_level_ones - 1
+                                                       : first_level_ones;
+    size_t unfull_block_count = second_level_[idx].countr_one();
+    return idx * SecondLevel::kBits + unfull_block_count;
   }
 
  private:
@@ -140,13 +113,13 @@ class MultiLevelBitSet {
    * A bitset where first_level_.test(i) indicates if content_[i]
    * is completely filled with ones.
    */
-  PrimBitSet<P, kSecondLevelLen> first_level_;
+  FirstLevel first_level_;
 
   /**
    * The actual content of this bitset, split into blocks
    * that hold an equal number of bits.
    */
-  SecondLevel<kBitsPerSecondLevel> second_level_[kSecondLevelLen];
+  SecondLevel second_level_[kSecondLevelLen];
 };
 
 /** Wrapper around a bitset that provides `std::popcount` functionality. */
@@ -167,46 +140,37 @@ class PopCountBitSet : public BitSet {
   size_t popcount_ = 0;
 };
 
-namespace internal {
+using BitSet32 = PrimitiveBitSet<uint32_t>;
+using BitSet64 = PrimitiveBitSet<uint64_t>;
 
 template <size_t N>
-using BitSet64 = PrimBitSet<uint64_t, N>;
+using BitSet4096NoPopCount = MultiLevelBitSet<BitSet64, BitSet64, N>;
 
 template <size_t N>
-using BitSet512 = MultiLevelBitSet<uint32_t, BitSet64, N>;
-
-template <size_t N>
-using BitSet4096 = MultiLevelBitSet<uint64_t, BitSet64, N>;
-
-template <size_t N>
-using BitSet262144 = MultiLevelBitSet<uint64_t, BitSet4096, N>;
+using BitSet262144NoPopCount =
+    MultiLevelBitSet<BitSet64, BitSet4096NoPopCount<4096>, N>;
 
 }  // namespace internal
 
-/** A bitset that supports up to 2^6 bits. */
-template <size_t N>
-using BitSet64 = internal::BitSet64<N>;
-
-/** A bitset that supports up to 2^9 bits. */
-template <size_t N>
-using BitSet512 = PopCountBitSet<internal::BitSet512<N>>;
+using BitSet32 = internal::BitSet32;
+using BitSet64 = internal::BitSet64;
 
 /** A bitset that supports up to 2^12 bits. */
 template <size_t N>
-using BitSet4096 = PopCountBitSet<internal::BitSet4096<N>>;
+using BitSet4096 = internal::PopCountBitSet<internal::BitSet4096NoPopCount<N>>;
 
 /** A bitset that supports up to 2^18 bits. */
 template <size_t N>
-using BitSet262144 = PopCountBitSet<internal::BitSet262144<N>>;
+using BitSet262144 =
+    internal::PopCountBitSet<internal::BitSet262144NoPopCount<N>>;
 
-static_assert(sizeof(BitSet64<1>) == 8);
-static_assert(sizeof(BitSet64<64>) == 8);
-
-static_assert(sizeof(BitSet4096<1>) == 24);
-static_assert(sizeof(BitSet512<480>) == 80);
-static_assert(sizeof(BitSet4096<4096>) == 528);
-
-static_assert(sizeof(BitSet262144<1>) == 32);
-static_assert(sizeof(BitSet262144<262144>) == 33296);
+/** A bitset that statically selects one of the above bitsets. */
+template <size_t N>
+using BitSet = std::conditional<
+    N <= 32, internal::BitSet32,
+    typename std::conditional<
+        N <= 64, internal::BitSet64,
+        typename std::conditional<N <= 4096, BitSet4096<N>,
+                                  BitSet262144<N>>::type>::type>::type;
 
 }  // namespace jsmalloc

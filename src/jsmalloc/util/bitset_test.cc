@@ -5,7 +5,7 @@
 namespace jsmalloc {
 
 TEST(BitSetTest, SetAndTest) {
-  PrimBitSet b;
+  BitSet<10> b;
   EXPECT_EQ(b.test(0), false);
   b.set(0, true);
   EXPECT_EQ(b.test(0), true);
@@ -14,23 +14,14 @@ TEST(BitSetTest, SetAndTest) {
 }
 
 TEST(BitSetTest, CountTrailingOnes) {
-  PrimBitSet b;
+  BitSet<10> b;
   EXPECT_EQ(b.countr_one(), 0);
   b.set(0, true);
   EXPECT_EQ(b.countr_one(), 1);
 }
 
-TEST(BitSetTest, ReportsFull) {
-  PrimBitSet<uint64_t, 5> b;
-  for (int i = 0; i < 5; i++) {
-    EXPECT_FALSE(b.full());
-    b.set(i, true);
-  }
-  EXPECT_TRUE(b.full());
-}
-
-TEST(BitSet512Test, SetAndTest) {
-  BitSet4096<200> b;
+TEST(BitSet4096Test, SetAndTest) {
+  BitSet<200> b;
   EXPECT_EQ(b.test(0), false);
   b.set(0, true);
   EXPECT_EQ(b.test(0), true);
@@ -38,7 +29,7 @@ TEST(BitSet512Test, SetAndTest) {
   EXPECT_EQ(b.test(0), false);
 }
 
-TEST(BitSet512Test, CountTrailingOnesBasic) {
+TEST(BitSet4096Test, CountTrailingOnesBasic) {
   BitSet4096<200> b;
   EXPECT_EQ(b.countr_one(), 0);
   b.set(0, true);
@@ -66,15 +57,6 @@ TEST(BitSet512Test, CountTrailingOnesSparse) {
 
   b.set(66, false);
   EXPECT_EQ(b.countr_one(), 66);
-}
-
-TEST(BitSet512Test, ReportsFull) {
-  BitSet4096<200> b;
-  for (int i = 0; i < 200; i++) {
-    EXPECT_FALSE(b.full());
-    b.set(i, true);
-  }
-  EXPECT_TRUE(b.full());
 }
 
 }  // namespace jsmalloc
