@@ -14,7 +14,7 @@ using TestSmallAllocator = SmallAllocatorImpl<TestSlabMap, TestSlabManager>;
 
 class SmallAllocatorFixture : public CkMallocTest {
  public:
-  static constexpr const char* kPrefix = "[LargeAllocatorFixture]";
+  static constexpr const char* kPrefix = "[SmallAllocatorFixture]";
 
   SmallAllocatorFixture(
       std::shared_ptr<TestHeapFactory> heap_factory,
