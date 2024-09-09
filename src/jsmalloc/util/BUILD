@@ -5,6 +5,12 @@ cc_library(
 )
 
 cc_library(
+    name = "allocable",
+    hdrs = ["allocable.h"],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
     name = "assert",
     hdrs = ["assert.h"],
     visibility = ["//visibility:public"],
@@ -26,6 +32,7 @@ cc_library(
     name = "bitset",
     hdrs = ["bitset.h"],
     visibility = ["//visibility:public"],
+    deps = [":allocable"],
 )
 
 cc_test(

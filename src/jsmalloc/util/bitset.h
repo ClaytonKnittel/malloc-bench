@@ -6,19 +6,25 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
+#include <iostream>
+#include <memory>
 #include <type_traits>
+
+#include "src/jsmalloc/util/allocable.h"
 
 namespace jsmalloc {
 namespace internal {
 
 template <typename B>
 concept BitSetT =
+    AllocableT<B, size_t> &&
     requires(B bitset, size_t pos, bool value, void* ptr, size_t num_bits) {
       { bitset.set(pos, value) } -> std::same_as<void>;
       { bitset.set(pos) } -> std::same_as<void>;
       { bitset.test(pos) } -> std::same_as<bool>;
       { bitset.countr_one() } -> std::same_as<size_t>;
-      { B::kBits } -> std::convertible_to<size_t>;
+      { B::kMaxBits } -> std::convertible_to<size_t>;
     };
 
 template <typename T>
@@ -32,12 +38,20 @@ concept PrimitiveBitsT =
 template <PrimitiveBitsT T = uint64_t>
 class PrimitiveBitSet {
  public:
-  static constexpr size_t kBits = sizeof(T) * 8;
+  static constexpr size_t kMaxBits = sizeof(T) * 8;
 
  private:
   static constexpr auto kOne = static_cast<T>(1);
 
  public:
+  static constexpr size_t RequiredSize(size_t /*num_bits*/) {
+    return sizeof(PrimitiveBitSet<T>);
+  }
+
+  static PrimitiveBitSet<T>* Init(void* ptr, size_t /*num_bits*/) {
+    return new (ptr) PrimitiveBitSet<T>();
+  }
+
   void set(size_t pos, bool value = true) {
     bits_ &= ~(kOne << pos);
     bits_ |= static_cast<T>(value) << pos;
@@ -67,33 +81,62 @@ static_assert(BitSetT<PrimitiveBitSet<uint64_t>>);
  * Allows composing BitSetT classes to an arbitrary depth,
  * while supporting logarithmic countr_one.
  */
-template <BitSetT FirstLevel, BitSetT SecondLevel,
-          size_t N = FirstLevel::kBits * SecondLevel::kBits>
+template <PrimitiveBitsT FirstLevelPrim, BitSetT SecondLevel>
 class MultiLevelBitSet {
  private:
-  static constexpr size_t kSecondLevelLen =
-      (N + SecondLevel::kBits - 1) / SecondLevel::kBits;
+  using This = MultiLevelBitSet<FirstLevelPrim, SecondLevel>;
+  using FirstLevel = PrimitiveBitSet<FirstLevelPrim>;
+  static constexpr size_t kMaxSecondLevelSize =
+      SecondLevel::RequiredSize(SecondLevel::kMaxBits);
 
  public:
-  static constexpr size_t kBits = FirstLevel::kBits * SecondLevel::kBits;
+  /** The maximum number of bits this structure can hold. */
+  static constexpr size_t kMaxBits =
+      FirstLevel::kMaxBits * SecondLevel::kMaxBits;
+
+  static constexpr size_t RequiredSize(size_t num_bits) {
+    size_t size = offsetof(This, second_level_);
+
+    size_t second_level_length =
+        (num_bits + SecondLevel::kMaxBits - 1) / SecondLevel::kMaxBits;
+
+    // Non-terminal second level blocks are completely packed.
+    size += (second_level_length - 1) * kMaxSecondLevelSize;
+
+    // Size of the last block in the second level.
+    // This block may be incomplete and we can save some space here.
+    size_t remaining_bits =
+        num_bits - (second_level_length - 1) * SecondLevel::kMaxBits;
+    size += SecondLevel::RequiredSize(remaining_bits);
+
+    return size;
+  }
+
+  static MultiLevelBitSet<FirstLevelPrim, SecondLevel>* Init(void* ptr,
+                                                             size_t num_bits) {
+    // Relies on impl details of PrimitiveBitSet and MultiLevelBitSet.
+    std::memset(ptr, 0, RequiredSize(num_bits));
+    return reinterpret_cast<This*>(ptr);
+  }
 
   void set(size_t pos, bool value = true) {
-    assert(0 <= pos && pos < kBits);
+    assert(0 <= pos && pos < kMaxBits);
 
-    size_t quot = pos / SecondLevel::kBits;
-    size_t rem = pos % SecondLevel::kBits;
-    second_level_[quot].set(rem, value);
+    size_t quot = pos / SecondLevel::kMaxBits;
+    size_t rem = pos % SecondLevel::kMaxBits;
+    SecondLevel* second_level = GetMutSecondLevel(quot);
+    second_level->set(rem, value);
 
-    bool full = second_level_[quot].countr_one() == SecondLevel::kBits;
+    bool full = second_level->countr_one() == SecondLevel::kMaxBits;
     first_level_.set(quot, full);
   }
 
   bool test(size_t pos) const {
-    assert(0 <= pos && pos < kBits);
+    assert(0 <= pos && pos < kMaxBits);
 
-    size_t quot = pos / SecondLevel::kBits;
-    size_t rem = pos % SecondLevel::kBits;
-    return second_level_[quot].test(rem);
+    size_t quot = pos / SecondLevel::kMaxBits;
+    size_t rem = pos % SecondLevel::kMaxBits;
+    return GetSecondLevel(quot)->test(rem);
   }
 
   size_t countr_one() const {
@@ -102,75 +145,58 @@ class MultiLevelBitSet {
     // then subtract one from the index to avoid going out of bounds.
     //
     // We could alternatively return early here, but this way is *branchless*.
-    size_t idx = first_level_ones == FirstLevel::kBits ? first_level_ones - 1
-                                                       : first_level_ones;
-    size_t unfull_block_count = second_level_[idx].countr_one();
-    return idx * SecondLevel::kBits + unfull_block_count;
+    size_t idx = first_level_ones == FirstLevel::kMaxBits ? first_level_ones - 1
+                                                          : first_level_ones;
+    size_t unfull_block_count = GetSecondLevel(idx)->countr_one();
+    return idx * SecondLevel::kMaxBits + unfull_block_count;
   }
 
  private:
+  SecondLevel* GetMutSecondLevel(size_t idx) {
+    return reinterpret_cast<SecondLevel*>(
+        &second_level_[kMaxSecondLevelSize * idx]);
+  }
+
+  const SecondLevel* GetSecondLevel(size_t idx) const {
+    return reinterpret_cast<const SecondLevel*>(
+        &second_level_[kMaxSecondLevelSize * idx]);
+  }
+
   /**
-   * A bitset where first_level_.test(i) indicates if content_[i]
+   * A bitset where first_level_.test(i) indicates if second_level_[i]
    * is completely filled with ones.
    */
   FirstLevel first_level_;
 
   /**
-   * The actual content of this bitset, split into blocks
-   * that hold an equal number of bits.
+   * The actual content of this bitset.
+   *
+   * Objects here are of type `SecondLevel`, but they're of variable length
+   * generally.
    */
-  SecondLevel second_level_[kSecondLevelLen];
+  uint8_t second_level_[];
 };
-
-/** Wrapper around a bitset that provides `std::popcount` functionality. */
-template <BitSetT BitSet>
-class PopCountBitSet : public BitSet {
- public:
-  void set(size_t pos, bool value = true) {
-    popcount_ -= static_cast<size_t>(BitSet::test(pos));
-    BitSet::set(pos, value);
-    popcount_ += static_cast<size_t>(value);
-  }
-
-  size_t popcount() {
-    return popcount_;
-  }
-
- private:
-  size_t popcount_ = 0;
-};
-
-using BitSet32 = PrimitiveBitSet<uint32_t>;
-using BitSet64 = PrimitiveBitSet<uint64_t>;
-
-template <size_t N>
-using BitSet4096NoPopCount = MultiLevelBitSet<BitSet64, BitSet64, N>;
-
-template <size_t N>
-using BitSet262144NoPopCount =
-    MultiLevelBitSet<BitSet64, BitSet4096NoPopCount<4096>, N>;
 
 }  // namespace internal
 
-using BitSet32 = internal::BitSet32;
-using BitSet64 = internal::BitSet64;
-
-/** A bitset that supports up to 2^12 bits. */
-template <size_t N>
-using BitSet4096 = internal::PopCountBitSet<internal::BitSet4096NoPopCount<N>>;
-
-/** A bitset that supports up to 2^18 bits. */
-template <size_t N>
-using BitSet262144 =
-    internal::PopCountBitSet<internal::BitSet262144NoPopCount<N>>;
+using BitSet32 = internal::PrimitiveBitSet<uint32_t>;
+using BitSet64 = internal::PrimitiveBitSet<uint64_t>;
+using BitSet4096 = internal::MultiLevelBitSet<uint64_t, BitSet64>;
+using BitSet262144 = internal::MultiLevelBitSet<uint64_t, BitSet4096>;
 
 /** A bitset that statically selects one of the above bitsets. */
 template <size_t N>
 using BitSet = std::conditional<
-    N <= 32, internal::BitSet32,
+    N <= 32, BitSet32,
     typename std::conditional<
-        N <= 64, internal::BitSet64,
-        typename std::conditional<N <= 4096, BitSet4096<N>,
-                                  BitSet262144<N>>::type>::type>::type;
+        N <= 64, BitSet64,
+        typename std::conditional<N <= 4096, BitSet4096,
+                                  BitSet262144>::type>::type>::type;
+
+/** A dynamically allocated bitset. */
+template <size_t N>
+std::unique_ptr<BitSet<N>> MakeBitSet() {
+  return MakeAllocable<BitSet<N>>(N);
+}
 
 }  // namespace jsmalloc
