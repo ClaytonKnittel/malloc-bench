@@ -111,7 +111,7 @@ absl::Status LargeAllocatorFixture::ValidateHeap() {
     Block* block = slab_manager_->FirstBlockInBlockedSlab(slab);
     Block* prev_block = nullptr;
     uint64_t allocated_bytes = 0;
-    while (block->Size() != 0) {
+    while (!block->IsPhonyHeader()) {
       if (block < slab_start || block->NextAdjacentBlock() >= slab_end) {
         return FailedTest(
             "Encountered block outside the range of the heap while iterating "

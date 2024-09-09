@@ -85,6 +85,9 @@ class Block {
   // block rb tree.
   bool IsExactSize() const;
 
+  // Returns true if this block is the phony block at the end of the large slab.
+  bool IsPhonyHeader() const;
+
   class AllocatedBlock* ToAllocated();
   const class AllocatedBlock* ToAllocated() const;
 
