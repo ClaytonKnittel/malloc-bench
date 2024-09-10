@@ -35,6 +35,13 @@ class FreeBlockHeap {
     sentinel_block_heap_.Init();
   }
 
+  bool Contains(void* ptr) {
+    return twiddle::PtrValue(ptr) >=
+               twiddle::PtrValue(sentinel_block_heap_.Start()) &&
+           twiddle::PtrValue(ptr) <
+               twiddle::PtrValue(sentinel_block_heap_.End());
+  }
+
  private:
   HeapAdaptor heap_adaptor_;
   blocks::SentinelBlockHeap sentinel_block_heap_;
@@ -95,7 +102,9 @@ void* malloc(size_t size) {
     return nullptr;
   }
   // TODO: Remove, I don't think this helps.
-  void* exact_match = heap_globals->large_block_allocator_.EfficientlyAllocateFromExistingBlock(size);
+  void* exact_match =
+      heap_globals->large_block_allocator_.EfficientlyAllocateFromExistingBlock(
+          size);
   if (exact_match != nullptr) {
     return exact_match;
   }
@@ -130,11 +139,19 @@ void free(void* ptr) {
   if (ptr == nullptr) {
     return;
   }
+
+  if (heap_globals->small_block_heap_.Contains(ptr)) {
+    heap_globals->small_block_allocator_.Free(ptr);
+    return;
+  }
+
   blocks::BlockHeader* hdr = blocks::BlockHeader::FromDataPtr(ptr);
   if (hdr->Kind() == blocks::BlockKind::kLarge) {
     heap_globals->large_block_allocator_.Free(ptr);
-  } else if (hdr->Kind() == blocks::BlockKind::kSmall) {
-    heap_globals->small_block_allocator_.Free(ptr);
+  } else {
+    std::cerr << "unexpected block type: " << static_cast<int>(hdr->Kind())
+              << std::endl;
+    std::terminate();
   }
 }
 

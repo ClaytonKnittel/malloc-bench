@@ -6,7 +6,6 @@
 #include "gtest/gtest.h"
 
 #include "src/jsmalloc/allocator.h"
-#include "src/jsmalloc/blocks/free_block.h"
 #include "src/jsmalloc/blocks/free_block_allocator.h"
 #include "src/jsmalloc/blocks/sentinel_block_allocator.h"
 
@@ -20,8 +19,8 @@ class SmallBlockTest : public ::testing::Test {
   }
 
   SmallBlock* New(size_t data_size, size_t bin_count) {
-    FreeBlock* block = free_block_allocator.Allocate(
-        SmallBlock::BlockSize(data_size, bin_count));
+    auto* block = free_block_allocator.Allocate(
+        SmallBlock::RequiredSize(data_size, bin_count));
     if (block == nullptr)
       return nullptr;
     return SmallBlock::Init(block, data_size, bin_count);
@@ -32,8 +31,9 @@ class SmallBlockTest : public ::testing::Test {
   FreeBlockAllocator free_block_allocator = FreeBlockAllocator(sentinel_heap);
 };
 
-TEST_F(SmallBlockTest, FullLifecycle) {
-  auto* block = New(12, 32);
+TEST_F(SmallBlockTest, AllocAndFree) {
+  size_t bin_count = 400;
+  auto* block = New(8, bin_count);
   EXPECT_TRUE(block->IsEmpty());
 
   std::vector<void*> ptrs;
@@ -41,7 +41,7 @@ TEST_F(SmallBlockTest, FullLifecycle) {
     ptrs.push_back(block->Alloc());
   }
 
-  EXPECT_EQ(ptrs.size(), 32);
+  EXPECT_EQ(ptrs.size(), bin_count);
 
   for (void* ptr : ptrs) {
     EXPECT_FALSE(block->IsEmpty());
@@ -50,29 +50,6 @@ TEST_F(SmallBlockTest, FullLifecycle) {
   }
 
   EXPECT_TRUE(block->IsEmpty());
-}
-
-TEST_F(SmallBlockTest, ReportsSize) {
-  SmallBlock* block = New(12, 32);
-
-  EXPECT_GT(block->BlockSize(), 12 * 32);
-  EXPECT_EQ(block->DataSize(), 12);
-}
-
-TEST_F(SmallBlockTest, FromDataPointer) {
-  SmallBlock* block = New(12, 20);
-
-  std::vector<void*> ptrs;
-  while (!block->IsFull()) {
-    ptrs.push_back(block->Alloc());
-  }
-
-  EXPECT_EQ(ptrs.size(), 20);
-
-  for (void* ptr : ptrs) {
-    EXPECT_EQ(static_cast<void*>(BlockHeader::FromDataPtr(ptr)),
-              static_cast<void*>(block));
-  }
 }
 
 }  // namespace blocks

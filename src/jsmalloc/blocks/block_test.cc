@@ -16,7 +16,7 @@ TEST(TestBlockHeader, Initialization) {
 TEST(TestBlockHeader, LargeData) {
   uint32_t large_size = (1 << 29) - 1;
   large_size &= ~0b1111;
-  BlockKind kind = BlockKind::kBeginOrEnd;
+  BlockKind kind = BlockKind::kEnd;
 
   BlockHeader header(large_size, kind, true);
 

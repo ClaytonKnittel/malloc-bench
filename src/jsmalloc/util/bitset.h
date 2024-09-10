@@ -168,10 +168,65 @@ class MultiLevelBitSet {
   uint8_t second_level_[];
 };
 
+template <typename T>
+constexpr T ZeroIfFalse(bool pred, T value) {
+  return (-static_cast<T>(pred)) & value;
+}
+
+/**
+ * A single level bitset.
+ */
+template <PrimitiveBitsT Primitive, size_t N>
+class PackedPrimitiveBitSet
+    : public DefaultAllocable<PackedPrimitiveBitSet<Primitive, N>, size_t> {
+ private:
+  static constexpr auto kOne = static_cast<uint64_t>(1);
+  static constexpr size_t kBitsPerPrimitive = sizeof(Primitive) * 8;
+
+ public:
+  static constexpr size_t kMaxBits = kBitsPerPrimitive * N;
+
+  explicit PackedPrimitiveBitSet(size_t /*num_bits*/) {}
+
+  void set(size_t pos, bool value = true) {
+    size_t quot = pos / kBitsPerPrimitive;
+    size_t rem = pos % kBitsPerPrimitive;
+    bits_[quot] &= ~(kOne << rem);
+    bits_[quot] |= static_cast<Primitive>(value) << rem;
+  }
+
+  bool test(size_t pos) const {
+    size_t quot = pos / kBitsPerPrimitive;
+    size_t rem = pos % kBitsPerPrimitive;
+    return static_cast<bool>(bits_[quot] & (kOne << rem));
+  }
+
+  size_t popcount() const {
+    size_t count = 0;
+    for (uint64_t bit : bits_) {
+      count += std::popcount(bit);
+    }
+    return count;
+  }
+
+  size_t countr_one() const {
+    size_t res = 0;
+    for (int i = 0; i < N; i++) {
+      res += ZeroIfFalse(res == (i * kBitsPerPrimitive),
+                         std::countr_one(bits_[i]));
+    }
+    return res;
+  }
+
+ private:
+  Primitive bits_[N] = { 0 };
+};
+
 }  // namespace internal
 
 using BitSet32 = internal::PrimitiveBitSet<uint32_t>;
 using BitSet64 = internal::PrimitiveBitSet<uint64_t>;
+using BitSet512 = internal::PackedPrimitiveBitSet<uint64_t, 8>;
 using BitSet1024 = internal::MultiLevelBitSet<uint32_t, BitSet32>;
 using BitSet4096 = internal::MultiLevelBitSet<uint64_t, BitSet64>;
 using BitSet262144 = internal::MultiLevelBitSet<uint64_t, BitSet4096>;

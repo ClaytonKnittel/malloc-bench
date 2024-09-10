@@ -12,6 +12,8 @@ class MemRegion {
  public:
   /** Extends a memory region by the provided amount. */
   virtual void* Extend(intptr_t increment) = 0;
+  virtual void* Start() = 0;
+  virtual void* End() = 0;
   virtual ~MemRegion() = default;
 };
 
@@ -28,6 +30,14 @@ class HeapAdaptor : public MemRegion {
 
   void* Extend(intptr_t increment) override {
     return heap_->sbrk(increment);
+  }
+
+  void* Start() override {
+    return heap_->Start();
+  }
+
+  void* End() override {
+    return heap_->End();
   }
 
  private:
@@ -71,16 +81,24 @@ class FixedSizeTestHeap : public MemRegion {
       return nullptr;
     }
     // Ensure we give out 16-byte aligned addresses.
-    void* ptr = static_cast<void*>(&data_[end_ + Start()]);
+    void* ptr = End();
     end_ += increment;
     return ptr;
   }
 
-  intptr_t Start() {
-    return 16 - (twiddle::PtrValue(this) % 16);
+  void* Start() override {
+    return &data_[Offset()];
+  }
+
+  void* End() override {
+    return &data_[Offset() + end_];
   }
 
  private:
+  intptr_t Offset() {
+    return 16 - (twiddle::PtrValue(this) % 16);
+  }
+
   size_t end_ = 0;
   uint8_t data_[N];
 };

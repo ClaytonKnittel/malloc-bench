@@ -8,8 +8,7 @@ namespace blocks {
 
 class SentinelBlock {
  public:
-  SentinelBlock()
-      : header_(sizeof(SentinelBlock), BlockKind::kBeginOrEnd, false){};
+  SentinelBlock() : header_(sizeof(SentinelBlock), BlockKind::kEnd, false){};
 
   BlockHeader* Header() {
     return &header_;
@@ -23,7 +22,7 @@ class SentinelBlock {
 static_assert(sizeof(SentinelBlock) % 16 == 0);
 
 /**
- * A heap maintaining sentinel blocks at both ends.
+ * A heap maintaining a sentinel block at its end.
  */
 class SentinelBlockHeap {
  public:
@@ -49,6 +48,15 @@ class SentinelBlockHeap {
 
     return twiddle::AddPtrOffset<SentinelBlock>(
         ptr, -static_cast<int32_t>(sizeof(SentinelBlock)));
+  }
+
+  void* Start() {
+    return mem_region_.Start();
+  }
+
+  void* End() {
+    return twiddle::AddPtrOffset<void>(
+        mem_region_.End(), -static_cast<int32_t>(sizeof(SentinelBlock)));
   }
 
  private:
