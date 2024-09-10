@@ -93,7 +93,7 @@ MappedSlab* SlabMapImpl<MetadataAlloc>::FindSlab(PageId page_id) const {
   size_t leaf_idx = LeafIdx(page_id);
 
   Leaf* leaf = (*this)[root_idx];
-  if (leaf == nullptr) {
+  if (CK_EXPECT_FALSE(leaf == nullptr)) {
     return nullptr;
   }
 

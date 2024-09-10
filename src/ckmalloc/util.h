@@ -45,6 +45,9 @@
 
 #define CK_UNREACHABLE() __builtin_unreachable()
 
+#define CK_EXPECT_TRUE(cond)  __builtin_expect((long) (cond), (long) 1)
+#define CK_EXPECT_FALSE(cond) __builtin_expect((long) (cond), (long) 0)
+
 namespace ckmalloc {
 
 template <typename T>
