@@ -7,7 +7,7 @@ cc_library(
         ":common",
         ":local_cache",
         ":main_allocator",
-        ":state",
+        ":global_state",
         "//src:heap_factory",
     ],
 )
@@ -513,9 +513,9 @@ cc_library(
 )
 
 cc_library(
-    name = "state",
-    srcs = ["state.cc"],
-    hdrs = ["state.h"],
+    name = "global_state",
+    srcs = ["global_state.cc"],
+    hdrs = ["global_state.h"],
     deps = [
         ":main_allocator",
         ":metadata_manager",
@@ -559,7 +559,7 @@ cc_binary(
     deps = [
         ":ckmalloc",
         ":heap_printer",
-        ":state",
+        ":global_state",
         "//src:heap_factory",
         "//src:mmap_heap_factory",
         "//src:tracefile_executor",

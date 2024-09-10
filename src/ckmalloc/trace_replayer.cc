@@ -19,8 +19,8 @@
 #include "util/print_colors.h"
 
 #include "src/ckmalloc/ckmalloc.h"
+#include "src/ckmalloc/global_state.h"
 #include "src/ckmalloc/heap_printer.h"
-#include "src/ckmalloc/state.h"
 #include "src/heap_factory.h"
 #include "src/mmap_heap_factory.h"
 #include "src/tracefile_executor.h"

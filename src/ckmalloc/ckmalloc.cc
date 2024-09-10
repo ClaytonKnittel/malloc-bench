@@ -4,9 +4,9 @@
 #include <cstring>
 
 #include "src/ckmalloc/common.h"
+#include "src/ckmalloc/global_state.h"
 #include "src/ckmalloc/local_cache.h"
 #include "src/ckmalloc/main_allocator.h"
-#include "src/ckmalloc/state.h"
 #include "src/heap_factory.h"
 
 namespace ckmalloc {

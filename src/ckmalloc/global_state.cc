@@ -1,4 +1,4 @@
-#include "src/ckmalloc/state.h"
+#include "src/ckmalloc/global_state.h"
 
 #include "src/ckmalloc/main_allocator.h"
 #include "src/ckmalloc/metadata_manager.h"

@@ -2,7 +2,7 @@
 
 #include <cstddef>
 
-#include "src/ckmalloc/state.h"
+#include "src/ckmalloc/global_state.h"
 #include "src/heap_factory.h"
 
 namespace ckmalloc {
