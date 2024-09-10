@@ -5,9 +5,9 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":common",
+        ":global_state",
         ":local_cache",
         ":main_allocator",
-        ":global_state",
         "//src:heap_factory",
     ],
 )
@@ -555,8 +555,8 @@ cc_binary(
     ],
     deps = [
         ":ckmalloc",
-        ":heap_printer",
         ":global_state",
+        ":heap_printer",
         "//src:heap_factory",
         "//src:mmap_heap_factory",
         "//src:tracefile_executor",
