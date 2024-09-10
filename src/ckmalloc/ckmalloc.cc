@@ -25,18 +25,18 @@ void* CkMalloc::Malloc(size_t size) {
     return nullptr;
   }
 
-  // LocalCache* cache = LocalCache::Instance<GlobalMetadataAlloc>();
-  // if (LocalCache::CanHoldSize(size)) {
-  //   size_t alloc_size = AlignUserSize(size);
-  //   void* cached_alloc = cache->TakeAlloc(alloc_size);
-  //   if (cached_alloc != nullptr) {
-  //     return cached_alloc;
-  //   }
-  // }
+  LocalCache* cache = LocalCache::Instance<GlobalMetadataAlloc>();
+  if (LocalCache::CanHoldSize(size)) {
+    size_t alloc_size = AlignUserSize(size);
+    void* cached_alloc = cache->TakeAlloc(alloc_size);
+    if (cached_alloc != nullptr) {
+      return cached_alloc;
+    }
+  }
 
-  // if (cache->ShouldFlush()) {
-  //   cache->Flush(*global_state_.MainAllocator());
-  // }
+  if (cache->ShouldFlush()) {
+    cache->Flush(*global_state_.MainAllocator());
+  }
 
   return global_state_.MainAllocator()->Alloc(size);
 }
@@ -54,6 +54,7 @@ void* CkMalloc::Realloc(void* ptr, size_t size) {
   if (ptr == nullptr) {
     return Malloc(size);
   }
+  // TODO: use cache here.
   return global_state_.MainAllocator()->Realloc(ptr, size);
 }
 
@@ -63,13 +64,13 @@ void CkMalloc::Free(void* ptr) {
   }
 
   MainAllocator* main_allocator = global_state_.MainAllocator();
-  // LocalCache* cache = LocalCache::Instance<GlobalMetadataAlloc>();
-  // size_t alloc_size = main_allocator->AllocSize(ptr);
-  // if (LocalCache::CanHoldSize(alloc_size)) {
-  //   cache->CacheAlloc(ptr, alloc_size);
-  // } else {
-  main_allocator->Free(ptr);
-  // }
+  LocalCache* cache = LocalCache::Instance<GlobalMetadataAlloc>();
+  size_t alloc_size = main_allocator->AllocSize(ptr);
+  if (LocalCache::CanHoldSize(alloc_size)) {
+    cache->CacheAlloc(ptr, alloc_size);
+  } else {
+    main_allocator->Free(ptr);
+  }
 }
 
 CkMalloc::CkMalloc(bench::HeapFactory* heap_factory)

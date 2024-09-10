@@ -534,19 +534,16 @@ cc_library(
     deps = [
         ":block",
         ":common",
-        ":freelist",
         ":page_id",
         ":slab",
         ":slab_map",
         ":util",
         "//src:heap_factory",
         "//src:heap_interface",
-        "@abseil-cpp//absl/container:flat_hash_set",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",
-        "@cc-util//util:absl_util",
     ],
 )
 

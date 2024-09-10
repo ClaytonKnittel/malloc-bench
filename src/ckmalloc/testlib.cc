@@ -4,14 +4,9 @@
 #include <new>
 #include <vector>
 
-#include "absl/container/flat_hash_set.h"
-#include "absl/status/status.h"
 #include "absl/status/statusor.h"
-#include "util/absl_util.h"
 
-#include "src/ckmalloc/block.h"
 #include "src/ckmalloc/common.h"
-#include "src/ckmalloc/freelist.h"
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/util.h"
 
