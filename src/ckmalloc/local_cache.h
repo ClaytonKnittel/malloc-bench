@@ -12,7 +12,7 @@ namespace ckmalloc {
 // Given a user size, aligns the user size up to the largest user allocation
 // which will be treated the same way by the allocator.
 inline constexpr size_t AlignUserSize(size_t user_size) {
-  return user_size < kMinAlignment ? kMinAlignment
+  return user_size <= kMinAlignment ? kMinAlignment
          : user_size <= kMaxSmallSize
              ? AlignUp(user_size, kDefaultAlignment)
              : AlignUp(user_size + Block::kMetadataOverhead,

@@ -217,9 +217,12 @@ cc_library(
     hdrs = ["main_allocator_test_fixture.h"],
     visibility = ["//visibility:public"],
     deps = [
+        ":common",
         ":freelist",
         ":large_allocator_test_fixture",
+        ":local_cache",
         ":main_allocator",
+        ":slab",
         ":slab_manager_test_fixture",
         ":small_allocator_test_fixture",
         ":testlib",
@@ -511,7 +514,6 @@ cc_library(
 
 cc_library(
     name = "state",
-    srcs = ["state.cc"],
     hdrs = ["state.h"],
     deps = [
         ":main_allocator",
@@ -520,7 +522,6 @@ cc_library(
         ":slab_map",
         ":small_allocator",
         "//src:heap_factory",
-        "//src:heap_interface",
     ],
 )
 

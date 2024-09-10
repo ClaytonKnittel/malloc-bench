@@ -26,7 +26,7 @@ class CkMalloc {
 
   void Free(void* ptr);
 
-  State* GlobalState() {
+  GlobalState* GlobalState() {
     return &global_state_;
   }
 
@@ -39,7 +39,7 @@ class CkMalloc {
 
   static CkMalloc* instance_;
 
-  State global_state_;
+  class GlobalState global_state_;
 };
 
 }  // namespace ckmalloc

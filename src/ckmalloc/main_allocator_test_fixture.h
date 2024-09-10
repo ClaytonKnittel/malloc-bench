@@ -45,6 +45,8 @@ class TestMainAllocator {
 
   void Free(void* ptr);
 
+  size_t AllocSize(void* ptr);
+
  private:
   class MainAllocatorFixture* test_fixture_;
   MainAllocatorT main_allocator_;
