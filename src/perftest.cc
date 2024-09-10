@@ -1,4 +1,5 @@
 
+#include <cstddef>
 #include <cstdlib>
 #include <vector>
 
@@ -118,10 +119,9 @@ std::pair<std::vector<TimeOp>, size_t> ComputeOps(
 
 // Runs at least 1000000 ops, and returns the average MOps/s.
 absl::StatusOr<double> TimeTrace(TracefileReader& reader,
-                                 HeapFactory& heap_factory) {
-  constexpr size_t kMinDesiredOps = 1000000;
-
-  size_t num_repetitions = (kMinDesiredOps - 1) / reader.size() + 1;
+                                 HeapFactory& heap_factory,
+                                 size_t min_desired_ops) {
+  size_t num_repetitions = (min_desired_ops - 1) / reader.size() + 1;
 
   auto [ops, max_allocs] = ComputeOps(reader);
   std::vector<void*> ptrs(max_allocs);
