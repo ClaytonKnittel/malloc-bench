@@ -17,6 +17,7 @@ namespace ckmalloc {
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
 class LargeAllocatorImpl {
   friend class LargeAllocatorFixture;
+  friend class State;
   friend class TestMainAllocator;
 
  public:

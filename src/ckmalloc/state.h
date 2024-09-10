@@ -16,7 +16,22 @@ class State {
   static State* InitializeWithEmptyHeap(bench::HeapFactory* heap_factory);
 
   // Returns the singleton `State` instance.
-  static State* Instance();
+  static State* Instance() {
+    CK_ASSERT_NE(state_, nullptr);
+
+    CK_ASSERT_EQ(state_->slab_manager_.slab_map_, &state_->slab_map_);
+    CK_ASSERT_EQ(state_->metadata_manager_.slab_map_, &state_->slab_map_);
+    CK_ASSERT_EQ(state_->small_alloc_.slab_map_, &state_->slab_map_);
+    CK_ASSERT_EQ(state_->small_alloc_.slab_manager_, &state_->slab_manager_);
+    CK_ASSERT_EQ(state_->large_alloc_.slab_map_, &state_->slab_map_);
+    CK_ASSERT_EQ(state_->large_alloc_.slab_manager_, &state_->slab_manager_);
+    CK_ASSERT_EQ(state_->main_allocator_.slab_map_, &state_->slab_map_);
+    CK_ASSERT_EQ(state_->main_allocator_.slab_manager_, &state_->slab_manager_);
+    CK_ASSERT_EQ(state_->main_allocator_.small_alloc_, &state_->small_alloc_);
+    CK_ASSERT_EQ(state_->main_allocator_.large_alloc_, &state_->large_alloc_);
+
+    return state_;
+  }
 
   SlabMap* SlabMap() {
     return &slab_map_;

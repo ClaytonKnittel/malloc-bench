@@ -31,12 +31,6 @@ State* State::InitializeWithEmptyHeap(bench::HeapFactory* heap_factory) {
   return state;
 }
 
-/* static */
-State* State::Instance() {
-  CK_ASSERT_NE(state_, nullptr);
-  return state_;
-}
-
 State::State(bench::HeapFactory* heap_factory)
     : slab_manager_(heap_factory, &slab_map_, /*heap_idx=*/1),
       metadata_manager_(heap_factory, &slab_map_, /*heap_idx=*/0),
@@ -44,9 +38,6 @@ State::State(bench::HeapFactory* heap_factory)
       large_alloc_(&slab_map_, &slab_manager_),
       main_allocator_(&slab_map_, &slab_manager_, &small_alloc_,
                       &large_alloc_) {}
-
-// template <>
-// TestState* TestState::state_ = nullptr;
 
 Slab* GlobalMetadataAlloc::SlabAlloc() {
   return State::Instance()->MetadataManager()->NewSlabMeta();

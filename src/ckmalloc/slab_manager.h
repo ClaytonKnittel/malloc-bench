@@ -21,6 +21,7 @@ namespace ckmalloc {
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
 class SlabManagerImpl {
   friend class SlabManagerFixture;
+  friend class State;
 
  public:
   explicit SlabManagerImpl(bench::HeapFactory* heap_factory, SlabMap* slab_map,
@@ -127,7 +128,7 @@ class SlabManagerImpl {
   // The slab manager needs to access the slab map when coalescing to know if
   // the adjacent slabs are free or allocated, and if they are free how large
   // they are.
-  SlabMap* slab_map_;
+  SlabMap* const slab_map_;
 
   // Single-page slabs are kept in a singly-linked freelist.
   LinkedList<FreeSinglePageSlab> single_page_freelist_;
