@@ -23,9 +23,9 @@ class Freelist {
       (Block::kMaxExactSizeBlock - kMaxSmallSize) / kDefaultAlignment;
 
  public:
-  // Searches the freelists for a block large enough to fit `user_size`. If none
-  // is found, `nullptr` is returned.
-  TrackedBlock* FindFree(size_t user_size);
+  // Searches the freelists for a block at least as large as `block_size`. If
+  // none is found, `nullptr` is returned.
+  TrackedBlock* FindFree(uint64_t block_size);
 
   // Initializes an uninitialized block to free with given size, inserting it
   // into the given freelist if the size is large enough, and returning `block`

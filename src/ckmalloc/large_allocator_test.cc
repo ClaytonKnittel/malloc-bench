@@ -286,9 +286,7 @@ TEST_F(LargeAllocatorTest, Empty) {
   EXPECT_THAT(ValidateHeap(), IsOk());
 
   EXPECT_THAT(FreelistList(), ElementsAre());
-  EXPECT_EQ(
-      Freelist().FindFree(Block::UserSizeForBlockSize(Block::kMinLargeSize)),
-      nullptr);
+  EXPECT_EQ(Freelist().FindFree(Block::kMinLargeSize), nullptr);
 }
 
 TEST_F(LargeAllocatorTest, OnlyAllocatedAndUntracked) {
@@ -303,22 +301,21 @@ TEST_F(LargeAllocatorTest, OnlyAllocatedAndUntracked) {
 
   // The freelist should remain empty with allocated or untracked blocks only.
   EXPECT_THAT(FreelistList(), ElementsAre());
-  EXPECT_EQ(
-      Freelist().FindFree(Block::UserSizeForBlockSize(Block::kMinLargeSize)),
-      nullptr);
+  EXPECT_EQ(Freelist().FindFree(Block::kMinLargeSize), nullptr);
 }
 
 TEST_F(LargeAllocatorTest, OneFree) {
-  TrackedBlock* block = PushFree(0x100);
+  uint64_t kSize = 0x100;
+
+  TrackedBlock* block = PushFree(kSize);
   PushAllocated(0xEF0);
   PushPhony();
   EXPECT_THAT(ValidateHeap(), IsOk());
 
   // The freelist should remain empty with allocated or untracked blocks only.
   EXPECT_THAT(FreelistList(), ElementsAre(block));
-  size_t max_req_size = Block::UserSizeForBlockSize(0x100);
-  EXPECT_EQ(Freelist().FindFree(max_req_size), block);
-  EXPECT_EQ(Freelist().FindFree(max_req_size + 1), nullptr);
+  EXPECT_EQ(Freelist().FindFree(kSize), block);
+  EXPECT_EQ(Freelist().FindFree(kSize + kDefaultAlignment), nullptr);
 }
 
 TEST_F(LargeAllocatorTest, ManyFree) {
@@ -337,18 +334,14 @@ TEST_F(LargeAllocatorTest, ManyFree) {
   // The freelist should remain empty with allocated or untracked blocks only.
   EXPECT_THAT(FreelistList(), UnorderedElementsAre(b1, b2, b3, b4));
 
-  size_t max_req_size = Block::UserSizeForBlockSize(0x900);
-  EXPECT_EQ(Freelist().FindFree(max_req_size), b3);
-  EXPECT_EQ(Freelist().FindFree(max_req_size + 1), nullptr);
+  EXPECT_EQ(Freelist().FindFree(0x900), b3);
+  EXPECT_EQ(Freelist().FindFree(0x900 + kDefaultAlignment), nullptr);
 
-  EXPECT_THAT(Freelist().FindFree(Block::UserSizeForBlockSize(0x500)),
-              AnyOf(b1, b3));
+  EXPECT_THAT(Freelist().FindFree(0x500), AnyOf(b1, b3));
 
-  EXPECT_THAT(Freelist().FindFree(Block::UserSizeForBlockSize(0x300)),
-              AnyOf(b1, b2, b3));
+  EXPECT_THAT(Freelist().FindFree(0x300), AnyOf(b1, b2, b3));
 
-  EXPECT_THAT(Freelist().FindFree(Block::UserSizeForBlockSize(0x200)),
-              AnyOf(b1, b2, b3, b4));
+  EXPECT_THAT(Freelist().FindFree(0x200), AnyOf(b1, b2, b3, b4));
 }
 
 TEST_F(LargeAllocatorTest, FreeAsOnlyBlock) {
