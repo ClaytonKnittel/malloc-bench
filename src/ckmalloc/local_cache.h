@@ -20,6 +20,10 @@ inline constexpr size_t AlignUserSize(size_t user_size) {
                    Block::kMetadataOverhead;
 }
 
+inline constexpr size_t ComputeSizeIdx(size_t alloc_size) {
+  return alloc_size / kDefaultAlignment + (alloc_size > kMaxSmallSize ? 1 : 0);
+}
+
 class LocalCache {
  public:
   LocalCache() = default;
@@ -63,9 +67,9 @@ class LocalCache {
   // Returns the index into the bins list of an allocation of the given size.
   static size_t SizeIdx(size_t alloc_size);
 
-  static constexpr size_t kMaxCachedAllocSize = AlignUserSize(256);
+  static constexpr size_t kMaxCachedAllocSize = AlignUserSize(128);
   static constexpr size_t kNumCacheBins =
-      2 + kMaxCachedAllocSize / kDefaultAlignment;
+      ComputeSizeIdx(kMaxCachedAllocSize) + 1;
 
   // Once the cache exceeds this size, it is flushed after the next allocation.
   static constexpr uint32_t kMaxCacheSize = 128;
