@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <cstdlib>
 #include <iomanip>
 #include <ios>
@@ -26,6 +27,10 @@ ABSL_FLAG(bool, skip_correctness, false,
           "If true, correctness checking is skipped.");
 
 ABSL_FLAG(bool, ignore_test, false, "If true, test traces are not run.");
+
+ABSL_FLAG(size_t, perftest_iters, 1000000,
+          "The minimum number of alloc/free operations to perform for each "
+          "tracefile when measuring allocator throughput.");
 
 namespace bench {
 
@@ -71,7 +76,9 @@ absl::StatusOr<TraceResult> RunTrace(const std::string& tracefile,
   }
 
   if (result.correct) {
-    DEFINE_OR_RETURN(double, mega_ops, TimeTrace(reader, heap_factory));
+    DEFINE_OR_RETURN(
+        double, mega_ops,
+        TimeTrace(reader, heap_factory, absl::GetFlag(FLAGS_perftest_iters)));
     DEFINE_OR_RETURN(double, utilization,
                      MeasureUtilization(reader, heap_factory));
 
