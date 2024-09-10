@@ -33,7 +33,9 @@ FreeBlock* FreeBlockAllocator::Allocate(size_t size) {
     FreeBlock& free_block = *best_fit;
     free_blocks_.remove(free_block);
     FreeBlock* remainder = free_block.MarkUsed(size);
-    if (remainder != nullptr) {
+    // Don't bother storing small free blocks.
+    // Small malloc sizes will be serviced by SmallBlockAllocator anyway.
+    if (remainder != nullptr && remainder->BlockSize() > 256) {
       free_blocks_.insert_back(*remainder);
     }
     return &free_block;
@@ -45,28 +47,6 @@ FreeBlock* FreeBlockAllocator::Allocate(size_t size) {
   }
   block->MarkUsed();
   return block;
-}
-
-/**
- * Returns a pointer to some free space of exactly the given size.
- *
- * Will not request more space from system memory.
- */
-FreeBlock* FreeBlockAllocator::AllocateExistingBlock(size_t min_size,
-                                                     size_t max_size) {
-  FreeBlock* best_fit = FindBestFit(min_size);
-  if (best_fit == nullptr) {
-    return nullptr;
-  }
-  if (best_fit->BlockSize() >= max_size) {
-    return nullptr;
-  }
-  free_blocks_.remove(*best_fit);
-  FreeBlock* remainder = best_fit->MarkUsed(min_size);
-  if (remainder != nullptr) {
-    free_blocks_.insert_back(*remainder);
-  }
-  return best_fit;
 }
 
 void FreeBlockAllocator::Free(BlockHeader* block) {

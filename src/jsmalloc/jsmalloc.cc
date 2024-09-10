@@ -11,8 +11,6 @@
 #include "src/jsmalloc/blocks/large_block_allocator.h"
 #include "src/jsmalloc/blocks/sentinel_block_allocator.h"
 #include "src/jsmalloc/blocks/small_block_allocator.h"
-#include "src/jsmalloc/util/assert.h"
-#include "src/jsmalloc/util/math.h"
 
 namespace jsmalloc {
 
@@ -100,13 +98,6 @@ void initialize_heap(bench::HeapFactory& heap_factory) {
 void* malloc(size_t size) {
   if (size == 0) {
     return nullptr;
-  }
-  // TODO: Remove, I don't think this helps.
-  void* exact_match =
-      heap_globals->large_block_allocator_.EfficientlyAllocateFromExistingBlock(
-          size);
-  if (exact_match != nullptr) {
-    return exact_match;
   }
   if (size <= blocks::SmallBlockAllocator::kMaxDataSize) {
     return heap_globals->small_block_allocator_.Allocate(size);

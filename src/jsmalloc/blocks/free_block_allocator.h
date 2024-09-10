@@ -24,13 +24,6 @@ class FreeBlockAllocator {
   FreeBlock* Allocate(size_t size);
 
   /**
-   * Returns a pointer to some free space of exactly the given size.
-   *
-   * Will not request more space from system memory.
-   */
-  FreeBlock* AllocateExistingBlock(size_t min_size, size_t max_size);
-
-  /**
    * Marks the block as free.
    */
   void Free(BlockHeader* block);

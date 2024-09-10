@@ -26,21 +26,6 @@ void* LargeBlockAllocator::Allocate(size_t size) {
   return block->Data();
 }
 
-void* LargeBlockAllocator::EfficientlyAllocateFromExistingBlock(size_t size) {
-  size_t min_size = LargeBlock::BlockSize(size);
-  auto max_size = static_cast<size_t>(min_size * 1.1);
-  FreeBlock* free_block =
-      allocator_.AllocateExistingBlock(min_size, max_size + 1);
-  if (free_block == nullptr) {
-    return nullptr;
-  }
-  LargeBlock* block = LargeBlock::Init(free_block);
-  if (block == nullptr) {
-    return nullptr;
-  }
-  return block->Data();
-}
-
 /** Frees a chunk of user data from its `LargeBlock`. */
 void LargeBlockAllocator::Free(void* ptr) {
   if (ptr == nullptr) {

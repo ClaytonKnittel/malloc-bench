@@ -72,8 +72,6 @@ namespace testing {
 template <size_t N>
 class FixedSizeTestHeap : public MemRegion {
  public:
-  // ~FixedSizeTestHeap() override = default;
-
   void* Extend(intptr_t increment) override {
     DCHECK_EQ(increment % 16, 0);
     DCHECK_LE(increment, N);
