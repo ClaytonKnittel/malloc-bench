@@ -19,7 +19,7 @@ template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager,
           SmallAllocatorInterface SmallAllocator,
           LargeAllocatorInterface LargeAllocator>
 class MainAllocatorImpl {
-  friend class State;
+  friend class GlobalState;
   friend class TestMainAllocator;
 
  public:

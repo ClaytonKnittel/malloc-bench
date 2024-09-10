@@ -9,12 +9,12 @@
 
 namespace ckmalloc {
 
-class State {
+class GlobalState {
   friend class CkMalloc;
 
  public:
-  State(bench::HeapFactory* heap_factory, size_t metadata_heap_idx,
-        size_t user_heap_idx);
+  GlobalState(bench::HeapFactory* heap_factory, size_t metadata_heap_idx,
+              size_t user_heap_idx);
 
   SlabMap* SlabMap() {
     return &slab_map_;

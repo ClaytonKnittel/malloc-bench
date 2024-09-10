@@ -21,7 +21,7 @@ namespace ckmalloc {
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
 class SlabManagerImpl {
   friend class SlabManagerFixture;
-  friend class State;
+  friend class GlobalState;
 
  public:
   explicit SlabManagerImpl(bench::HeapFactory* heap_factory, SlabMap* slab_map,

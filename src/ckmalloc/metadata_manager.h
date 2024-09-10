@@ -15,7 +15,7 @@ template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
 class MetadataManagerImpl {
   friend class HeapPrinter;
   friend class MetadataManagerFixture;
-  friend class State;
+  friend class GlobalState;
 
  public:
   // alloc_offset is by default kPageSize. Initializing this to kPageSize tricks

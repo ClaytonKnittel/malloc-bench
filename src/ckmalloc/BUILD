@@ -514,6 +514,7 @@ cc_library(
 
 cc_library(
     name = "state",
+    srcs = ["state.cc"],
     hdrs = ["state.h"],
     deps = [
         ":main_allocator",

@@ -6,8 +6,8 @@
 
 namespace ckmalloc {
 
-State::State(bench::HeapFactory* heap_factory, size_t metadata_heap_idx,
-             size_t user_heap_idx)
+GlobalState::GlobalState(bench::HeapFactory* heap_factory,
+                         size_t metadata_heap_idx, size_t user_heap_idx)
     : slab_manager_(heap_factory, &slab_map_, user_heap_idx),
       metadata_manager_(heap_factory, &slab_map_, metadata_heap_idx),
       small_alloc_(&slab_map_, &slab_manager_),

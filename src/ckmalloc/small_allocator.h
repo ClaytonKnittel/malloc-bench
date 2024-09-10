@@ -17,7 +17,7 @@ namespace ckmalloc {
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
 class SmallAllocatorImpl {
   friend class SmallAllocatorFixture;
-  friend class State;
+  friend class GlobalState;
 
  public:
   explicit SmallAllocatorImpl(SlabMap* slab_map, SlabManager* slab_manager)
