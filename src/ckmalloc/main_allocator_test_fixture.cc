@@ -101,9 +101,10 @@ absl::Status MainAllocatorFixture::ValidateHeap() {
     // Check magic bytes of block.
     RETURN_IF_ERROR(CheckMagic(alloc, size, magic));
 
-    size_t derived_size = main_allocator_->AllocSize(alloc);
+    MappedSlab* slab = SlabMap().FindSlab(SlabManager().PageIdFromPtr(alloc));
+    size_t derived_size = MainAllocator().AllocSize(alloc);
     size_t aligned_size;
-    if (SingleAllocSlab::SizeSuitableForSingleAlloc(size)) {
+    if (slab->Type() == SlabType::kSingleAlloc) {
       aligned_size = AlignUp(size, kPageSize);
     } else {
       aligned_size = AlignUserSize(size);

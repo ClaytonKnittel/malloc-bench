@@ -65,7 +65,7 @@ class LocalCache {
 
   static constexpr size_t kMaxCachedAllocSize = AlignUserSize(256);
   static constexpr size_t kNumCacheBins =
-      1 + kMaxCachedAllocSize / kDefaultAlignment;
+      2 + kMaxCachedAllocSize / kDefaultAlignment;
 
   // Once the cache exceeds this size, it is flushed after the next allocation.
   static constexpr uint32_t kMaxCacheSize = 128;

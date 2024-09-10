@@ -47,7 +47,7 @@ size_t LocalCache::SizeIdx(size_t alloc_size) {
        IsAligned(alloc_size, kDefaultAlignment)) ||
       (alloc_size > kMaxSmallSize &&
        IsAligned(Block::kMetadataOverhead + alloc_size, kDefaultAlignment)));
-  return alloc_size / kDefaultAlignment;
+  return alloc_size / kDefaultAlignment + (alloc_size > kMaxSmallSize ? 1 : 0);
 }
 
 }  // namespace ckmalloc
