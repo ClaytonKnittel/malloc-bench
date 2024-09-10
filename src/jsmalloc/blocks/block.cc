@@ -61,7 +61,7 @@ BlockHeader* BlockHeader::FromDataPtr(void* ptr) {
 }
 
 void BlockHeader::SignalFreeToNextBlock(bool free) {
-  if (Kind() == BlockKind::kBeginOrEnd) {
+  if (Kind() == BlockKind::kEnd) {
     return;
   }
   auto* next = twiddle::AddPtrOffset<BlockHeader>(this, BlockSize());

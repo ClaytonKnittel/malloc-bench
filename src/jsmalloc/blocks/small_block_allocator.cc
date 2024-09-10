@@ -4,7 +4,9 @@
 #include <cstdint>
 #include <exception>
 
+#include "src/jsmalloc/allocator.h"
 #include "src/jsmalloc/blocks/block.h"
+#include "src/jsmalloc/blocks/free_block.h"
 #include "src/jsmalloc/blocks/free_block_allocator.h"
 #include "src/jsmalloc/blocks/small_block.h"
 #include "src/jsmalloc/util/assert.h"
@@ -13,6 +15,8 @@ namespace jsmalloc {
 namespace blocks {
 
 namespace small {
+
+constexpr size_t kSmallBlockSize = 4096;
 
 /** Returns a mask of all ones if start<=n<end, or 0 otherwise. */
 constexpr uint32_t CaseMask(uint32_t n, uint32_t start, uint32_t end) {
@@ -35,17 +39,17 @@ static_assert(SizeClass(SmallBlockAllocator::kMaxDataSize) + 1 ==
 
 /**
  * Returns the number of bins to use in a SmallBlock for a given size_class.
- *
- * This is just a heuristic that seeks to make the total size of every
- * SmallBlock about 2KB.
  */
 constexpr uint32_t BinCountForSizeClass(uint32_t size_class) {
   uint32_t data_size =
       SmallBlockAllocator::kMaxDataSizePerSizeClass[size_class];
-  uint32_t desired_block_size = 2048;
-  uint32_t bin_count =
-      (desired_block_size - sizeof(SmallBlock)) / (data_size + 4);
-  return std::clamp<uint32_t>(bin_count, 1, 64);
+  size_t best_bin_count = (kSmallBlockSize + data_size - 1) / data_size;
+  for (size_t c = best_bin_count; c > 0; c--) {
+    if (SmallBlock::RequiredSize(data_size, c) <= kSmallBlockSize) {
+      return c;
+    }
+  }
+  return 0;
 }
 
 /**
@@ -54,8 +58,6 @@ constexpr uint32_t BinCountForSizeClass(uint32_t size_class) {
 constexpr uint32_t DataSizeForSizeClass(uint32_t size_class) {
   return SmallBlockAllocator::kMaxDataSizePerSizeClass[size_class];
 }
-
-static_assert(DataSizeForSizeClass(SizeClass(20)) == 28);
 
 }  // namespace small
 
@@ -69,8 +71,16 @@ SmallBlock::List& SmallBlockAllocator::SmallBlockList(size_t data_size) {
 
 SmallBlock* SmallBlockAllocator::NewSmallBlock(size_t data_size) {
   uint32_t size_class = small::SizeClass(data_size);
-  return SmallBlock::New(allocator_, small::DataSizeForSizeClass(size_class),
-                         small::BinCountForSizeClass(size_class));
+  DCHECK_LE(SmallBlock::RequiredSize(small::DataSizeForSizeClass(size_class),
+                                     small::BinCountForSizeClass(size_class)),
+            small::kSmallBlockSize);
+
+  FreeBlock* free_block = allocator_.Allocate(small::kSmallBlockSize);
+  if (free_block == nullptr) {
+    return nullptr;
+  }
+  return SmallBlock::Init(free_block, small::DataSizeForSizeClass(size_class),
+                          small::BinCountForSizeClass(size_class));
 }
 
 void* SmallBlockAllocator::Allocate(size_t size) {
@@ -103,7 +113,8 @@ void SmallBlockAllocator::Free(void* ptr) {
     return;
   }
 
-  BlockHeader* hdr = BlockHeader::FromDataPtr(ptr);
+  int32_t offset = twiddle::PtrValue(ptr) % small::kSmallBlockSize;
+  auto* hdr = twiddle::AddPtrOffset<BlockHeader>(ptr, -offset);
   DCHECK_EQ(hdr->Kind(), BlockKind::kSmall);
 
   auto* block = reinterpret_cast<SmallBlock*>(hdr);

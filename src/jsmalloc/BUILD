@@ -3,6 +3,7 @@ cc_library(
     hdrs = ["allocator.h"],
     visibility = ["//visibility:public"],
     deps = [
+        "//src:heap_factory",
         "//src:heap_interface",
         "//src/jsmalloc/util:assert",
     ],
@@ -15,6 +16,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":allocator",
+        "//src:heap_factory",
         "//src:heap_interface",
         "//src/jsmalloc/blocks:block",
         "//src/jsmalloc/blocks:free_block_allocator",

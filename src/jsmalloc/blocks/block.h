@@ -39,7 +39,7 @@ enum class BlockKind {
   kLarge = 2,
 
   // A special block that notates the start or end of the heap.
-  kBeginOrEnd = 3,
+  kEnd = 3,
 };
 
 /**

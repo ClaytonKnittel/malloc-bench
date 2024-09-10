@@ -1,8 +1,8 @@
 #pragma once
 
-#include "src/jsmalloc/allocator.h"
 #include "src/jsmalloc/blocks/block.h"
 #include "src/jsmalloc/blocks/free_block.h"
+#include "src/jsmalloc/blocks/sentinel_block_allocator.h"
 
 namespace jsmalloc {
 namespace blocks {
@@ -16,7 +16,7 @@ class FreeBlockAllocator {
    * Returns a FreeBlock allocator that depends
    * on the provided heap-based allocator.
    */
-  explicit FreeBlockAllocator(Allocator& allocator);
+  explicit FreeBlockAllocator(SentinelBlockHeap& heap);
 
   /**
    * Returns a pointer to some free space of exactly the given size.
@@ -29,20 +29,22 @@ class FreeBlockAllocator {
   void Free(BlockHeader* block);
 
  private:
-  Allocator& allocator_;
+  FreeBlock* FindBestFit(size_t size);
+
+  SentinelBlockHeap& heap_;
   FreeBlock::List free_blocks_;
 };
 
 namespace testing {
 
 /** A FreeBlockAllocator that can be initialized on the stack. */
-class StackFreeBlockAllocator : public FreeBlockAllocator {
- public:
-  StackFreeBlockAllocator() : FreeBlockAllocator(stack_allocator_){};
+// class StackFreeBlockAllocator : public FreeBlockAllocator {
+//  public:
+//   StackFreeBlockAllocator() : FreeBlockAllocator(stack_allocator_){};
 
- private:
-  BigStackAllocator stack_allocator_;
-};
+//  private:
+//   StackBasedHeap stack_allocator_;
+// };
 
 }  // namespace testing
 

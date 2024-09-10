@@ -23,16 +23,15 @@ class SmallBlockAllocator {
 
   /** The max allocable data size for each size class. */
   static constexpr uint32_t kMaxDataSizePerSizeClass[] = {
-    12,  28,  44,  60,  76,  92,  108, 124, 140,
-    156, 172, 188, 204, 220, 236, 252, 268
+    8, 16, 32, 48, 64, 80, 96, 112, 128, 144, 160, 176, 192, 208, 224, 240, 256,
   };
 
   /** The number of size classes that `SmallBlockAllocator` services from. */
-  static constexpr int kSizeClasses =
+  static constexpr size_t kSizeClasses =
       sizeof(kMaxDataSizePerSizeClass) / sizeof(kMaxDataSizePerSizeClass[0]);
 
   /** The maximum data size serviced by `SmallBlockAllocator`. */
-  static constexpr int kMaxDataSize =
+  static constexpr size_t kMaxDataSize =
       kMaxDataSizePerSizeClass[kSizeClasses - 1];
 
  private:

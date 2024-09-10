@@ -2,8 +2,8 @@
 
 #include <cstddef>
 
-#include "src/jsmalloc/blocks/free_block_allocator.h"
 #include "src/jsmalloc/blocks/block.h"
+#include "src/jsmalloc/blocks/free_block.h"
 
 namespace jsmalloc {
 namespace blocks {
@@ -14,8 +14,8 @@ class LargeBlock {
   friend LargeBlockHelper;
 
  public:
-  /** Allocates and returns a new LargeBlock. */
-  static LargeBlock* New(FreeBlockAllocator& allocator, size_t data_size);
+  static size_t BlockSize(size_t data_size);
+  static LargeBlock* Init(FreeBlock* block);
 
   /** Returns this block's size. */
   size_t BlockSize() const;

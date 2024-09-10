@@ -8,8 +8,11 @@ namespace blocks {
 
 class SentinelBlock {
  public:
-  SentinelBlock()
-      : header_(sizeof(SentinelBlock), BlockKind::kBeginOrEnd, false){};
+  SentinelBlock() : header_(sizeof(SentinelBlock), BlockKind::kEnd, false){};
+
+  BlockHeader* Header() {
+    return &header_;
+  }
 
  private:
   BlockHeader header_;
@@ -19,41 +22,45 @@ class SentinelBlock {
 static_assert(sizeof(SentinelBlock) % 16 == 0);
 
 /**
- * An allocator that ensures a sentinel block is always at the end of the heap.
- *
- * TODO(jtstogel): flatten all the allocators
+ * A heap maintaining a sentinel block at its end.
  */
-class SentinelBlockAllocator : public Allocator {
+class SentinelBlockHeap {
  public:
-  explicit SentinelBlockAllocator(Allocator& allocator)
-      : allocator_(allocator){};
+  explicit SentinelBlockHeap(MemRegion& mem_region) : mem_region_(mem_region){};
 
-  void Start() {
-    void* ptr = allocator_.Allocate(sizeof(SentinelBlock));
+  void Init() {
+    void* ptr = mem_region_.Extend(sizeof(SentinelBlock));
     if (ptr == nullptr) {
       return;
     }
     new (ptr) SentinelBlock();
   }
 
-  void* Allocate(size_t size) override {
-    void* ptr = allocator_.Allocate(size);
+  SentinelBlock* sbrk(intptr_t increment) {
+    void* ptr = mem_region_.Extend(increment);
     if (ptr == nullptr) {
       return nullptr;
     }
 
     auto* new_sentinel_ptr =
-        twiddle::AddPtrOffset<void>(ptr, size - sizeof(SentinelBlock));
+        twiddle::AddPtrOffset<void>(ptr, increment - sizeof(SentinelBlock));
     new (new_sentinel_ptr) SentinelBlock();
 
-    return twiddle::AddPtrOffset<void>(
+    return twiddle::AddPtrOffset<SentinelBlock>(
         ptr, -static_cast<int32_t>(sizeof(SentinelBlock)));
   }
 
-  void Free(void* ptr) override {}
+  void* Start() {
+    return mem_region_.Start();
+  }
+
+  void* End() {
+    return twiddle::AddPtrOffset<void>(
+        mem_region_.End(), -static_cast<int32_t>(sizeof(SentinelBlock)));
+  }
 
  private:
-  Allocator& allocator_;
+  MemRegion& mem_region_;
 };
 
 }  // namespace blocks

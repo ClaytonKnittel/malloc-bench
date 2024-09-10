@@ -5,29 +5,20 @@
 
 #include "src/jsmalloc/blocks/block.h"
 #include "src/jsmalloc/blocks/free_block.h"
-#include "src/jsmalloc/blocks/free_block_allocator.h"
 #include "src/jsmalloc/util/assert.h"
 #include "src/jsmalloc/util/math.h"
 
 namespace jsmalloc {
 namespace blocks {
 
-class SmallBlockHelper {
-  static_assert(offsetof(SmallBlock, bins_) % 16 == 12);
-  static_assert(offsetof(SmallBlock::Bin, data_) % 16 == 4);
-};
+SmallBlock* SmallBlock::Init(FreeBlock* block, size_t bin_size,
+                             size_t bin_count) {
+  auto* small_block = new (block)
+      SmallBlock(block->BlockSize(), block->Header()->PrevBlockIsFree(),
+                 bin_size, bin_count);
+  BitSet::Init(small_block->data_, small_block->bin_count_);
 
-SmallBlock* SmallBlock::New(FreeBlockAllocator& allocator, size_t data_size,
-                            size_t bin_count) {
-  size_t block_size =
-      math::round_16b(offsetof(SmallBlock, bins_) +
-                      (offsetof(Bin, data_) + data_size) * bin_count);
-  FreeBlock* block = allocator.Allocate(block_size);
-  if (block == nullptr) {
-    return nullptr;
-  }
-  return new (block) SmallBlock(block_size, block->Header()->PrevBlockIsFree(),
-                                data_size, bin_count);
+  return small_block;
 }
 
 size_t SmallBlock::BlockSize() const {
@@ -35,74 +26,85 @@ size_t SmallBlock::BlockSize() const {
 }
 
 size_t SmallBlock::BinSize() const {
-  return data_size_ + offsetof(Bin, data_);
+  return bin_size_;
 }
 
 int SmallBlock::FreeBinIndex() const {
-  return std::countr_zero(free_bins_bitset_);
+  return UsedBinBitSet()->countr_one();
 }
 
 bool SmallBlock::IsFull() const {
-  return free_bins_bitset_ == 0;
+  return used_bin_count_ == bin_count_;
 }
 
 bool SmallBlock::IsEmpty() const {
-  return std::popcount(free_bins_bitset_) == bin_count_;
+  return used_bin_count_ == 0;
 }
 
-uint32_t SmallBlock::DataOffsetForBinIndex(int index) const {
-  return offsetof(SmallBlock, bins_) + BinSize() * index + offsetof(Bin, data_);
+void* SmallBlock::DataPtrForBinIndex(int index) {
+  return &MutableDataRegion()[index * bin_size_];
 }
 
-int SmallBlock::BinIndexForDataOffset(uint32_t offset) const {
-  return (offset - offsetof(SmallBlock, bins_) - offsetof(Bin, data_)) /
-         BinSize();
+int SmallBlock::BinIndexForDataPtr(void* ptr) const {
+  return (reinterpret_cast<uint8_t*>(ptr) - DataRegion()) / bin_size_;
 }
 
+/** Allocates memory and returns a pointer to the memory region. */
 void* SmallBlock::Alloc() {
   DCHECK(!IsFull(), "Alloc() called when IsFull()=true.");
 
   int free_bin_idx = FreeBinIndex();
   MarkBinUsed(free_bin_idx);
 
-  auto* bin = reinterpret_cast<Bin*>(&bins_[BinSize() * free_bin_idx]);
-  bin->data_preamble_.offset = DataOffsetForBinIndex(free_bin_idx);
-  return static_cast<void*>(bin->data_);
+  return DataPtrForBinIndex(free_bin_idx);
 }
 
 void SmallBlock::Free(void* ptr) {
-  DCHECK(reinterpret_cast<BlockHeader*>(this) == BlockHeader::FromDataPtr(ptr),
-         "Wrong ptr given to SmallBlock::Free");
-
-  DataPreamble* data_preamble = DataPreambleFromDataPtr(ptr);
-  uint32_t bin_idx = BinIndexForDataOffset(data_preamble->offset);
+  uint32_t bin_idx = BinIndexForDataPtr(ptr);
   MarkBinFree(bin_idx);
 }
 
+size_t SmallBlock::UsedBinBitSetSize() const {
+  return math::round_16b(BitSet::RequiredSize(bin_count_));
+}
+
 void SmallBlock::MarkBinFree(int index) {
-  free_bins_bitset_ |= (static_cast<uint64_t>(1) << index);
+  used_bin_count_--;
+  MutableUsedBinBitSet()->set(index, false);
 }
 
 void SmallBlock::MarkBinUsed(int index) {
-  free_bins_bitset_ &= ~(static_cast<uint64_t>(1) << index);
+  used_bin_count_++;
+  MutableUsedBinBitSet()->set(index, true);
+}
+
+uint8_t* SmallBlock::MutableDataRegion() {
+  return &data_[UsedBinBitSetSize()];
+}
+
+const uint8_t* SmallBlock::DataRegion() const {
+  return &data_[UsedBinBitSetSize()];
+}
+
+SmallBlock::BitSet* SmallBlock::MutableUsedBinBitSet() {
+  return reinterpret_cast<BitSet*>(data_);
+}
+
+const SmallBlock::BitSet* SmallBlock::UsedBinBitSet() const {
+  return reinterpret_cast<const BitSet*>(data_);
 }
 
 size_t SmallBlock::DataSize() const {
-  return data_size_;
+  return bin_size_;
 }
 
 SmallBlock::SmallBlock(size_t block_size, bool prev_block_is_free,
-                       size_t data_size, size_t bin_count)
+                       size_t bin_size, size_t bin_count)
     : header_(block_size, BlockKind::kSmall, prev_block_is_free),
-      data_size_(data_size),
-      bin_count_(bin_count),
-      free_bins_bitset_(static_cast<uint64_t>(~0) >>
-                        (sizeof(free_bins_bitset_) * 8 - bin_count)) {
+      bin_size_(bin_size),
+      bin_count_(bin_count) {
   DCHECK_EQ(block_size % 16, 0);
-  DCHECK_EQ(data_size_ % 16, 12);
-  DCHECK_LE(bin_count_, sizeof(free_bins_bitset_) * 8);
   DCHECK_GT(bin_count_, 0);
-  DCHECK_EQ(std::popcount(free_bins_bitset_), bin_count_);
 }
 
 }  // namespace blocks

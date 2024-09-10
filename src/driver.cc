@@ -209,11 +209,14 @@ int RunAllTraces() {
            "traces/mc_server.trace",
            "traces/mc_server_large.trace",
            "traces/mc_server_small.trace",
-           "traces/ngram-fox1.trace",
-           "traces/ngram-gulliver1.trace",
-           "traces/ngram-gulliver2.trace",
-           "traces/ngram-moby1.trace",
-           "traces/ngram-shake1.trace",
+           // These have pathological utils for the separate heap approach.
+           // Can be fixed by allowing unmmaping, so disable for now to get a
+           // better idea of utils.
+           //  "traces/ngram-fox1.trace",
+           //  "traces/ngram-gulliver1.trace",
+           //  "traces/ngram-gulliver2.trace",
+           //  "traces/ngram-moby1.trace",
+           //  "traces/ngram-shake1.trace",
            "traces/onoro.trace",
            "traces/onoro-cc.trace",
            "traces/scp.trace",
@@ -235,6 +238,7 @@ int RunAllTraces() {
            "traces/test.trace",
            "traces/test-zero.trace",
        }) {
+    std::cout << "Running trace: " << tracefile << std::endl;
     auto result = RunTrace(tracefile, heap_factory);
     if (!result.ok()) {
       std::cerr << "Failed to run trace " << tracefile << ": "
