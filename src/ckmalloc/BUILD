@@ -4,7 +4,11 @@ cc_library(
     hdrs = ["ckmalloc.h"],
     visibility = ["//visibility:public"],
     deps = [
+        ":common",
+        ":local_cache",
+        ":main_allocator",
         ":state",
+        "//src:heap_factory",
     ],
 )
 
@@ -159,6 +163,17 @@ cc_test(
         ":linked_list",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "local_cache",
+    srcs = ["local_cache.cc"],
+    hdrs = ["local_cache.h"],
+    deps = [
+        ":block",
+        ":common",
+        ":util",
     ],
 )
 
@@ -499,14 +514,11 @@ cc_library(
     srcs = ["state.cc"],
     hdrs = ["state.h"],
     deps = [
-        ":common",
         ":main_allocator",
         ":metadata_manager",
-        ":slab",
         ":slab_manager",
         ":slab_map",
         ":small_allocator",
-        ":util",
         "//src:heap_factory",
         "//src:heap_interface",
     ],

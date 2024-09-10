@@ -19,9 +19,6 @@ namespace ckmalloc {
 class Freelist {
   friend class LargeAllocatorFixture;
 
-  static constexpr size_t kNumExactSizeBins =
-      (Block::kMaxExactSizeBlock - kMaxSmallSize) / kDefaultAlignment;
-
  public:
   // Searches the freelists for a block at least as large as `block_size`. If
   // none is found, `nullptr` is returned.
@@ -75,6 +72,9 @@ class Freelist {
   // move forward/backward by the difference in the block's current size and
   // `new_size`.
   void MoveBlockHeader(FreeBlock* block, Block* new_head, uint64_t new_size);
+
+  static constexpr size_t kNumExactSizeBins =
+      (Block::kMaxExactSizeBlock - kMaxSmallSize) / kDefaultAlignment;
 
   // The skip list is a bit-set of potentially non-empty exact-size bins. When
   // new blocks are added to an exact-size bin, they set the corresponding bit

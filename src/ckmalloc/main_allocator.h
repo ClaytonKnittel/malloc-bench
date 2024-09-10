@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstring>
 
+#include "src/ckmalloc/block.h"
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/large_allocator.h"
 #include "src/ckmalloc/slab.h"
@@ -44,6 +45,9 @@ class MainAllocatorImpl {
   // Frees an allocation returned from `Alloc`, allowing that memory to be
   // reused by future `Alloc`s.
   void Free(void* ptr);
+
+  // Given a pointer to an allocated region, returns the size of the region.
+  size_t AllocSize(void* ptr) const;
 
  private:
   SlabMap* const slab_map_;
@@ -124,7 +128,7 @@ void* MainAllocatorImpl<SlabMap, SlabManager, SmallAllocator,
     case SlabType::kUnmapped:
     case SlabType::kFree: {
       // Unexpected free/unmapped slab.
-      CK_ASSERT_TRUE(false);
+      CK_UNREACHABLE("Unexpected free/unmapped slab");
       return nullptr;
     }
   }
@@ -153,8 +157,37 @@ void MainAllocatorImpl<SlabMap, SlabManager, SmallAllocator,
     case SlabType::kUnmapped:
     case SlabType::kFree: {
       // Unexpected free/unmapped slab.
-      CK_ASSERT_TRUE(false);
+      CK_UNREACHABLE("Unexpected free/unmapped slab");
       break;
+    }
+  }
+}
+
+template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager,
+          SmallAllocatorInterface SmallAllocator,
+          LargeAllocatorInterface LargeAllocator>
+size_t MainAllocatorImpl<SlabMap, SlabManager, SmallAllocator,
+                         LargeAllocator>::AllocSize(void* ptr) const {
+  Slab* slab = slab_map_->FindSlab(slab_manager_->PageIdFromPtr(ptr));
+  CK_ASSERT_NE(slab->Type(), SlabType::kFree);
+  CK_ASSERT_NE(slab->Type(), SlabType::kUnmapped);
+
+  // TODO: do these in respective specialized allocators.
+  switch (slab->Type()) {
+    case SlabType::kSmall: {
+      return slab->ToSmall()->SizeClass().SliceSize();
+    }
+    case SlabType::kBlocked: {
+      return AllocatedBlock::FromUserDataPtr(ptr)->UserDataSize();
+    }
+    case SlabType::kSingleAlloc: {
+      return slab->ToSingleAlloc()->Pages() * kPageSize;
+    }
+    case SlabType::kUnmapped:
+    case SlabType::kFree: {
+      // Unexpected free/unmapped slab.
+      CK_UNREACHABLE("Unexpected free/unmapped slab");
+      return 0;
     }
   }
 }
