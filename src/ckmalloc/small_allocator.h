@@ -53,14 +53,14 @@ class SmallAllocatorImpl {
 
   void RemoveFromFreelist(SmallSlab* slab);
 
-  SlabMap* const slab_map_;
-  SlabManager* const slab_manager_;
-
   static_assert(SizeClass::kNumSizeClasses == 9);
   PageId freelists_[SizeClass::kNumSizeClasses] = {
     PageId::Nil(), PageId::Nil(), PageId::Nil(), PageId::Nil(), PageId::Nil(),
     PageId::Nil(), PageId::Nil(), PageId::Nil(), PageId::Nil(),
   };
+
+  SlabMap* const slab_map_;
+  SlabManager* const slab_manager_;
 };
 
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
