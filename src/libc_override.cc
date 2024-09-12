@@ -1,5 +1,3 @@
-#pragma once
-
 #include <cerrno>
 #include <features.h>
 #include <malloc.h>

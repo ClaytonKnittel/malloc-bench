@@ -5,41 +5,38 @@
 #include <cstring>
 
 #include "src/heap_factory.h"
+#include "src/heap_interface.h"
 
 namespace bench {
 
 static constexpr size_t kHeapSize = 512 * (1 << 20);
 
-extern HeapFactory* g_heap_factory;
-extern size_t g_heap_idx;
+extern Heap* g_heap;
 
 // Called before any allocations are made.
 inline void initialize_heap(HeapFactory& heap_factory) {
-  g_heap_factory = &heap_factory;
-  g_heap_idx = 0;
-  auto res = g_heap_factory->NewInstance(kHeapSize);
+  auto res = heap_factory.NewInstance(kHeapSize);
   if (!res.ok()) {
     std::cerr << "Failed to initialize heap" << std::endl;
     std::exit(-1);
   }
+  g_heap = res.value().second;
 }
 
+void initialize();
+
 inline void* malloc(size_t size, size_t alignment = 0) {
+  if (g_heap == nullptr) {
+    initialize();
+  }
+
   // TODO: implement
   (void) alignment;
   if (size == 0) {
     return nullptr;
   }
   size_t round_up = (size + 0xf) & ~0xf;
-  void* result;
-  while (true) {
-    result = g_heap_factory->Instance(g_heap_idx)->sbrk(round_up);
-    if (result == nullptr && g_heap_factory->NewInstance(kHeapSize).ok()) {
-      g_heap_idx++;
-      continue;
-    }
-    return result;
-  }
+  return g_heap->sbrk(round_up);
 }
 
 inline void* calloc(size_t nmemb, size_t size) {
