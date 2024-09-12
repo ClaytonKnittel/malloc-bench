@@ -5,7 +5,7 @@
 #include "src/ckmalloc/slab_manager.h"
 #include "src/ckmalloc/slab_map.h"
 #include "src/ckmalloc/small_allocator.h"
-#include "src/heap_factory.h"
+#include "src/heap_interface.h"
 
 namespace ckmalloc {
 
@@ -13,8 +13,7 @@ class GlobalState {
   friend class CkMalloc;
 
  public:
-  GlobalState(bench::HeapFactory* heap_factory, size_t metadata_heap_idx,
-              size_t user_heap_idx);
+  GlobalState(bench::Heap* meta_heap, bench::Heap* alloc_heap);
 
   SlabMap* SlabMap() {
     return &slab_map_;

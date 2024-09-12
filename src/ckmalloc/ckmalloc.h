@@ -4,6 +4,7 @@
 
 #include "src/ckmalloc/global_state.h"
 #include "src/heap_factory.h"
+#include "src/heap_interface.h"
 
 namespace ckmalloc {
 
@@ -11,10 +12,11 @@ class CkMalloc {
  public:
   // Returns the singleton `CkMalloc` instance.
   static CkMalloc* Instance() {
-    CK_ASSERT_NE(instance_, nullptr);
     instance_->global_state_.AssertConsistency();
     return instance_;
   }
+
+  static void Initialize();
 
   static void InitializeHeap(bench::HeapFactory& heap_factory);
 
@@ -33,11 +35,12 @@ class CkMalloc {
   }
 
  private:
-  explicit CkMalloc(bench::HeapFactory* heap_factory);
+  explicit CkMalloc(bench::Heap* meta_heap, bench::Heap* alloc_heap);
 
   // Initializes a new `CkMalloc` with a heap factory that has not been
   // allocated from yet. The `CkMalloc` takes ownership of the heap factory.
-  static CkMalloc* InitializeWithEmptyHeap(bench::HeapFactory* heap_factory);
+  static CkMalloc* InitializeWithEmptyHeaps(bench::Heap* meta_heap,
+                                            bench::Heap* alloc_heap);
 
   static CkMalloc* instance_;
 

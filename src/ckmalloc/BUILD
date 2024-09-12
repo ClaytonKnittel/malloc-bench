@@ -9,6 +9,8 @@ cc_library(
         ":local_cache",
         ":main_allocator",
         "//src:heap_factory",
+        "//src:heap_interface",
+        "//src:mmap_heap",
     ],
 )
 
@@ -522,7 +524,7 @@ cc_library(
         ":slab_manager",
         ":slab_map",
         ":small_allocator",
-        "//src:heap_factory",
+        "//src:heap_interface",
     ],
 )
 
