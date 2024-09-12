@@ -1,5 +1,6 @@
 #include "src/ckmalloc/slab.h"
 
+#include <cstdint>
 #include <ostream>
 
 #include "src/ckmalloc/block.h"
@@ -419,11 +420,10 @@ bool SmallSlab::IsTiny() const {
 }
 
 /* static */
-uint32_t BlockedSlab::NPagesForBlock(size_t user_size) {
-  return static_cast<uint32_t>(CeilDiv(Block::BlockSizeForUserSize(user_size) +
-                                           Block::kFirstBlockInSlabOffset +
-                                           Block::kMetadataOverhead,
-                                       kPageSize));
+uint32_t BlockedSlab::NPagesForBlock(uint64_t block_size) {
+  return static_cast<uint32_t>(CeilDiv(
+      block_size + Block::kFirstBlockInSlabOffset + Block::kMetadataOverhead,
+      kPageSize));
 }
 
 /* static */
@@ -462,7 +462,8 @@ uint32_t SingleAllocSlab::NPagesForAlloc(size_t user_size) {
 /* static */
 bool SingleAllocSlab::SizeSuitableForSingleAlloc(size_t user_size) {
   return AlignUp(user_size, kPageSize) !=
-         BlockedSlab::NPagesForBlock(user_size) * kPageSize;
+         BlockedSlab::NPagesForBlock(Block::BlockSizeForUserSize(user_size)) *
+             kPageSize;
 }
 
 }  // namespace ckmalloc

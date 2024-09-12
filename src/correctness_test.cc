@@ -424,4 +424,10 @@ TEST_F(TestCorrectness, TestZero) {
   ASSERT_THAT(ValidateEmpty(), IsOk());
 }
 
+TEST_F(TestCorrectness, Vim) {
+  ASSERT_THAT(RunTrace("traces/vim.trace", /*validate_every_n=*/65535),
+              util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
 }  // namespace bench

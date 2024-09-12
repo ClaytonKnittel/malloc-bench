@@ -341,10 +341,9 @@ class BlockedSlab : public AllocatedSlab {
   class SingleAllocSlab* ToSingleAlloc() = delete;
   const class SingleAllocSlab* ToSingleAlloc() const = delete;
 
-  // Given an allocation request for `user_size` bytes, returns the number of
-  // pages of the minimum-sized slab that could fit a block large enough to
-  // satisfy this allocation.
-  static uint32_t NPagesForBlock(size_t user_size);
+  // Given a block size, returns the number of pages of the minimum-sized slab
+  // that could fit a block of this size.
+  static uint32_t NPagesForBlock(uint64_t block_size);
 
   // Given a pointer to the start of a blocked slab, returns a pointer to the
   // first block.

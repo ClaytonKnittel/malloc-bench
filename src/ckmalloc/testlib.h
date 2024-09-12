@@ -3,7 +3,6 @@
 #include <cinttypes>
 #include <cstddef>
 #include <memory>
-#include <vector>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -12,7 +11,6 @@
 
 #include "src/ckmalloc/block.h"
 #include "src/ckmalloc/common.h"
-#include "src/ckmalloc/freelist.h"
 #include "src/ckmalloc/page_id.h"
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/slab_map.h"
