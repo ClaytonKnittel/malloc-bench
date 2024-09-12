@@ -59,6 +59,8 @@ cc_library(
     hdrs = ["allocator_interface.h"],
     deps = [
         ":heap_factory",
+        ":heap_interface",
+        ":mmap_heap",
     ],
 )
 
