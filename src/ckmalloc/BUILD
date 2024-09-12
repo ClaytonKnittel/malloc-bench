@@ -555,8 +555,10 @@ cc_binary(
     ],
     deps = [
         ":ckmalloc",
+        ":common",
         ":global_state",
         ":heap_printer",
+        ":local_cache",
         "//src:heap_factory",
         "//src:mmap_heap_factory",
         "//src:tracefile_executor",
