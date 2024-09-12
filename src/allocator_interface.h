@@ -46,7 +46,9 @@ inline void* malloc(size_t size, size_t alignment = 0) {
 inline void* calloc(size_t nmemb, size_t size) {
   // TODO: implement
   void* ptr = malloc(nmemb * size);
-  memset(ptr, 0, nmemb * size);
+  if (ptr != nullptr) {
+    memset(ptr, 0, nmemb * size);
+  }
   return ptr;
 }
 
