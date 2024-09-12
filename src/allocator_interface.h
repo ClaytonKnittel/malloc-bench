@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdlib>
 #include <cstring>
 
@@ -23,8 +24,9 @@ inline void initialize_heap(HeapFactory& heap_factory) {
   }
 }
 
-inline void* malloc(size_t size) {
+inline void* malloc(size_t size, size_t alignment = 0) {
   // TODO: implement
+  (void) alignment;
   if (size == 0) {
     return nullptr;
   }
@@ -56,8 +58,14 @@ inline void* realloc(void* ptr, size_t size) {
   return new_ptr;
 }
 
-inline void free(void* ptr) {
+inline void free(void* ptr, size_t size = 0, size_t align = 0) {
   // TODO: implement
+}
+
+inline size_t get_size(void* ptr) {
+  // TODO: implement
+  (void) ptr;
+  return 0;
 }
 
 }  // namespace bench
