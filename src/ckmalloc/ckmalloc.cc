@@ -73,6 +73,10 @@ void CkMalloc::Free(void* ptr) {
   }
 }
 
+size_t CkMalloc::GetSize(void* ptr) {
+  return global_state_.MainAllocator()->AllocSize(ptr);
+}
+
 CkMalloc::CkMalloc(bench::HeapFactory* heap_factory)
     : global_state_(heap_factory, /*metadata_heap_idx=*/0,
                     /*user_heap_idx=*/1) {}
