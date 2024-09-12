@@ -1,5 +1,6 @@
 #include "src/allocator_interface.h"
 
+#include <mutex>
 #include <optional>
 
 #include "src/heap_interface.h"
@@ -14,6 +15,8 @@ std::optional<MMapHeap> heap;
 }
 
 Heap* g_heap = nullptr;
+
+std::mutex g_lock;
 
 void initialize() {
   auto res = MMapHeap::New(kHeapSize);
