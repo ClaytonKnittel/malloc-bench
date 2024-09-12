@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cerrno>
 #include <features.h>
 #include <malloc.h>
 #include <new>
@@ -15,10 +16,13 @@ extern "C" {
 
 namespace {
 
-inline void* memalign_helper(size_t align, size_t size) {
-  void* ptr;
-  int result = bench::posix_memalign(&ptr, align, size);
-  return result == 0 ? ptr : nullptr;
+inline int posix_memalign_helper(void** ptr, size_t align, size_t size) {
+  void* result = bench::malloc(size, align);
+  if (result == nullptr) {
+    return ENOMEM;
+  }
+  *ptr = result;
+  return 0;
 }
 
 }  // namespace
@@ -39,16 +43,16 @@ extern "C" void __libc_cfree(void* ptr) noexcept {
   bench::free(ptr);
 }
 void* __libc_memalign(size_t align, size_t s) noexcept {
-  return memalign_helper(align, s);
+  return bench::malloc(s, align);
 }
 void* __libc_valloc(size_t size) noexcept {
-  return memalign_helper(4096, size);
+  return bench::malloc(size, 4096);
 }
 void* __libc_pvalloc(size_t size) noexcept {
-  return memalign_helper(4096, (size + 4095) & ~4096);
+  return bench::malloc((size + 4095) & ~4096, 4096);
 }
 int __posix_memalign(void** r, size_t a, size_t s) noexcept {
-  return bench::posix_memalign(r, a, s);
+  return posix_memalign_helper(r, a, s);
 }
 
 // We also have to hook libc malloc.  While our work with weak symbols
@@ -72,7 +76,7 @@ void glibc_override_free(void* ptr, const void* caller) {
 }
 void* glibc_override_memalign(size_t align, size_t size, const void* caller) {
   (void) caller;
-  return memalign_helper(align, size);
+  return bench::malloc(size, align);
 }
 
 // We should be using __malloc_initialize_hook here.  (See
@@ -109,7 +113,7 @@ void operator delete(void* p) noexcept {
   bench::free(p);
 }
 void operator delete(void* p, size_t size) noexcept {
-  bench::free_sized(p, size);
+  bench::free(p, size);
 }
 void* operator new[](size_t size) noexcept(false) {
   void* res = bench::malloc(size);
@@ -122,7 +126,7 @@ void operator delete[](void* p) noexcept {
   bench::free(p);
 }
 void operator delete[](void* p, size_t size) noexcept {
-  bench::free_sized(p, size);
+  bench::free(p, size);
 }
 void* operator new(size_t size, const std::nothrow_t&) noexcept {
   return bench::malloc(size);
@@ -138,7 +142,7 @@ void operator delete[](void* p, const std::nothrow_t&) noexcept {
 }
 
 void* operator new(size_t size, std::align_val_t alignment) noexcept(false) {
-  void* res = memalign_helper(size, static_cast<size_t>(alignment));
+  void* res = bench::malloc(static_cast<size_t>(alignment), size);
   if (res == nullptr) {
     throw std::bad_alloc();
   }
@@ -146,25 +150,21 @@ void* operator new(size_t size, std::align_val_t alignment) noexcept(false) {
 }
 void* operator new(size_t size, std::align_val_t alignment,
                    const std::nothrow_t&) noexcept {
-  void* res = memalign_helper(size, static_cast<size_t>(alignment));
-  if (res == nullptr) {
-    throw std::bad_alloc();
-  }
-  return res;
+  return bench::malloc(static_cast<size_t>(alignment), size);
 }
 void operator delete(void* p, std::align_val_t alignment) noexcept {
-  bench::free_aligned(p, static_cast<size_t>(alignment));
+  bench::free(p, /*size=*/0, static_cast<size_t>(alignment));
 }
 void operator delete(void* p, std::align_val_t alignment,
                      const std::nothrow_t&) noexcept {
-  bench::free_aligned(p, static_cast<size_t>(alignment));
+  bench::free(p, /*size=*/0, static_cast<size_t>(alignment));
 }
 void operator delete(void* p, size_t size,
                      std::align_val_t alignment) noexcept {
-  bench::free_sized_aligned(p, size, static_cast<size_t>(alignment));
+  bench::free(p, size, static_cast<size_t>(alignment));
 }
 void* operator new[](size_t size, std::align_val_t alignment) noexcept(false) {
-  void* res = memalign_helper(size, static_cast<size_t>(alignment));
+  void* res = bench::malloc(static_cast<size_t>(alignment), size);
   if (res == nullptr) {
     throw std::bad_alloc();
   }
@@ -172,18 +172,18 @@ void* operator new[](size_t size, std::align_val_t alignment) noexcept(false) {
 }
 void* operator new[](size_t size, std::align_val_t alignment,
                      const std::nothrow_t&) noexcept {
-  return memalign_helper(size, static_cast<size_t>(alignment));
+  return bench::malloc(static_cast<size_t>(alignment), size);
 }
 void operator delete[](void* p, std::align_val_t alignment) noexcept {
-  bench::free_aligned(p, static_cast<size_t>(alignment));
+  bench::free(p, /*size=*/0, static_cast<size_t>(alignment));
 }
 void operator delete[](void* p, std::align_val_t alignment,
                        const std::nothrow_t&) noexcept {
-  bench::free_aligned(p, static_cast<size_t>(alignment));
+  bench::free(p, /*size=*/0, static_cast<size_t>(alignment));
 }
 void operator delete[](void* p, size_t size,
                        std::align_val_t alignment) noexcept {
-  bench::free_sized_aligned(p, size, static_cast<size_t>(alignment));
+  bench::free(p, size, static_cast<size_t>(alignment));
 }
 
 extern "C" {
@@ -195,10 +195,10 @@ void free(void* ptr) noexcept {
   bench::free(ptr);
 }
 void free_sized(void* ptr, size_t size) noexcept {
-  bench::free_sized(ptr, size);
+  bench::free(ptr, size);
 }
 void free_aligned_sized(void* ptr, size_t align, size_t size) noexcept {
-  bench::free_sized_aligned(ptr, size, align);
+  bench::free(ptr, size, align);
 }
 void* realloc(void* ptr, size_t size) noexcept {
   return bench::realloc(ptr, size);
@@ -213,24 +213,25 @@ void cfree(void* ptr) noexcept {
   bench::free(ptr);
 }
 void* memalign(size_t __alignment, size_t __size) noexcept {
-  return memalign_helper(__alignment, __size);
+  return bench::malloc(__size, __alignment);
 }
 void* aligned_alloc(size_t __alignment, size_t __size) noexcept {
-  return memalign_helper(__alignment, __size);
+  return bench::malloc(__size, __alignment);
 }
 void* valloc(size_t size) noexcept {
-  return memalign_helper(4096, size);
+  return bench::malloc(size, 4096);
 }
 void* pvalloc(size_t size) noexcept {
-  return memalign_helper(4096, (size + 4095) & ~4096);
+  return bench::malloc((size + 4095) & ~4096, 4096);
 }
 int posix_memalign(void** __memptr, size_t __alignment,
                    size_t __size) noexcept {
-  return bench::posix_memalign(__memptr, __alignment, __size);
+  return posix_memalign_helper(__memptr, __alignment, __size);
 }
 void malloc_stats(void) noexcept {}
 int malloc_trim(size_t pad) noexcept {
   (void) pad;
+  return 0;
 }
 int mallopt(int __param, int __value) noexcept {
   (void) __param;

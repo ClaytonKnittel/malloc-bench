@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cerrno>
 #include <cstddef>
 #include <cstdlib>
 #include <cstring>
@@ -25,8 +24,9 @@ inline void initialize_heap(HeapFactory& heap_factory) {
   }
 }
 
-inline void* malloc(size_t size) {
+inline void* malloc(size_t size, size_t alignment = 0) {
   // TODO: implement
+  (void) alignment;
   if (size == 0) {
     return nullptr;
   }
@@ -58,41 +58,14 @@ inline void* realloc(void* ptr, size_t size) {
   return new_ptr;
 }
 
-inline int posix_memalign(void** ptr, size_t align, size_t s) {
+inline void free(void* ptr, size_t size = 0, size_t align = 0) {
   // TODO: implement
-  (void) ptr;
-  (void) align;
-  (void) s;
-  return ENOMEM;
 }
 
 inline size_t get_size(void* ptr) {
   // TODO: implement
   (void) ptr;
   return 0;
-}
-
-inline void free(void* ptr) {
-  // TODO: implement
-}
-
-inline void free_sized(void* ptr, size_t size) {
-  // TODO: implement
-  (void) size;
-  free(ptr);
-}
-
-inline void free_aligned(void* ptr, size_t align) {
-  // TODO: implement
-  (void) align;
-  free(ptr);
-}
-
-inline void free_sized_aligned(void* ptr, size_t size, size_t align) {
-  // TODO: implement
-  (void) size;
-  (void) align;
-  free(ptr);
 }
 
 }  // namespace bench
