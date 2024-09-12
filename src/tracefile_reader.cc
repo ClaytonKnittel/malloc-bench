@@ -146,7 +146,8 @@ absl::StatusOr<TraceLine> MatchLine(const std::string& line) {
       if (res2 == absl::string_view::npos) {
         res2 = op.size();
       }
-      ASSIGN_OR_RETURN(parsed.input_size, ParseSize(op.substr(res + 1, res2)));
+      ASSIGN_OR_RETURN(parsed.input_size,
+                       ParseSize(op.substr(res + 1, res2 - (res + 1))));
     } else {
       ASSIGN_OR_RETURN(parsed.input_size, ParseSize(op.substr(res + 1)));
     }
