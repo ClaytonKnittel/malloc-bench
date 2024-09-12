@@ -17,6 +17,7 @@ namespace ckmalloc {
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
 class SmallAllocatorImpl {
   friend class SmallAllocatorFixture;
+  friend class GlobalState;
 
  public:
   explicit SmallAllocatorImpl(SlabMap* slab_map, SlabManager* slab_manager)
@@ -53,14 +54,14 @@ class SmallAllocatorImpl {
 
   void RemoveFromFreelist(SmallSlab* slab);
 
-  SlabMap* const slab_map_;
-  SlabManager* const slab_manager_;
-
   static_assert(SizeClass::kNumSizeClasses == 9);
   PageId freelists_[SizeClass::kNumSizeClasses] = {
     PageId::Nil(), PageId::Nil(), PageId::Nil(), PageId::Nil(), PageId::Nil(),
     PageId::Nil(), PageId::Nil(), PageId::Nil(), PageId::Nil(),
   };
+
+  SlabMap* const slab_map_;
+  SlabManager* const slab_manager_;
 };
 
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>

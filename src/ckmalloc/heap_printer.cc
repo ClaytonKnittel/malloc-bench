@@ -53,7 +53,7 @@ std::string HeapPrinter::Print() {
 
     switch (slab->Type()) {
       case SlabType::kUnmapped: {
-        CK_ASSERT_TRUE(false);
+        CK_UNREACHABLE("Unexpected unmapped slab");
       }
       case SlabType::kFree: {
         result += PrintFree(slab->ToFree());

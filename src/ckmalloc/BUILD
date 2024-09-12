@@ -4,7 +4,11 @@ cc_library(
     hdrs = ["ckmalloc.h"],
     visibility = ["//visibility:public"],
     deps = [
-        ":state",
+        ":common",
+        ":global_state",
+        ":local_cache",
+        ":main_allocator",
+        "//src:heap_factory",
     ],
 )
 
@@ -163,6 +167,17 @@ cc_test(
 )
 
 cc_library(
+    name = "local_cache",
+    srcs = ["local_cache.cc"],
+    hdrs = ["local_cache.h"],
+    deps = [
+        ":block",
+        ":common",
+        ":util",
+    ],
+)
+
+cc_library(
     name = "main_allocator",
     hdrs = ["main_allocator.h"],
     deps = [
@@ -202,9 +217,12 @@ cc_library(
     hdrs = ["main_allocator_test_fixture.h"],
     visibility = ["//visibility:public"],
     deps = [
+        ":common",
         ":freelist",
         ":large_allocator_test_fixture",
+        ":local_cache",
         ":main_allocator",
+        ":slab",
         ":slab_manager_test_fixture",
         ":small_allocator_test_fixture",
         ":testlib",
@@ -495,20 +513,16 @@ cc_library(
 )
 
 cc_library(
-    name = "state",
-    srcs = ["state.cc"],
-    hdrs = ["state.h"],
+    name = "global_state",
+    srcs = ["global_state.cc"],
+    hdrs = ["global_state.h"],
     deps = [
-        ":common",
         ":main_allocator",
         ":metadata_manager",
-        ":slab",
         ":slab_manager",
         ":slab_map",
         ":small_allocator",
-        ":util",
         "//src:heap_factory",
-        "//src:heap_interface",
     ],
 )
 
@@ -520,19 +534,16 @@ cc_library(
     deps = [
         ":block",
         ":common",
-        ":freelist",
         ":page_id",
         ":slab",
         ":slab_map",
         ":util",
         "//src:heap_factory",
         "//src:heap_interface",
-        "@abseil-cpp//absl/container:flat_hash_set",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",
-        "@cc-util//util:absl_util",
     ],
 )
 
@@ -544,8 +555,8 @@ cc_binary(
     ],
     deps = [
         ":ckmalloc",
+        ":global_state",
         ":heap_printer",
-        ":state",
         "//src:heap_factory",
         "//src:mmap_heap_factory",
         "//src:tracefile_executor",

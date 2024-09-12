@@ -11,8 +11,9 @@
 
 namespace ckmalloc {
 
-TrackedBlock* Freelist::FindFree(size_t user_size) {
-  uint64_t block_size = Block::BlockSizeForUserSize(user_size);
+TrackedBlock* Freelist::FindFree(uint64_t block_size) {
+  CK_ASSERT_TRUE(IsAligned(block_size, kDefaultAlignment));
+
   // If the required block size is small enough for the exact-size bins, check
   // those first in order of size, starting from `block_size`.
   if (block_size <= Block::kMaxExactSizeBlock) {
@@ -30,8 +31,8 @@ TrackedBlock* Freelist::FindFree(size_t user_size) {
   }
 
   return large_blocks_tree_.LowerBound(
-      [user_size](const TreeBlock& tree_block) {
-        return tree_block.UserDataSize() >= user_size;
+      [block_size](const TreeBlock& tree_block) {
+        return tree_block.Size() >= block_size;
       });
 }
 

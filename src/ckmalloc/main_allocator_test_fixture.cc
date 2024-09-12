@@ -6,6 +6,9 @@
 #include "absl/status/status.h"
 #include "util/absl_util.h"
 
+#include "src/ckmalloc/common.h"
+#include "src/ckmalloc/local_cache.h"
+#include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/testlib.h"
 #include "src/ckmalloc/util.h"
 
@@ -70,6 +73,10 @@ void TestMainAllocator::Free(void* ptr) {
   return main_allocator_.Free(ptr);
 }
 
+size_t TestMainAllocator::AllocSize(void* ptr) {
+  return main_allocator_.AllocSize(ptr);
+}
+
 absl::Status MainAllocatorFixture::ValidateHeap() {
   // Validate that allocations do not overlap and that their magic numbers are
   // intact.
@@ -93,6 +100,21 @@ absl::Status MainAllocatorFixture::ValidateHeap() {
 
     // Check magic bytes of block.
     RETURN_IF_ERROR(CheckMagic(alloc, size, magic));
+
+    MappedSlab* slab = SlabMap().FindSlab(SlabManager().PageIdFromPtr(alloc));
+    size_t derived_size = MainAllocator().AllocSize(alloc);
+    size_t aligned_size;
+    if (slab->Type() == SlabType::kSingleAlloc) {
+      aligned_size = AlignUp(size, kPageSize);
+    } else {
+      aligned_size = AlignUserSize(size);
+    }
+    if (aligned_size != derived_size) {
+      return FailedTest(
+          "Allocated block at %p of size %zu has the wrong size when looked up "
+          "with MainAllocator::AllocSize: found %zu, expected %zu",
+          alloc, size, derived_size, aligned_size);
+    }
 
     it = next_it;
   }

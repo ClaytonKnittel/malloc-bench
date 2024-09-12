@@ -14,6 +14,8 @@
   __builtin_assume(cond);                         \
   _Pragma("GCC diagnostic pop")
 
+#define CK_UNREACHABLE(msg) __builtin_unreachable()
+
 #else
 
 #define CK_ASSERT_MSG(cond, message)                                        \
@@ -26,6 +28,9 @@
       std::abort();                                                         \
     }                                                                       \
   } while (0)
+
+#define CK_UNREACHABLE(msg) \
+  CK_ASSERT_MSG(false, "reached unreachable code: " msg)
 
 #endif
 
@@ -43,7 +48,8 @@
 #define CK_ASSERT_TRUE(a)  CK_ASSERT_EQ(a, true)
 #define CK_ASSERT_FALSE(a) CK_ASSERT_EQ(a, false)
 
-#define CK_UNREACHABLE() __builtin_unreachable()
+#define CK_EXPECT_TRUE(cond)  __builtin_expect((long) (cond), (long) 1)
+#define CK_EXPECT_FALSE(cond) __builtin_expect((long) (cond), (long) 0)
 
 namespace ckmalloc {
 

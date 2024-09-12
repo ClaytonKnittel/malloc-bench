@@ -19,8 +19,8 @@
 #include "util/print_colors.h"
 
 #include "src/ckmalloc/ckmalloc.h"
+#include "src/ckmalloc/global_state.h"
 #include "src/ckmalloc/heap_printer.h"
-#include "src/ckmalloc/state.h"
 #include "src/heap_factory.h"
 #include "src/mmap_heap_factory.h"
 #include "src/tracefile_executor.h"
@@ -86,7 +86,7 @@ class TraceReplayer : public TracefileExecutor {
   }
 
   void InitializeHeap(HeapFactory& heap_factory) override {
-    State::InitializeWithEmptyHeap(&heap_factory);
+    CkMalloc::InitializeHeap(heap_factory);
   }
 
   absl::StatusOr<void*> Malloc(size_t size) override {
@@ -99,7 +99,7 @@ class TraceReplayer : public TracefileExecutor {
 
     RETURN_IF_ERROR(AwaitInput());
 
-    DEFINE_OR_RETURN(void*, result, ckmalloc::malloc(size));
+    DEFINE_OR_RETURN(void*, result, CkMalloc::Instance()->Malloc(size));
     next_op_.result = result;
     return result;
   }
@@ -115,7 +115,7 @@ class TraceReplayer : public TracefileExecutor {
 
     RETURN_IF_ERROR(AwaitInput());
 
-    DEFINE_OR_RETURN(void*, result, ckmalloc::calloc(nmemb, size));
+    DEFINE_OR_RETURN(void*, result, CkMalloc::Instance()->Calloc(nmemb, size));
     next_op_.result = result;
     return result;
   }
@@ -131,7 +131,7 @@ class TraceReplayer : public TracefileExecutor {
 
     RETURN_IF_ERROR(AwaitInput());
 
-    DEFINE_OR_RETURN(void*, result, ckmalloc::realloc(ptr, size));
+    DEFINE_OR_RETURN(void*, result, CkMalloc::Instance()->Realloc(ptr, size));
     next_op_.result = result;
     return result;
   }
@@ -146,7 +146,7 @@ class TraceReplayer : public TracefileExecutor {
 
     RETURN_IF_ERROR(AwaitInput());
 
-    ckmalloc::free(ptr);
+    CkMalloc::Instance()->Free(ptr);
     return absl::OkStatus();
   }
 
@@ -312,9 +312,10 @@ class TraceReplayer : public TracefileExecutor {
 
     DEFINE_OR_RETURN(uint16_t, term_height, TermHeight());
 
-    HeapPrinter p(
-        heap_factory_->Instance(heap_idx_), State::Instance()->SlabMap(),
-        State::Instance()->SlabManager(), State::Instance()->MetadataManager());
+    HeapPrinter p(heap_factory_->Instance(heap_idx_),
+                  CkMalloc::Instance()->GlobalState()->SlabMap(),
+                  CkMalloc::Instance()->GlobalState()->SlabManager(),
+                  CkMalloc::Instance()->GlobalState()->MetadataManager());
 
     if (prev_op_.has_value() && prev_op_->op != Op::kFree) {
       p.WithHighlightAddr(prev_op_->result, ALLOC_COLOR);

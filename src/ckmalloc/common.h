@@ -85,6 +85,14 @@ concept SlabManagerInterface =
     };
 
 template <typename T>
+concept MetadataManagerInterface =
+    requires(T meta_mgr, size_t size, class MappedSlab* slab) {
+      { meta_mgr.Alloc(size, size) } -> std::convertible_to<void*>;
+      { meta_mgr.NewSlabMeta() } -> std::convertible_to<class Slab*>;
+      { meta_mgr.FreeSlabMeta(slab) } -> std::same_as<void>;
+    };
+
+template <typename T>
 concept SmallAllocatorInterface =
     requires(T small_alloc, size_t user_size, class SmallSlab* slab,
              class AllocatedSlice* slice) {
@@ -106,6 +114,15 @@ concept LargeAllocatorInterface = requires(T large_alloc, size_t user_size,
   } -> std::convertible_to<void*>;
   { large_alloc.FreeLarge(slab, ptr) } -> std::same_as<void>;
 };
+
+template <typename T>
+concept MainAllocatorInterface =
+    requires(T main_alloc, size_t user_size, void* ptr) {
+      { main_alloc.Alloc(user_size) } -> std::convertible_to<void*>;
+      { main_alloc.Realloc(ptr, user_size) } -> std::convertible_to<void*>;
+      { main_alloc.Free(ptr) } -> std::same_as<void>;
+      { main_alloc.AllocSize(ptr) } -> std::convertible_to<size_t>;
+    };
 
 // This is defined in `state.cc` to avoid circular dependencies.
 class GlobalMetadataAlloc {
