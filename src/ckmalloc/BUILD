@@ -322,6 +322,7 @@ cc_library(
     deps = [
         ":common",
         ":util",
+        "@abseil-cpp//absl/strings:str_format",
     ],
 )
 

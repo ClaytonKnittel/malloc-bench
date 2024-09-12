@@ -3,6 +3,8 @@
 #include <cinttypes>
 #include <cstdint>
 
+#include "absl/strings/str_format.h"
+
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/util.h"
 
@@ -49,12 +51,12 @@ class SizeClass {
 
   // Returns the size of slices represented by this size class.
   constexpr uint64_t SliceSize() const {
-    return static_cast<uint64_t>(size_class_);
+    return static_cast<uint64_t>(size_class_ * kSizeClassDivisor);
   }
 
   // Returns a number 0 - `kNumSizeClasses`-1,
   constexpr size_t Ordinal() const {
-    return size_class_ / kDefaultAlignment;
+    return size_class_ / (kDefaultAlignment / kSizeClassDivisor);
   }
 
   // The number of slices that can fit into a small slab of this size class.
@@ -69,13 +71,13 @@ class SizeClass {
       kPageSize / 96, kPageSize / 112, kPageSize / 128,
     };
 
-    return kSliceMap[size_class_ / kDefaultAlignment];
+    return kSliceMap[Ordinal()];
   }
 
   // TODO check if this is the fastest way to do this.
   constexpr uint32_t OffsetToIdx(uint64_t offset_bytes) const {
     static_assert(kNumSizeClasses == 9);
-    switch (size_class_ / kDefaultAlignment) {
+    switch (Ordinal()) {
       case 0:
         return offset_bytes / 8;
       case 1:
@@ -100,9 +102,12 @@ class SizeClass {
   }
 
  private:
-  explicit constexpr SizeClass(uint8_t size_class) : size_class_(size_class) {}
+  explicit constexpr SizeClass(uint8_t size_class)
+      : size_class_(size_class / kSizeClassDivisor) {}
 
-  // The size in bytes of slices for this size class.
+  static constexpr uint64_t kSizeClassDivisor = kMinAlignment;
+
+  // The size in bytes of slices / `kSizeClassDivisor` for this size class.
   uint8_t size_class_;
 };
 
