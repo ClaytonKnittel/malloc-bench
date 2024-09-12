@@ -61,7 +61,7 @@ inline void* realloc(void* ptr, size_t size) {
   return new_ptr;
 }
 
-inline void free(void* ptr, size_t size = 0, size_t align = 0) {
+inline void free(void* ptr, size_t size = 0, size_t alignment = 0) {
   // TODO: implement
 }
 
