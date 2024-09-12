@@ -243,6 +243,7 @@ int RunAllTraces() {
            "traces/syn-struct-short.trace",
            "traces/test.trace",
            "traces/test-zero.trace",
+           "traces/vim.trace",
        }) {
     if (absl::GetFlag(FLAGS_ignore_test) && ShouldIgnoreForScoring(tracefile)) {
       continue;
