@@ -27,8 +27,8 @@ absl::Status TracefileExecutor::ProcessTracefile() {
         if (line.input_size != 0) {
           auto [it, inserted] = id_map_.insert({ line.result, ptr });
           if (!inserted) {
-            return absl::InternalError(
-                "Tracefile allocated duplicate pointer.");
+            return absl::InternalError(absl::StrFormat(
+                "Tracefile allocated duplicate pointer %p.", line.result));
           }
         }
         break;
