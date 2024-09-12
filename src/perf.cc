@@ -16,6 +16,7 @@ int main() {
            "traces/scp.trace",
            "traces/solitaire.trace",
            "traces/ssh.trace",
+           "traces/vim.trace",
        }) {
     bench::MMapHeapFactory heap_factory;
     absl::StatusOr<bench::TracefileReader> reader =

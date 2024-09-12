@@ -7,6 +7,7 @@
 #include "src/ckmalloc/global_state.h"
 #include "src/ckmalloc/local_cache.h"
 #include "src/ckmalloc/main_allocator.h"
+#include "src/ckmalloc/util.h"
 #include "src/heap_factory.h"
 
 namespace ckmalloc {

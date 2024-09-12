@@ -1,7 +1,5 @@
 #include "src/ckmalloc/red_black_tree.h"
 
-#include <optional>
-
 #include "src/ckmalloc/util.h"
 
 namespace ckmalloc {
