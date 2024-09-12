@@ -19,8 +19,10 @@
 #include "util/print_colors.h"
 
 #include "src/ckmalloc/ckmalloc.h"
+#include "src/ckmalloc/common.h"
 #include "src/ckmalloc/global_state.h"
 #include "src/ckmalloc/heap_printer.h"
+#include "src/ckmalloc/local_cache.h"
 #include "src/heap_factory.h"
 #include "src/mmap_heap_factory.h"
 #include "src/tracefile_executor.h"
@@ -34,8 +36,9 @@ ABSL_FLAG(bool, test_run, false,
           "silently render the heap after every allocation in the background. "
           "Used for debugging.");
 
-#define ALLOC_COLOR P_GREEN
-#define FREE_COLOR  P_RED
+#define ALLOC_COLOR  P_GREEN
+#define FREE_COLOR   P_RED
+#define CACHED_COLOR P_YELLOW
 
 namespace ckmalloc {
 
@@ -322,6 +325,13 @@ class TraceReplayer : public TracefileExecutor {
     }
     if (next_op_.op == Op::kFree || next_op_.op == Op::kRealloc) {
       p.WithHighlightAddr(next_op_.input_ptr, FREE_COLOR);
+    }
+
+    // Iterate over all cached guys.
+    for (auto* bin : LocalCache::Instance<GlobalMetadataAlloc>()->bins_) {
+      for (auto* alloc = bin; alloc != nullptr; alloc = alloc->next) {
+        p.WithHighlightAddr(alloc, CACHED_COLOR);
+      }
     }
 
     std::string print = p.Print();
