@@ -40,6 +40,7 @@ filegroup(
         "syn-struct-short.trace",
         "test.trace",
         "test-zero.trace",
+        "vim.trace",
     ],
     visibility = ["//visibility:public"],
 )
