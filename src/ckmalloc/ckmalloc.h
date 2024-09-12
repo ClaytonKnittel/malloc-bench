@@ -26,6 +26,8 @@ class CkMalloc {
 
   void Free(void* ptr);
 
+  size_t GetSize(void* ptr);
+
   GlobalState* GlobalState() {
     return &global_state_;
   }
