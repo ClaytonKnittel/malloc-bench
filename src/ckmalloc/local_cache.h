@@ -25,6 +25,8 @@ inline constexpr size_t ComputeSizeIdx(size_t alloc_size) {
 }
 
 class LocalCache {
+  friend class TraceReplayer;
+
  public:
   LocalCache() = default;
 
