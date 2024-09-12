@@ -15,6 +15,7 @@ inline void initialize_heap(HeapFactory& heap_factory) {
 }
 
 inline void* malloc(size_t size, size_t alignment = 0) {
+  (void) alignment;
   return ckmalloc::CkMalloc::Instance()->Malloc(size);
 }
 
@@ -27,13 +28,13 @@ inline void* realloc(void* ptr, size_t size) {
 }
 
 inline void free(void* ptr, size_t size = 0, size_t align = 0) {
+  (void) size;
+  (void) align;
   ckmalloc::CkMalloc::Instance()->Free(ptr);
 }
 
 inline size_t get_size(void* ptr) {
-  // TODO: implement
-  (void) ptr;
-  return 0;
+  return ckmalloc::CkMalloc::Instance()->GetSize(ptr);
 }
 
 }  // namespace bench
