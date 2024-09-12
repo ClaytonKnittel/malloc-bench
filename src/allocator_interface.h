@@ -27,9 +27,9 @@ inline void* realloc(void* ptr, size_t size) {
   return ckmalloc::CkMalloc::Instance()->Realloc(ptr, size);
 }
 
-inline void free(void* ptr, size_t size = 0, size_t align = 0) {
+inline void free(void* ptr, size_t size = 0, size_t alignment = 0) {
   (void) size;
-  (void) align;
+  (void) alignment;
   ckmalloc::CkMalloc::Instance()->Free(ptr);
 }
 
