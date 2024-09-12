@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdlib>
 #include <cstring>
+#include <mutex>
 
 #include "src/heap_factory.h"
 #include "src/heap_interface.h"
@@ -12,6 +13,8 @@ namespace bench {
 static constexpr size_t kHeapSize = 512 * (1 << 20);
 
 extern Heap* g_heap;
+
+extern std::mutex g_lock;
 
 // Called before any allocations are made.
 inline void initialize_heap(HeapFactory& heap_factory) {
@@ -26,6 +29,7 @@ inline void initialize_heap(HeapFactory& heap_factory) {
 void initialize();
 
 inline void* malloc(size_t size, size_t alignment = 0) {
+  std::lock_guard<std::mutex> lock(g_lock);
   if (g_heap == nullptr) {
     initialize();
   }
