@@ -182,6 +182,10 @@ class TraceReplayer : public TracefileExecutor {
         skips_ = 1023;
         break;
       }
+      if (c == 'r') {
+        skips_ = 9999;
+        break;
+      }
 
       switch (c) {
         case 'q': {

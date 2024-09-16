@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cinttypes>
 #include <cstdint>
 
@@ -19,10 +20,10 @@ class SizeClass {
   static constexpr size_t kNumSizeClasses =
       kMaxSmallSize / kDefaultAlignment + 1;
 
-  static constexpr SizeClass FromOrdinal(size_t ordinal) {
-    CK_ASSERT_LT(ordinal, kNumSizeClasses);
+  static constexpr SizeClass FromOrdinal(size_t ord) {
+    CK_ASSERT_LT(ord, kNumSizeClasses);
     return FromSliceSize(
-        std::max<uint64_t>(ordinal * kDefaultAlignment, kMinAlignment));
+        std::max<uint64_t>(ord * kDefaultAlignment, kMinAlignment));
   }
 
   static constexpr SizeClass FromUserDataSize(size_t user_size) {
@@ -39,7 +40,7 @@ class SizeClass {
     CK_ASSERT_TRUE(slice_size == kMinAlignment ||
                    slice_size % kDefaultAlignment == 0);
 
-    return SizeClass(static_cast<uint8_t>(slice_size));
+    return SizeClass(static_cast<uint32_t>(slice_size));
   }
 
   constexpr bool operator==(SizeClass other) const {
@@ -61,22 +62,12 @@ class SizeClass {
 
   // The number of slices that can fit into a small slab of this size class.
   constexpr uint32_t MaxSlicesPerSlab() const {
-    // If the number of size classes grows, the compiler will not complain that
-    // we have not specified every entry of `kSliceMap`. This static assert is
-    // to make sure the map is updated if the number of size classes changes.
-    static_assert(kNumSizeClasses == 9);
-    constexpr uint32_t kSliceMap[kNumSizeClasses] = {
-      kPageSize / 8,  kPageSize / 16,  kPageSize / 32,
-      kPageSize / 48, kPageSize / 64,  kPageSize / 80,
-      kPageSize / 96, kPageSize / 112, kPageSize / 128,
-    };
-
-    return kSliceMap[Ordinal()];
+    return GenerateSliceCountMap()[Ordinal()];
   }
 
   // TODO check if this is the fastest way to do this.
   constexpr uint32_t OffsetToIdx(uint64_t offset_bytes) const {
-    static_assert(kNumSizeClasses == 9);
+    static_assert(kNumSizeClasses == 17);
     switch (Ordinal()) {
       case 0:
         return offset_bytes / 8;
@@ -96,14 +87,39 @@ class SizeClass {
         return offset_bytes / 112;
       case 8:
         return offset_bytes / 128;
+      case 9:
+        return offset_bytes / 144;
+      case 10:
+        return offset_bytes / 160;
+      case 11:
+        return offset_bytes / 176;
+      case 12:
+        return offset_bytes / 192;
+      case 13:
+        return offset_bytes / 208;
+      case 14:
+        return offset_bytes / 224;
+      case 15:
+        return offset_bytes / 240;
+      case 16:
+        return offset_bytes / 256;
       default:
         __builtin_unreachable();
     }
   }
 
  private:
-  explicit constexpr SizeClass(uint8_t size_class)
+  explicit constexpr SizeClass(uint32_t size_class)
       : size_class_(size_class / kSizeClassDivisor) {}
+
+  static constexpr std::array<uint32_t, kNumSizeClasses>
+  GenerateSliceCountMap() {
+    std::array<uint32_t, kNumSizeClasses> slice_map;
+    for (uint32_t ord = 0; ord < kNumSizeClasses; ord++) {
+      slice_map[ord] = kPageSize / SizeClass::FromOrdinal(ord).SliceSize();
+    }
+    return slice_map;
+  }
 
   static constexpr uint64_t kSizeClassDivisor = kMinAlignment;
 

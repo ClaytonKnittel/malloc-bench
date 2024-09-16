@@ -26,7 +26,7 @@ static_assert(kHeapSize == (size_t(1) << kHeapSizeShift));
 
 // The largest user-request size which will be allocated in small slabs. Any
 // size larger will go in large blocks.
-static constexpr size_t kMaxSmallSize = 128;
+static constexpr size_t kMaxSmallSize = 256;
 
 // If true, memory for this request will be allocated from a small slab.
 inline constexpr bool IsSmallSize(size_t user_size) {
