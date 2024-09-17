@@ -4,10 +4,9 @@
 #include <cstdint>
 #include <optional>
 
-#include "util/std_util.h"
-
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/page_id.h"
+#include "src/ckmalloc/size_class.h"
 #include "src/ckmalloc/util.h"
 
 namespace ckmalloc {
@@ -45,20 +44,24 @@ class SlabMapImpl {
   void InsertRange(PageId start_id, PageId end_id, MappedSlab* slab);
 
  private:
+  template <typename T>
   class Leaf {
    public:
-    MappedSlab* operator[](size_t idx) const {
+    T operator[](size_t idx) const {
       CK_ASSERT_LT(idx, kLeafSize);
-      return slabs_[idx];
+      return vals_[idx];
     }
 
-    void SetLeaf(size_t idx, MappedSlab* slab) {
-      slabs_[idx] = slab;
+    void SetLeaf(size_t idx, T val) {
+      vals_[idx] = val;
     }
 
    private:
-    MappedSlab* slabs_[kLeafSize] = {};
+    T vals_[kLeafSize] = {};
   };
+
+  using SlabLeaf = Leaf<MappedSlab*>;
+  using SizeLeaf = Leaf<SizeClass>;
 
   std::optional<int> DoAllocatePath(PageId start_id, PageId end_id);
 
@@ -77,14 +80,20 @@ class SlabMapImpl {
     return page_id.Idx() % kLeafSize;
   }
 
-  Leaf* operator[](size_t idx) const {
+  SizeLeaf* SizeLeafAt(size_t idx) const {
     CK_ASSERT_LT(idx, kRootSize);
-    return leaves_[idx];
+    return slab_leaves_[idx];
   }
 
-  std::optional<Leaf*> GetOrAllocateLeaf(size_t idx);
+  SlabLeaf* SlabLeafAt(size_t idx) const {
+    CK_ASSERT_LT(idx, kRootSize);
+    return slab_leaves_[idx];
+  }
 
-  Leaf* leaves_[kRootSize] = {};
+  bool TryAllocateLeaf(size_t idx);
+
+  SizeLeaf* size_leaves_[kRootSize] = {};
+  SlabLeaf* slab_leaves_[kRootSize] = {};
 };
 
 template <MetadataAllocInterface MetadataAlloc>
@@ -92,7 +101,7 @@ MappedSlab* SlabMapImpl<MetadataAlloc>::FindSlab(PageId page_id) const {
   size_t root_idx = RootIdx(page_id);
   size_t leaf_idx = LeafIdx(page_id);
 
-  Leaf* leaf = (*this)[root_idx];
+  SlabLeaf* leaf = SlabLeafAt(root_idx);
   if (CK_EXPECT_FALSE(leaf == nullptr)) {
     return nullptr;
   }
@@ -107,7 +116,7 @@ bool SlabMapImpl<MetadataAlloc>::AllocatePath(PageId start_id, PageId end_id) {
 
 template <MetadataAllocInterface MetadataAlloc>
 void SlabMapImpl<MetadataAlloc>::Insert(PageId page_id, MappedSlab* slab) {
-  Leaf& leaf = *(*this)[RootIdx(page_id)];
+  SlabLeaf& leaf = *SlabLeafAt(RootIdx(page_id));
   leaf.SetLeaf(LeafIdx(page_id), slab);
 }
 
@@ -119,7 +128,7 @@ void SlabMapImpl<MetadataAlloc>::InsertRange(PageId start_id, PageId end_id,
 
   for (size_t root_idx = root_idxs.first; root_idx <= root_idxs.second;
        root_idx++) {
-    Leaf& leaf = *(*this)[root_idx];
+    SlabLeaf& leaf = *SlabLeafAt(root_idx);
     for (size_t leaf_idx = (root_idx != root_idxs.first ? 0 : leaf_idxs.first);
          leaf_idx <=
          (root_idx != root_idxs.second ? kLeafSize - 1 : leaf_idxs.second);
@@ -136,23 +145,25 @@ std::optional<int> SlabMapImpl<MetadataAlloc>::DoAllocatePath(PageId start_id,
 
   for (size_t root_idx = root_idxs.first; root_idx <= root_idxs.second;
        root_idx++) {
-    RETURN_IF_NULL(GetOrAllocateLeaf(root_idx));
+    if (!TryAllocateLeaf(root_idx)) {
+      return std::nullopt;
+    }
   }
 
   return 0;
 }
 
 template <MetadataAllocInterface MetadataAlloc>
-std::optional<typename SlabMapImpl<MetadataAlloc>::Leaf*>
-SlabMapImpl<MetadataAlloc>::GetOrAllocateLeaf(size_t idx) {
-  if (leaves_[idx] == nullptr) {
-    leaves_[idx] = Allocate<Leaf>();
-    if (leaves_[idx] == nullptr) {
-      return std::nullopt;
+bool SlabMapImpl<MetadataAlloc>::TryAllocateLeaf(size_t idx) {
+  if (size_leaves_[idx] == nullptr) {
+    size_leaves_[idx] = Allocate<SizeLeaf>();
+    slab_leaves_[idx] = Allocate<SlabLeaf>();
+    if (size_leaves_[idx] == nullptr || slab_leaves_[idx] == nullptr) {
+      return false;
     }
   }
 
-  return leaves_[idx];
+  return true;
 }
 
 using SlabMap = SlabMapImpl<GlobalMetadataAlloc>;

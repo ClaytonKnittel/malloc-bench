@@ -321,6 +321,7 @@ cc_library(
     deps = [
         ":common",
         ":util",
+        "@abseil-cpp//absl/strings:str_format",
     ],
 )
 
@@ -423,8 +424,8 @@ cc_library(
     deps = [
         ":common",
         ":page_id",
+        ":size_class",
         ":util",
-        "@cc-util//util:std_util",
     ],
 )
 
