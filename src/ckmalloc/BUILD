@@ -565,6 +565,7 @@ cc_binary(
         "//src:mmap_heap_factory",
         "//src:tracefile_executor",
         "//src:tracefile_reader",
+        "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/flags:parse",
         "@abseil-cpp//absl/status",

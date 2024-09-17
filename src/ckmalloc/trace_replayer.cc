@@ -3,11 +3,13 @@
 #include <cstdio>
 #include <ios>
 #include <limits>
+#include <optional>
 #include <string>
 #include <sys/ioctl.h>
 #include <termios.h>
 #include <unistd.h>
 
+#include "absl/container/flat_hash_map.h"
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
 #include "absl/status/status.h"
@@ -36,6 +38,10 @@ ABSL_FLAG(bool, test_run, false,
           "silently render the heap after every allocation in the background. "
           "Used for debugging.");
 
+ABSL_FLAG(bool, to_max, false,
+          "If set, searches for the point in the tracefile with the maximum "
+          "amount of allocated memory, and immediately jumps to that point.");
+
 #define ALLOC_COLOR  P_GREEN
 #define FREE_COLOR   P_RED
 #define CACHED_COLOR P_YELLOW
@@ -46,6 +52,92 @@ using bench::HeapFactory;
 using bench::TracefileExecutor;
 using bench::TracefileReader;
 using Op = bench::TraceLine::Op;
+
+class FindMaxAllocations : public TracefileExecutor {
+ public:
+  FindMaxAllocations(TracefileReader&& reader, HeapFactory& heap_factory)
+      : TracefileExecutor(std::move(reader), heap_factory) {}
+
+  absl::StatusOr<uint64_t> MaxAllocations() {
+    if (!iters_to_max_.has_value()) {
+      RETURN_IF_ERROR(TracefileExecutor::Run());
+      iters_to_max_ = max_iter_;
+    }
+
+    return iters_to_max_.value();
+  }
+
+  void InitializeHeap(HeapFactory& heap_factory) override {
+    CkMalloc::InitializeHeap(heap_factory);
+  }
+
+  absl::StatusOr<void*> Malloc(size_t size) override {
+    iter_++;
+    void* result = CkMalloc::Instance()->Malloc(size);
+    if (result != nullptr) {
+      alloc_sizes_[result] = size;
+      total_allocations_ += size;
+      if (total_allocations_ > max_allocations_) {
+        max_allocations_ = total_allocations_;
+        max_iter_ = iter_;
+      }
+    }
+    return result;
+  }
+
+  absl::StatusOr<void*> Calloc(size_t nmemb, size_t size) override {
+    iter_++;
+    void* result = CkMalloc::Instance()->Calloc(nmemb, size);
+    if (result != nullptr) {
+      alloc_sizes_[result] = size;
+      total_allocations_ += size;
+      if (total_allocations_ > max_allocations_) {
+        max_allocations_ = total_allocations_;
+        max_iter_ = iter_;
+      }
+    }
+    return result;
+  }
+
+  absl::StatusOr<void*> Realloc(void* ptr, size_t size) override {
+    iter_++;
+    if (ptr != nullptr) {
+      auto it = alloc_sizes_.find(ptr);
+      total_allocations_ -= it->second;
+      alloc_sizes_.erase(it);
+    }
+
+    void* result = CkMalloc::Instance()->Realloc(ptr, size);
+    if (result != nullptr) {
+      alloc_sizes_[result] = size;
+      total_allocations_ += size;
+      if (total_allocations_ > max_allocations_) {
+        max_allocations_ = total_allocations_;
+        max_iter_ = iter_;
+      }
+    }
+    return result;
+  }
+
+  absl::Status Free(void* ptr) override {
+    iter_++;
+    if (ptr != nullptr) {
+      auto it = alloc_sizes_.find(ptr);
+      total_allocations_ -= it->second;
+      alloc_sizes_.erase(it);
+    }
+    CkMalloc::Instance()->Free(ptr);
+    return absl::OkStatus();
+  }
+
+ private:
+  absl::flat_hash_map<void*, size_t> alloc_sizes_;
+  uint64_t iter_ = 0;
+  uint64_t total_allocations_ = 0;
+  uint64_t max_iter_ = 0;
+  uint64_t max_allocations_ = 0;
+  std::optional<uint64_t> iters_to_max_;
+};
 
 struct TraceOp {
   Op op;
@@ -77,6 +169,10 @@ class TraceReplayer : public TracefileExecutor {
       SetNonCanonicalMode(/*enable=*/false);
       std::cout << CSI_SHOW << CSI_MAIN_DISPLAY;
     }
+  }
+
+  void SetSkips(uint64_t skips) {
+    skips_ = skips;
   }
 
   absl::Status SetDone() {
@@ -253,9 +349,10 @@ class TraceReplayer : public TracefileExecutor {
       std::cout << CSI_CHP(1, 1) << CSI_ED(CSI_CURSOR_ALL);
     }
 
-    std::cout << "Next: [n/m(50)/c(1024)], scroll down: [j/d], scroll up: "
-                 "[k/u], heap index: [0/1/...], quit: [q]"
-              << std::endl;
+    std::cout
+        << "Next: [n/m(50)/c(1024)/r(10000)], scroll down: [j/d], scroll up: "
+           "[k/u], heap index: [0/1/...], quit: [q]"
+        << std::endl;
 
     std::cout << "Next op: " << std::left << std::setw(28);
     switch (next_op_.op) {
@@ -367,9 +464,21 @@ class TraceReplayer : public TracefileExecutor {
 };  // namespace ckmalloc
 
 absl::Status Run(const std::string& tracefile) {
+  uint64_t skips = 0;
+  if (absl::GetFlag(FLAGS_to_max)) {
+    DEFINE_OR_RETURN(TracefileReader, reader, TracefileReader::Open(tracefile));
+    bench::MMapHeapFactory heap_factory;
+    std::cout << "starting" << std::endl;
+    ASSIGN_OR_RETURN(
+        skips,
+        FindMaxAllocations(std::move(reader), heap_factory).MaxAllocations());
+    std::cout << "finished " << skips << std::endl;
+  }
+
   DEFINE_OR_RETURN(TracefileReader, reader, TracefileReader::Open(tracefile));
   bench::MMapHeapFactory heap_factory;
   TraceReplayer replayer(std::move(reader), heap_factory);
+  replayer.SetSkips(skips);
   RETURN_IF_ERROR(replayer.Run());
   RETURN_IF_ERROR(replayer.SetDone());
   while (true) {
