@@ -468,11 +468,9 @@ absl::Status Run(const std::string& tracefile) {
   if (absl::GetFlag(FLAGS_to_max)) {
     DEFINE_OR_RETURN(TracefileReader, reader, TracefileReader::Open(tracefile));
     bench::MMapHeapFactory heap_factory;
-    std::cout << "starting" << std::endl;
     ASSIGN_OR_RETURN(
         skips,
         FindMaxAllocations(std::move(reader), heap_factory).MaxAllocations());
-    std::cout << "finished " << skips << std::endl;
   }
 
   DEFINE_OR_RETURN(TracefileReader, reader, TracefileReader::Open(tracefile));
