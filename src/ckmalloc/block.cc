@@ -33,6 +33,8 @@ static_assert(sizeof(TreeBlock) <= Block::kMinBlockSize,
 static_assert(
     UserDataOffsetValid(),
     "User data region starts at the incorrect offset in allocated blocks.");
+static_assert(sizeof(UntrackedBlock) + sizeof(uint64_t) <= Block::kMinBlockSize,
+              "Untracked blocks + footers must be <= min block size");
 
 AllocatedBlock* Block::InitAllocated(uint64_t size, bool prev_free) {
   CK_ASSERT_GE(size, kMinBlockSize);
@@ -58,8 +60,12 @@ bool Block::Free() const {
   return (header_ & kFreeBitMask) != 0;
 }
 
+bool Block::IsUntracked() const {
+  return IsUntrackedSize(Size());
+}
+
 bool Block::IsExactSize() const {
-  return Size() <= kMaxExactSizeBlock;
+  return !IsUntrackedSize(Size()) && Size() <= kMaxExactSizeBlock;
 }
 
 bool Block::IsPhonyHeader() const {
@@ -86,6 +92,18 @@ const FreeBlock* Block::ToFree() const {
   return static_cast<const FreeBlock*>(this);
 }
 
+TrackedBlock* Block::ToTracked() {
+  CK_ASSERT_TRUE(Free());
+  CK_ASSERT_GT(Size(), kMaxUntrackedSize);
+  return static_cast<TrackedBlock*>(this);
+}
+
+const TrackedBlock* Block::ToTracked() const {
+  CK_ASSERT_TRUE(Free());
+  CK_ASSERT_GT(Size(), kMaxUntrackedSize);
+  return static_cast<const TrackedBlock*>(this);
+}
+
 ExactSizeBlock* Block::ToExactSize() {
   CK_ASSERT_TRUE(Free());
   CK_ASSERT_LE(Size(), kMaxExactSizeBlock);
@@ -108,6 +126,18 @@ const TreeBlock* Block::ToTree() const {
   CK_ASSERT_TRUE(Free());
   CK_ASSERT_GT(Size(), kMaxExactSizeBlock);
   return static_cast<const TreeBlock*>(this);
+}
+
+UntrackedBlock* Block::ToUntracked() {
+  CK_ASSERT_TRUE(Free());
+  CK_ASSERT_LE(Size(), kMaxUntrackedSize);
+  return static_cast<UntrackedBlock*>(this);
+}
+
+const UntrackedBlock* Block::ToUntracked() const {
+  CK_ASSERT_TRUE(Free());
+  CK_ASSERT_LE(Size(), kMaxUntrackedSize);
+  return static_cast<const UntrackedBlock*>(this);
 }
 
 Block* Block::NextAdjacentBlock() {
