@@ -133,8 +133,12 @@ bool Freelist::ResizeIfPossible(AllocatedBlock* block, uint64_t new_size) {
 
     if (next_block->Free()) {
       // If the next block is free, we can extend the block backwards.
-      MoveBlockHeader(next_block->ToFree(), new_head,
-                      next_size + block_size - new_size);
+      FreeBlock* next_free = next_block->ToFree();
+      if (!next_free->IsUntracked()) {
+        RemoveBlock(next_free->ToTracked());
+      }
+
+      InitFree(new_head, next_size + block_size - new_size);
     } else if (new_size + Block::kMinBlockSize <= block_size) {
       // Otherwise, we create a new free block in between the shrunk block and
       // next_block.
@@ -148,9 +152,18 @@ bool Freelist::ResizeIfPossible(AllocatedBlock* block, uint64_t new_size) {
   }
 
   if (next_block->Free() && new_size <= block_size + next_size) {
-    block->SetSize(new_size);
-    MoveBlockHeader(next_block->ToFree(), block->NextAdjacentBlock(),
-                    next_size + block_size - new_size);
+    if (!next_block->IsUntracked()) {
+      RemoveBlock(next_block->ToTracked());
+    }
+
+    uint64_t remainder_size = block_size + next_size - new_size;
+    if (remainder_size < Block::kMinBlockSize) {
+      block->SetSize(block_size + next_size);
+      block->NextAdjacentBlock()->SetPrevFree(false);
+    } else {
+      block->SetSize(new_size);
+      InitFree(block->NextAdjacentBlock(), remainder_size);
+    }
     return true;
   }
 
@@ -201,23 +214,6 @@ void Freelist::RemoveBlock(TrackedBlock* block) {
     block->ToExactSize()->LinkedListNode::Remove();
   } else {
     large_blocks_tree_.Remove(block->ToTree());
-  }
-}
-
-void Freelist::MoveBlockHeader(FreeBlock* block, Block* new_head,
-                               uint64_t new_size) {
-  CK_ASSERT_EQ(
-      static_cast<int64_t>(block->Size() - new_size),
-      reinterpret_cast<int64_t>(new_head) - reinterpret_cast<int64_t>(block));
-
-  if (!block->IsUntracked()) {
-    RemoveBlock(block->ToTracked());
-  }
-
-  if (new_size != 0) {
-    InitFree(new_head, new_size);
-  } else {
-    new_head->SetPrevFree(false);
   }
 }
 

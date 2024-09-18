@@ -6,6 +6,7 @@
 #include "absl/status/status.h"
 #include "util/absl_util.h"
 
+#include "src/ckmalloc/block.h"
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/freelist.h"
 #include "src/ckmalloc/local_cache.h"
@@ -115,10 +116,13 @@ absl::Status MainAllocatorFixture::ValidateHeap() {
       aligned_size = AlignUserSize(size);
     }
     if (aligned_size != derived_size) {
-      return FailedTest(
-          "Allocated block at %p of size %zu has the wrong size when looked up "
-          "with MainAllocator::AllocSize: found %zu, expected %zu",
-          alloc, size, derived_size, aligned_size);
+      if (slab->Type() != SlabType::kBlocked || aligned_size > derived_size ||
+          aligned_size + Block::kMinBlockSize <= derived_size) {
+        return FailedTest(
+            "Allocated block at %p of size %zu has the wrong size when looked "
+            "up with MainAllocator::AllocSize: found %zu, expected %zu",
+            alloc, size, derived_size, aligned_size);
+      }
     }
 
     it = next_it;

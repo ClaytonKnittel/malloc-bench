@@ -72,11 +72,6 @@ class Freelist {
   // Removes the block from the freelist.
   void RemoveBlock(TrackedBlock* block);
 
-  // Moves `block` to `new_head`, resizing it to `new_size`. `new_head` must
-  // move forward/backward by the difference in the block's current size and
-  // `new_size`.
-  void MoveBlockHeader(FreeBlock* block, Block* new_head, uint64_t new_size);
-
   static constexpr size_t kNumExactSizeBins =
       (Block::kMaxExactSizeBlock - Block::kMinBlockSize) / kDefaultAlignment +
       1;

@@ -613,6 +613,29 @@ TEST_F(LargeAllocatorTest, ResizeUpBeforeFree) {
   EXPECT_THAT(FreelistList(), ElementsAre(next));
 }
 
+TEST_F(LargeAllocatorTest, ResizeUpBeforeFreeLessThanMinSizeRemainder) {
+  constexpr uint64_t kBlockSize = 0x490;
+  constexpr uint64_t kNewSize = 0x1580;
+  constexpr uint64_t kNextSize = 0x1100;
+  static_assert(kNewSize < kBlockSize + kNextSize);
+  static_assert(kBlockSize + kNextSize - kNewSize < Block::kMinBlockSize);
+
+  AllocatedBlock* block = PushAllocated(kBlockSize);
+  PushFree(kNextSize);
+  Block* end_block = PushAllocated(0xA60);
+  PushPhony();
+
+  AllocatedBlock* b2 = Realloc(block, kNewSize);
+  ASSERT_EQ(b2, block);
+  EXPECT_EQ(b2->Size(), kBlockSize + kNextSize);
+
+  Block* next = b2->NextAdjacentBlock();
+  EXPECT_EQ(next, end_block);
+
+  EXPECT_THAT(ValidateHeap(), IsOk());
+  EXPECT_THAT(FreelistList(), ElementsAre());
+}
+
 TEST_F(LargeAllocatorTest, ResizeUpBeforeFreeExact) {
   constexpr uint64_t kBlockSize = 0x500;
   constexpr uint64_t kNewSize = 0x800;

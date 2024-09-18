@@ -56,6 +56,7 @@ cc_library(
     name = "freelist",
     srcs = ["freelist.cc"],
     hdrs = ["freelist.h"],
+    visibility = ["//visibility:public"],
     deps = [
         ":block",
         ":common",
@@ -234,6 +235,7 @@ cc_library(
     hdrs = ["main_allocator_test_fixture.h"],
     visibility = ["//visibility:public"],
     deps = [
+        ":block",
         ":common",
         ":freelist",
         ":large_allocator_test_fixture",
