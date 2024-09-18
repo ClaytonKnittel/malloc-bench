@@ -73,11 +73,17 @@ class LargeAllocatorTest : public ::testing::Test {
     return large_allocator_fixture_->LargeAllocator();
   }
 
-  AllocatedBlock* Realloc(AllocatedBlock* block, size_t user_size) {
+  AllocatedBlock* Alloc(uint64_t block_size) {
+    void* res =
+        LargeAllocator().AllocLarge(Block::UserSizeForBlockSize(block_size));
+    return res != nullptr ? AllocatedBlock::FromUserDataPtr(res) : nullptr;
+  }
+
+  AllocatedBlock* Realloc(AllocatedBlock* block, uint64_t block_size) {
     LargeSlab* slab =
         SlabMap().FindSlab(SlabManager().PageIdFromPtr(block))->ToLarge();
-    void* res =
-        LargeAllocator().ReallocLarge(slab, block->UserDataPtr(), user_size);
+    void* res = LargeAllocator().ReallocLarge(
+        slab, block->UserDataPtr(), Block::UserSizeForBlockSize(block_size));
     return res != nullptr ? AllocatedBlock::FromUserDataPtr(res) : nullptr;
   }
 
@@ -302,6 +308,26 @@ TEST_F(LargeAllocatorTest, ManyFree) {
   EXPECT_THAT(Freelist().FindFree(0x200), AnyOf(b1, b2, b3, b4));
 }
 
+TEST_F(LargeAllocatorTest, Split) {
+  constexpr uint64_t kBlockSize = 0xD30;
+  constexpr uint64_t kNewBlockSize = 0x130;
+
+  FreeBlock* block = PushFree(kBlockSize);
+  PushAllocated(0x2C0);
+  PushPhony();
+
+  AllocatedBlock* alloc = Alloc(kNewBlockSize);
+
+  EXPECT_THAT(ValidateHeap(), IsOk());
+  ASSERT_EQ(static_cast<Block*>(alloc), static_cast<Block*>(block));
+  EXPECT_EQ(alloc->Size(), kNewBlockSize);
+
+  ASSERT_TRUE(alloc->NextAdjacentBlock()->Free());
+  FreeBlock* next_free = alloc->NextAdjacentBlock()->ToFree();
+  EXPECT_EQ(next_free->Size(), kBlockSize - kNewBlockSize);
+  EXPECT_THAT(FreelistList(), ElementsAre(next_free));
+}
+
 TEST_F(LargeAllocatorTest, FreeAsOnlyBlock) {
   constexpr uint64_t kBlockSize = 0xFF0;
 
@@ -392,7 +418,7 @@ TEST_F(LargeAllocatorTest, ResizeDown) {
   AllocatedBlock* b2 = PushAllocated(0x980);
   PushPhony();
 
-  AllocatedBlock* b3 = Realloc(b1, Block::UserSizeForBlockSize(kNewSize));
+  AllocatedBlock* b3 = Realloc(b1, kNewSize);
   ASSERT_EQ(b3, b1);
   EXPECT_EQ(b1, b3);
   EXPECT_EQ(b3->Size(), kNewSize);
@@ -416,7 +442,7 @@ TEST_F(LargeAllocatorTest, ResizeDownBeforeFree) {
   Block* end_block = PushAllocated(0xC20);
   PushPhony();
 
-  AllocatedBlock* b2 = Realloc(block, Block::UserSizeForBlockSize(kNewSize));
+  AllocatedBlock* b2 = Realloc(block, kNewSize);
   ASSERT_NE(b2, nullptr);
   EXPECT_EQ(b2, block);
   EXPECT_EQ(b2->Size(), kNewSize);
@@ -437,7 +463,7 @@ TEST_F(LargeAllocatorTest, ResizeUpBeforeAllocated) {
   PushAllocated(0xD60);
   PushPhony();
 
-  Block* b2 = Realloc(block, Block::UserSizeForBlockSize(kBlockSize) + 1);
+  Block* b2 = Realloc(block, kBlockSize + kDefaultAlignment);
   // b2 should have been placed somewhere else since the block can't have
   // in-place upsized.
   ASSERT_NE(b2, block);
@@ -459,7 +485,7 @@ TEST_F(LargeAllocatorTest, ResizeUpBeforeFree) {
   Block* end_block = PushAllocated(0xA60);
   PushPhony();
 
-  AllocatedBlock* b2 = Realloc(block, Block::UserSizeForBlockSize(kNewSize));
+  AllocatedBlock* b2 = Realloc(block, kNewSize);
   ASSERT_EQ(b2, block);
   EXPECT_EQ(b2->Size(), kNewSize);
 
@@ -482,7 +508,7 @@ TEST_F(LargeAllocatorTest, ResizeUpBeforeFreeExact) {
   PushAllocated(0x7F0);
   PushPhony();
 
-  AllocatedBlock* b2 = Realloc(block, Block::UserSizeForBlockSize(kNewSize));
+  AllocatedBlock* b2 = Realloc(block, kNewSize);
   ASSERT_EQ(b2, block);
   EXPECT_EQ(b2->Size(), kNewSize);
 
@@ -500,7 +526,7 @@ TEST_F(LargeAllocatorTest, ResizeUpBeforeFreeTooLarge) {
   PushAllocated(0xAD0);
   PushPhony();
 
-  AllocatedBlock* b3 = Realloc(b1, Block::UserSizeForBlockSize(kNewSize));
+  AllocatedBlock* b3 = Realloc(b1, kNewSize);
   // b3 should have been placed elsewhere since b1 can't upsize in-place.
   EXPECT_NE(b3, b1);
   EXPECT_EQ(b3->Size(), kNewSize);
