@@ -10,6 +10,7 @@
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/freelist.h"
 #include "src/ckmalloc/local_cache.h"
+#include "src/ckmalloc/size_class.h"
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/testlib.h"
 #include "src/ckmalloc/util.h"
@@ -110,18 +111,36 @@ absl::Status MainAllocatorFixture::ValidateHeap() {
     MappedSlab* slab = SlabMap().FindSlab(SlabManager().PageIdFromPtr(alloc));
     size_t derived_size = MainAllocator().AllocSize(alloc);
     size_t aligned_size;
-    if (slab->Type() == SlabType::kSingleAlloc) {
-      aligned_size = AlignUp(size, kPageSize);
-    } else {
-      aligned_size = AlignUserSize(size);
+    switch (slab->Type()) {
+      case SlabType::kSingleAlloc: {
+        aligned_size = AlignUp(size, kPageSize);
+        break;
+      }
+      case SlabType::kBlocked: {
+        aligned_size =
+            Block::UserSizeForBlockSize(Block::BlockSizeForUserSize(size));
+        break;
+      }
+      case SlabType::kSmall: {
+        aligned_size = SizeClass::FromUserDataSize(size).SliceSize();
+        break;
+      }
+      case SlabType::kFree:
+      case SlabType::kUnmapped: {
+        return FailedTest("Unexpected non-allocated slab %v", *slab);
+      }
     }
     if (aligned_size != derived_size) {
       if (slab->Type() != SlabType::kBlocked || aligned_size > derived_size ||
           aligned_size + Block::kMinBlockSize <= derived_size) {
         return FailedTest(
-            "Allocated block at %p of size %zu has the wrong size when looked "
-            "up with MainAllocator::AllocSize: found %zu, expected %zu",
-            alloc, size, derived_size, aligned_size);
+            "Allocated block at %p of size %zu in %v has the wrong size when "
+            "looked up with MainAllocator::AllocSize: found %zu, expected %zu "
+            "- %zu",
+            alloc, size, *slab, derived_size, aligned_size,
+            slab->Type() == SlabType::kBlocked
+                ? aligned_size + Block::kMinBlockSize
+                : aligned_size);
       }
     }
 

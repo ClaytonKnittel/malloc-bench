@@ -241,6 +241,7 @@ cc_library(
         ":large_allocator_test_fixture",
         ":local_cache",
         ":main_allocator",
+        ":size_class",
         ":slab",
         ":slab_manager_test_fixture",
         ":small_allocator_test_fixture",

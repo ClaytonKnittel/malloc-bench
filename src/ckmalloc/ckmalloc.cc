@@ -7,6 +7,7 @@
 #include "src/ckmalloc/global_state.h"
 #include "src/ckmalloc/local_cache.h"
 #include "src/ckmalloc/main_allocator.h"
+#include "src/ckmalloc/size_class.h"
 #include "src/ckmalloc/util.h"
 #include "src/heap_factory.h"
 
@@ -28,7 +29,7 @@ void* CkMalloc::Malloc(size_t size) {
 
   LocalCache* cache = LocalCache::Instance<GlobalMetadataAlloc>();
   if (LocalCache::CanHoldSize(size)) {
-    size_t alloc_size = AlignUserSize(size);
+    size_t alloc_size = SizeClass::FromUserDataSize(size).SliceSize();
     void* cached_alloc = cache->TakeAlloc(alloc_size);
     if (cached_alloc != nullptr) {
       return cached_alloc;

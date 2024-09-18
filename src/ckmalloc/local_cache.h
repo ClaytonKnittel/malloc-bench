@@ -3,22 +3,10 @@
 #include <cstddef>
 #include <cstdint>
 
-#include "src/ckmalloc/block.h"
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/util.h"
 
 namespace ckmalloc {
-
-// Given a user size, aligns the user size up to the largest user allocation
-// which will be treated the same way by the allocator.
-inline constexpr size_t AlignUserSize(size_t user_size) {
-  return user_size <= kMinAlignment ? kMinAlignment
-         : user_size <= kMaxSmallSize
-             ? AlignUp(user_size, kDefaultAlignment)
-             : AlignUp(user_size + Block::kMetadataOverhead,
-                       kDefaultAlignment) -
-                   Block::kMetadataOverhead;
-}
 
 inline constexpr size_t ComputeSizeIdx(size_t alloc_size) {
   return alloc_size / kDefaultAlignment + (alloc_size > kMaxSmallSize ? 1 : 0);
@@ -69,7 +57,7 @@ class LocalCache {
   // Returns the index into the bins list of an allocation of the given size.
   static size_t SizeIdx(size_t alloc_size);
 
-  static constexpr size_t kMaxCachedAllocSize = AlignUserSize(128);
+  static constexpr size_t kMaxCachedAllocSize = 128;
   static constexpr size_t kNumCacheBins =
       ComputeSizeIdx(kMaxCachedAllocSize) + 1;
 

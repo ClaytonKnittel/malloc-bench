@@ -1,8 +1,10 @@
 #pragma once
 
+#include <cstdint>
 #include <cstring>
 #include <optional>
 
+#include "src/ckmalloc/block.h"
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/freelist.h"
 #include "src/ckmalloc/page_id.h"
@@ -68,16 +70,26 @@ Void* SmallAllocatorImpl<SlabMap, SlabManager>::AllocSmall(size_t user_size) {
 
   auto slice_from_freelist = FindSliceInFreelist(size_class);
   if (slice_from_freelist.has_value()) {
-    return slice_from_freelist.value() != nullptr
-               ? slice_from_freelist.value()->UserDataPtr()
-               : nullptr;
+    return slice_from_freelist.value()->UserDataPtr();
+  }
+
+  uint64_t block_size = Block::BlockSizeForUserSize(user_size);
+  if (block_size >= Block::kMinTrackedSize) {
+    TrackedBlock* block = freelist_->FindFreeExact(block_size);
+    if (block != nullptr) {
+      BlockedSlab* slab =
+          slab_map_->FindSlab(slab_manager_->PageIdFromPtr(block))->ToBlocked();
+      slab->AddAllocation(Block::BlockSizeForUserSize(user_size));
+      CK_ASSERT_EQ(block->Size(), block_size);
+      auto [allocated, free] = freelist_->Split(block, block_size);
+      CK_ASSERT_EQ(free, nullptr);
+      return allocated->UserDataPtr();
+    }
   }
 
   auto slice_from_new_slab = TakeSliceFromNewSlab(size_class);
   if (slice_from_new_slab.has_value()) {
-    return slice_from_new_slab.value() != nullptr
-               ? slice_from_new_slab.value()->UserDataPtr()
-               : nullptr;
+    return slice_from_new_slab.value()->UserDataPtr();
   }
 
   return nullptr;
