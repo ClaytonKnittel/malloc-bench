@@ -26,18 +26,16 @@ constexpr bool UserDataOffsetValid() {
 }
 
 static_assert(HeaderOffset() == 0, "FreeBlock header offset must be 0");
-static_assert(sizeof(ExactSizeBlock) <= kMaxSmallSize,
+static_assert(sizeof(ExactSizeBlock) <= Block::kMinBlockSize,
               "ExactSizeBlock size is larger than the max small size.");
-static_assert(sizeof(TreeBlock) <= kMaxSmallSize,
+static_assert(sizeof(TreeBlock) <= Block::kMinBlockSize,
               "TreeBlock size is larger than the max small size.");
 static_assert(
     UserDataOffsetValid(),
     "User data region starts at the incorrect offset in allocated blocks.");
-static_assert(sizeof(UntrackedBlock) + sizeof(uint64_t) <= Block::kMinBlockSize,
-              "Untracked blocks + footers must be <= min block size");
 
 AllocatedBlock* Block::InitAllocated(uint64_t size, bool prev_free) {
-  CK_ASSERT_GE(size, kMinLargeSize);
+  CK_ASSERT_GE(size, kMinBlockSize);
   CK_ASSERT_TRUE(IsAligned(size, kDefaultAlignment));
   header_ = size | (prev_free ? kPrevFreeBitMask : 0);
   return ToAllocated();
@@ -52,7 +50,7 @@ uint64_t Block::Size() const {
 }
 
 uint64_t Block::UserDataSize() const {
-  CK_ASSERT_GE(Size(), kMinLargeSize);
+  CK_ASSERT_GE(Size(), kMinBlockSize);
   return UserSizeForBlockSize(Size());
 }
 
@@ -60,12 +58,8 @@ bool Block::Free() const {
   return (header_ & kFreeBitMask) != 0;
 }
 
-bool Block::IsUntracked() const {
-  return IsUntrackedSize(Size());
-}
-
 bool Block::IsExactSize() const {
-  return !IsUntrackedSize(Size()) && Size() <= kMaxExactSizeBlock;
+  return Size() <= kMaxExactSizeBlock;
 }
 
 bool Block::IsPhonyHeader() const {
@@ -74,13 +68,11 @@ bool Block::IsPhonyHeader() const {
 
 AllocatedBlock* Block::ToAllocated() {
   CK_ASSERT_FALSE(Free());
-  CK_ASSERT_GE(Size(), kMinLargeSize);
   return static_cast<AllocatedBlock*>(this);
 }
 
 const AllocatedBlock* Block::ToAllocated() const {
   CK_ASSERT_FALSE(Free());
-  CK_ASSERT_GE(Size(), kMinLargeSize);
   return static_cast<const AllocatedBlock*>(this);
 }
 
@@ -94,28 +86,14 @@ const FreeBlock* Block::ToFree() const {
   return static_cast<const FreeBlock*>(this);
 }
 
-TrackedBlock* Block::ToTracked() {
-  CK_ASSERT_TRUE(Free());
-  CK_ASSERT_GE(Size(), kMinLargeSize);
-  return static_cast<TrackedBlock*>(this);
-}
-
-const TrackedBlock* Block::ToTracked() const {
-  CK_ASSERT_TRUE(Free());
-  CK_ASSERT_GE(Size(), kMinLargeSize);
-  return static_cast<const TrackedBlock*>(this);
-}
-
 ExactSizeBlock* Block::ToExactSize() {
   CK_ASSERT_TRUE(Free());
-  CK_ASSERT_GE(Size(), kMinLargeSize);
   CK_ASSERT_LE(Size(), kMaxExactSizeBlock);
   return static_cast<ExactSizeBlock*>(this);
 }
 
 const ExactSizeBlock* Block::ToExactSize() const {
   CK_ASSERT_TRUE(Free());
-  CK_ASSERT_GE(Size(), kMinLargeSize);
   CK_ASSERT_LE(Size(), kMaxExactSizeBlock);
   return static_cast<const ExactSizeBlock*>(this);
 }
@@ -130,18 +108,6 @@ const TreeBlock* Block::ToTree() const {
   CK_ASSERT_TRUE(Free());
   CK_ASSERT_GT(Size(), kMaxExactSizeBlock);
   return static_cast<const TreeBlock*>(this);
-}
-
-UntrackedBlock* Block::ToUntracked() {
-  CK_ASSERT_TRUE(Free());
-  CK_ASSERT_LT(Size(), kMinLargeSize);
-  return static_cast<UntrackedBlock*>(this);
-}
-
-const UntrackedBlock* Block::ToUntracked() const {
-  CK_ASSERT_TRUE(Free());
-  CK_ASSERT_LT(Size(), kMinLargeSize);
-  return static_cast<const UntrackedBlock*>(this);
 }
 
 Block* Block::NextAdjacentBlock() {

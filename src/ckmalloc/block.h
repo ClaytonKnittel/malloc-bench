@@ -37,12 +37,8 @@ class Block {
   static constexpr uint64_t kFirstBlockInSlabOffset =
       kDefaultAlignment - kMetadataOverhead;
 
-  static constexpr uint64_t kMinBlockSize = kDefaultAlignment;
-
-  // The smallest size of large blocks which will be tracked in the freelist.
-  // Sizes smaller than this go in small slabs, as having a heterogenous list of
-  // free blocks for small size classes is extra overhead we want to avoid.
-  static const size_t kMinLargeSize;
+  // TODO: reduce this to 2 * once rb node is smaller.
+  static constexpr uint64_t kMinBlockSize = 3 * kDefaultAlignment;
 
   // The largest sized blocks which are tracked in single-size lists. All blocks
   // larger than this are stored in a red-black tree ordered by size.
@@ -73,14 +69,6 @@ class Block {
 
   bool Free() const;
 
-  // If true, this block size is not large enough to hold large block
-  // allocations, and should not be allocated or placed in the freelist.
-  static constexpr bool IsUntrackedSize(uint64_t size);
-
-  // If true, this block is not large enough to hold large block allocations,
-  // and should not be allocated or placed in the freelist.
-  bool IsUntracked() const;
-
   // If true, this block is in the exact-size bins. Otherwise it is in the free
   // block rb tree.
   bool IsExactSize() const;
@@ -94,17 +82,11 @@ class Block {
   class FreeBlock* ToFree();
   const class FreeBlock* ToFree() const;
 
-  class TrackedBlock* ToTracked();
-  const class TrackedBlock* ToTracked() const;
-
   class ExactSizeBlock* ToExactSize();
   const class ExactSizeBlock* ToExactSize() const;
 
   class TreeBlock* ToTree();
   const class TreeBlock* ToTree() const;
-
-  class UntrackedBlock* ToUntracked();
-  const class UntrackedBlock* ToUntracked() const;
 
   Block* NextAdjacentBlock();
   const Block* NextAdjacentBlock() const;
@@ -147,7 +129,6 @@ class AllocatedBlock : public Block {
  public:
   // You can't initialize already-initialized blocks.
   class AllocatedBlock* InitAllocated(uint64_t size) = delete;
-  class UntrackedBlock* InitUntracked(uint64_t size) = delete;
   void InitPhonyHeader(bool prev_free) = delete;
 
   // Allocated blocks are not free by definition.
@@ -177,39 +158,22 @@ class FreeBlock : public Block {
   bool Free() const = delete;
 };
 
-// Tracked blocks are large blocks large enough to be tracked in the freelist.
-class TrackedBlock : public FreeBlock {
- public:
-  bool IsUntracked() const = delete;
-};
-
 // Exact size blocks are free blocks that are in a list of blocks of the same
 // size.
-class ExactSizeBlock : public TrackedBlock, public LinkedListNode {
+class ExactSizeBlock : public FreeBlock, public LinkedListNode {
  public:
   bool IsExactSize() const = delete;
 };
 
 // Tree blocks are free blocks that are in the tree of large blocks ordered by
 // size.
-class TreeBlock : public TrackedBlock, public RbNode {
+class TreeBlock : public FreeBlock, public RbNode {
  public:
   bool IsExactSize() const = delete;
 
   bool operator<(const TreeBlock& block) const {
     return Size() < block.Size();
   }
-};
-
-// Untracked blocks are free blocks that aren't in the freelist to avoid having
-// heterogenous freelists for small size classes. This means they are not
-// allocatable until they merge with adjacent free blocks and become large
-// enough to be tracked.
-class UntrackedBlock : public FreeBlock {
- public:
-  // Untracked blocks are untracked by definition.
-  bool IsUntracked() const = delete;
-  bool IsExactSize() const = delete;
 };
 
 /* static */
@@ -222,12 +186,5 @@ constexpr size_t Block::UserSizeForBlockSize(uint64_t block_size) {
 constexpr uint64_t Block::BlockSizeForUserSize(size_t user_size) {
   return AlignUp<size_t>(user_size + kMetadataOverhead, kDefaultAlignment);
 }
-
-/* static */
-constexpr bool Block::IsUntrackedSize(uint64_t size) {
-  return size < kMinLargeSize;
-}
-
-constexpr size_t Block::kMinLargeSize = BlockSizeForUserSize(kMaxSmallSize + 1);
 
 }  // namespace ckmalloc

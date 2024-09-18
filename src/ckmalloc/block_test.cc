@@ -20,17 +20,6 @@ class BlockTest : public ::testing::Test {
   }
 };
 
-TEST_F(BlockTest, UserToBlockSize) {
-  EXPECT_EQ(Block::BlockSizeForUserSize(kMaxSmallSize + 1),
-            Block::kMinLargeSize);
-  EXPECT_EQ(Block::BlockSizeForUserSize(Block::kMinLargeSize -
-                                        Block::kMetadataOverhead),
-            Block::kMinLargeSize);
-  EXPECT_EQ(Block::BlockSizeForUserSize(Block::kMinLargeSize -
-                                        Block::kMetadataOverhead + 1),
-            Block::kMinLargeSize + kDefaultAlignment);
-}
-
 TEST_F(BlockTest, AllocatedBlock) {
   constexpr size_t kBlockSize = 0xabcdef0;
   Block block;
@@ -43,7 +32,6 @@ TEST_F(BlockTest, AllocatedBlock) {
   EXPECT_EQ(PtrDistance(block.NextAdjacentBlock(), &block), kBlockSize);
 
   EXPECT_EQ(block.UserDataSize(), kBlockSize - Block::kMetadataOverhead);
-  EXPECT_FALSE(block.IsUntracked());
 
   AllocatedBlock* allocated = block.ToAllocated();
   EXPECT_EQ(allocated->UserDataPtr(),

@@ -160,9 +160,8 @@ void LargeAllocatorImpl<SlabMap, SlabManager>::ReleaseBlockedSlab(
   Block* only_block = slab_manager_->FirstBlockInBlockedSlab(blocked_slab);
   CK_ASSERT_EQ(only_block->Size(), blocked_slab->MaxBlockSize());
   CK_ASSERT_TRUE(only_block->Free());
-  CK_ASSERT_TRUE(!only_block->IsUntracked());
 
-  freelist_->DeleteBlock(only_block->ToTracked());
+  freelist_->DeleteBlock(only_block->ToFree());
 
   slab_manager_->Free(slab);
 }
@@ -170,7 +169,7 @@ void LargeAllocatorImpl<SlabMap, SlabManager>::ReleaseBlockedSlab(
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
 AllocatedBlock* LargeAllocatorImpl<SlabMap, SlabManager>::MakeBlockFromFreelist(
     uint64_t block_size) {
-  TrackedBlock* free_block = freelist_->FindFree(block_size);
+  FreeBlock* free_block = freelist_->FindFree(block_size);
   if (free_block == nullptr) {
     return nullptr;
   }

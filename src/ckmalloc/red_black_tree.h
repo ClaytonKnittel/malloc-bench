@@ -169,6 +169,7 @@ class RbNode {
   RbNode* left_ = nullptr;
   RbNode* right_ = nullptr;
   RbNode* parent_ = nullptr;
+  // TODO: put this guy in parent_ or something.
   bool red_ = true;
 };
 

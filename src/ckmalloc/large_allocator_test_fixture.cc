@@ -15,7 +15,7 @@ namespace ckmalloc {
 
 absl::Status LargeAllocatorFixture::ValidateHeap() {
   absl::flat_hash_set<const Block*> free_blocks;
-  const auto track_block =
+  const auto free_block =
       [this, &free_blocks](const FreeBlock& block) -> absl::Status {
     MappedSlab* mapped_slab =
         slab_map_->FindSlab(slab_manager_->PageIdFromPtr(&block));
@@ -52,6 +52,12 @@ absl::Status LargeAllocatorFixture::ValidateHeap() {
       return FailedTest("Encountered non-free block in freelist: %v", block);
     }
 
+    if (block.Size() < Block::kMinBlockSize) {
+      return FailedTest(
+          "Encountered block smaller than min block size (%v): %v",
+          Block::kMinBlockSize, block);
+    }
+
     auto [it2, inserted] = free_blocks.insert(&block);
     if (!inserted) {
       return FailedTest("Detected loop in freelist at block %v", block);
@@ -60,10 +66,10 @@ absl::Status LargeAllocatorFixture::ValidateHeap() {
     return absl::OkStatus();
   };
 
-  // Iterate over the freelist.
+  // Iterate over the large freelist.
   const FreeBlock* prev_block = nullptr;
   for (const FreeBlock& block : Freelist().large_blocks_tree_) {
-    RETURN_IF_ERROR(track_block(block));
+    RETURN_IF_ERROR(free_block(block));
 
     if (prev_block != nullptr && prev_block->Size() > block.Size()) {
       return FailedTest("Freelist not sorted by block size: %v > %v",
@@ -75,10 +81,10 @@ absl::Status LargeAllocatorFixture::ValidateHeap() {
   // Iterate over all exact-size bins.
   for (size_t idx = 0; idx < Freelist::kNumExactSizeBins; idx++) {
     const uint64_t expected_block_size =
-        kMaxSmallSize + kDefaultAlignment * (idx + 1);
+        Block::kMinBlockSize + kDefaultAlignment * idx;
 
-    for (const TrackedBlock& block : Freelist().exact_size_bins_[idx]) {
-      RETURN_IF_ERROR(track_block(block));
+    for (const FreeBlock& block : Freelist().exact_size_bins_[idx]) {
+      RETURN_IF_ERROR(free_block(block));
 
       if (block.Size() != expected_block_size) {
         return FailedTest(
@@ -129,31 +135,17 @@ absl::Status LargeAllocatorFixture::ValidateHeap() {
       }
 
       if (block->Free()) {
-        bool in_freelist = free_blocks.contains(block);
-        if (block->IsUntracked() && in_freelist) {
-          return FailedTest("Encountered untracked block in the freelist: %v",
-                            *block);
-        }
-        if (!block->IsUntracked()) {
-          if (!in_freelist) {
-            return FailedTest(
-                "Encountered free block which was not in freelist: %v", *block);
-          }
-          n_free_blocks++;
-        }
+        n_free_blocks++;
 
+        if (!free_blocks.contains(block)) {
+          return FailedTest(
+              "Encountered free block which was not in freelist: %v", *block);
+        }
         if (prev_block != nullptr && prev_block->Free()) {
           return FailedTest("Encountered two free blocks in a row: %v and %v",
                             *prev_block, *block);
         }
       } else {
-        if (block->Size() < Block::kMinLargeSize) {
-          return FailedTest(
-              "Encountered small-sized allocated block, which should not be "
-              "possible: %v",
-              *block);
-        }
-
         allocated_bytes += block->Size();
       }
 
