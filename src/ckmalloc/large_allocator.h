@@ -161,7 +161,7 @@ void LargeAllocatorImpl<SlabMap, SlabManager>::ReleaseBlockedSlab(
   Block* only_block = slab_manager_->FirstBlockInBlockedSlab(blocked_slab);
   CK_ASSERT_EQ(only_block->Size(), blocked_slab->MaxBlockSize());
   CK_ASSERT_TRUE(only_block->Free());
-  CK_ASSERT_TRUE(!only_block->IsUntracked());
+  CK_ASSERT_TRUE(only_block->IsTracked());
 
   freelist_->DeleteBlock(only_block->ToTracked());
 

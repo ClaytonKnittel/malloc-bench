@@ -238,7 +238,7 @@ TEST_F(LargeAllocatorTest, FreeBlock) {
   EXPECT_EQ(next_adjacent->PrevAdjacentBlock(), block);
 
   EXPECT_EQ(block->UserDataSize(), kBlockSize - Block::kMetadataOverhead);
-  EXPECT_FALSE(block->IsUntracked());
+  EXPECT_TRUE(block->IsTracked());
 
   // This should not trigger an assertion failure.
   block->ToTracked();

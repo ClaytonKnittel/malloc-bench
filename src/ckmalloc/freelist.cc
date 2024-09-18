@@ -97,7 +97,7 @@ FreeBlock* Freelist::MarkFree(AllocatedBlock* block) {
     CK_ASSERT_EQ(prev->Size(), block->PrevSize());
     size += block->PrevSize();
 
-    if (!prev->IsUntracked()) {
+    if (prev->IsTracked()) {
       RemoveBlock(prev->ToTracked());
     }
     block_start = prev;
@@ -106,7 +106,7 @@ FreeBlock* Freelist::MarkFree(AllocatedBlock* block) {
   if (next->Free()) {
     size += next->Size();
 
-    if (!next->IsUntracked()) {
+    if (next->IsTracked()) {
       RemoveBlock(next->ToTracked());
     }
   }
@@ -134,7 +134,7 @@ bool Freelist::ResizeIfPossible(AllocatedBlock* block, uint64_t new_size) {
     if (next_block->Free()) {
       // If the next block is free, we can extend the block backwards.
       FreeBlock* next_free = next_block->ToFree();
-      if (!next_free->IsUntracked()) {
+      if (next_free->IsTracked()) {
         RemoveBlock(next_free->ToTracked());
       }
 
@@ -152,7 +152,7 @@ bool Freelist::ResizeIfPossible(AllocatedBlock* block, uint64_t new_size) {
   }
 
   if (next_block->Free() && new_size <= block_size + next_size) {
-    if (!next_block->IsUntracked()) {
+    if (next_block->IsTracked()) {
       RemoveBlock(next_block->ToTracked());
     }
 

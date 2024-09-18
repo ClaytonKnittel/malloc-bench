@@ -140,7 +140,7 @@ absl::Status LargeAllocatorFixture::ValidateHeap() {
           return FailedTest("Encountered untracked block in the freelist: %v",
                             *block);
         }
-        if (!block->IsUntracked()) {
+        if (block->IsTracked()) {
           if (!in_freelist) {
             return FailedTest(
                 "Encountered free block which was not in freelist: %v", *block);

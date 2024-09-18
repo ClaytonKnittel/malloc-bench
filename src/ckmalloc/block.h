@@ -81,6 +81,10 @@ class Block {
   // and should not be allocated or placed in the freelist.
   bool IsUntracked() const;
 
+  // If false, this block is not large enough to hold large block allocations,
+  // and should not be allocated or placed in the freelist.
+  bool IsTracked() const;
+
   // If true, this block is in the exact-size bins. Otherwise it is in the free
   // block rb tree.
   bool IsExactSize() const;

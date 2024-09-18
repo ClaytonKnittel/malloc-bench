@@ -64,6 +64,10 @@ bool Block::IsUntracked() const {
   return IsUntrackedSize(Size());
 }
 
+bool Block::IsTracked() const {
+  return !IsUntracked();
+}
+
 bool Block::IsExactSize() const {
   return !IsUntrackedSize(Size()) && Size() <= kMaxExactSizeBlock;
 }
