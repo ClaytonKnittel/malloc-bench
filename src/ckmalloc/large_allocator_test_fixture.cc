@@ -15,7 +15,7 @@ namespace ckmalloc {
 
 absl::Status LargeAllocatorFixture::ValidateHeap() {
   absl::flat_hash_set<const Block*> free_blocks;
-  const auto track_block =
+  const auto tracked_block =
       [this, &free_blocks](const FreeBlock& block) -> absl::Status {
     MappedSlab* mapped_slab =
         slab_map_->FindSlab(slab_manager_->PageIdFromPtr(&block));
@@ -28,7 +28,7 @@ absl::Status LargeAllocatorFixture::ValidateHeap() {
     BlockedSlab* slab = mapped_slab->ToBlocked();
 
     void* end_addr =
-        PtrAdd<void>(slab_manager_->PageStartFromId(slab->EndId()), kPageSize);
+        PtrAdd(slab_manager_->PageStartFromId(slab->EndId()), kPageSize);
     const Block* next_adjacent = block.NextAdjacentBlock();
     if (next_adjacent < &block || next_adjacent >= end_addr) {
       return FailedTest(
@@ -52,6 +52,12 @@ absl::Status LargeAllocatorFixture::ValidateHeap() {
       return FailedTest("Encountered non-free block in freelist: %v", block);
     }
 
+    if (block.Size() < Block::kMinBlockSize) {
+      return FailedTest(
+          "Encountered block smaller than min block size (%v): %v",
+          Block::kMinBlockSize, block);
+    }
+
     auto [it2, inserted] = free_blocks.insert(&block);
     if (!inserted) {
       return FailedTest("Detected loop in freelist at block %v", block);
@@ -60,10 +66,10 @@ absl::Status LargeAllocatorFixture::ValidateHeap() {
     return absl::OkStatus();
   };
 
-  // Iterate over the freelist.
+  // Iterate over the large freelist.
   const FreeBlock* prev_block = nullptr;
   for (const FreeBlock& block : Freelist().large_blocks_tree_) {
-    RETURN_IF_ERROR(track_block(block));
+    RETURN_IF_ERROR(tracked_block(block));
 
     if (prev_block != nullptr && prev_block->Size() > block.Size()) {
       return FailedTest("Freelist not sorted by block size: %v > %v",
@@ -75,10 +81,10 @@ absl::Status LargeAllocatorFixture::ValidateHeap() {
   // Iterate over all exact-size bins.
   for (size_t idx = 0; idx < Freelist::kNumExactSizeBins; idx++) {
     const uint64_t expected_block_size =
-        kMaxSmallSize + kDefaultAlignment * (idx + 1);
+        Block::kMinTrackedSize + kDefaultAlignment * idx;
 
     for (const TrackedBlock& block : Freelist().exact_size_bins_[idx]) {
-      RETURN_IF_ERROR(track_block(block));
+      RETURN_IF_ERROR(tracked_block(block));
 
       if (block.Size() != expected_block_size) {
         return FailedTest(
@@ -107,7 +113,7 @@ absl::Status LargeAllocatorFixture::ValidateHeap() {
 
     void* const slab_start = slab_manager_->PageStartFromId(slab->StartId());
     void* const slab_end =
-        PtrAdd<void>(slab_manager_->PageStartFromId(slab->EndId()), kPageSize);
+        PtrAdd(slab_manager_->PageStartFromId(slab->EndId()), kPageSize);
     Block* block = slab_manager_->FirstBlockInBlockedSlab(slab);
     Block* prev_block = nullptr;
     uint64_t allocated_bytes = 0;
@@ -134,7 +140,7 @@ absl::Status LargeAllocatorFixture::ValidateHeap() {
           return FailedTest("Encountered untracked block in the freelist: %v",
                             *block);
         }
-        if (!block->IsUntracked()) {
+        if (block->IsTracked()) {
           if (!in_freelist) {
             return FailedTest(
                 "Encountered free block which was not in freelist: %v", *block);
@@ -147,11 +153,11 @@ absl::Status LargeAllocatorFixture::ValidateHeap() {
                             *prev_block, *block);
         }
       } else {
-        if (block->Size() < Block::kMinLargeSize) {
+        if (block->Size() < Block::kMinTrackedSize) {
           return FailedTest(
-              "Encountered small-sized allocated block, which should not be "
-              "possible: %v",
-              *block);
+              "Encountered allocated block less than min tracked size (%v), "
+              "which should not be possible: %v",
+              Block::kMinTrackedSize, *block);
         }
 
         allocated_bytes += block->Size();

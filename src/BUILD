@@ -109,6 +109,7 @@ cc_test(
         ":tracefile_executor",
         ":tracefile_reader",
         "//src/ckmalloc:common",
+        "//src/ckmalloc:freelist",
         "//src/ckmalloc:large_allocator_test_fixture",
         "//src/ckmalloc:main_allocator_test_fixture",
         "//src/ckmalloc:metadata_manager_test_fixture",

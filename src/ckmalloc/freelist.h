@@ -20,6 +20,10 @@ class Freelist {
   friend class LargeAllocatorFixture;
 
  public:
+  // Checks the freelist for a block of exactly this size, returning it if one
+  // exists, or `nullptr` otherwise.
+  TrackedBlock* FindFreeExact(uint64_t block_size);
+
   // Searches the freelists for a block at least as large as `block_size`. If
   // none is found, `nullptr` is returned.
   TrackedBlock* FindFree(uint64_t block_size);
@@ -68,13 +72,9 @@ class Freelist {
   // Removes the block from the freelist.
   void RemoveBlock(TrackedBlock* block);
 
-  // Moves `block` to `new_head`, resizing it to `new_size`. `new_head` must
-  // move forward/backward by the difference in the block's current size and
-  // `new_size`.
-  void MoveBlockHeader(FreeBlock* block, Block* new_head, uint64_t new_size);
-
   static constexpr size_t kNumExactSizeBins =
-      (Block::kMaxExactSizeBlock - kMaxSmallSize) / kDefaultAlignment;
+      (Block::kMaxExactSizeBlock - Block::kMinBlockSize) / kDefaultAlignment +
+      1;
 
   // The skip list is a bit-set of potentially non-empty exact-size bins. When
   // new blocks are added to an exact-size bin, they set the corresponding bit

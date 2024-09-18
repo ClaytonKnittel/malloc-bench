@@ -11,8 +11,7 @@
 
 namespace ckmalloc {
 
-inline std::ostream& operator<<(std::ostream& ostr,
-                                ckmalloc::SizeClass size_class);
+std::ostream& operator<<(std::ostream& ostr, ckmalloc::SizeClass size_class);
 
 // A size class is an allowed size of slices in a small slab, which holds an
 // array of equally-sized slices of memory for individual allocation.
@@ -76,11 +75,13 @@ class SizeClass {
     // If the number of size classes grows, the compiler will not complain that
     // we have not specified every entry of `kSliceMap`. This static assert is
     // to make sure the map is updated if the number of size classes changes.
-    static_assert(kNumSizeClasses == 9);
+    static_assert(kNumSizeClasses == 17);
     constexpr uint32_t kSliceMap[kNumSizeClasses] = {
-      kPageSize / 8,  kPageSize / 16,  kPageSize / 32,
-      kPageSize / 48, kPageSize / 64,  kPageSize / 80,
-      kPageSize / 96, kPageSize / 112, kPageSize / 128,
+      kPageSize / 8,   kPageSize / 16,  kPageSize / 32,  kPageSize / 48,
+      kPageSize / 64,  kPageSize / 80,  kPageSize / 96,  kPageSize / 112,
+      kPageSize / 128, kPageSize / 144, kPageSize / 160, kPageSize / 176,
+      kPageSize / 192, kPageSize / 208, kPageSize / 224, kPageSize / 240,
+      kPageSize / 256,
     };
 
     return kSliceMap[Ordinal()];
@@ -88,7 +89,7 @@ class SizeClass {
 
   // TODO check if this is the fastest way to do this.
   constexpr uint32_t OffsetToIdx(uint64_t offset_bytes) const {
-    static_assert(kNumSizeClasses == 9);
+    static_assert(kNumSizeClasses == 17);
     switch (Ordinal()) {
       case 0:
         return offset_bytes / 8;
@@ -108,6 +109,22 @@ class SizeClass {
         return offset_bytes / 112;
       case 8:
         return offset_bytes / 128;
+      case 9:
+        return offset_bytes / 144;
+      case 10:
+        return offset_bytes / 160;
+      case 11:
+        return offset_bytes / 176;
+      case 12:
+        return offset_bytes / 192;
+      case 13:
+        return offset_bytes / 208;
+      case 14:
+        return offset_bytes / 224;
+      case 15:
+        return offset_bytes / 240;
+      case 16:
+        return offset_bytes / 256;
       default:
         __builtin_unreachable();
     }
@@ -122,11 +139,6 @@ class SizeClass {
   // The size in bytes of slices / `kSizeClassDivisor` for this size class.
   uint8_t size_class_;
 };
-
-inline std::ostream& operator<<(std::ostream& ostr,
-                                ckmalloc::SizeClass size_class) {
-  return ostr << "[" << size_class.SliceSize() << "]";
-}
 
 template <typename Sink>
 void AbslStringify(Sink& sink, ckmalloc::SizeClass size_class) {

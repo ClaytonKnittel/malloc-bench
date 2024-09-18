@@ -7,6 +7,7 @@
 #include "src/ckmalloc/global_state.h"
 #include "src/ckmalloc/local_cache.h"
 #include "src/ckmalloc/main_allocator.h"
+#include "src/ckmalloc/util.h"
 #include "src/heap_factory.h"
 
 namespace ckmalloc {
@@ -51,30 +52,32 @@ void* CkMalloc::Calloc(size_t nmemb, size_t size) {
 
 void* CkMalloc::Realloc(void* ptr, size_t size) {
   CK_ASSERT_NE(size, 0);
-  if (ptr == nullptr) {
+  Void* p = reinterpret_cast<Void*>(ptr);
+  if (p == nullptr) {
     return Malloc(size);
   }
   // TODO: use cache here.
-  return global_state_.MainAllocator()->Realloc(ptr, size);
+  return global_state_.MainAllocator()->Realloc(p, size);
 }
 
 void CkMalloc::Free(void* ptr) {
-  if (ptr == nullptr) {
+  Void* p = reinterpret_cast<Void*>(ptr);
+  if (p == nullptr) {
     return;
   }
 
   MainAllocator* main_allocator = global_state_.MainAllocator();
   LocalCache* cache = LocalCache::Instance<GlobalMetadataAlloc>();
-  size_t alloc_size = main_allocator->AllocSize(ptr);
+  size_t alloc_size = main_allocator->AllocSize(p);
   if (LocalCache::CanHoldSize(alloc_size)) {
-    cache->CacheAlloc(ptr, alloc_size);
+    cache->CacheAlloc(p, alloc_size);
   } else {
-    main_allocator->Free(ptr);
+    main_allocator->Free(p);
   }
 }
 
 size_t CkMalloc::GetSize(void* ptr) {
-  return global_state_.MainAllocator()->AllocSize(ptr);
+  return global_state_.MainAllocator()->AllocSize(reinterpret_cast<Void*>(ptr));
 }
 
 CkMalloc::CkMalloc(bench::HeapFactory* heap_factory)

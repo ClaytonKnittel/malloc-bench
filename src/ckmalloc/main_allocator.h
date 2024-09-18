@@ -11,7 +11,6 @@
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/slab_manager.h"
 #include "src/ckmalloc/slab_map.h"
-#include "src/ckmalloc/slice.h"
 #include "src/ckmalloc/small_allocator.h"
 #include "src/ckmalloc/util.h"
 
@@ -34,7 +33,7 @@ class MainAllocatorImpl {
 
   // Allocates a region of memory `user_size` bytes long, returning a pointer to
   // the beginning of the region.
-  void* Alloc(size_t user_size);
+  Void* Alloc(size_t user_size);
 
   // Re-allocates a region of memory to be `user_size` bytes long, returning a
   // pointer to the beginning of the new region and copying the data from `ptr`
@@ -42,14 +41,14 @@ class MainAllocatorImpl {
   // larger than the previous size of the region starting at `ptr`, the
   // remaining data after the size of the previous region is uninitialized, and
   // if `user_size` is smaller, the data is truncated.
-  void* Realloc(void* ptr, size_t user_size);
+  Void* Realloc(Void* ptr, size_t user_size);
 
   // Frees an allocation returned from `Alloc`, allowing that memory to be
   // reused by future `Alloc`s.
-  void Free(void* ptr);
+  void Free(Void* ptr);
 
   // Given a pointer to an allocated region, returns the size of the region.
-  size_t AllocSize(void* ptr) const;
+  size_t AllocSize(Void* ptr) const;
 
  private:
   SlabMap* const slab_map_;
@@ -61,11 +60,10 @@ class MainAllocatorImpl {
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager,
           SmallAllocatorInterface SmallAllocator,
           LargeAllocatorInterface LargeAllocator>
-void* MainAllocatorImpl<SlabMap, SlabManager, SmallAllocator,
+Void* MainAllocatorImpl<SlabMap, SlabManager, SmallAllocator,
                         LargeAllocator>::Alloc(size_t user_size) {
   if (IsSmallSize(user_size)) {
-    AllocatedSlice* slice = small_alloc_->AllocSlice(user_size);
-    return slice != nullptr ? slice->UserDataPtr() : nullptr;
+    return small_alloc_->AllocSmall(user_size);
   } else {
     return large_alloc_->AllocLarge(user_size);
   }
@@ -74,8 +72,8 @@ void* MainAllocatorImpl<SlabMap, SlabManager, SmallAllocator,
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager,
           SmallAllocatorInterface SmallAllocator,
           LargeAllocatorInterface LargeAllocator>
-void* MainAllocatorImpl<SlabMap, SlabManager, SmallAllocator,
-                        LargeAllocator>::Realloc(void* ptr, size_t user_size) {
+Void* MainAllocatorImpl<SlabMap, SlabManager, SmallAllocator,
+                        LargeAllocator>::Realloc(Void* ptr, size_t user_size) {
   Slab* slab = slab_map_->FindSlab(slab_manager_->PageIdFromPtr(ptr));
   CK_ASSERT_NE(slab->Type(), SlabType::kFree);
   CK_ASSERT_NE(slab->Type(), SlabType::kUnmapped);
@@ -85,14 +83,12 @@ void* MainAllocatorImpl<SlabMap, SlabManager, SmallAllocator,
       // If this is a small-to-small size reallocation, we can use the
       // specialized realloc in small allocator.
       if (user_size <= kMaxSmallSize) {
-        AllocatedSlice* slice = small_alloc_->ReallocSlice(
-            slab->ToSmall(), AllocatedSlice::FromUserDataPtr(ptr), user_size);
-        return slice != nullptr ? slice->UserDataPtr() : nullptr;
+        return small_alloc_->ReallocSmall(slab->ToSmall(), ptr, user_size);
       }
 
       // Otherwise, we will always need to alloc-copy-free. First allocate the
       // large block.
-      void* new_ptr = large_alloc_->AllocLarge(user_size);
+      Void* new_ptr = large_alloc_->AllocLarge(user_size);
       if (new_ptr == nullptr) {
         return nullptr;
       }
@@ -102,8 +98,7 @@ void* MainAllocatorImpl<SlabMap, SlabManager, SmallAllocator,
       std::memcpy(new_ptr, ptr, slab->ToSmall()->SizeClass().SliceSize());
 
       // Free the slice and return the newly allocated block.
-      small_alloc_->FreeSlice(slab->ToSmall(),
-                              AllocatedSlice::FromUserDataPtr(ptr));
+      small_alloc_->FreeSmall(slab->ToSmall(), ptr);
       return new_ptr;
     }
     case SlabType::kBlocked:
@@ -114,18 +109,18 @@ void* MainAllocatorImpl<SlabMap, SlabManager, SmallAllocator,
 
       // Otherwise, we will always need to alloc-copy-free. First allocate the
       // small slice.
-      AllocatedSlice* slice = small_alloc_->AllocSlice(user_size);
-      if (slice == nullptr) {
+      Void* new_ptr = small_alloc_->AllocSmall(user_size);
+      if (new_ptr == nullptr) {
         return nullptr;
       }
 
       // Then copy user data over. Note that the slice's size will always be
       // smaller than `block`'s size, so no need to take the min of the two.
-      std::memcpy(slice->UserDataPtr(), ptr, user_size);
+      std::memcpy(new_ptr, ptr, user_size);
 
       // Free the block and return the newly allocated slice.
       large_alloc_->FreeLarge(slab->ToLarge(), ptr);
-      return slice->UserDataPtr();
+      return new_ptr;
     }
     case SlabType::kUnmapped:
     case SlabType::kFree: {
@@ -140,15 +135,14 @@ template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager,
           SmallAllocatorInterface SmallAllocator,
           LargeAllocatorInterface LargeAllocator>
 void MainAllocatorImpl<SlabMap, SlabManager, SmallAllocator,
-                       LargeAllocator>::Free(void* ptr) {
+                       LargeAllocator>::Free(Void* ptr) {
   Slab* slab = slab_map_->FindSlab(slab_manager_->PageIdFromPtr(ptr));
   CK_ASSERT_NE(slab->Type(), SlabType::kFree);
   CK_ASSERT_NE(slab->Type(), SlabType::kUnmapped);
 
   switch (slab->Type()) {
     case SlabType::kSmall: {
-      small_alloc_->FreeSlice(slab->ToSmall(),
-                              AllocatedSlice::FromUserDataPtr(ptr));
+      small_alloc_->FreeSmall(slab->ToSmall(), ptr);
       break;
     }
     case SlabType::kBlocked:
@@ -169,7 +163,7 @@ template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager,
           SmallAllocatorInterface SmallAllocator,
           LargeAllocatorInterface LargeAllocator>
 size_t MainAllocatorImpl<SlabMap, SlabManager, SmallAllocator,
-                         LargeAllocator>::AllocSize(void* ptr) const {
+                         LargeAllocator>::AllocSize(Void* ptr) const {
   PageId page_id = slab_manager_->PageIdFromPtr(ptr);
   SizeClass size_class = slab_map_->FindSizeClass(page_id);
   if (size_class != SizeClass::Nil()) {

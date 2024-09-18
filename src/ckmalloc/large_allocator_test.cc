@@ -1,5 +1,6 @@
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <vector>
 
 #include "absl/status/status.h"
@@ -36,8 +37,9 @@ class LargeAllocatorTest : public ::testing::Test {
         slab_map_(std::make_shared<TestSlabMap>()),
         slab_manager_fixture_(std::make_shared<SlabManagerFixture>(
             heap_factory_, slab_map_, /*heap_idx=*/0)),
+        freelist_(std::make_shared<class Freelist>()),
         large_allocator_fixture_(std::make_shared<LargeAllocatorFixture>(
-            heap_factory_, slab_map_, slab_manager_fixture_)) {}
+            heap_factory_, slab_map_, slab_manager_fixture_, freelist_)) {}
 
   TestHeapFactory& HeapFactory() {
     return slab_manager_fixture_->HeapFactory();
@@ -71,11 +73,17 @@ class LargeAllocatorTest : public ::testing::Test {
     return large_allocator_fixture_->LargeAllocator();
   }
 
-  AllocatedBlock* Realloc(AllocatedBlock* block, size_t user_size) {
+  AllocatedBlock* Alloc(uint64_t block_size) {
+    Void* res =
+        LargeAllocator().AllocLarge(Block::UserSizeForBlockSize(block_size));
+    return res != nullptr ? AllocatedBlock::FromUserDataPtr(res) : nullptr;
+  }
+
+  AllocatedBlock* Realloc(AllocatedBlock* block, uint64_t block_size) {
     LargeSlab* slab =
         SlabMap().FindSlab(SlabManager().PageIdFromPtr(block))->ToLarge();
-    void* res =
-        LargeAllocator().ReallocLarge(slab, block->UserDataPtr(), user_size);
+    Void* res = LargeAllocator().ReallocLarge(
+        slab, block->UserDataPtr(), Block::UserSizeForBlockSize(block_size));
     return res != nullptr ? AllocatedBlock::FromUserDataPtr(res) : nullptr;
   }
 
@@ -122,7 +130,7 @@ class LargeAllocatorTest : public ::testing::Test {
   AllocatedBlock* PushAllocated(size_t size) {
     CK_ASSERT_FALSE(PhonyHeaderPushed());
     CK_ASSERT_TRUE(IsAligned<uint64_t>(size, kDefaultAlignment));
-    CK_ASSERT_GE(size, Block::kMinLargeSize);
+    CK_ASSERT_GE(size, Block::kMinTrackedSize);
 
     allocs_.emplace_back(size, false);
     AllocatedBlock* block = static_cast<AllocatedBlock*>(NextBlock());
@@ -143,12 +151,21 @@ class LargeAllocatorTest : public ::testing::Test {
   }
 
   Block* PushPhony() {
-    if (!IsAligned(Block::kFirstBlockInSlabOffset + total_bytes_ +
-                       Block::kMetadataOverhead,
-                   kPageSize)) {
-      CK_ASSERT_EQ(Block::kFirstBlockInSlabOffset + total_bytes_ +
-                       Block::kMetadataOverhead,
-                   kPageSize);
+    // We may need to add an extra allocation at the end so the slab is
+    // page-aligned.
+    Block* filler_allocated_block = nullptr;
+
+    const uint64_t total_used_bytes = Block::kFirstBlockInSlabOffset +
+                                      total_bytes_ + Block::kMetadataOverhead;
+    if (!IsAligned(total_used_bytes, kPageSize)) {
+      uint64_t remainder =
+          AlignUp(total_used_bytes, kPageSize) - total_used_bytes;
+      if (remainder < Block::kMinBlockSize) {
+        remainder += kPageSize;
+      }
+      allocs_.emplace_back(remainder, false);
+      filler_allocated_block = NextBlock();
+      total_bytes_ += remainder;
     }
     CK_ASSERT_TRUE(IsAligned(Block::kFirstBlockInSlabOffset + total_bytes_ +
                                  Block::kMetadataOverhead,
@@ -185,7 +202,8 @@ class LargeAllocatorTest : public ::testing::Test {
       offset += size;
     }
 
-    return phony_block;
+    return filler_allocated_block != nullptr ? filler_allocated_block
+                                             : phony_block;
   }
 
  private:
@@ -205,6 +223,7 @@ class LargeAllocatorTest : public ::testing::Test {
   std::shared_ptr<TestHeapFactory> heap_factory_;
   std::shared_ptr<TestSlabMap> slab_map_;
   std::shared_ptr<SlabManagerFixture> slab_manager_fixture_;
+  std::shared_ptr<class Freelist> freelist_;
   std::shared_ptr<LargeAllocatorFixture> large_allocator_fixture_;
 
   size_t total_bytes_ = 0;
@@ -229,14 +248,14 @@ TEST_F(LargeAllocatorTest, FreeBlock) {
   EXPECT_EQ(next_adjacent->PrevAdjacentBlock(), block);
 
   EXPECT_EQ(block->UserDataSize(), kBlockSize - Block::kMetadataOverhead);
-  EXPECT_FALSE(block->IsUntracked());
+  EXPECT_TRUE(block->IsTracked());
 
   // This should not trigger an assertion failure.
   block->ToTracked();
 }
 
 TEST_F(LargeAllocatorTest, UntrackedBlock) {
-  constexpr size_t kBlockSize = 0x10;
+  constexpr size_t kBlockSize = 0x40;
   Block block;
 
   Freelist().InitFree(&block, kBlockSize);
@@ -265,28 +284,19 @@ TEST_F(LargeAllocatorTest, PrevFree) {
 
   block->InitAllocated(0x54540, /*prev_free=*/false);
 
-  // First initialize the block as untracked, which is a type of free block,
-  // then artificially increase its size to the desired size. This has to be
-  // done because we can't directly initialize a free block (this requires
-  // insertion into a freelist), and `InitUntracked` checks that the size is
-  // below the min large block size.
-  Freelist().InitFree(prev, 0x10)->ToUntracked();
-  SetSize(prev, kBlockSize);
-
   // This should write to the footer of `block`, and set block's prev_free bit.
-  WriteFooterAndPrevFree(prev);
+  Freelist().InitFree(prev, kBlockSize);
 
   EXPECT_TRUE(PrevFree(block));
   EXPECT_EQ(block->PrevAdjacentBlock(), prev);
 }
 
 TEST_F(LargeAllocatorTest, Empty) {
-  PushAllocated(0xff0);
   PushPhony();
   EXPECT_THAT(ValidateHeap(), IsOk());
 
   EXPECT_THAT(FreelistList(), ElementsAre());
-  EXPECT_EQ(Freelist().FindFree(Block::kMinLargeSize), nullptr);
+  EXPECT_EQ(Freelist().FindFree(Block::kMinTrackedSize), nullptr);
 }
 
 TEST_F(LargeAllocatorTest, OnlyAllocatedAndUntracked) {
@@ -294,21 +304,19 @@ TEST_F(LargeAllocatorTest, OnlyAllocatedAndUntracked) {
   PushAllocated(0x300);
   PushUntracked(0x80);
   PushAllocated(0x200);
-  PushUntracked(0x10);
-  PushAllocated(0x920);
+  PushUntracked(0x30);
   PushPhony();
   EXPECT_THAT(ValidateHeap(), IsOk());
 
   // The freelist should remain empty with allocated or untracked blocks only.
   EXPECT_THAT(FreelistList(), ElementsAre());
-  EXPECT_EQ(Freelist().FindFree(Block::kMinLargeSize), nullptr);
+  EXPECT_EQ(Freelist().FindFree(Block::kMinTrackedSize), nullptr);
 }
 
 TEST_F(LargeAllocatorTest, OneFree) {
-  uint64_t kSize = 0x100;
+  constexpr uint64_t kSize = 0x110;
 
   TrackedBlock* block = PushFree(kSize);
-  PushAllocated(0xEF0);
   PushPhony();
   EXPECT_THAT(ValidateHeap(), IsOk());
 
@@ -344,6 +352,59 @@ TEST_F(LargeAllocatorTest, ManyFree) {
   EXPECT_THAT(Freelist().FindFree(0x200), AnyOf(b1, b2, b3, b4));
 }
 
+TEST_F(LargeAllocatorTest, Split) {
+  constexpr uint64_t kBlockSize = 0xD30;
+  constexpr uint64_t kNewBlockSize = 0x130;
+
+  TrackedBlock* block = PushFree(kBlockSize);
+  PushPhony();
+
+  AllocatedBlock* alloc = Alloc(kNewBlockSize);
+
+  EXPECT_THAT(ValidateHeap(), IsOk());
+  ASSERT_EQ(static_cast<Block*>(alloc), static_cast<Block*>(block));
+  EXPECT_EQ(alloc->Size(), kNewBlockSize);
+
+  ASSERT_TRUE(alloc->NextAdjacentBlock()->Free());
+  TrackedBlock* next_free = alloc->NextAdjacentBlock()->ToTracked();
+  EXPECT_EQ(next_free->Size(), kBlockSize - kNewBlockSize);
+  EXPECT_THAT(FreelistList(), ElementsAre(next_free));
+}
+
+TEST_F(LargeAllocatorTest, SplitWithMinBlockSizeRemainder) {
+  constexpr uint64_t kBlockSize = 0xD30;
+  constexpr uint64_t kNewBlockSize = 0xD10;
+  static_assert(kBlockSize - kNewBlockSize == Block::kMinBlockSize);
+
+  TrackedBlock* block = PushFree(kBlockSize);
+  PushPhony();
+
+  AllocatedBlock* alloc = Alloc(kNewBlockSize);
+
+  EXPECT_THAT(ValidateHeap(), IsOk());
+  ASSERT_EQ(static_cast<Block*>(alloc), static_cast<Block*>(block));
+  EXPECT_EQ(alloc->Size(), kNewBlockSize);
+}
+
+TEST_F(LargeAllocatorTest, SplitWithBelowMinBlockSizeRemainder) {
+  constexpr uint64_t kBlockSize = 0xD30;
+  constexpr uint64_t kNewBlockSize = 0xD20;
+  static_assert(kBlockSize - kNewBlockSize < Block::kMinBlockSize);
+
+  TrackedBlock* block = PushFree(kBlockSize);
+  AllocatedBlock* next_block = PushAllocated(0x2C0);
+  PushPhony();
+
+  AllocatedBlock* alloc = Alloc(kNewBlockSize);
+
+  EXPECT_THAT(ValidateHeap(), IsOk());
+  ASSERT_EQ(static_cast<Block*>(alloc), static_cast<Block*>(block));
+  // The block should not be resized since it would leave a remaining free block
+  // <= min block size.
+  EXPECT_EQ(alloc->Size(), kBlockSize);
+  EXPECT_EQ(alloc->NextAdjacentBlock(), next_block);
+}
+
 TEST_F(LargeAllocatorTest, FreeAsOnlyBlock) {
   constexpr uint64_t kBlockSize = 0xFF0;
 
@@ -374,7 +435,6 @@ TEST_F(LargeAllocatorTest, FreeWithFreePrev) {
 
   TrackedBlock* b1 = PushFree(kPrevSize);
   AllocatedBlock* b2 = PushAllocated(kBlockSize);
-  PushAllocated(0x800);
   PushPhony();
   EXPECT_THAT(FreelistList(), ElementsAre(b1));
 
@@ -426,15 +486,15 @@ TEST_F(LargeAllocatorTest, FreeWithFreeNextAndPrev) {
 }
 
 TEST_F(LargeAllocatorTest, FreeWithUntrackedNeighbors) {
-  constexpr uint64_t kPrevSize = 0x10;
-  constexpr uint64_t kBlockSize = 0x530;
+  constexpr uint64_t kPrevSize = 0x30;
+  constexpr uint64_t kBlockSize = 0x510;
   constexpr uint64_t kNextSize = 0x80;
 
   UntrackedBlock* b1 = PushUntracked(kPrevSize);
   AllocatedBlock* b2 = PushAllocated(kBlockSize);
   PushUntracked(kNextSize);
   // Prevent the slab from being deallocated.
-  PushAllocated(0xA30);
+  PushAllocated(0x200);
   PushPhony();
   EXPECT_THAT(FreelistList(), ElementsAre());
 
@@ -452,10 +512,10 @@ TEST_F(LargeAllocatorTest, ResizeDown) {
 
   PushAllocated(0x140);
   AllocatedBlock* b1 = PushAllocated(kBlockSize);
-  AllocatedBlock* b2 = PushAllocated(0x980);
+  AllocatedBlock* b2 = PushAllocated(0x200);
   PushPhony();
 
-  AllocatedBlock* b3 = Realloc(b1, Block::UserSizeForBlockSize(kNewSize));
+  AllocatedBlock* b3 = Realloc(b1, kNewSize);
   ASSERT_EQ(b3, b1);
   EXPECT_EQ(b1, b3);
   EXPECT_EQ(b3->Size(), kNewSize);
@@ -469,6 +529,28 @@ TEST_F(LargeAllocatorTest, ResizeDown) {
   EXPECT_THAT(FreelistList(), ElementsAre(next));
 }
 
+TEST_F(LargeAllocatorTest, ResizeDownBelowMinBlockSizeRemainder) {
+  constexpr uint64_t kBlockSize = 0x530;
+  constexpr uint64_t kNewSize = 0x520;
+  static_assert(kBlockSize - kNewSize < Block::kMinBlockSize);
+
+  AllocatedBlock* b1 = PushAllocated(kBlockSize);
+  AllocatedBlock* b2 = PushAllocated(0x200);
+  PushPhony();
+
+  AllocatedBlock* b3 = Realloc(b1, kNewSize);
+  ASSERT_EQ(b3, b1);
+  // The block can't change size since that would leave a remainder block < min
+  // block size.
+  EXPECT_EQ(b3->Size(), kBlockSize);
+
+  Block* next = b3->NextAdjacentBlock();
+  EXPECT_EQ(next, b2);
+
+  EXPECT_THAT(ValidateHeap(), IsOk());
+  EXPECT_THAT(FreelistList(), ElementsAre());
+}
+
 TEST_F(LargeAllocatorTest, ResizeDownBeforeFree) {
   constexpr uint64_t kBlockSize = 0x290;
   constexpr uint64_t kNewSize = 0x130;
@@ -476,10 +558,9 @@ TEST_F(LargeAllocatorTest, ResizeDownBeforeFree) {
 
   AllocatedBlock* block = PushAllocated(kBlockSize);
   PushFree(kNextSize);
-  Block* end_block = PushAllocated(0xC20);
-  PushPhony();
+  Block* end_block = PushPhony();
 
-  AllocatedBlock* b2 = Realloc(block, Block::UserSizeForBlockSize(kNewSize));
+  AllocatedBlock* b2 = Realloc(block, kNewSize);
   ASSERT_NE(b2, nullptr);
   EXPECT_EQ(b2, block);
   EXPECT_EQ(b2->Size(), kNewSize);
@@ -497,10 +578,9 @@ TEST_F(LargeAllocatorTest, ResizeUpBeforeAllocated) {
   constexpr uint64_t kBlockSize = 0x290;
 
   AllocatedBlock* block = PushAllocated(kBlockSize);
-  PushAllocated(0xD60);
   PushPhony();
 
-  Block* b2 = Realloc(block, Block::UserSizeForBlockSize(kBlockSize) + 1);
+  Block* b2 = Realloc(block, kBlockSize + kDefaultAlignment);
   // b2 should have been placed somewhere else since the block can't have
   // in-place upsized.
   ASSERT_NE(b2, block);
@@ -519,10 +599,9 @@ TEST_F(LargeAllocatorTest, ResizeUpBeforeFree) {
 
   AllocatedBlock* block = PushAllocated(kBlockSize);
   PushFree(kNextSize);
-  Block* end_block = PushAllocated(0xA60);
-  PushPhony();
+  Block* end_block = PushPhony();
 
-  AllocatedBlock* b2 = Realloc(block, Block::UserSizeForBlockSize(kNewSize));
+  AllocatedBlock* b2 = Realloc(block, kNewSize);
   ASSERT_EQ(b2, block);
   EXPECT_EQ(b2->Size(), kNewSize);
 
@@ -535,6 +614,28 @@ TEST_F(LargeAllocatorTest, ResizeUpBeforeFree) {
   EXPECT_THAT(FreelistList(), ElementsAre(next));
 }
 
+TEST_F(LargeAllocatorTest, ResizeUpBeforeFreeLessThanMinSizeRemainder) {
+  constexpr uint64_t kBlockSize = 0x490;
+  constexpr uint64_t kNewSize = 0x1580;
+  constexpr uint64_t kNextSize = 0x1100;
+  static_assert(kNewSize < kBlockSize + kNextSize);
+  static_assert(kBlockSize + kNextSize - kNewSize < Block::kMinBlockSize);
+
+  AllocatedBlock* block = PushAllocated(kBlockSize);
+  PushFree(kNextSize);
+  Block* end_block = PushPhony();
+
+  AllocatedBlock* b2 = Realloc(block, kNewSize);
+  ASSERT_EQ(b2, block);
+  EXPECT_EQ(b2->Size(), kBlockSize + kNextSize);
+
+  Block* next = b2->NextAdjacentBlock();
+  EXPECT_EQ(next, end_block);
+
+  EXPECT_THAT(ValidateHeap(), IsOk());
+  EXPECT_THAT(FreelistList(), ElementsAre());
+}
+
 TEST_F(LargeAllocatorTest, ResizeUpBeforeFreeExact) {
   constexpr uint64_t kBlockSize = 0x500;
   constexpr uint64_t kNewSize = 0x800;
@@ -542,10 +643,9 @@ TEST_F(LargeAllocatorTest, ResizeUpBeforeFreeExact) {
 
   AllocatedBlock* block = PushAllocated(kBlockSize);
   PushFree(kNextSize);
-  PushAllocated(0x7F0);
   PushPhony();
 
-  AllocatedBlock* b2 = Realloc(block, Block::UserSizeForBlockSize(kNewSize));
+  AllocatedBlock* b2 = Realloc(block, kNewSize);
   ASSERT_EQ(b2, block);
   EXPECT_EQ(b2->Size(), kNewSize);
 
@@ -560,10 +660,9 @@ TEST_F(LargeAllocatorTest, ResizeUpBeforeFreeTooLarge) {
 
   AllocatedBlock* b1 = PushAllocated(kBlockSize);
   PushFree(kNextSize);
-  PushAllocated(0xAD0);
   PushPhony();
 
-  AllocatedBlock* b3 = Realloc(b1, Block::UserSizeForBlockSize(kNewSize));
+  AllocatedBlock* b3 = Realloc(b1, kNewSize);
   // b3 should have been placed elsewhere since b1 can't upsize in-place.
   EXPECT_NE(b3, b1);
   EXPECT_EQ(b3->Size(), kNewSize);

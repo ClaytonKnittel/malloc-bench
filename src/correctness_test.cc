@@ -1,4 +1,5 @@
 #include <cstdlib>
+#include <memory>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -8,6 +9,7 @@
 #include "util/gtest_util.h"
 
 #include "src/ckmalloc/common.h"
+#include "src/ckmalloc/freelist.h"
 #include "src/ckmalloc/large_allocator_test_fixture.h"
 #include "src/ckmalloc/main_allocator_test_fixture.h"
 #include "src/ckmalloc/metadata_manager_test_fixture.h"
@@ -64,12 +66,13 @@ class TestCorrectness : public ::testing::Test {
         metadata_manager_fixture_(
             std::make_shared<ckmalloc::MetadataManagerFixture>(
                 heap_factory_, slab_map_, /*heap_idx=*/0)),
+        freelist_(std::make_shared<ckmalloc::Freelist>()),
         small_allocator_fixture_(
             std::make_shared<ckmalloc::SmallAllocatorFixture>(
-                heap_factory_, slab_map_, slab_manager_fixture_)),
+                heap_factory_, slab_map_, slab_manager_fixture_, freelist_)),
         large_allocator_fixture_(
             std::make_shared<ckmalloc::LargeAllocatorFixture>(
-                heap_factory_, slab_map_, slab_manager_fixture_)),
+                heap_factory_, slab_map_, slab_manager_fixture_, freelist_)),
         main_allocator_fixture_(
             std::make_shared<ckmalloc::MainAllocatorFixture>(
                 heap_factory_, slab_map_, slab_manager_fixture_,
@@ -113,6 +116,7 @@ class TestCorrectness : public ::testing::Test {
   std::shared_ptr<ckmalloc::TestSlabMap> slab_map_;
   std::shared_ptr<ckmalloc::SlabManagerFixture> slab_manager_fixture_;
   std::shared_ptr<ckmalloc::MetadataManagerFixture> metadata_manager_fixture_;
+  std::shared_ptr<ckmalloc::Freelist> freelist_;
   std::shared_ptr<ckmalloc::SmallAllocatorFixture> small_allocator_fixture_;
   std::shared_ptr<ckmalloc::LargeAllocatorFixture> large_allocator_fixture_;
   std::shared_ptr<ckmalloc::MainAllocatorFixture> main_allocator_fixture_;
@@ -158,7 +162,8 @@ absl::StatusOr<void*> TestCkMalloc::Realloc(void* ptr, size_t size) {
   std::cout << "realloc(" << ptr << ", " << size << ") (" << iter_ << ")"
             << std::endl;
 #endif
-  void* result = fixture_->MainAllocator().Realloc(ptr, size);
+  void* result = fixture_->MainAllocator().Realloc(
+      reinterpret_cast<ckmalloc::Void*>(ptr), size);
 #ifdef PRINT
   std::cout << "returned " << result << std::endl;
 #endif
@@ -180,7 +185,7 @@ absl::Status TestCkMalloc::Free(void* ptr) {
 #ifdef PRINT
   std::cout << "free(" << ptr << ") (" << iter_ << ")" << std::endl;
 #endif
-  fixture_->MainAllocator().Free(ptr);
+  fixture_->MainAllocator().Free(reinterpret_cast<ckmalloc::Void*>(ptr));
 
   if (++iter_ % validate_every_n_ == 0) {
     RETURN_IF_ERROR(fixture_->ValidateHeap());

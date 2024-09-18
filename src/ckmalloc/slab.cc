@@ -1,6 +1,8 @@
 #include "src/ckmalloc/slab.h"
 
+#include <algorithm>
 #include <cstdint>
+#include <limits>
 #include <ostream>
 
 #include "src/ckmalloc/block.h"
@@ -111,7 +113,9 @@ template <typename T>
 requires std::is_integral_v<T>
 uint8_t SmallSlabMetadata<T>::FreelistNodesPerSlice(
     class SizeClass size_class) const {
-  return static_cast<uint8_t>(size_class.SliceSize() / sizeof(SliceId<T>));
+  return static_cast<uint8_t>(
+      std::min<uint64_t>(size_class.SliceSize() / sizeof(SliceId<T>),
+                         std::numeric_limits<uint8_t>::max()));
 }
 
 template <typename T>

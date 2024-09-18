@@ -27,6 +27,8 @@ class PageId {
   friend inline std::ostream& operator<<(std::ostream& ostr, PageId page_id);
 
  public:
+  // Constructs a `Nil` `PageId`.
+  constexpr PageId() : page_idx_(std::numeric_limits<uint32_t>::max()) {}
   constexpr explicit PageId(uint32_t page_idx) : page_idx_(page_idx) {
     CK_ASSERT_LT(page_idx, kMaxPageIdx);
   }
@@ -106,8 +108,6 @@ class PageId {
   }
 
  private:
-  constexpr PageId() : page_idx_(std::numeric_limits<uint32_t>::max()) {}
-
   uint32_t Idx() const {
     return page_idx_;
   }

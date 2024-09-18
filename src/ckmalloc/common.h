@@ -26,7 +26,7 @@ static_assert(kHeapSize == (size_t(1) << kHeapSizeShift));
 
 // The largest user-request size which will be allocated in small slabs. Any
 // size larger will go in large blocks.
-static constexpr size_t kMaxSmallSize = 128;
+static constexpr size_t kMaxSmallSize = 256;
 
 // If true, memory for this request will be allocated from a small slab.
 inline constexpr bool IsSmallSize(size_t user_size) {
@@ -35,6 +35,10 @@ inline constexpr bool IsSmallSize(size_t user_size) {
 
 // Forward declarations for concepts (to prevent circular dependencies):
 enum class SlabType : uint8_t;
+
+// Strongly-typed void, to avoid accidental auto-conversion from pointer-to-T to
+// void.
+struct Void {};
 
 template <typename T>
 concept MetadataAllocInterface =
@@ -100,33 +104,30 @@ concept MetadataManagerInterface =
     };
 
 template <typename T>
-concept SmallAllocatorInterface =
-    requires(T small_alloc, size_t user_size, class SmallSlab* slab,
-             class AllocatedSlice* slice) {
-      {
-        small_alloc.AllocSlice(user_size)
-      } -> std::convertible_to<class AllocatedSlice*>;
-      {
-        small_alloc.ReallocSlice(slab, slice, user_size)
-      } -> std::convertible_to<class AllocatedSlice*>;
-      { small_alloc.FreeSlice(slab, slice) } -> std::same_as<void>;
-    };
+concept SmallAllocatorInterface = requires(T small_alloc, size_t user_size,
+                                           class SmallSlab* slab, Void* ptr) {
+  { small_alloc.AllocSmall(user_size) } -> std::convertible_to<Void*>;
+  {
+    small_alloc.ReallocSmall(slab, ptr, user_size)
+  } -> std::convertible_to<Void*>;
+  { small_alloc.FreeSmall(slab, ptr) } -> std::same_as<void>;
+};
 
 template <typename T>
 concept LargeAllocatorInterface = requires(T large_alloc, size_t user_size,
-                                           class LargeSlab* slab, void* ptr) {
-  { large_alloc.AllocLarge(user_size) } -> std::convertible_to<void*>;
+                                           class LargeSlab* slab, Void* ptr) {
+  { large_alloc.AllocLarge(user_size) } -> std::convertible_to<Void*>;
   {
     large_alloc.ReallocLarge(slab, ptr, user_size)
-  } -> std::convertible_to<void*>;
+  } -> std::convertible_to<Void*>;
   { large_alloc.FreeLarge(slab, ptr) } -> std::same_as<void>;
 };
 
 template <typename T>
 concept MainAllocatorInterface =
-    requires(T main_alloc, size_t user_size, void* ptr) {
-      { main_alloc.Alloc(user_size) } -> std::convertible_to<void*>;
-      { main_alloc.Realloc(ptr, user_size) } -> std::convertible_to<void*>;
+    requires(T main_alloc, size_t user_size, Void* ptr) {
+      { main_alloc.Alloc(user_size) } -> std::convertible_to<Void*>;
+      { main_alloc.Realloc(ptr, user_size) } -> std::convertible_to<Void*>;
       { main_alloc.Free(ptr) } -> std::same_as<void>;
       { main_alloc.AllocSize(ptr) } -> std::convertible_to<size_t>;
     };

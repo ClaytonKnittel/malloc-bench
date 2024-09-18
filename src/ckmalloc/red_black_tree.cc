@@ -1,6 +1,6 @@
 #include "src/ckmalloc/red_black_tree.h"
 
-#include <optional>
+#include <cstdint>
 
 #include "src/ckmalloc/util.h"
 
@@ -22,7 +22,7 @@ void RbNode::RotateLeft(RbNode* right) {
   CK_ASSERT_EQ(right, right_);
   this->SetRight(right->Left());
   right->SetParentOf(this);
-  this->parent_ = right;
+  this->SetParent(right);
   right->left_ = this;
 }
 
@@ -30,12 +30,12 @@ void RbNode::RotateRight(RbNode* left) {
   CK_ASSERT_EQ(left, left_);
   this->SetLeft(left->Right());
   left->SetParentOf(this);
-  this->parent_ = left;
+  this->SetParent(left);
   left->right_ = this;
 }
 
 void RbNode::RotateLeftRight(RbNode* parent, RbNode* right) {
-  CK_ASSERT_EQ(parent, parent_);
+  CK_ASSERT_EQ(parent, Parent());
   CK_ASSERT_EQ(parent->left_, this);
   CK_ASSERT_EQ(right, right_);
   this->SetRight(right->Left());
@@ -46,7 +46,7 @@ void RbNode::RotateLeftRight(RbNode* parent, RbNode* right) {
 }
 
 void RbNode::RotateRightLeft(RbNode* parent, RbNode* left) {
-  CK_ASSERT_EQ(parent, parent_);
+  CK_ASSERT_EQ(parent, Parent());
   CK_ASSERT_EQ(parent->right_, this);
   CK_ASSERT_EQ(left, left_);
   this->SetLeft(left->Right());
@@ -59,7 +59,7 @@ void RbNode::RotateRightLeft(RbNode* parent, RbNode* left) {
 void RbNode::InsertLeft(RbNode* node, const RbNode* root) {
   CK_ASSERT_EQ(node->left_, nullptr);
   node->left_ = this;
-  this->parent_ = node;
+  this->SetParent(node);
   this->MakeRed();
   InsertFix(this, root);
 }
@@ -67,7 +67,7 @@ void RbNode::InsertLeft(RbNode* node, const RbNode* root) {
 void RbNode::InsertRight(RbNode* node, const RbNode* root) {
   CK_ASSERT_EQ(node->right_, nullptr);
   node->right_ = this;
-  this->parent_ = node;
+  this->SetParent(node);
   this->MakeRed();
   InsertFix(this, root);
 }
@@ -81,18 +81,18 @@ void RbNode::Remove(const RbNode* root) const {
   bool deleted_black;
   if (left_ == nullptr) {
     successor = right_;
-    parent = parent_;
+    parent = ParentMut();
     deleted_black = this->IsBlack();
     DetachParent(right_);
   } else if (right_ == nullptr) {
     successor = left_;
-    parent = parent_;
+    parent = ParentMut();
     deleted_black = this->IsBlack();
     DetachParent(left_);
   } else {
     RbNode* scapegoat = left_->RightmostChild();
     successor = scapegoat->left_;
-    parent = scapegoat->parent_ != this ? scapegoat->parent_ : scapegoat;
+    parent = scapegoat->Parent() != this ? scapegoat->ParentMut() : scapegoat;
     deleted_black = scapegoat->IsBlack();
 
     // successor does not have a right child. Detach it from its parent and
@@ -103,7 +103,7 @@ void RbNode::Remove(const RbNode* root) const {
     scapegoat->SetLeft(left_);
     scapegoat->SetRight(right_);
     scapegoat->SetParentOf(this);
-    scapegoat->red_ = red_;
+    scapegoat->SetRed(IsRed());
   }
 
   if (deleted_black) {
@@ -114,44 +114,50 @@ void RbNode::Remove(const RbNode* root) const {
 void RbNode::SetLeft(RbNode* node) {
   left_ = node;
   if (node != nullptr) {
-    node->parent_ = this;
+    node->SetParent(this);
   }
 }
 
 void RbNode::SetRight(RbNode* node) {
   right_ = node;
   if (node != nullptr) {
-    node->parent_ = this;
+    node->SetParent(this);
   }
 }
 
+void RbNode::SetParent(RbNode* parent) {
+  parent_ = reinterpret_cast<uintptr_t>(parent) | (parent_ & kRedBit);
+}
+
 void RbNode::SetParentOf(const RbNode* node) {
-  parent_ = node->parent_;
-  if (parent_ != nullptr) {
-    if (parent_->left_ == node) {
-      parent_->left_ = this;
+  RbNode* parent = node->ParentMut();
+  SetParent(parent);
+  if (parent != nullptr) {
+    if (parent->left_ == node) {
+      parent->left_ = this;
     } else {
-      parent_->right_ = this;
+      parent->right_ = this;
     }
   }
 }
 
 void RbNode::DetachParent(RbNode* new_child) const {
+  RbNode* parent = ParentMut();
   if (new_child != nullptr) {
-    new_child->parent_ = parent_;
+    new_child->SetParent(parent);
   }
-  if (parent_ != nullptr) {
-    if (parent_->left_ == this) {
-      parent_->left_ = new_child;
+  if (parent != nullptr) {
+    if (parent->left_ == this) {
+      parent->left_ = new_child;
     } else {
-      parent_->right_ = new_child;
+      parent->right_ = new_child;
     }
   }
 }
 
 void RbNode::InsertFix(RbNode* n, const RbNode* root) {
   RbNode* p;
-  while ((p = n->parent_) != root && p->IsRed()) {
+  while ((p = n->ParentMut()) != root && p->IsRed()) {
 #define FIX_CHILD(dir, opp)         \
   RbNode* a = gp->opp();            \
   if (a != nullptr && a->IsRed()) { \
@@ -164,17 +170,17 @@ void RbNode::InsertFix(RbNode* n, const RbNode* root) {
     gp->MakeRed();                  \
     gp->Rotate##opp(p);             \
     n = p;                          \
-    p = n->Parent();                \
+    p = n->ParentMut();             \
     break;                          \
   } else {                          \
     n->MakeBlack();                 \
     gp->MakeRed();                  \
     p->Rotate##dir##opp(gp, n);     \
-    p = n->parent_;                 \
+    p = n->ParentMut();             \
     break;                          \
   }
 
-    RbNode* gp = p->parent_;
+    RbNode* gp = p->ParentMut();
     if (p == gp->Left()) {
       FIX_CHILD(Left, Right);
     } else /* p == gp->Right() */ {
@@ -204,22 +210,22 @@ void RbNode::DeleteFix(RbNode* n, RbNode* p, const RbNode* root) {
   if (IsBlackPtr(s->dir()) && IsBlackPtr(s->opp())) { \
     s->MakeRed();                                     \
     n = p;                                            \
-    p = n->Parent();                                  \
+    p = n->ParentMut();                               \
   } else if (IsRedPtr(s->opp())) {                    \
-    s->red_ = p->red_;                                \
+    s->SetRed(p->IsRed());                            \
     p->MakeBlack();                                   \
     s->opp()->MakeBlack();                            \
     p->Rotate##dir(s);                                \
     n = s;                                            \
-    p = n->Parent();                                  \
+    p = n->ParentMut();                               \
     break;                                            \
   } else /* IsRedPtr(s->dir()) */ {                   \
     RbNode* sd = s->dir();                            \
-    sd->red_ = p->red_;                               \
+    sd->SetRed(p->IsRed());                           \
     p->MakeBlack();                                   \
     s->Rotate##opp##dir(p, sd);                       \
     n = sd;                                           \
-    p = n->Parent();                                  \
+    p = n->ParentMut();                               \
     break;                                            \
   }
 

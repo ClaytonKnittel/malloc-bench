@@ -37,12 +37,12 @@ class Block {
   static constexpr uint64_t kFirstBlockInSlabOffset =
       kDefaultAlignment - kMetadataOverhead;
 
-  static constexpr uint64_t kMinBlockSize = kDefaultAlignment;
+  static constexpr uint64_t kMinBlockSize = 2 * kDefaultAlignment;
 
-  // The smallest size of large blocks which will be tracked in the freelist.
-  // Sizes smaller than this go in small slabs, as having a heterogenous list of
-  // free blocks for small size classes is extra overhead we want to avoid.
-  static const size_t kMinLargeSize;
+  // Blocks of this size or smaller will not be tracked in any freelist.
+  static constexpr uint64_t kMaxUntrackedSize = 128;
+  static constexpr uint64_t kMinTrackedSize =
+      kMaxUntrackedSize + kDefaultAlignment;
 
   // The largest sized blocks which are tracked in single-size lists. All blocks
   // larger than this are stored in a red-black tree ordered by size.
@@ -80,6 +80,10 @@ class Block {
   // If true, this block is not large enough to hold large block allocations,
   // and should not be allocated or placed in the freelist.
   bool IsUntracked() const;
+
+  // If false, this block is not large enough to hold large block allocations,
+  // and should not be allocated or placed in the freelist.
+  bool IsTracked() const;
 
   // If true, this block is in the exact-size bins. Otherwise it is in the free
   // block rb tree.
@@ -155,16 +159,16 @@ class AllocatedBlock : public Block {
 
   // Returns a pointer to the beginning of the user-allocatable region of memory
   // in this block.
-  void* UserDataPtr();
-  const void* UserDataPtr() const;
+  Void* UserDataPtr();
+  const Void* UserDataPtr() const;
 
   // Given a user data pointer, returns the allocated block containing this
   // pointer.
-  static AllocatedBlock* FromUserDataPtr(void* ptr);
+  static AllocatedBlock* FromUserDataPtr(Void* ptr);
 
  private:
   // The beginning of user-allocatable space in this block.
-  uint8_t data_[0];
+  Void data_[0];
 };
 
 class FreeBlock : public Block {
@@ -225,9 +229,7 @@ constexpr uint64_t Block::BlockSizeForUserSize(size_t user_size) {
 
 /* static */
 constexpr bool Block::IsUntrackedSize(uint64_t size) {
-  return size < kMinLargeSize;
+  return size <= kMaxUntrackedSize;
 }
-
-constexpr size_t Block::kMinLargeSize = BlockSizeForUserSize(kMaxSmallSize + 1);
 
 }  // namespace ckmalloc

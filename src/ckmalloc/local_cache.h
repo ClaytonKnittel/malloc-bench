@@ -37,11 +37,11 @@ class LocalCache {
 
   // Takes and returns an allocation of the given size from the cache, if one
   // exists, otherwise returning `nullptr`.
-  void* TakeAlloc(size_t alloc_size);
+  Void* TakeAlloc(size_t alloc_size);
 
   // Caches an allocation with user-allocatable memory beginning at `ptr` of the
   // given size `alloc_size`.
-  void CacheAlloc(void* ptr, size_t alloc_size);
+  void CacheAlloc(Void* ptr, size_t alloc_size);
 
   // If true, the cache recommends flushing before the next allocation to avoid
   // excessive memory fragmentation.
@@ -105,7 +105,7 @@ void LocalCache::Flush(MainAllocator& main_allocator) {
   for (CachedAlloc*& bin : bins_) {
     for (CachedAlloc* alloc = bin; alloc != nullptr;) {
       CachedAlloc* next_alloc = alloc->next;
-      main_allocator.Free(alloc);
+      main_allocator.Free(reinterpret_cast<Void*>(alloc));
       alloc = next_alloc;
     }
     bin = nullptr;

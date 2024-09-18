@@ -11,6 +11,26 @@
 
 namespace ckmalloc {
 
+TrackedBlock* Freelist::FindFreeExact(uint64_t block_size) {
+  CK_ASSERT_TRUE(IsAligned(block_size, kDefaultAlignment));
+
+  if (block_size <= Block::kMaxExactSizeBlock) {
+    size_t idx = ExactSizeIdx(block_size);
+    TrackedBlock* block = exact_size_bins_[idx].Front();
+    return block;
+  }
+
+  TrackedBlock* block =
+      large_blocks_tree_.LowerBound([block_size](const TreeBlock& tree_block) {
+        return tree_block.Size() >= block_size;
+      });
+  if (block->Size() == block_size) {
+    return block;
+  }
+
+  return nullptr;
+}
+
 TrackedBlock* Freelist::FindFree(uint64_t block_size) {
   CK_ASSERT_TRUE(IsAligned(block_size, kDefaultAlignment));
 
@@ -37,7 +57,7 @@ TrackedBlock* Freelist::FindFree(uint64_t block_size) {
 }
 
 FreeBlock* Freelist::InitFree(Block* block, uint64_t size) {
-  CK_ASSERT_NE(size, 0);
+  CK_ASSERT_GE(size, Block::kMinBlockSize);
   CK_ASSERT_TRUE(IsAligned(size, kDefaultAlignment));
   // Prev free is never true for free blocks, so we will not set that.
   block->header_ = size | Block::kFreeBitMask;
@@ -56,7 +76,7 @@ std::pair<AllocatedBlock*, FreeBlock*> Freelist::Split(TrackedBlock* block,
   CK_ASSERT_LE(block_size, size);
 
   uint64_t remainder = size - block_size;
-  if (remainder == 0) {
+  if (remainder < Block::kMinBlockSize) {
     AllocatedBlock* allocated_block = MarkAllocated(block);
     return std::make_pair(allocated_block, nullptr);
   }
@@ -77,7 +97,7 @@ FreeBlock* Freelist::MarkFree(AllocatedBlock* block) {
     CK_ASSERT_EQ(prev->Size(), block->PrevSize());
     size += block->PrevSize();
 
-    if (!prev->IsUntracked()) {
+    if (prev->IsTracked()) {
       RemoveBlock(prev->ToTracked());
     }
     block_start = prev;
@@ -86,7 +106,7 @@ FreeBlock* Freelist::MarkFree(AllocatedBlock* block) {
   if (next->Free()) {
     size += next->Size();
 
-    if (!next->IsUntracked()) {
+    if (next->IsTracked()) {
       RemoveBlock(next->ToTracked());
     }
   }
@@ -113,20 +133,37 @@ bool Freelist::ResizeIfPossible(AllocatedBlock* block, uint64_t new_size) {
 
     if (next_block->Free()) {
       // If the next block is free, we can extend the block backwards.
-      MoveBlockHeader(next_block->ToFree(), new_head,
-                      next_size + block_size - new_size);
-    } else if (new_size != block_size) {
+      FreeBlock* next_free = next_block->ToFree();
+      if (next_free->IsTracked()) {
+        RemoveBlock(next_free->ToTracked());
+      }
+
+      InitFree(new_head, next_size + block_size - new_size);
+    } else if (new_size + Block::kMinBlockSize <= block_size) {
       // Otherwise, we create a new free block in between the shrunk block and
       // next_block.
       InitFree(new_head, block_size - new_size);
+    } else {
+      // Otherwise we need to undo the resize of the block, as it would leave a
+      // remainder bloc <= kMinBlockSize.
+      block->SetSize(block_size);
     }
     return true;
   }
 
   if (next_block->Free() && new_size <= block_size + next_size) {
-    block->SetSize(new_size);
-    MoveBlockHeader(next_block->ToFree(), block->NextAdjacentBlock(),
-                    next_size + block_size - new_size);
+    if (next_block->IsTracked()) {
+      RemoveBlock(next_block->ToTracked());
+    }
+
+    uint64_t remainder_size = block_size + next_size - new_size;
+    if (remainder_size < Block::kMinBlockSize) {
+      block->SetSize(block_size + next_size);
+      block->NextAdjacentBlock()->SetPrevFree(false);
+    } else {
+      block->SetSize(new_size);
+      InitFree(block->NextAdjacentBlock(), remainder_size);
+    }
     return true;
   }
 
@@ -139,9 +176,9 @@ void Freelist::DeleteBlock(TrackedBlock* block) {
 
 /* static */
 size_t Freelist::ExactSizeIdx(uint64_t block_size) {
-  CK_ASSERT_GT(block_size, kMaxSmallSize);
+  CK_ASSERT_GE(block_size, Block::kMinTrackedSize);
   CK_ASSERT_LE(block_size, Block::kMaxExactSizeBlock);
-  return (block_size - kMaxSmallSize - kDefaultAlignment) / kDefaultAlignment;
+  return (block_size - Block::kMinTrackedSize) / kDefaultAlignment;
 }
 
 AllocatedBlock* Freelist::MarkAllocated(TrackedBlock* block,
@@ -177,23 +214,6 @@ void Freelist::RemoveBlock(TrackedBlock* block) {
     block->ToExactSize()->LinkedListNode::Remove();
   } else {
     large_blocks_tree_.Remove(block->ToTree());
-  }
-}
-
-void Freelist::MoveBlockHeader(FreeBlock* block, Block* new_head,
-                               uint64_t new_size) {
-  CK_ASSERT_EQ(
-      static_cast<int64_t>(block->Size() - new_size),
-      reinterpret_cast<int64_t>(new_head) - reinterpret_cast<int64_t>(block));
-
-  if (!block->IsUntracked()) {
-    RemoveBlock(block->ToTracked());
-  }
-
-  if (new_size != 0) {
-    InitFree(new_head, new_size);
-  } else {
-    new_head->SetPrevFree(false);
   }
 }
 

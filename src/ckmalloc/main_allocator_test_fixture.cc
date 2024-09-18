@@ -6,7 +6,9 @@
 #include "absl/status/status.h"
 #include "util/absl_util.h"
 
+#include "src/ckmalloc/block.h"
 #include "src/ckmalloc/common.h"
+#include "src/ckmalloc/freelist.h"
 #include "src/ckmalloc/local_cache.h"
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/testlib.h"
@@ -22,8 +24,12 @@ TestMainAllocator::TestMainAllocator(MainAllocatorFixture* test_fixture,
     : test_fixture_(test_fixture),
       main_allocator_(slab_map, slab_manager, small_alloc, large_alloc) {}
 
-void* TestMainAllocator::Alloc(size_t user_size) {
-  void* alloc = main_allocator_.Alloc(user_size);
+Freelist& TestMainAllocator::Freelist() {
+  return test_fixture_->Freelist();
+}
+
+Void* TestMainAllocator::Alloc(size_t user_size) {
+  Void* alloc = main_allocator_.Alloc(user_size);
   if (alloc == nullptr) {
     return nullptr;
   }
@@ -38,12 +44,12 @@ void* TestMainAllocator::Alloc(size_t user_size) {
   return alloc;
 }
 
-void* TestMainAllocator::Realloc(void* ptr, size_t user_size) {
+Void* TestMainAllocator::Realloc(Void* ptr, size_t user_size) {
   auto it = test_fixture_->allocations_.find(ptr);
   CK_ASSERT_FALSE(it == test_fixture_->allocations_.end());
   auto [old_size, magic] = it->second;
 
-  void* new_alloc = main_allocator_.Realloc(ptr, user_size);
+  Void* new_alloc = main_allocator_.Realloc(ptr, user_size);
   if (new_alloc == nullptr) {
     // Old memory block will not be freed, so no need to remove it from the
     // `allocations_` table.
@@ -51,7 +57,7 @@ void* TestMainAllocator::Realloc(void* ptr, size_t user_size) {
   }
 
   if (user_size > old_size) {
-    MainAllocatorFixture::FillMagic(static_cast<uint8_t*>(new_alloc) + old_size,
+    MainAllocatorFixture::FillMagic(PtrAdd(new_alloc, old_size),
                                     user_size - old_size,
                                     std::rotr(magic, (old_size % 8) * 8));
   }
@@ -65,7 +71,7 @@ void* TestMainAllocator::Realloc(void* ptr, size_t user_size) {
   return new_alloc;
 }
 
-void TestMainAllocator::Free(void* ptr) {
+void TestMainAllocator::Free(Void* ptr) {
   auto it = test_fixture_->allocations_.find(ptr);
   CK_ASSERT_FALSE(it == test_fixture_->allocations_.end());
 
@@ -73,7 +79,7 @@ void TestMainAllocator::Free(void* ptr) {
   return main_allocator_.Free(ptr);
 }
 
-size_t TestMainAllocator::AllocSize(void* ptr) {
+size_t TestMainAllocator::AllocSize(Void* ptr) {
   return main_allocator_.AllocSize(ptr);
 }
 
@@ -91,7 +97,7 @@ absl::Status MainAllocatorFixture::ValidateHeap() {
       auto [alloc2, meta2] = *next_it;
       auto [size2, magic2] = meta2;
 
-      if (alloc2 < PtrAdd<void>(alloc, size)) {
+      if (alloc2 < PtrAdd(alloc, size)) {
         return FailedTest(
             "Allocation %p of size %zu overlaps with allocation %p of size %zu",
             alloc, size, alloc2, size2);
@@ -110,10 +116,13 @@ absl::Status MainAllocatorFixture::ValidateHeap() {
       aligned_size = AlignUserSize(size);
     }
     if (aligned_size != derived_size) {
-      return FailedTest(
-          "Allocated block at %p of size %zu has the wrong size when looked up "
-          "with MainAllocator::AllocSize: found %zu, expected %zu",
-          alloc, size, derived_size, aligned_size);
+      if (slab->Type() != SlabType::kBlocked || aligned_size > derived_size ||
+          aligned_size + Block::kMinBlockSize <= derived_size) {
+        return FailedTest(
+            "Allocated block at %p of size %zu has the wrong size when looked "
+            "up with MainAllocator::AllocSize: found %zu, expected %zu",
+            alloc, size, derived_size, aligned_size);
+      }
     }
 
     it = next_it;
