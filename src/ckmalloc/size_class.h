@@ -2,6 +2,7 @@
 
 #include <cinttypes>
 #include <cstdint>
+#include <ostream>
 
 #include "absl/strings/str_format.h"
 
@@ -9,6 +10,9 @@
 #include "src/ckmalloc/util.h"
 
 namespace ckmalloc {
+
+inline std::ostream& operator<<(std::ostream& ostr,
+                                ckmalloc::SizeClass size_class);
 
 // A size class is an allowed size of slices in a small slab, which holds an
 // array of equally-sized slices of memory for individual allocation.
@@ -57,11 +61,13 @@ class SizeClass {
 
   // Returns the size of slices represented by this size class.
   constexpr uint64_t SliceSize() const {
+    CK_ASSERT_NE(*this, Nil());
     return static_cast<uint64_t>(size_class_ * kSizeClassDivisor);
   }
 
   // Returns a number 0 - `kNumSizeClasses`-1,
   constexpr size_t Ordinal() const {
+    CK_ASSERT_NE(*this, Nil());
     return size_class_ / (kDefaultAlignment / kSizeClassDivisor);
   }
 
@@ -117,8 +123,13 @@ class SizeClass {
   uint8_t size_class_;
 };
 
+inline std::ostream& operator<<(std::ostream& ostr,
+                                ckmalloc::SizeClass size_class) {
+  return ostr << "[" << size_class.SliceSize() << "]";
+}
+
 template <typename Sink>
-void AbslStringify(Sink& sink, SizeClass size_class) {
+void AbslStringify(Sink& sink, ckmalloc::SizeClass size_class) {
   absl::Format(&sink, "[%" PRIu64 "]", size_class.SliceSize());
 }
 
