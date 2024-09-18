@@ -5,6 +5,7 @@
 
 #include "src/ckmalloc/block.h"
 #include "src/ckmalloc/common.h"
+#include "src/ckmalloc/freelist.h"
 #include "src/ckmalloc/large_allocator_test_fixture.h"
 #include "src/ckmalloc/main_allocator_test_fixture.h"
 #include "src/ckmalloc/slab_manager_test_fixture.h"
@@ -26,10 +27,11 @@ class MainAllocatorTest : public ::testing::Test {
         slab_map_(std::make_shared<TestSlabMap>()),
         slab_manager_fixture_(std::make_shared<SlabManagerFixture>(
             heap_factory_, slab_map_, /*heap_idx=*/0)),
+        freelist_(std::make_shared<class Freelist>()),
         small_allocator_fixture_(std::make_shared<SmallAllocatorFixture>(
-            heap_factory_, slab_map_, slab_manager_fixture_)),
+            heap_factory_, slab_map_, slab_manager_fixture_, freelist_)),
         large_allocator_fixture_(std::make_shared<LargeAllocatorFixture>(
-            heap_factory_, slab_map_, slab_manager_fixture_)),
+            heap_factory_, slab_map_, slab_manager_fixture_, freelist_)),
         main_allocator_fixture_(std::make_shared<MainAllocatorFixture>(
             heap_factory_, slab_map_, slab_manager_fixture_,
             small_allocator_fixture_, large_allocator_fixture_)) {}
@@ -82,6 +84,7 @@ class MainAllocatorTest : public ::testing::Test {
   std::shared_ptr<TestHeapFactory> heap_factory_;
   std::shared_ptr<TestSlabMap> slab_map_;
   std::shared_ptr<SlabManagerFixture> slab_manager_fixture_;
+  std::shared_ptr<Freelist> freelist_;
   std::shared_ptr<SmallAllocatorFixture> small_allocator_fixture_;
   std::shared_ptr<LargeAllocatorFixture> large_allocator_fixture_;
   std::shared_ptr<MainAllocatorFixture> main_allocator_fixture_;

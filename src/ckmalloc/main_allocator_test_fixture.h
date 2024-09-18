@@ -35,9 +35,7 @@ class TestMainAllocator {
     return main_allocator_;
   }
 
-  Freelist& Freelist() {
-    return main_allocator_.large_alloc_->freelist_;
-  }
+  Freelist& Freelist();
 
   void* Alloc(size_t user_size);
 
@@ -92,6 +90,10 @@ class MainAllocatorFixture : public CkMallocTest {
 
   TestSlabManager& SlabManager() {
     return slab_manager_test_fixture_->SlabManager();
+  }
+
+  Freelist& Freelist() {
+    return large_allocator_test_fixture_->Freelist();
   }
 
   TestMainAllocator& MainAllocator() {

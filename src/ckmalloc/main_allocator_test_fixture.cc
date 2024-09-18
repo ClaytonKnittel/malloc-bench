@@ -7,6 +7,7 @@
 #include "util/absl_util.h"
 
 #include "src/ckmalloc/common.h"
+#include "src/ckmalloc/freelist.h"
 #include "src/ckmalloc/local_cache.h"
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/testlib.h"
@@ -21,6 +22,10 @@ TestMainAllocator::TestMainAllocator(MainAllocatorFixture* test_fixture,
                                      TestLargeAllocator* large_alloc)
     : test_fixture_(test_fixture),
       main_allocator_(slab_map, slab_manager, small_alloc, large_alloc) {}
+
+Freelist& TestMainAllocator::Freelist() {
+  return test_fixture_->Freelist();
+}
 
 void* TestMainAllocator::Alloc(size_t user_size) {
   void* alloc = main_allocator_.Alloc(user_size);

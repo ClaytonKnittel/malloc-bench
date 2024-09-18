@@ -4,6 +4,7 @@
 #include <optional>
 
 #include "src/ckmalloc/common.h"
+#include "src/ckmalloc/freelist.h"
 #include "src/ckmalloc/page_id.h"
 #include "src/ckmalloc/size_class.h"
 #include "src/ckmalloc/slab.h"
@@ -20,8 +21,9 @@ class SmallAllocatorImpl {
   friend class GlobalState;
 
  public:
-  explicit SmallAllocatorImpl(SlabMap* slab_map, SlabManager* slab_manager)
-      : slab_map_(slab_map), slab_manager_(slab_manager) {}
+  explicit SmallAllocatorImpl(SlabMap* slab_map, SlabManager* slab_manager,
+                              Freelist* freelist)
+      : slab_map_(slab_map), slab_manager_(slab_manager), freelist_(freelist) {}
 
   AllocatedSlice* AllocSlice(size_t user_size);
 
@@ -58,6 +60,7 @@ class SmallAllocatorImpl {
 
   SlabMap* const slab_map_;
   SlabManager* const slab_manager_;
+  Freelist* const freelist_;
 };
 
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>

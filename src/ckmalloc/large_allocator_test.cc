@@ -1,5 +1,6 @@
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <vector>
 
 #include "absl/status/status.h"
@@ -36,8 +37,9 @@ class LargeAllocatorTest : public ::testing::Test {
         slab_map_(std::make_shared<TestSlabMap>()),
         slab_manager_fixture_(std::make_shared<SlabManagerFixture>(
             heap_factory_, slab_map_, /*heap_idx=*/0)),
+        freelist_(std::make_shared<class Freelist>()),
         large_allocator_fixture_(std::make_shared<LargeAllocatorFixture>(
-            heap_factory_, slab_map_, slab_manager_fixture_)) {}
+            heap_factory_, slab_map_, slab_manager_fixture_, freelist_)) {}
 
   TestHeapFactory& HeapFactory() {
     return slab_manager_fixture_->HeapFactory();
@@ -205,6 +207,7 @@ class LargeAllocatorTest : public ::testing::Test {
   std::shared_ptr<TestHeapFactory> heap_factory_;
   std::shared_ptr<TestSlabMap> slab_map_;
   std::shared_ptr<SlabManagerFixture> slab_manager_fixture_;
+  std::shared_ptr<class Freelist> freelist_;
   std::shared_ptr<LargeAllocatorFixture> large_allocator_fixture_;
 
   size_t total_bytes_ = 0;
@@ -305,7 +308,7 @@ TEST_F(LargeAllocatorTest, OnlyAllocatedAndUntracked) {
 }
 
 TEST_F(LargeAllocatorTest, OneFree) {
-  uint64_t kSize = 0x100;
+  constexpr uint64_t kSize = 0x100;
 
   TrackedBlock* block = PushFree(kSize);
   PushAllocated(0xEF0);

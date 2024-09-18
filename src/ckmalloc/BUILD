@@ -67,6 +67,21 @@ cc_library(
 )
 
 cc_library(
+    name = "global_state",
+    srcs = ["global_state.cc"],
+    hdrs = ["global_state.h"],
+    deps = [
+        ":freelist",
+        ":main_allocator",
+        ":metadata_manager",
+        ":slab_manager",
+        ":slab_map",
+        ":small_allocator",
+        "//src:heap_factory",
+    ],
+)
+
+cc_library(
     name = "heap_printer",
     srcs = ["heap_printer.cc"],
     hdrs = ["heap_printer.h"],
@@ -198,6 +213,7 @@ cc_test(
     deps = [
         ":block",
         ":common",
+        ":freelist",
         ":large_allocator_test_fixture",
         ":main_allocator",
         ":main_allocator_test_fixture",
@@ -468,6 +484,7 @@ cc_library(
     hdrs = ["small_allocator.h"],
     deps = [
         ":common",
+        ":freelist",
         ":page_id",
         ":size_class",
         ":slab",
@@ -483,6 +500,7 @@ cc_test(
     srcs = ["small_allocator_test.cc"],
     deps = [
         ":common",
+        ":freelist",
         ":size_class",
         ":slab",
         ":slab_manager_test_fixture",
@@ -504,6 +522,7 @@ cc_library(
     hdrs = ["small_allocator_test_fixture.h"],
     visibility = ["//visibility:public"],
     deps = [
+        ":freelist",
         ":page_id",
         ":size_class",
         ":slab",
@@ -513,20 +532,6 @@ cc_library(
         "@abseil-cpp//absl/container:btree",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/strings:str_format",
-    ],
-)
-
-cc_library(
-    name = "global_state",
-    srcs = ["global_state.cc"],
-    hdrs = ["global_state.h"],
-    deps = [
-        ":main_allocator",
-        ":metadata_manager",
-        ":slab_manager",
-        ":slab_map",
-        ":small_allocator",
-        "//src:heap_factory",
     ],
 )
 

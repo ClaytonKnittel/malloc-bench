@@ -21,8 +21,9 @@ class LargeAllocatorImpl {
   friend class TestMainAllocator;
 
  public:
-  LargeAllocatorImpl(SlabMap* slab_map, SlabManager* slab_manager)
-      : slab_map_(slab_map), slab_manager_(slab_manager) {}
+  LargeAllocatorImpl(SlabMap* slab_map, SlabManager* slab_manager,
+                     Freelist* freelist)
+      : slab_map_(slab_map), slab_manager_(slab_manager), freelist_(freelist) {}
 
   // Performs allocation for a large-sized allocation (i.e.
   // !IsSmallSize(user_size)).
@@ -66,7 +67,7 @@ class LargeAllocatorImpl {
 
   SlabManager* const slab_manager_;
 
-  Freelist freelist_;
+  Freelist* const freelist_;
 };
 
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
@@ -104,7 +105,7 @@ void* LargeAllocatorImpl<SlabMap, SlabManager>::ReallocLarge(LargeSlab* slab,
 
     // If we can resize the block in-place, then we don't need to copy any data
     // and can return the same pointer back to the user.
-    if (freelist_.ResizeIfPossible(block, new_block_size)) {
+    if (freelist_->ResizeIfPossible(block, new_block_size)) {
       blocked_slab->AddAllocation(new_block_size);
       blocked_slab->RemoveAllocation(block_size);
       return ptr;
@@ -139,7 +140,7 @@ void LargeAllocatorImpl<SlabMap, SlabManager>::FreeLarge(LargeSlab* slab,
     BlockedSlab* blocked_slab = slab->ToBlocked();
     AllocatedBlock* block = AllocatedBlock::FromUserDataPtr(ptr);
     blocked_slab->RemoveAllocation(block->Size());
-    freelist_.MarkFree(block);
+    freelist_->MarkFree(block);
 
     if (blocked_slab->AllocatedBytes() == 0) {
       ReleaseBlockedSlab(blocked_slab);
@@ -161,7 +162,7 @@ void LargeAllocatorImpl<SlabMap, SlabManager>::ReleaseBlockedSlab(
   CK_ASSERT_TRUE(only_block->Free());
   CK_ASSERT_TRUE(!only_block->IsUntracked());
 
-  freelist_.DeleteBlock(only_block->ToTracked());
+  freelist_->DeleteBlock(only_block->ToTracked());
 
   slab_manager_->Free(slab);
 }
@@ -169,7 +170,7 @@ void LargeAllocatorImpl<SlabMap, SlabManager>::ReleaseBlockedSlab(
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
 AllocatedBlock* LargeAllocatorImpl<SlabMap, SlabManager>::MakeBlockFromFreelist(
     uint64_t block_size) {
-  TrackedBlock* free_block = freelist_.FindFree(block_size);
+  TrackedBlock* free_block = freelist_->FindFree(block_size);
   if (free_block == nullptr) {
     return nullptr;
   }
@@ -179,7 +180,7 @@ AllocatedBlock* LargeAllocatorImpl<SlabMap, SlabManager>::MakeBlockFromFreelist(
           ->ToBlocked();
 
   auto [allocated_block, remainder_block] =
-      freelist_.Split(free_block, block_size);
+      freelist_->Split(free_block, block_size);
 
   slab->AddAllocation(allocated_block->Size());
   return allocated_block;
@@ -213,7 +214,7 @@ LargeAllocatorImpl<SlabMap, SlabManager>::AllocBlockedSlabAndMakeBlock(
 
   if (remainder_size != 0) {
     Block* next_adjacent = slab_end_header;
-    freelist_.InitFree(next_adjacent, remainder_size);
+    freelist_->InitFree(next_adjacent, remainder_size);
 
     slab_end_header = next_adjacent->NextAdjacentBlock();
     slab_end_header->InitPhonyHeader(/*prev_free=*/true);

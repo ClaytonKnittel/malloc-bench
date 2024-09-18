@@ -5,6 +5,7 @@
 #include "util/gtest_util.h"
 
 #include "src/ckmalloc/common.h"
+#include "src/ckmalloc/freelist.h"
 #include "src/ckmalloc/size_class.h"
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/slab_manager_test_fixture.h"
@@ -27,8 +28,9 @@ class SmallAllocatorTest : public ::testing::Test {
         slab_map_(std::make_shared<TestSlabMap>()),
         slab_manager_fixture_(std::make_shared<SlabManagerFixture>(
             heap_factory_, slab_map_, /*heap_idx=*/0)),
+        freelist_(std::make_shared<Freelist>()),
         small_allocator_fixture_(std::make_shared<SmallAllocatorFixture>(
-            heap_factory_, slab_map_, slab_manager_fixture_)) {}
+            heap_factory_, slab_map_, slab_manager_fixture_, freelist_)) {}
 
   TestHeapFactory& HeapFactory() {
     return slab_manager_fixture_->HeapFactory();
@@ -72,6 +74,7 @@ class SmallAllocatorTest : public ::testing::Test {
   std::shared_ptr<TestHeapFactory> heap_factory_;
   std::shared_ptr<TestSlabMap> slab_map_;
   std::shared_ptr<SlabManagerFixture> slab_manager_fixture_;
+  std::shared_ptr<Freelist> freelist_;
   std::shared_ptr<SmallAllocatorFixture> small_allocator_fixture_;
 };
 
