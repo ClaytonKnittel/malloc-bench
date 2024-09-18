@@ -73,6 +73,7 @@ Void* SmallAllocatorImpl<SlabMap, SlabManager>::AllocSmall(size_t user_size) {
     return slice_from_freelist.value()->UserDataPtr();
   }
 
+  // TODO: Test this in main allocator test.
   uint64_t block_size = Block::BlockSizeForUserSize(user_size);
   if (block_size >= Block::kMinTrackedSize) {
     TrackedBlock* block = freelist_->FindFreeExact(block_size);
