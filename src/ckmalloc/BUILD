@@ -506,7 +506,6 @@ cc_test(
         ":size_class",
         ":slab",
         ":slab_manager_test_fixture",
-        ":slice",
         ":small_allocator_test_fixture",
         ":testlib",
         "//src:heap_interface",

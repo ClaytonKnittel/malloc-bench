@@ -100,17 +100,14 @@ concept MetadataManagerInterface =
     };
 
 template <typename T>
-concept SmallAllocatorInterface =
-    requires(T small_alloc, size_t user_size, class SmallSlab* slab,
-             class AllocatedSlice* slice) {
-      {
-        small_alloc.AllocSlice(user_size)
-      } -> std::convertible_to<class AllocatedSlice*>;
-      {
-        small_alloc.ReallocSlice(slab, slice, user_size)
-      } -> std::convertible_to<class AllocatedSlice*>;
-      { small_alloc.FreeSlice(slab, slice) } -> std::same_as<void>;
-    };
+concept SmallAllocatorInterface = requires(T small_alloc, size_t user_size,
+                                           class SmallSlab* slab, void* ptr) {
+  { small_alloc.AllocSmall(user_size) } -> std::convertible_to<void*>;
+  {
+    small_alloc.ReallocSmall(slab, ptr, user_size)
+  } -> std::convertible_to<void*>;
+  { small_alloc.FreeSmall(slab, ptr) } -> std::same_as<void>;
+};
 
 template <typename T>
 concept LargeAllocatorInterface = requires(T large_alloc, size_t user_size,
