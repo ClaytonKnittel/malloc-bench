@@ -8,6 +8,7 @@ cc_library(
         ":global_state",
         ":local_cache",
         ":main_allocator",
+        ":size_class",
         ":util",
         "//src:heap_factory",
     ],
