@@ -28,8 +28,8 @@ Freelist& TestMainAllocator::Freelist() {
   return test_fixture_->Freelist();
 }
 
-void* TestMainAllocator::Alloc(size_t user_size) {
-  void* alloc = main_allocator_.Alloc(user_size);
+Void* TestMainAllocator::Alloc(size_t user_size) {
+  Void* alloc = main_allocator_.Alloc(user_size);
   if (alloc == nullptr) {
     return nullptr;
   }
@@ -44,12 +44,12 @@ void* TestMainAllocator::Alloc(size_t user_size) {
   return alloc;
 }
 
-void* TestMainAllocator::Realloc(void* ptr, size_t user_size) {
+Void* TestMainAllocator::Realloc(Void* ptr, size_t user_size) {
   auto it = test_fixture_->allocations_.find(ptr);
   CK_ASSERT_FALSE(it == test_fixture_->allocations_.end());
   auto [old_size, magic] = it->second;
 
-  void* new_alloc = main_allocator_.Realloc(ptr, user_size);
+  Void* new_alloc = main_allocator_.Realloc(ptr, user_size);
   if (new_alloc == nullptr) {
     // Old memory block will not be freed, so no need to remove it from the
     // `allocations_` table.
@@ -57,7 +57,7 @@ void* TestMainAllocator::Realloc(void* ptr, size_t user_size) {
   }
 
   if (user_size > old_size) {
-    MainAllocatorFixture::FillMagic(static_cast<uint8_t*>(new_alloc) + old_size,
+    MainAllocatorFixture::FillMagic(PtrAdd<void>(new_alloc, old_size),
                                     user_size - old_size,
                                     std::rotr(magic, (old_size % 8) * 8));
   }
@@ -71,7 +71,7 @@ void* TestMainAllocator::Realloc(void* ptr, size_t user_size) {
   return new_alloc;
 }
 
-void TestMainAllocator::Free(void* ptr) {
+void TestMainAllocator::Free(Void* ptr) {
   auto it = test_fixture_->allocations_.find(ptr);
   CK_ASSERT_FALSE(it == test_fixture_->allocations_.end());
 
@@ -79,7 +79,7 @@ void TestMainAllocator::Free(void* ptr) {
   return main_allocator_.Free(ptr);
 }
 
-size_t TestMainAllocator::AllocSize(void* ptr) {
+size_t TestMainAllocator::AllocSize(Void* ptr) {
   return main_allocator_.AllocSize(ptr);
 }
 

@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <type_traits>
 
+#include "src/ckmalloc/common.h"
 #include "src/ckmalloc/slice_id.h"
 
 namespace ckmalloc {
@@ -36,13 +37,13 @@ class AllocatedSlice : public Slice {
  public:
   // Returns a pointer to the beginning of the user-allocatable region of memory
   // in this slice, which is the whole slice.
-  void* UserDataPtr() {
-    return this;
+  Void* UserDataPtr() {
+    return reinterpret_cast<Void*>(this);
   }
 
   // Given a user data pointer, returns the allocated slice containing this
   // pointer.
-  static AllocatedSlice* FromUserDataPtr(void* ptr) {
+  static AllocatedSlice* FromUserDataPtr(Void* ptr) {
     return reinterpret_cast<AllocatedSlice*>(ptr);
   }
 

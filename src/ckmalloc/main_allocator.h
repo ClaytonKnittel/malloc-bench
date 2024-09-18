@@ -33,7 +33,7 @@ class MainAllocatorImpl {
 
   // Allocates a region of memory `user_size` bytes long, returning a pointer to
   // the beginning of the region.
-  void* Alloc(size_t user_size);
+  Void* Alloc(size_t user_size);
 
   // Re-allocates a region of memory to be `user_size` bytes long, returning a
   // pointer to the beginning of the new region and copying the data from `ptr`
@@ -41,14 +41,14 @@ class MainAllocatorImpl {
   // larger than the previous size of the region starting at `ptr`, the
   // remaining data after the size of the previous region is uninitialized, and
   // if `user_size` is smaller, the data is truncated.
-  void* Realloc(void* ptr, size_t user_size);
+  Void* Realloc(Void* ptr, size_t user_size);
 
   // Frees an allocation returned from `Alloc`, allowing that memory to be
   // reused by future `Alloc`s.
-  void Free(void* ptr);
+  void Free(Void* ptr);
 
   // Given a pointer to an allocated region, returns the size of the region.
-  size_t AllocSize(void* ptr) const;
+  size_t AllocSize(Void* ptr) const;
 
  private:
   SlabMap* const slab_map_;
@@ -60,7 +60,7 @@ class MainAllocatorImpl {
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager,
           SmallAllocatorInterface SmallAllocator,
           LargeAllocatorInterface LargeAllocator>
-void* MainAllocatorImpl<SlabMap, SlabManager, SmallAllocator,
+Void* MainAllocatorImpl<SlabMap, SlabManager, SmallAllocator,
                         LargeAllocator>::Alloc(size_t user_size) {
   if (IsSmallSize(user_size)) {
     return small_alloc_->AllocSmall(user_size);
@@ -72,8 +72,8 @@ void* MainAllocatorImpl<SlabMap, SlabManager, SmallAllocator,
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager,
           SmallAllocatorInterface SmallAllocator,
           LargeAllocatorInterface LargeAllocator>
-void* MainAllocatorImpl<SlabMap, SlabManager, SmallAllocator,
-                        LargeAllocator>::Realloc(void* ptr, size_t user_size) {
+Void* MainAllocatorImpl<SlabMap, SlabManager, SmallAllocator,
+                        LargeAllocator>::Realloc(Void* ptr, size_t user_size) {
   Slab* slab = slab_map_->FindSlab(slab_manager_->PageIdFromPtr(ptr));
   CK_ASSERT_NE(slab->Type(), SlabType::kFree);
   CK_ASSERT_NE(slab->Type(), SlabType::kUnmapped);
@@ -88,7 +88,7 @@ void* MainAllocatorImpl<SlabMap, SlabManager, SmallAllocator,
 
       // Otherwise, we will always need to alloc-copy-free. First allocate the
       // large block.
-      void* new_ptr = large_alloc_->AllocLarge(user_size);
+      Void* new_ptr = large_alloc_->AllocLarge(user_size);
       if (new_ptr == nullptr) {
         return nullptr;
       }
@@ -109,7 +109,7 @@ void* MainAllocatorImpl<SlabMap, SlabManager, SmallAllocator,
 
       // Otherwise, we will always need to alloc-copy-free. First allocate the
       // small slice.
-      void* ptr = small_alloc_->AllocSmall(user_size);
+      Void* ptr = small_alloc_->AllocSmall(user_size);
       if (ptr == nullptr) {
         return nullptr;
       }
@@ -135,7 +135,7 @@ template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager,
           SmallAllocatorInterface SmallAllocator,
           LargeAllocatorInterface LargeAllocator>
 void MainAllocatorImpl<SlabMap, SlabManager, SmallAllocator,
-                       LargeAllocator>::Free(void* ptr) {
+                       LargeAllocator>::Free(Void* ptr) {
   Slab* slab = slab_map_->FindSlab(slab_manager_->PageIdFromPtr(ptr));
   CK_ASSERT_NE(slab->Type(), SlabType::kFree);
   CK_ASSERT_NE(slab->Type(), SlabType::kUnmapped);
@@ -163,7 +163,7 @@ template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager,
           SmallAllocatorInterface SmallAllocator,
           LargeAllocatorInterface LargeAllocator>
 size_t MainAllocatorImpl<SlabMap, SlabManager, SmallAllocator,
-                         LargeAllocator>::AllocSize(void* ptr) const {
+                         LargeAllocator>::AllocSize(Void* ptr) const {
   PageId page_id = slab_manager_->PageIdFromPtr(ptr);
   SizeClass size_class = slab_map_->FindSizeClass(page_id);
   if (size_class != SizeClass::Nil()) {

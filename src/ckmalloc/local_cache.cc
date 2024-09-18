@@ -14,7 +14,7 @@ void LocalCache::ClearLocalCaches() {
   instance_ = nullptr;
 }
 
-void* LocalCache::TakeAlloc(size_t alloc_size) {
+Void* LocalCache::TakeAlloc(size_t alloc_size) {
   size_t idx = SizeIdx(alloc_size);
   CachedAlloc* top = bins_[idx];
   if (top == nullptr) {
@@ -23,10 +23,10 @@ void* LocalCache::TakeAlloc(size_t alloc_size) {
 
   bins_[idx] = top->next;
   total_allocs_--;
-  return top;
+  return reinterpret_cast<Void*>(top);
 }
 
-void LocalCache::CacheAlloc(void* ptr, size_t alloc_size) {
+void LocalCache::CacheAlloc(Void* ptr, size_t alloc_size) {
   size_t idx = SizeIdx(alloc_size);
   CachedAlloc* alloc = reinterpret_cast<CachedAlloc*>(ptr);
   alloc->next = bins_[idx];

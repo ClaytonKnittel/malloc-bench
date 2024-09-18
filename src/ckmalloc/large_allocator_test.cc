@@ -74,7 +74,7 @@ class LargeAllocatorTest : public ::testing::Test {
   }
 
   AllocatedBlock* Alloc(uint64_t block_size) {
-    void* res =
+    Void* res =
         LargeAllocator().AllocLarge(Block::UserSizeForBlockSize(block_size));
     return res != nullptr ? AllocatedBlock::FromUserDataPtr(res) : nullptr;
   }
@@ -82,7 +82,7 @@ class LargeAllocatorTest : public ::testing::Test {
   AllocatedBlock* Realloc(AllocatedBlock* block, uint64_t block_size) {
     LargeSlab* slab =
         SlabMap().FindSlab(SlabManager().PageIdFromPtr(block))->ToLarge();
-    void* res = LargeAllocator().ReallocLarge(
+    Void* res = LargeAllocator().ReallocLarge(
         slab, block->UserDataPtr(), Block::UserSizeForBlockSize(block_size));
     return res != nullptr ? AllocatedBlock::FromUserDataPtr(res) : nullptr;
   }

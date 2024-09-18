@@ -51,7 +51,7 @@ class SmallAllocatorTest : public ::testing::Test {
     return small_allocator_fixture_->SmallAllocator();
   }
 
-  void FreeSmall(void* ptr) {
+  void FreeSmall(Void* ptr) {
     SmallSlab* slab =
         SlabMap().FindSlab(SlabManager().PageIdFromPtr(ptr))->ToSmall();
     SmallAllocator().FreeSmall(slab, ptr);
@@ -164,7 +164,7 @@ TEST_F(SmallAllocatorTest, TwoSizes) {
 }
 
 TEST_F(SmallAllocatorTest, FreeOne) {
-  void* ptr = SmallAllocator().AllocSmall(32);
+  Void* ptr = SmallAllocator().AllocSmall(32);
   ASSERT_NE(ptr, nullptr);
 
   FreeSmall(ptr);
@@ -176,10 +176,10 @@ TEST_F(SmallAllocatorTest, FreeOne) {
 
 TEST_F(SmallAllocatorTest, FreeFullSlab) {
   constexpr size_t kSliceSize = 80;
-  std::vector<void*> ptrs;
+  std::vector<Void*> ptrs;
   ptrs.reserve(kPageSize / kSliceSize);
   for (size_t i = 0; i < kPageSize / kSliceSize; i++) {
-    void* ptr = SmallAllocator().AllocSmall(kSliceSize);
+    Void* ptr = SmallAllocator().AllocSmall(kSliceSize);
     ASSERT_NE(ptr, nullptr);
     ptrs.push_back(ptr);
   }
@@ -195,7 +195,7 @@ TEST_F(SmallAllocatorTest, FreeFullSlab) {
 }
 
 TEST_F(SmallAllocatorTest, AllocFreeAllocOne) {
-  void* ptr = SmallAllocator().AllocSmall(95);
+  Void* ptr = SmallAllocator().AllocSmall(95);
   ASSERT_NE(ptr, nullptr);
 
   FreeSmall(ptr);
@@ -208,15 +208,15 @@ TEST_F(SmallAllocatorTest, AllocFreeAllocOne) {
 
 TEST_F(SmallAllocatorTest, AllocFreeAllocFull) {
   constexpr size_t kSliceSize = 128;
-  std::vector<void*> ptrs;
+  std::vector<Void*> ptrs;
   ptrs.reserve(kPageSize / kSliceSize);
   for (size_t i = 0; i < kPageSize / kSliceSize; i++) {
-    void* ptr = SmallAllocator().AllocSmall(kSliceSize);
+    Void* ptr = SmallAllocator().AllocSmall(kSliceSize);
     ASSERT_NE(ptr, nullptr);
     ptrs.push_back(ptr);
   }
 
-  std::vector<void*> frees;
+  std::vector<Void*> frees;
   frees.reserve(kPageSize / kSliceSize);
   for (size_t i = 0; i < kPageSize / kSliceSize; i++) {
     size_t idx = (11 * i + 23) % (kPageSize / kSliceSize);
@@ -237,11 +237,11 @@ TEST_F(SmallAllocatorTest, AllocFreeAllocFull) {
 }
 
 TEST_F(SmallAllocatorTest, ManyAllocs) {
-  std::vector<void*> ptrs;
+  std::vector<Void*> ptrs;
   for (size_t ord = 0; ord < SizeClass::kNumSizeClasses; ord++) {
     SizeClass size_class = SizeClass::FromOrdinal(ord);
     for (size_t i = 0; i < size_class.MaxSlicesPerSlab(); i++) {
-      void* ptr = SmallAllocator().AllocSmall(size_class.SliceSize());
+      Void* ptr = SmallAllocator().AllocSmall(size_class.SliceSize());
       ASSERT_NE(ptr, nullptr);
       ASSERT_THAT(ValidateHeap(), IsOk());
       ptrs.push_back(ptr);

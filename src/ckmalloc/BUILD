@@ -468,6 +468,7 @@ cc_library(
     name = "slice",
     hdrs = ["slice.h"],
     deps = [
+        ":common",
         ":slice_id",
     ],
 )

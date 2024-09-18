@@ -25,12 +25,12 @@ class SmallAllocatorImpl {
                               Freelist* freelist)
       : slab_map_(slab_map), slab_manager_(slab_manager), freelist_(freelist) {}
 
-  void* AllocSmall(size_t user_size);
+  Void* AllocSmall(size_t user_size);
 
   // Reallocates a small slice to another small slice size.
-  void* ReallocSmall(SmallSlab* slab, void* ptr, size_t user_size);
+  Void* ReallocSmall(SmallSlab* slab, Void* ptr, size_t user_size);
 
-  void FreeSmall(SmallSlab* slab, void* ptr);
+  void FreeSmall(SmallSlab* slab, Void* ptr);
 
  private:
   // Returns a slice from the freelist if there is one, or `std::nullopt` if the
@@ -63,7 +63,7 @@ class SmallAllocatorImpl {
 };
 
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
-void* SmallAllocatorImpl<SlabMap, SlabManager>::AllocSmall(size_t user_size) {
+Void* SmallAllocatorImpl<SlabMap, SlabManager>::AllocSmall(size_t user_size) {
   SizeClass size_class = SizeClass::FromUserDataSize(user_size);
 
   auto slice_from_freelist = FindSliceInFreelist(size_class);
@@ -84,8 +84,8 @@ void* SmallAllocatorImpl<SlabMap, SlabManager>::AllocSmall(size_t user_size) {
 }
 
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
-void* SmallAllocatorImpl<SlabMap, SlabManager>::ReallocSmall(SmallSlab* slab,
-                                                             void* ptr,
+Void* SmallAllocatorImpl<SlabMap, SlabManager>::ReallocSmall(SmallSlab* slab,
+                                                             Void* ptr,
                                                              size_t user_size) {
   CK_ASSERT_NE(user_size, 0);
   CK_ASSERT_LE(user_size, kMaxSmallSize);
@@ -101,7 +101,7 @@ void* SmallAllocatorImpl<SlabMap, SlabManager>::ReallocSmall(SmallSlab* slab,
     return ptr;
   }
 
-  void* new_ptr = AllocSmall(user_size);
+  Void* new_ptr = AllocSmall(user_size);
   if (new_ptr != nullptr) {
     std::memcpy(new_ptr, ptr,
                 std::min(size_class.SliceSize(), cur_size_class.SliceSize()));
@@ -112,7 +112,7 @@ void* SmallAllocatorImpl<SlabMap, SlabManager>::ReallocSmall(SmallSlab* slab,
 
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
 void SmallAllocatorImpl<SlabMap, SlabManager>::FreeSmall(SmallSlab* slab,
-                                                         void* ptr) {
+                                                         Void* ptr) {
   CK_ASSERT_EQ(
       slab_map_->FindSlab(slab_manager_->PageIdFromPtr(ptr))->ToSmall(), slab);
   if (slab->Full()) {

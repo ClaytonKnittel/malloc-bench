@@ -198,16 +198,16 @@ void Block::WriteFooterAndPrevFree() {
   next->SetPrevSize(size);
 }
 
-void* AllocatedBlock::UserDataPtr() {
+Void* AllocatedBlock::UserDataPtr() {
   return data_;
 }
 
-const void* AllocatedBlock::UserDataPtr() const {
+const Void* AllocatedBlock::UserDataPtr() const {
   return data_;
 }
 
 /* static */
-AllocatedBlock* AllocatedBlock::FromUserDataPtr(void* ptr) {
+AllocatedBlock* AllocatedBlock::FromUserDataPtr(Void* ptr) {
   return PtrSub<AllocatedBlock>(ptr, UserDataOffset());
 }
 

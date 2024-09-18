@@ -6,6 +6,7 @@
 #include "absl/container/btree_map.h"
 #include "absl/status/status.h"
 
+#include "src/ckmalloc/common.h"
 #include "src/ckmalloc/freelist.h"
 #include "src/ckmalloc/large_allocator_test_fixture.h"
 #include "src/ckmalloc/main_allocator.h"
@@ -37,13 +38,13 @@ class TestMainAllocator {
 
   Freelist& Freelist();
 
-  void* Alloc(size_t user_size);
+  Void* Alloc(size_t user_size);
 
-  void* Realloc(void* ptr, size_t user_size);
+  Void* Realloc(Void* ptr, size_t user_size);
 
-  void Free(void* ptr);
+  void Free(Void* ptr);
 
-  size_t AllocSize(void* ptr);
+  size_t AllocSize(Void* ptr);
 
  private:
   class MainAllocatorFixture* test_fixture_;
@@ -128,7 +129,7 @@ class MainAllocatorFixture : public CkMallocTest {
 
   // A map from allocation pointers to a pair of their size and magic number,
   // respectively.
-  absl::btree_map<void*, std::pair<size_t, uint64_t>> allocations_;
+  absl::btree_map<Void*, std::pair<size_t, uint64_t>> allocations_;
 };
 
 }  // namespace ckmalloc

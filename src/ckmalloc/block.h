@@ -159,16 +159,16 @@ class AllocatedBlock : public Block {
 
   // Returns a pointer to the beginning of the user-allocatable region of memory
   // in this block.
-  void* UserDataPtr();
-  const void* UserDataPtr() const;
+  Void* UserDataPtr();
+  const Void* UserDataPtr() const;
 
   // Given a user data pointer, returns the allocated block containing this
   // pointer.
-  static AllocatedBlock* FromUserDataPtr(void* ptr);
+  static AllocatedBlock* FromUserDataPtr(Void* ptr);
 
  private:
   // The beginning of user-allocatable space in this block.
-  uint8_t data_[0];
+  Void data_[0];
 };
 
 class FreeBlock : public Block {

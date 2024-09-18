@@ -111,7 +111,7 @@ TEST_F(MainAllocatorTest, AllocManySmall) {
 }
 
 TEST_F(MainAllocatorTest, FreeSmall) {
-  void* ptr = MainAllocator().Alloc(60);
+  Void* ptr = MainAllocator().Alloc(60);
   MainAllocator().Free(ptr);
 
   EXPECT_THAT(ValidateHeap(), IsOk());
@@ -119,7 +119,7 @@ TEST_F(MainAllocatorTest, FreeSmall) {
 }
 
 TEST_F(MainAllocatorTest, FreeTwoSmall) {
-  void* ptr1 = MainAllocator().Alloc(10);
+  Void* ptr1 = MainAllocator().Alloc(10);
   MainAllocator().Alloc(10);
   MainAllocator().Free(ptr1);
 
@@ -149,7 +149,7 @@ TEST_F(MainAllocatorTest, AllocManyLarge) {
 }
 
 TEST_F(MainAllocatorTest, FreeLarge) {
-  void* ptr = MainAllocator().Alloc(500);
+  Void* ptr = MainAllocator().Alloc(500);
   MainAllocator().Free(ptr);
 
   EXPECT_THAT(ValidateHeap(), IsOk());
@@ -158,7 +158,7 @@ TEST_F(MainAllocatorTest, FreeLarge) {
 }
 
 TEST_F(MainAllocatorTest, FreeTwoLarge) {
-  void* ptr1 = MainAllocator().Alloc(500);
+  Void* ptr1 = MainAllocator().Alloc(500);
   MainAllocator().Alloc(1000);
   MainAllocator().Free(ptr1);
 
@@ -167,8 +167,8 @@ TEST_F(MainAllocatorTest, FreeTwoLarge) {
 }
 
 TEST_F(MainAllocatorTest, ReallocOnce) {
-  void* ptr1 = MainAllocator().Alloc(500);
-  void* ptr2 = MainAllocator().Realloc(ptr1, 1000);
+  Void* ptr1 = MainAllocator().Alloc(500);
+  Void* ptr2 = MainAllocator().Realloc(ptr1, 1000);
 
   EXPECT_EQ(ptr1, ptr2);
   EXPECT_THAT(ValidateHeap(), IsOk());
@@ -176,8 +176,8 @@ TEST_F(MainAllocatorTest, ReallocOnce) {
 }
 
 TEST_F(MainAllocatorTest, ReallocSmaller) {
-  void* ptr1 = MainAllocator().Alloc(500);
-  void* ptr2 = MainAllocator().Realloc(ptr1, 260);
+  Void* ptr1 = MainAllocator().Alloc(500);
+  Void* ptr2 = MainAllocator().Realloc(ptr1, 260);
 
   EXPECT_EQ(ptr1, ptr2);
   EXPECT_THAT(ValidateHeap(), IsOk());
@@ -185,9 +185,9 @@ TEST_F(MainAllocatorTest, ReallocSmaller) {
 }
 
 TEST_F(MainAllocatorTest, ReallocMove) {
-  void* ptr1 = MainAllocator().Alloc(500);
+  Void* ptr1 = MainAllocator().Alloc(500);
   MainAllocator().Alloc(280);
-  void* ptr2 = MainAllocator().Realloc(ptr1, 550);
+  Void* ptr2 = MainAllocator().Realloc(ptr1, 550);
 
   EXPECT_NE(ptr1, ptr2);
   EXPECT_THAT(ValidateHeap(), IsOk());
@@ -213,7 +213,7 @@ TEST_F(MainAllocatorTest, AllocLargePagesizeMultiple) {
 }
 
 TEST_F(MainAllocatorTest, FreePagesizeMultiple) {
-  void* ptr = MainAllocator().Alloc(kPageSize);
+  Void* ptr = MainAllocator().Alloc(kPageSize);
   MainAllocator().Free(ptr);
 
   EXPECT_EQ(Heap().Size(), kPageSize);
@@ -222,8 +222,8 @@ TEST_F(MainAllocatorTest, FreePagesizeMultiple) {
 }
 
 TEST_F(MainAllocatorTest, ReallocPagesizeMultiple) {
-  void* ptr1 = MainAllocator().Alloc(2 * kPageSize);
-  void* ptr2 = MainAllocator().Realloc(ptr1, kPageSize);
+  Void* ptr1 = MainAllocator().Alloc(2 * kPageSize);
+  Void* ptr2 = MainAllocator().Realloc(ptr1, kPageSize);
 
   EXPECT_EQ(ptr1, ptr2);
   EXPECT_EQ(Heap().Size(), 2 * kPageSize);
