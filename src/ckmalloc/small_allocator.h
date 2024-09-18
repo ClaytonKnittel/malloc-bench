@@ -54,13 +54,7 @@ class SmallAllocatorImpl {
 
   void RemoveFromFreelist(SmallSlab* slab);
 
-  static_assert(SizeClass::kNumSizeClasses == 17);
-  PageId freelists_[SizeClass::kNumSizeClasses] = {
-    PageId::Nil(), PageId::Nil(), PageId::Nil(), PageId::Nil(), PageId::Nil(),
-    PageId::Nil(), PageId::Nil(), PageId::Nil(), PageId::Nil(), PageId::Nil(),
-    PageId::Nil(), PageId::Nil(), PageId::Nil(), PageId::Nil(), PageId::Nil(),
-    PageId::Nil(), PageId::Nil(),
-  };
+  PageId freelists_[SizeClass::kNumSizeClasses] = {};
 
   SlabMap* const slab_map_;
   SlabManager* const slab_manager_;

@@ -318,6 +318,7 @@ cc_test(
 
 cc_library(
     name = "size_class",
+    srcs = ["size_class.cc"],
     hdrs = ["size_class.h"],
     deps = [
         ":common",

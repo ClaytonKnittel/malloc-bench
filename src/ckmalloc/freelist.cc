@@ -11,6 +11,26 @@
 
 namespace ckmalloc {
 
+TrackedBlock* Freelist::FindFreeExact(uint64_t block_size) {
+  CK_ASSERT_TRUE(IsAligned(block_size, kDefaultAlignment));
+
+  if (block_size <= Block::kMaxExactSizeBlock) {
+    size_t idx = ExactSizeIdx(block_size);
+    TrackedBlock* block = exact_size_bins_[idx].Front();
+    return block;
+  }
+
+  TrackedBlock* block =
+      large_blocks_tree_.LowerBound([block_size](const TreeBlock& tree_block) {
+        return tree_block.Size() >= block_size;
+      });
+  if (block->Size() == block_size) {
+    return block;
+  }
+
+  return nullptr;
+}
+
 TrackedBlock* Freelist::FindFree(uint64_t block_size) {
   CK_ASSERT_TRUE(IsAligned(block_size, kDefaultAlignment));
 

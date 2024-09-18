@@ -20,6 +20,10 @@ class Freelist {
   friend class LargeAllocatorFixture;
 
  public:
+  // Checks the freelist for a block of exactly this size, returning it if one
+  // exists, or `nullptr` otherwise.
+  TrackedBlock* FindFreeExact(uint64_t block_size);
+
   // Searches the freelists for a block at least as large as `block_size`. If
   // none is found, `nullptr` is returned.
   TrackedBlock* FindFree(uint64_t block_size);
