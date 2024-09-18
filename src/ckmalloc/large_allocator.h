@@ -72,6 +72,7 @@ class LargeAllocatorImpl {
 
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
 void* LargeAllocatorImpl<SlabMap, SlabManager>::AllocLarge(size_t user_size) {
+  CK_ASSERT_GT(user_size, kMaxSmallSize);
   uint64_t block_size = Block::BlockSizeForUserSize(user_size);
   AllocatedBlock* block = MakeBlockFromFreelist(block_size);
   if (block != nullptr) {
@@ -106,7 +107,7 @@ void* LargeAllocatorImpl<SlabMap, SlabManager>::ReallocLarge(LargeSlab* slab,
     // If we can resize the block in-place, then we don't need to copy any data
     // and can return the same pointer back to the user.
     if (freelist_->ResizeIfPossible(block, new_block_size)) {
-      blocked_slab->AddAllocation(new_block_size);
+      blocked_slab->AddAllocation(block->Size());
       blocked_slab->RemoveAllocation(block_size);
       return ptr;
     }

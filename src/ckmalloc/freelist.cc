@@ -74,7 +74,7 @@ std::pair<AllocatedBlock*, FreeBlock*> Freelist::Split(FreeBlock* block,
   CK_ASSERT_LE(block_size, size);
 
   uint64_t remainder = size - block_size;
-  if (remainder == 0) {
+  if (remainder < Block::kMinBlockSize) {
     AllocatedBlock* allocated_block = MarkAllocated(block);
     return std::make_pair(allocated_block, nullptr);
   }
@@ -127,10 +127,14 @@ bool Freelist::ResizeIfPossible(AllocatedBlock* block, uint64_t new_size) {
       // If the next block is free, we can extend the block backwards.
       MoveBlockHeader(next_block->ToFree(), new_head,
                       next_size + block_size - new_size);
-    } else if (new_size != block_size) {
+    } else if (new_size + Block::kMinBlockSize <= block_size) {
       // Otherwise, we create a new free block in between the shrunk block and
       // next_block.
       InitFree(new_head, block_size - new_size);
+    } else {
+      // Otherwise we need to undo the resize of the block, as it would leave a
+      // remainder bloc <= kMinBlockSize.
+      block->SetSize(block_size);
     }
     return true;
   }

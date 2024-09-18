@@ -328,6 +328,41 @@ TEST_F(LargeAllocatorTest, Split) {
   EXPECT_THAT(FreelistList(), ElementsAre(next_free));
 }
 
+TEST_F(LargeAllocatorTest, SplitWithMinBlockSizeRemainder) {
+  constexpr uint64_t kBlockSize = 0xD30;
+  constexpr uint64_t kNewBlockSize = 0xD00;
+  static_assert(kBlockSize - kNewBlockSize == Block::kMinBlockSize);
+
+  FreeBlock* block = PushFree(kBlockSize);
+  PushAllocated(0x2C0);
+  PushPhony();
+
+  AllocatedBlock* alloc = Alloc(kNewBlockSize);
+
+  EXPECT_THAT(ValidateHeap(), IsOk());
+  ASSERT_EQ(static_cast<Block*>(alloc), static_cast<Block*>(block));
+  EXPECT_EQ(alloc->Size(), kNewBlockSize);
+}
+
+TEST_F(LargeAllocatorTest, SplitWithBelowMinBlockSizeRemainder) {
+  constexpr uint64_t kBlockSize = 0xD30;
+  constexpr uint64_t kNewBlockSize = 0xD10;
+  static_assert(kBlockSize - kNewBlockSize < Block::kMinBlockSize);
+
+  FreeBlock* block = PushFree(kBlockSize);
+  AllocatedBlock* next_block = PushAllocated(0x2C0);
+  PushPhony();
+
+  AllocatedBlock* alloc = Alloc(kNewBlockSize);
+
+  EXPECT_THAT(ValidateHeap(), IsOk());
+  ASSERT_EQ(static_cast<Block*>(alloc), static_cast<Block*>(block));
+  // The block should not be resized since it would leave a remaining free block
+  // <= min block size.
+  EXPECT_EQ(alloc->Size(), kBlockSize);
+  EXPECT_EQ(alloc->NextAdjacentBlock(), next_block);
+}
+
 TEST_F(LargeAllocatorTest, FreeAsOnlyBlock) {
   constexpr uint64_t kBlockSize = 0xFF0;
 
@@ -430,6 +465,28 @@ TEST_F(LargeAllocatorTest, ResizeDown) {
 
   EXPECT_THAT(ValidateHeap(), IsOk());
   EXPECT_THAT(FreelistList(), ElementsAre(next));
+}
+
+TEST_F(LargeAllocatorTest, ResizeDownBelowMinBlockSizeRemainder) {
+  constexpr uint64_t kBlockSize = 0x530;
+  constexpr uint64_t kNewSize = 0x510;
+  static_assert(kBlockSize - kNewSize < Block::kMinBlockSize);
+
+  AllocatedBlock* b1 = PushAllocated(kBlockSize);
+  AllocatedBlock* b2 = PushAllocated(0xAC0);
+  PushPhony();
+
+  AllocatedBlock* b3 = Realloc(b1, kNewSize);
+  ASSERT_EQ(b3, b1);
+  // The block can't change size since that would leave a remainder block < min
+  // block size.
+  EXPECT_EQ(b3->Size(), kBlockSize);
+
+  Block* next = b3->NextAdjacentBlock();
+  EXPECT_EQ(next, b2);
+
+  EXPECT_THAT(ValidateHeap(), IsOk());
+  EXPECT_THAT(FreelistList(), ElementsAre());
 }
 
 TEST_F(LargeAllocatorTest, ResizeDownBeforeFree) {

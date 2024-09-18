@@ -40,6 +40,9 @@ class Block {
   // TODO: reduce this to 2 * once rb node is smaller.
   static constexpr uint64_t kMinBlockSize = 3 * kDefaultAlignment;
 
+  // Blocks of this size or smaller will not be tracked in any freelist.
+  static constexpr uint64_t kMaxUntrackedSize = 128;
+
   // The largest sized blocks which are tracked in single-size lists. All blocks
   // larger than this are stored in a red-black tree ordered by size.
   static constexpr uint64_t kMaxExactSizeBlock = 4096;
