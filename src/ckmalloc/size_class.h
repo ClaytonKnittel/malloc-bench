@@ -1,8 +1,8 @@
 #pragma once
 
-#include <array>
 #include <cinttypes>
 #include <cstdint>
+#include <ostream>
 
 #include "absl/strings/str_format.h"
 
@@ -10,6 +10,9 @@
 #include "src/ckmalloc/util.h"
 
 namespace ckmalloc {
+
+inline std::ostream& operator<<(std::ostream& ostr,
+                                ckmalloc::SizeClass size_class);
 
 // A size class is an allowed size of slices in a small slab, which holds an
 // array of equally-sized slices of memory for individual allocation.
@@ -19,6 +22,12 @@ class SizeClass {
   // `kMaxSmallSize`, plus 1 for 8-byte slices.
   static constexpr size_t kNumSizeClasses =
       kMaxSmallSize / kDefaultAlignment + 1;
+
+  constexpr SizeClass() : size_class_(0) {}
+
+  static constexpr SizeClass Nil() {
+    return SizeClass();
+  }
 
   static constexpr SizeClass FromOrdinal(size_t ord) {
     CK_ASSERT_LT(ord, kNumSizeClasses);
@@ -52,22 +61,34 @@ class SizeClass {
 
   // Returns the size of slices represented by this size class.
   constexpr uint64_t SliceSize() const {
+    CK_ASSERT_NE(*this, Nil());
     return static_cast<uint64_t>(size_class_ * kSizeClassDivisor);
   }
 
   // Returns a number 0 - `kNumSizeClasses`-1,
   constexpr size_t Ordinal() const {
+    CK_ASSERT_NE(*this, Nil());
     return size_class_ / (kDefaultAlignment / kSizeClassDivisor);
   }
 
   // The number of slices that can fit into a small slab of this size class.
   constexpr uint32_t MaxSlicesPerSlab() const {
-    return GenerateSliceCountMap()[Ordinal()];
+    // If the number of size classes grows, the compiler will not complain that
+    // we have not specified every entry of `kSliceMap`. This static assert is
+    // to make sure the map is updated if the number of size classes changes.
+    static_assert(kNumSizeClasses == 9);
+    constexpr uint32_t kSliceMap[kNumSizeClasses] = {
+      kPageSize / 8,  kPageSize / 16,  kPageSize / 32,
+      kPageSize / 48, kPageSize / 64,  kPageSize / 80,
+      kPageSize / 96, kPageSize / 112, kPageSize / 128,
+    };
+
+    return kSliceMap[Ordinal()];
   }
 
   // TODO check if this is the fastest way to do this.
   constexpr uint32_t OffsetToIdx(uint64_t offset_bytes) const {
-    static_assert(kNumSizeClasses == 17);
+    static_assert(kNumSizeClasses == 9);
     switch (Ordinal()) {
       case 0:
         return offset_bytes / 8;
@@ -112,23 +133,19 @@ class SizeClass {
   explicit constexpr SizeClass(uint32_t size_class)
       : size_class_(size_class / kSizeClassDivisor) {}
 
-  static constexpr std::array<uint32_t, kNumSizeClasses>
-  GenerateSliceCountMap() {
-    std::array<uint32_t, kNumSizeClasses> slice_map;
-    for (uint32_t ord = 0; ord < kNumSizeClasses; ord++) {
-      slice_map[ord] = kPageSize / SizeClass::FromOrdinal(ord).SliceSize();
-    }
-    return slice_map;
-  }
-
   static constexpr uint64_t kSizeClassDivisor = kMinAlignment;
 
   // The size in bytes of slices / `kSizeClassDivisor` for this size class.
   uint8_t size_class_;
 };
 
+inline std::ostream& operator<<(std::ostream& ostr,
+                                ckmalloc::SizeClass size_class) {
+  return ostr << "[" << size_class.SliceSize() << "]";
+}
+
 template <typename Sink>
-void AbslStringify(Sink& sink, SizeClass size_class) {
+void AbslStringify(Sink& sink, ckmalloc::SizeClass size_class) {
   absl::Format(&sink, "[%" PRIu64 "]", size_class.SliceSize());
 }
 

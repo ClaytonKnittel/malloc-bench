@@ -47,13 +47,20 @@ concept MetadataAllocInterface =
 template <typename T>
 concept SlabMapInterface =
     requires(const T const_slab_map, T slab_map, class MappedSlab* slab,
-             class PageId page_id) {
+             class PageId page_id, class SizeClass size_class) {
+      {
+        const_slab_map.FindSizeClass(page_id)
+      } -> std::convertible_to<class SizeClass>;
       {
         const_slab_map.FindSlab(page_id)
       } -> std::convertible_to<class MappedSlab*>;
       { slab_map.AllocatePath(page_id, page_id) } -> std::convertible_to<bool>;
       { slab_map.Insert(page_id, slab) } -> std::same_as<void>;
+      { slab_map.Insert(page_id, slab, size_class) } -> std::same_as<void>;
       { slab_map.InsertRange(page_id, page_id, slab) } -> std::same_as<void>;
+      {
+        slab_map.InsertRange(page_id, page_id, slab, size_class)
+      } -> std::same_as<void>;
     };
 
 template <typename T>

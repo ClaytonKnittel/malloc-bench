@@ -404,6 +404,7 @@ cc_library(
     deps = [
         ":common",
         ":page_id",
+        ":size_class",
         ":slab",
         ":slab_manager",
         ":testlib",
@@ -425,8 +426,8 @@ cc_library(
     deps = [
         ":common",
         ":page_id",
+        ":size_class",
         ":util",
-        "@cc-util//util:std_util",
     ],
 )
 
