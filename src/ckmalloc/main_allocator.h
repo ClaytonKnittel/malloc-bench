@@ -6,6 +6,8 @@
 #include "src/ckmalloc/block.h"
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/large_allocator.h"
+#include "src/ckmalloc/page_id.h"
+#include "src/ckmalloc/size_class.h"
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/slab_manager.h"
 #include "src/ckmalloc/slab_map.h"
@@ -168,15 +170,19 @@ template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager,
           LargeAllocatorInterface LargeAllocator>
 size_t MainAllocatorImpl<SlabMap, SlabManager, SmallAllocator,
                          LargeAllocator>::AllocSize(void* ptr) const {
-  Slab* slab = slab_map_->FindSlab(slab_manager_->PageIdFromPtr(ptr));
+  PageId page_id = slab_manager_->PageIdFromPtr(ptr);
+  SizeClass size_class = slab_map_->FindSizeClass(page_id);
+  if (size_class != SizeClass::Nil()) {
+    return size_class.SliceSize();
+  }
+
+  Slab* slab = slab_map_->FindSlab(page_id);
   CK_ASSERT_NE(slab->Type(), SlabType::kFree);
+  CK_ASSERT_NE(slab->Type(), SlabType::kSmall);
   CK_ASSERT_NE(slab->Type(), SlabType::kUnmapped);
 
   // TODO: do these in respective specialized allocators.
   switch (slab->Type()) {
-    case SlabType::kSmall: {
-      return slab->ToSmall()->SizeClass().SliceSize();
-    }
     case SlabType::kBlocked: {
       return AllocatedBlock::FromUserDataPtr(ptr)->UserDataSize();
     }
@@ -184,9 +190,10 @@ size_t MainAllocatorImpl<SlabMap, SlabManager, SmallAllocator,
       return slab->ToSingleAlloc()->Pages() * kPageSize;
     }
     case SlabType::kUnmapped:
-    case SlabType::kFree: {
+    case SlabType::kFree:
+    case SlabType::kSmall: {
       // Unexpected free/unmapped slab.
-      CK_UNREACHABLE("Unexpected free/unmapped slab");
+      CK_UNREACHABLE("Unexpected free/small/unmapped slab");
       return 0;
     }
   }
