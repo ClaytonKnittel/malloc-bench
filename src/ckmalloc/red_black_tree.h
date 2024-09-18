@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <functional>
 
 namespace ckmalloc {
@@ -28,18 +29,21 @@ class RbNode {
   }
 
   const RbNode* Parent() const {
-    return parent_;
+    // NOLINTNEXTLINE(performance-no-int-to-ptr)
+    return reinterpret_cast<const RbNode*>(parent_ & ~kRedBit);
   }
 
   bool IsRed() const {
-    return red_;
+    return (reinterpret_cast<uintptr_t>(parent_) & kRedBit) != 0;
   }
 
   bool IsBlack() const {
-    return !red_;
+    return !IsRed();
   }
 
  private:
+  static constexpr uintptr_t kRedBit = 0x1;
+
   RbNode& operator=(const RbNode&) = default;
   RbNode& operator=(RbNode&&) = default;
 
@@ -82,21 +86,32 @@ class RbNode {
     return right_;
   }
 
-  RbNode* Parent() {
-    return parent_;
+  RbNode* ParentMut() const {
+    // NOLINTNEXTLINE(performance-no-int-to-ptr)
+    return reinterpret_cast<RbNode*>(parent_ & ~kRedBit);
+  }
+
+  void SetRed(bool red) {
+    if (red) {
+      MakeRed();
+    } else {
+      MakeBlack();
+    }
   }
 
   void MakeRed() {
-    red_ = true;
+    parent_ |= kRedBit;
   }
 
   void MakeBlack() {
-    red_ = false;
+    parent_ &= ~kRedBit;
   }
 
   void SetLeft(RbNode* node);
 
   void SetRight(RbNode* node);
+
+  void SetParent(RbNode* parent);
 
   void SetParentOf(const RbNode* node);
 
@@ -117,7 +132,7 @@ class RbNode {
     const RbNode* prev = nullptr;
     while (node != nullptr && node->right_ == prev) {
       prev = node;
-      node = node->parent_;
+      node = node->Parent();
     }
     return node;
   }
@@ -135,7 +150,7 @@ class RbNode {
     const RbNode* prev = nullptr;
     while (node != nullptr && node->left_ == prev) {
       prev = node;
-      node = node->parent_;
+      node = node->Parent();
     }
     return node;
   }
@@ -155,8 +170,8 @@ class RbNode {
   void Reset() {
     left_ = nullptr;
     right_ = nullptr;
-    parent_ = nullptr;
-    red_ = false;
+    // red = false
+    parent_ = 0;
   }
 
   static void InsertFix(RbNode* node, const RbNode* root);
@@ -168,9 +183,7 @@ class RbNode {
 
   RbNode* left_ = nullptr;
   RbNode* right_ = nullptr;
-  RbNode* parent_ = nullptr;
-  // TODO: put this guy in parent_ or something.
-  bool red_ = true;
+  uintptr_t parent_ = 0;
 };
 
 template <typename T>
