@@ -189,9 +189,11 @@ SlabManagerImpl<MetadataAlloc, SlabMap>::Alloc(uint32_t n_pages, Args... args) {
   S* initialized_slab =
       slab->Init<S>(page_id, n_pages, std::forward<Args>(args)...);
 
-  std::optional<SizeClass> size_class;
+  SizeClass size_class;
   if constexpr (HasSizeClassT<S>) {
     size_class = initialized_slab->SizeClass();
+  } else {
+    size_class = SizeClass::Nil();
   }
   slab_map_->InsertRange(page_id, page_id + n_pages - 1, initialized_slab,
                          size_class);
