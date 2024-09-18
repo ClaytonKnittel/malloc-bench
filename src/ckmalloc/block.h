@@ -42,6 +42,8 @@ class Block {
 
   // Blocks of this size or smaller will not be tracked in any freelist.
   static constexpr uint64_t kMaxUntrackedSize = 128;
+  static constexpr uint64_t kMinTrackedSize =
+      kMaxUntrackedSize + kDefaultAlignment;
 
   // The largest sized blocks which are tracked in single-size lists. All blocks
   // larger than this are stored in a red-black tree ordered by size.

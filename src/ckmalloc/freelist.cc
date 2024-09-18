@@ -96,10 +96,10 @@ FreeBlock* Freelist::MarkFree(AllocatedBlock* block) {
     Block* prev = block->PrevAdjacentBlock();
     CK_ASSERT_EQ(prev->Size(), block->PrevSize());
     size += block->PrevSize();
+
     if (!prev->IsUntracked()) {
       RemoveBlock(prev->ToTracked());
     }
-
     block_start = prev;
   }
   Block* next = block->NextAdjacentBlock();
@@ -163,10 +163,9 @@ void Freelist::DeleteBlock(TrackedBlock* block) {
 
 /* static */
 size_t Freelist::ExactSizeIdx(uint64_t block_size) {
-  CK_ASSERT_GT(block_size, Block::kMaxUntrackedSize);
+  CK_ASSERT_GE(block_size, Block::kMinTrackedSize);
   CK_ASSERT_LE(block_size, Block::kMaxExactSizeBlock);
-  return (block_size - Block::kMaxUntrackedSize - kDefaultAlignment) /
-         kDefaultAlignment;
+  return (block_size - Block::kMinTrackedSize) / kDefaultAlignment;
 }
 
 AllocatedBlock* Freelist::MarkAllocated(TrackedBlock* block,

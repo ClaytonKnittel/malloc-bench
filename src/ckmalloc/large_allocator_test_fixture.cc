@@ -15,7 +15,7 @@ namespace ckmalloc {
 
 absl::Status LargeAllocatorFixture::ValidateHeap() {
   absl::flat_hash_set<const Block*> free_blocks;
-  const auto free_block =
+  const auto tracked_block =
       [this, &free_blocks](const FreeBlock& block) -> absl::Status {
     MappedSlab* mapped_slab =
         slab_map_->FindSlab(slab_manager_->PageIdFromPtr(&block));
@@ -69,7 +69,7 @@ absl::Status LargeAllocatorFixture::ValidateHeap() {
   // Iterate over the large freelist.
   const FreeBlock* prev_block = nullptr;
   for (const FreeBlock& block : Freelist().large_blocks_tree_) {
-    RETURN_IF_ERROR(free_block(block));
+    RETURN_IF_ERROR(tracked_block(block));
 
     if (prev_block != nullptr && prev_block->Size() > block.Size()) {
       return FailedTest("Freelist not sorted by block size: %v > %v",
@@ -81,10 +81,10 @@ absl::Status LargeAllocatorFixture::ValidateHeap() {
   // Iterate over all exact-size bins.
   for (size_t idx = 0; idx < Freelist::kNumExactSizeBins; idx++) {
     const uint64_t expected_block_size =
-        Block::kMinBlockSize + kDefaultAlignment * idx;
+        Block::kMinTrackedSize + kDefaultAlignment * idx;
 
-    for (const FreeBlock& block : Freelist().exact_size_bins_[idx]) {
-      RETURN_IF_ERROR(free_block(block));
+    for (const TrackedBlock& block : Freelist().exact_size_bins_[idx]) {
+      RETURN_IF_ERROR(tracked_block(block));
 
       if (block.Size() != expected_block_size) {
         return FailedTest(
@@ -135,18 +135,32 @@ absl::Status LargeAllocatorFixture::ValidateHeap() {
       }
 
       if (block->Free()) {
-        n_free_blocks++;
-
-        if (!free_blocks.contains(block)) {
-          return FailedTest(
-              "Encountered free block which was not in freelist: %v", *block);
+        bool in_freelist = free_blocks.contains(block);
+        if (block->IsUntracked() && in_freelist) {
+          return FailedTest("Encountered untracked block in the freelist: %v",
+                            *block);
         }
+        if (!block->IsUntracked()) {
+          if (!in_freelist) {
+            return FailedTest(
+                "Encountered free block which was not in freelist: %v", *block);
+          }
+          n_free_blocks++;
+        }
+
         if (prev_block != nullptr && prev_block->Free()) {
           return FailedTest("Encountered two free blocks in a row: %v and %v",
                             *prev_block, *block);
         }
       } else {
         allocated_bytes += block->Size();
+
+        if (block->Size() < Block::kMinTrackedSize) {
+          return FailedTest(
+              "Encountered allocated block less than min tracked size (%v), "
+              "which should not be possible: %v",
+              Block::kMinTrackedSize, *block);
+        }
       }
 
       if (prev_block != nullptr && prev_block->Free()) {

@@ -63,17 +63,17 @@ class LargeAllocatorFixture : public CkMallocTest {
     return *freelist_;
   }
 
-  std::vector<const FreeBlock*> FreelistList() const {
-    std::vector<const FreeBlock*> free_blocks;
+  std::vector<const TrackedBlock*> FreelistList() const {
+    std::vector<const TrackedBlock*> free_blocks;
     for (const auto& exact_size_bin : Freelist().exact_size_bins_) {
       std::transform(exact_size_bin.begin(), exact_size_bin.end(),
                      std::back_inserter(free_blocks),
-                     [](const FreeBlock& block) { return &block; });
+                     [](const TrackedBlock& block) { return &block; });
     }
     std::transform(Freelist().large_blocks_tree_.begin(),
                    Freelist().large_blocks_tree_.end(),
                    std::back_inserter(free_blocks),
-                   [](const FreeBlock& block) { return &block; });
+                   [](const TrackedBlock& block) { return &block; });
     return free_blocks;
   }
 
