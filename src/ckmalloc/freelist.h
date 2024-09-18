@@ -22,11 +22,11 @@ class Freelist {
  public:
   // Checks the freelist for a block of exactly this size, returning it if one
   // exists, or `nullptr` otherwise.
-  FreeBlock* FindFreeExact(uint64_t block_size);
+  TrackedBlock* FindFreeExact(uint64_t block_size);
 
   // Searches the freelists for a block at least as large as `block_size`. If
   // none is found, `nullptr` is returned.
-  FreeBlock* FindFree(uint64_t block_size);
+  TrackedBlock* FindFree(uint64_t block_size);
 
   // Initializes an uninitialized block to free with given size, inserting it
   // into the given freelist if the size is large enough, and returning `block`
@@ -37,7 +37,7 @@ class Freelist {
   // second free. The allocated block will be at least `block_size` large, and
   // the second may be null if this method decides to keep this block intact.
   // `block_size` must not be larger than the block's current size.
-  std::pair<AllocatedBlock*, FreeBlock*> Split(FreeBlock* block,
+  std::pair<AllocatedBlock*, FreeBlock*> Split(TrackedBlock* block,
                                                uint64_t block_size);
 
   // Marks this block as free, inserting it into the given free block list and
@@ -55,7 +55,7 @@ class Freelist {
 
   // Deletes a block in the freelist, should only be called when a large slab is
   // deallocated.
-  void DeleteBlock(FreeBlock* block);
+  void DeleteBlock(TrackedBlock* block);
 
  private:
   static size_t ExactSizeIdx(uint64_t block_size);
@@ -64,13 +64,13 @@ class Freelist {
   // and returns a pointer to `block` down-cast to `AllocatedBlock`, now that
   // the block has been allocated.
   AllocatedBlock* MarkAllocated(
-      FreeBlock* block, std::optional<uint64_t> new_size = std::nullopt);
+      TrackedBlock* block, std::optional<uint64_t> new_size = std::nullopt);
 
   // Adds the block to the freelist.
-  void AddBlock(FreeBlock* block);
+  void AddBlock(TrackedBlock* block);
 
   // Removes the block from the freelist.
-  void RemoveBlock(FreeBlock* block);
+  void RemoveBlock(TrackedBlock* block);
 
   // Moves `block` to `new_head`, resizing it to `new_size`. `new_head` must
   // move forward/backward by the difference in the block's current size and
