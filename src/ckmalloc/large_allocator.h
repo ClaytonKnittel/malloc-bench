@@ -200,7 +200,12 @@ LargeAllocatorImpl<SlabMap, SlabManager>::AllocBlockedSlabAndMakeBlock(
 
   CK_ASSERT_LE(block_size, slab->MaxBlockSize());
 
-  uint64_t remainder_size = slab->MaxBlockSize() - block_size;
+  const uint64_t max_block_size = slab->MaxBlockSize();
+  uint64_t remainder_size = max_block_size - block_size;
+  if (remainder_size < Block::kMinBlockSize) {
+    block_size = max_block_size;
+    remainder_size = 0;
+  }
   CK_ASSERT_TRUE(IsAligned(remainder_size, kDefaultAlignment));
 
   AllocatedBlock* block =
