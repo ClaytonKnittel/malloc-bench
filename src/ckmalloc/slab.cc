@@ -330,6 +330,23 @@ void MappedSlab::SetSize(uint32_t n_pages) {
   mapped.n_pages_ = n_pages;
 }
 
+bool MappedSlab::HasSizeClass() const {
+  CK_ASSERT_NE(type_, SlabType::kUnmapped);
+  // TODO: Also support single-alloc size classes.
+  switch (type_) {
+    case SlabType::kFree:
+      return HasSizeClassT<FreeSlab>;
+    case SlabType::kSmall:
+      return HasSizeClassT<SmallSlab>;
+    case SlabType::kBlocked:
+      return HasSizeClassT<BlockedSlab>;
+    case SlabType::kSingleAlloc:
+      return HasSizeClassT<SingleAllocSlab>;
+    case SlabType::kUnmapped:
+      __builtin_unreachable();
+  }
+}
+
 constexpr size_t TinySizeClassOffset() {
   return offsetof(Slab, mapped.small.tiny_meta_.size_class_);
 }
