@@ -130,7 +130,7 @@ class LargeAllocatorTest : public ::testing::Test {
   AllocatedBlock* PushAllocated(size_t size) {
     CK_ASSERT_FALSE(PhonyHeaderPushed());
     CK_ASSERT_TRUE(IsAligned<uint64_t>(size, kDefaultAlignment));
-    CK_ASSERT_GE(size, Block::kMinBlockSize);
+    CK_ASSERT_GE(size, Block::kMinTrackedSize);
 
     allocs_.emplace_back(size, false);
     AllocatedBlock* block = static_cast<AllocatedBlock*>(NextBlock());
@@ -482,8 +482,8 @@ TEST_F(LargeAllocatorTest, FreeWithFreeNextAndPrev) {
 }
 
 TEST_F(LargeAllocatorTest, FreeWithUntrackedNeighbors) {
-  constexpr uint64_t kPrevSize = 0x10;
-  constexpr uint64_t kBlockSize = 0x530;
+  constexpr uint64_t kPrevSize = 0x30;
+  constexpr uint64_t kBlockSize = 0x510;
   constexpr uint64_t kNextSize = 0x80;
 
   UntrackedBlock* b1 = PushUntracked(kPrevSize);
