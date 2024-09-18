@@ -162,7 +162,8 @@ absl::StatusOr<void*> TestCkMalloc::Realloc(void* ptr, size_t size) {
   std::cout << "realloc(" << ptr << ", " << size << ") (" << iter_ << ")"
             << std::endl;
 #endif
-  void* result = fixture_->MainAllocator().Realloc(ptr, size);
+  void* result = fixture_->MainAllocator().Realloc(
+      reinterpret_cast<ckmalloc::Void*>(ptr), size);
 #ifdef PRINT
   std::cout << "returned " << result << std::endl;
 #endif
@@ -184,7 +185,7 @@ absl::Status TestCkMalloc::Free(void* ptr) {
 #ifdef PRINT
   std::cout << "free(" << ptr << ") (" << iter_ << ")" << std::endl;
 #endif
-  fixture_->MainAllocator().Free(ptr);
+  fixture_->MainAllocator().Free(reinterpret_cast<ckmalloc::Void*>(ptr));
 
   if (++iter_ % validate_every_n_ == 0) {
     RETURN_IF_ERROR(fixture_->ValidateHeap());
