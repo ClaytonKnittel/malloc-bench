@@ -8,6 +8,7 @@
 
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/page_id.h"
+#include "src/ckmalloc/size_class.h"
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/testlib.h"
 #include "src/ckmalloc/util.h"
@@ -158,6 +159,32 @@ absl::Status SlabManagerFixture::ValidateHeap() {
                 "Internal page %v of %v does not map to the correct slab "
                 "metadata: %v",
                 page_id, *allocated_slab, mapped_slab);
+          }
+
+          SizeClass size_class = SlabMap().FindSizeClass(page_id);
+          SizeClass expected_size_class;
+          if (allocated_slab->HasSizeClass()) {
+            switch (slab->Type()) {
+              case SlabType::kSmall: {
+                expected_size_class = slab->ToSmall()->SizeClass();
+                break;
+              }
+              default: {
+                return FailedTest(
+                    "Test precondition failed: slab type %v has size class, "
+                    "but not handled in switch case.",
+                    slab->Type());
+              }
+            }
+          } else {
+            expected_size_class = SizeClass::Nil();
+          }
+
+          if (size_class != expected_size_class) {
+            return FailedTest(
+                "Size class in slab map (%v) does not match the size class "
+                "of slab %v",
+                size_class, *slab);
           }
         }
 

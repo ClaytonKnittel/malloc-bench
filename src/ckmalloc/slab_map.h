@@ -28,6 +28,12 @@ class SlabMapImpl {
   friend class SlabMapTest;
 
  public:
+  // Returns the size class for the slab spanning `page_id`. Returns
+  // `SizeClass::Nil()` if the spanning slab has no size class (i.e. it's a
+  // large slab). This should only be called on a page that's been allocated
+  // with `AllocatePath()`.
+  SizeClass FindSizeClass(PageId page_id) const;
+
   // Returns the slab metadata for a given slab id. Returns `nullptr` if no
   // metadata has ever been allocated for this slab id.
   MappedSlab* FindSlab(PageId page_id) const;
@@ -37,11 +43,13 @@ class SlabMapImpl {
   bool AllocatePath(PageId start_id, PageId end_id);
 
   // Inserts an association from `page_id` to `slab`.
-  void Insert(PageId page_id, MappedSlab* slab);
+  void Insert(PageId page_id, MappedSlab* slab,
+              std::optional<SizeClass> size_class = std::nullopt);
 
   // Inserts an association from all pages between start_id and end_id
   // (inclusive) to `slab`.
-  void InsertRange(PageId start_id, PageId end_id, MappedSlab* slab);
+  void InsertRange(PageId start_id, PageId end_id, MappedSlab* slab,
+                   std::optional<SizeClass> size_class = std::nullopt);
 
  private:
   template <typename T>
@@ -60,8 +68,8 @@ class SlabMapImpl {
     T vals_[kLeafSize] = {};
   };
 
-  using SlabLeaf = Leaf<MappedSlab*>;
   using SizeLeaf = Leaf<SizeClass>;
+  using SlabLeaf = Leaf<MappedSlab*>;
 
   std::optional<int> DoAllocatePath(PageId start_id, PageId end_id);
 
@@ -82,7 +90,7 @@ class SlabMapImpl {
 
   SizeLeaf* SizeLeafAt(size_t idx) const {
     CK_ASSERT_LT(idx, kRootSize);
-    return slab_leaves_[idx];
+    return size_leaves_[idx];
   }
 
   SlabLeaf* SlabLeafAt(size_t idx) const {
@@ -95,6 +103,17 @@ class SlabMapImpl {
   SizeLeaf* size_leaves_[kRootSize] = {};
   SlabLeaf* slab_leaves_[kRootSize] = {};
 };
+
+template <MetadataAllocInterface MetadataAlloc>
+SizeClass SlabMapImpl<MetadataAlloc>::FindSizeClass(PageId page_id) const {
+  size_t root_idx = RootIdx(page_id);
+  size_t leaf_idx = LeafIdx(page_id);
+
+  SizeLeaf* leaf = SizeLeafAt(root_idx);
+  CK_ASSERT_NE(leaf, nullptr);
+
+  return (*leaf)[leaf_idx];
+}
 
 template <MetadataAllocInterface MetadataAlloc>
 MappedSlab* SlabMapImpl<MetadataAlloc>::FindSlab(PageId page_id) const {
@@ -115,25 +134,40 @@ bool SlabMapImpl<MetadataAlloc>::AllocatePath(PageId start_id, PageId end_id) {
 }
 
 template <MetadataAllocInterface MetadataAlloc>
-void SlabMapImpl<MetadataAlloc>::Insert(PageId page_id, MappedSlab* slab) {
-  SlabLeaf& leaf = *SlabLeafAt(RootIdx(page_id));
-  leaf.SetLeaf(LeafIdx(page_id), slab);
+void SlabMapImpl<MetadataAlloc>::Insert(PageId page_id, MappedSlab* slab,
+                                        std::optional<SizeClass> size_class) {
+  uint64_t root_idx = RootIdx(page_id);
+  uint64_t leaf_idx = LeafIdx(page_id);
+
+  SlabLeaf& leaf = *SlabLeafAt(root_idx);
+  leaf.SetLeaf(leaf_idx, slab);
+
+  if (size_class.has_value()) {
+    SizeLeaf& leaf = *SizeLeafAt(root_idx);
+    leaf.SetLeaf(leaf_idx, size_class.value());
+  }
 }
 
 template <MetadataAllocInterface MetadataAlloc>
-void SlabMapImpl<MetadataAlloc>::InsertRange(PageId start_id, PageId end_id,
-                                             MappedSlab* slab) {
+void SlabMapImpl<MetadataAlloc>::InsertRange(
+    PageId start_id, PageId end_id, MappedSlab* slab,
+    std::optional<SizeClass> size_class) {
   auto root_idxs = std::make_pair(RootIdx(start_id), RootIdx(end_id));
   auto leaf_idxs = std::make_pair(LeafIdx(start_id), LeafIdx(end_id));
 
   for (size_t root_idx = root_idxs.first; root_idx <= root_idxs.second;
        root_idx++) {
     SlabLeaf& leaf = *SlabLeafAt(root_idx);
+    SizeLeaf& size_leaf = *SizeLeafAt(root_idx);
+
     for (size_t leaf_idx = (root_idx != root_idxs.first ? 0 : leaf_idxs.first);
          leaf_idx <=
          (root_idx != root_idxs.second ? kLeafSize - 1 : leaf_idxs.second);
          leaf_idx++) {
       leaf.SetLeaf(leaf_idx, slab);
+      if (size_class.has_value()) {
+        size_leaf.SetLeaf(leaf_idx, size_class.value());
+      }
     }
   }
 }

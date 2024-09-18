@@ -11,6 +11,7 @@
 #include "src/ckmalloc/free_slab.h"
 #include "src/ckmalloc/linked_list.h"
 #include "src/ckmalloc/page_id.h"
+#include "src/ckmalloc/size_class.h"
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/slab_map.h"
 #include "src/ckmalloc/util.h"
@@ -187,7 +188,13 @@ SlabManagerImpl<MetadataAlloc, SlabMap>::Alloc(uint32_t n_pages, Args... args) {
 
   S* initialized_slab =
       slab->Init<S>(page_id, n_pages, std::forward<Args>(args)...);
-  slab_map_->InsertRange(page_id, page_id + n_pages - 1, initialized_slab);
+
+  std::optional<SizeClass> size_class;
+  if constexpr (HasSizeClassT<S>) {
+    size_class = initialized_slab->SizeClass();
+  }
+  slab_map_->InsertRange(page_id, page_id + n_pages - 1, initialized_slab,
+                         size_class);
   return std::make_pair(page_id, initialized_slab);
 }
 
@@ -195,6 +202,7 @@ template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
 bool SlabManagerImpl<MetadataAlloc, SlabMap>::Resize(AllocatedSlab* slab,
                                                      uint32_t new_size) {
   CK_ASSERT_NE(new_size, 0);
+  CK_ASSERT_FALSE(slab->HasSizeClass());
 
   uint32_t n_pages = slab->Pages();
   if (new_size == n_pages) {
