@@ -104,7 +104,7 @@ constexpr size_t PtrDistance(const T* a, const U* b) {
 }
 
 // Returns ptr + int, returning void*
-template <typename U, typename T, typename Int>
+template <typename U = void, typename T, typename Int>
 requires std::is_integral_v<Int>
 constexpr U* PtrAdd(T* a, Int offset) {
   using PtrT = std::conditional_t<std::is_const_v<T>, const uint8_t, uint8_t>;
@@ -116,7 +116,7 @@ constexpr U* PtrAdd(T* a, Int offset) {
 }
 
 // Returns ptr - int, returning void*
-template <typename U, typename T, typename Int>
+template <typename U = void, typename T, typename Int>
 requires std::is_integral_v<Int>
 constexpr U* PtrSub(T* a, Int offset) {
   using PtrT = std::conditional_t<std::is_const_v<T>, const uint8_t, uint8_t>;

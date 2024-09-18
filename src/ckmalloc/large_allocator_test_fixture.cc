@@ -28,7 +28,7 @@ absl::Status LargeAllocatorFixture::ValidateHeap() {
     BlockedSlab* slab = mapped_slab->ToBlocked();
 
     void* end_addr =
-        PtrAdd<void>(slab_manager_->PageStartFromId(slab->EndId()), kPageSize);
+        PtrAdd(slab_manager_->PageStartFromId(slab->EndId()), kPageSize);
     const Block* next_adjacent = block.NextAdjacentBlock();
     if (next_adjacent < &block || next_adjacent >= end_addr) {
       return FailedTest(
@@ -113,7 +113,7 @@ absl::Status LargeAllocatorFixture::ValidateHeap() {
 
     void* const slab_start = slab_manager_->PageStartFromId(slab->StartId());
     void* const slab_end =
-        PtrAdd<void>(slab_manager_->PageStartFromId(slab->EndId()), kPageSize);
+        PtrAdd(slab_manager_->PageStartFromId(slab->EndId()), kPageSize);
     Block* block = slab_manager_->FirstBlockInBlockedSlab(slab);
     Block* prev_block = nullptr;
     uint64_t allocated_bytes = 0;

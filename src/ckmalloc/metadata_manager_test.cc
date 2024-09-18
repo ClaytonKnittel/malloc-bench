@@ -111,7 +111,7 @@ TEST_F(MetadataManagerTest, AllocateAndStay) {
   ASSERT_THAT(Fixture().Alloc(kPageSize / 2).status(), IsOk());
   ASSERT_OK_AND_DEFINE(void*, v2, Fixture().Alloc(3 * kPageSize / 4));
   // v2 should be allocated in a new page by itself.
-  EXPECT_EQ(v2, PtrAdd<void>(Heap().Start(), kPageSize));
+  EXPECT_EQ(v2, PtrAdd(Heap().Start(), kPageSize));
   EXPECT_THAT(ValidateHeap(), IsOk());
 
   // Since the remainder in the first slab was higher, it should continue to be
@@ -126,7 +126,7 @@ TEST_F(MetadataManagerTest, AllocateAndSwitch) {
   ASSERT_THAT(Fixture().Alloc(3 * kPageSize / 4).status(), IsOk());
   ASSERT_OK_AND_DEFINE(void*, v2, Fixture().Alloc(kPageSize / 2));
   // v2 should be allocated in a new page by itself.
-  EXPECT_EQ(v2, PtrAdd<void>(Heap().Start(), kPageSize));
+  EXPECT_EQ(v2, PtrAdd(Heap().Start(), kPageSize));
   EXPECT_THAT(ValidateHeap(), IsOk());
 
   // Since the remainder in the second slab was higher, it should continue to be
@@ -141,7 +141,7 @@ TEST_F(MetadataManagerTest, AllocateLargeAndStay) {
   ASSERT_THAT(Fixture().Alloc(32).status(), IsOk());
   ASSERT_OK_AND_DEFINE(void*, v2, Fixture().Alloc(kPageSize + 64));
   // v2 should be allocated in a new slab by itself since it is so large.
-  EXPECT_EQ(v2, PtrAdd<void>(Heap().Start(), kPageSize));
+  EXPECT_EQ(v2, PtrAdd(Heap().Start(), kPageSize));
   EXPECT_THAT(ValidateHeap(), IsOk());
 
   // Since the remainder in the first slab was higher, it should continue to be
@@ -156,7 +156,7 @@ TEST_F(MetadataManagerTest, AllocateLargeAndSwitch) {
   ASSERT_THAT(Fixture().Alloc(64).status(), IsOk());
   ASSERT_OK_AND_DEFINE(void*, v2, Fixture().Alloc(kPageSize + 32));
   // v2 should be allocated in a new slab by itself since it is so large.
-  EXPECT_EQ(v2, PtrAdd<void>(Heap().Start(), kPageSize));
+  EXPECT_EQ(v2, PtrAdd(Heap().Start(), kPageSize));
   EXPECT_THAT(ValidateHeap(), IsOk());
 
   // Since the remainder in the second slab was higher, it should continue to be
@@ -190,7 +190,7 @@ TEST_F(MetadataManagerTest, AllocateSlabMetaWithNormalAllocation) {
   ASSERT_OK_AND_DEFINE(Slab*, s1, Fixture().NewSlabMeta());
   EXPECT_THAT(ValidateHeap(), IsOk());
   // The new slab should have been placed at the beginning of the second page.
-  EXPECT_EQ(s1, PtrAdd<void>(Heap().Start(), kPageSize));
+  EXPECT_EQ(s1, PtrAdd(Heap().Start(), kPageSize));
 }
 
 TEST_F(MetadataManagerTest, SlabMetaFreelistBeforeNewAlloc) {

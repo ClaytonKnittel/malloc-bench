@@ -34,8 +34,7 @@ TEST_F(BlockTest, AllocatedBlock) {
   EXPECT_EQ(block.UserDataSize(), kBlockSize - Block::kMetadataOverhead);
 
   AllocatedBlock* allocated = block.ToAllocated();
-  EXPECT_EQ(allocated->UserDataPtr(),
-            PtrAdd<void>(&block, Block::kMetadataOverhead));
+  EXPECT_EQ(allocated->UserDataPtr(), PtrAdd(&block, Block::kMetadataOverhead));
   EXPECT_EQ(AllocatedBlock::FromUserDataPtr(allocated->UserDataPtr()), &block);
 }
 

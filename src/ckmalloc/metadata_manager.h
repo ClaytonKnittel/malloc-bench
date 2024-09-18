@@ -89,7 +89,7 @@ void* MetadataManagerImpl<MetadataAlloc, SlabMap>::Alloc(size_t size,
     if (remaining_space > kPageSize - alloc_offset_) {
       // TODO: shard up the rest of the space in the heap we throw away and give
       // it to the slab freelist?
-      page_start_ = PtrAdd<void>(alloc, (n_pages - 1) * kPageSize);
+      page_start_ = PtrAdd(alloc, (n_pages - 1) * kPageSize);
       alloc_offset_ = kPageSize - remaining_space;
     }
 

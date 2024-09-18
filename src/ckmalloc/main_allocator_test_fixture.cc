@@ -57,7 +57,7 @@ Void* TestMainAllocator::Realloc(Void* ptr, size_t user_size) {
   }
 
   if (user_size > old_size) {
-    MainAllocatorFixture::FillMagic(PtrAdd<void>(new_alloc, old_size),
+    MainAllocatorFixture::FillMagic(PtrAdd(new_alloc, old_size),
                                     user_size - old_size,
                                     std::rotr(magic, (old_size % 8) * 8));
   }
@@ -97,7 +97,7 @@ absl::Status MainAllocatorFixture::ValidateHeap() {
       auto [alloc2, meta2] = *next_it;
       auto [size2, magic2] = meta2;
 
-      if (alloc2 < PtrAdd<void>(alloc, size)) {
+      if (alloc2 < PtrAdd(alloc, size)) {
         return FailedTest(
             "Allocation %p of size %zu overlaps with allocation %p of size %zu",
             alloc, size, alloc2, size2);
