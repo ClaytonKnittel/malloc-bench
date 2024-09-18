@@ -55,7 +55,9 @@ concept SlabMapInterface =
         const_slab_map.FindSlab(page_id)
       } -> std::convertible_to<class MappedSlab*>;
       { slab_map.AllocatePath(page_id, page_id) } -> std::convertible_to<bool>;
+      { slab_map.Insert(page_id, slab) } -> std::same_as<void>;
       { slab_map.Insert(page_id, slab, size_class) } -> std::same_as<void>;
+      { slab_map.InsertRange(page_id, page_id, slab) } -> std::same_as<void>;
       {
         slab_map.InsertRange(page_id, page_id, slab, size_class)
       } -> std::same_as<void>;
