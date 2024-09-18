@@ -153,14 +153,14 @@ absl::Status LargeAllocatorFixture::ValidateHeap() {
                             *prev_block, *block);
         }
       } else {
-        allocated_bytes += block->Size();
-
         if (block->Size() < Block::kMinTrackedSize) {
           return FailedTest(
               "Encountered allocated block less than min tracked size (%v), "
               "which should not be possible: %v",
               Block::kMinTrackedSize, *block);
         }
+
+        allocated_bytes += block->Size();
       }
 
       if (prev_block != nullptr && prev_block->Free()) {
