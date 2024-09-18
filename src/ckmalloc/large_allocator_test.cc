@@ -367,7 +367,7 @@ TEST_F(LargeAllocatorTest, Split) {
 
 TEST_F(LargeAllocatorTest, SplitWithMinBlockSizeRemainder) {
   constexpr uint64_t kBlockSize = 0xD30;
-  constexpr uint64_t kNewBlockSize = 0xD00;
+  constexpr uint64_t kNewBlockSize = 0xD10;
   static_assert(kBlockSize - kNewBlockSize == Block::kMinBlockSize);
 
   TrackedBlock* block = PushFree(kBlockSize);
@@ -383,7 +383,7 @@ TEST_F(LargeAllocatorTest, SplitWithMinBlockSizeRemainder) {
 
 TEST_F(LargeAllocatorTest, SplitWithBelowMinBlockSizeRemainder) {
   constexpr uint64_t kBlockSize = 0xD30;
-  constexpr uint64_t kNewBlockSize = 0xD10;
+  constexpr uint64_t kNewBlockSize = 0xD20;
   static_assert(kBlockSize - kNewBlockSize < Block::kMinBlockSize);
 
   TrackedBlock* block = PushFree(kBlockSize);
@@ -527,7 +527,7 @@ TEST_F(LargeAllocatorTest, ResizeDown) {
 
 TEST_F(LargeAllocatorTest, ResizeDownBelowMinBlockSizeRemainder) {
   constexpr uint64_t kBlockSize = 0x530;
-  constexpr uint64_t kNewSize = 0x510;
+  constexpr uint64_t kNewSize = 0x520;
   static_assert(kBlockSize - kNewSize < Block::kMinBlockSize);
 
   AllocatedBlock* b1 = PushAllocated(kBlockSize);

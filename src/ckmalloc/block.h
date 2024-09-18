@@ -37,8 +37,7 @@ class Block {
   static constexpr uint64_t kFirstBlockInSlabOffset =
       kDefaultAlignment - kMetadataOverhead;
 
-  // TODO: reduce this to 2 * once rb node is smaller.
-  static constexpr uint64_t kMinBlockSize = 3 * kDefaultAlignment;
+  static constexpr uint64_t kMinBlockSize = 2 * kDefaultAlignment;
 
   // Blocks of this size or smaller will not be tracked in any freelist.
   static constexpr uint64_t kMaxUntrackedSize = 128;
