@@ -17,15 +17,18 @@ struct HasMetadataHelper : public std::false_type {};
 
 template <>
 struct HasMetadataHelper<class SmallSlab> : public std::true_type {};
-
 template <>
 struct HasMetadataHelper<class BlockedSlab> : public std::true_type {};
-
 template <>
 struct HasMetadataHelper<class SingleAllocSlab> : public std::true_type {};
 
 template <typename S>
 inline constexpr bool kHasMetadata = HasMetadataHelper<S>::value;
+
+template <typename S>
+concept HasSizeClassT = requires(S s) {
+  { s.SizeClass() } -> std::convertible_to<SizeClass>;
+};
 
 // The slab types are the possible variant types of slabs.
 enum class SlabType : uint8_t {
@@ -258,6 +261,10 @@ class MappedSlab : public Slab {
   // Changes the size of the slab to `n_pages`. This should only be called by
   // the slab manager.
   void SetSize(uint32_t n_pages);
+
+  // If true, this slab type has a size class, i.e. all contained blocks are the
+  // same size.
+  bool HasSizeClass() const;
 };
 
 class FreeSlab : public MappedSlab {
