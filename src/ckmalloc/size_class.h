@@ -17,12 +17,12 @@ std::ostream& operator<<(std::ostream& ostr, ckmalloc::SizeClass size_class);
 // array of equally-sized slices of memory for individual allocation.
 class SizeClass {
  public:
-  // The number of size classes is the count of 16-byte multiples up to
-  // `kMaxSmallSize`, plus 1 for 8-byte slices.
-  static constexpr size_t kNumSizeClasses =
+  static constexpr size_t kNumSizeClasses = 14;
+
+  static constexpr size_t kNumSizeClassLookupIdx =
       kMaxSmallSize / kDefaultAlignment + 1;
 
-  constexpr SizeClass() : size_class_(0) {}
+  constexpr SizeClass() : ordinal_(0) {}
 
   static constexpr SizeClass Nil() {
     return SizeClass();
@@ -30,11 +30,10 @@ class SizeClass {
 
   static constexpr SizeClass FromOrdinal(size_t ord) {
     CK_ASSERT_LT(ord, kNumSizeClasses);
-    return FromSliceSize(
-        std::max<uint64_t>(ord * kDefaultAlignment, kMinAlignment));
+    return SizeClass(ord + 1);
   }
 
-  static constexpr SizeClass FromUserDataSize(size_t user_size) {
+  static SizeClass FromUserDataSize(size_t user_size) {
     CK_ASSERT_LE(user_size, kMaxSmallSize);
     CK_ASSERT_NE(user_size, 0);
     return FromSliceSize(user_size <= kMinAlignment
@@ -42,54 +41,30 @@ class SizeClass {
                              : AlignUp(user_size, kDefaultAlignment));
   }
 
-  static constexpr SizeClass FromSliceSize(uint64_t slice_size) {
-    CK_ASSERT_LE(slice_size, kMaxSmallSize);
-    CK_ASSERT_NE(slice_size, 0);
-    CK_ASSERT_TRUE(slice_size == kMinAlignment ||
-                   slice_size % kDefaultAlignment == 0);
-
-    return SizeClass(static_cast<uint32_t>(slice_size));
-  }
+  static SizeClass FromSliceSize(uint64_t slice_size);
 
   constexpr bool operator==(SizeClass other) const {
-    return size_class_ == other.size_class_;
+    return ordinal_ == other.ordinal_;
   }
   constexpr bool operator!=(SizeClass other) const {
     return !(*this == other);
   }
 
   // Returns the size of slices represented by this size class.
-  constexpr uint64_t SliceSize() const {
-    CK_ASSERT_NE(*this, Nil());
-    return static_cast<uint64_t>(size_class_ * kSizeClassDivisor);
-  }
+  uint64_t SliceSize() const;
 
   // Returns a number 0 - `kNumSizeClasses`-1,
   constexpr size_t Ordinal() const {
     CK_ASSERT_NE(*this, Nil());
-    return size_class_ / (kDefaultAlignment / kSizeClassDivisor);
+    return ordinal_ - 1;
   }
 
   // The number of slices that can fit into a small slab of this size class.
-  constexpr uint32_t MaxSlicesPerSlab() const {
-    // If the number of size classes grows, the compiler will not complain that
-    // we have not specified every entry of `kSliceMap`. This static assert is
-    // to make sure the map is updated if the number of size classes changes.
-    static_assert(kNumSizeClasses == 17);
-    constexpr uint32_t kSliceMap[kNumSizeClasses] = {
-      kPageSize / 8,   kPageSize / 16,  kPageSize / 32,  kPageSize / 48,
-      kPageSize / 64,  kPageSize / 80,  kPageSize / 96,  kPageSize / 112,
-      kPageSize / 128, kPageSize / 144, kPageSize / 160, kPageSize / 176,
-      kPageSize / 192, kPageSize / 208, kPageSize / 224, kPageSize / 240,
-      kPageSize / 256,
-    };
-
-    return kSliceMap[Ordinal()];
-  }
+  uint32_t MaxSlicesPerSlab() const;
 
   // TODO check if this is the fastest way to do this.
   constexpr uint32_t OffsetToIdx(uint64_t offset_bytes) const {
-    static_assert(kNumSizeClasses == 17);
+    static_assert(kNumSizeClasses == 14);
     switch (Ordinal()) {
       case 0:
         return offset_bytes / 8;
@@ -113,16 +88,10 @@ class SizeClass {
         return offset_bytes / 144;
       case 10:
         return offset_bytes / 160;
-      case 11:
-        return offset_bytes / 176;
       case 12:
         return offset_bytes / 192;
-      case 13:
-        return offset_bytes / 208;
       case 14:
         return offset_bytes / 224;
-      case 15:
-        return offset_bytes / 240;
       case 16:
         return offset_bytes / 256;
       default:
@@ -131,13 +100,9 @@ class SizeClass {
   }
 
  private:
-  explicit constexpr SizeClass(uint32_t size_class)
-      : size_class_(size_class / kSizeClassDivisor) {}
+  explicit constexpr SizeClass(uint8_t ord) : ordinal_(ord) {}
 
-  static constexpr uint64_t kSizeClassDivisor = kMinAlignment;
-
-  // The size in bytes of slices / `kSizeClassDivisor` for this size class.
-  uint8_t size_class_;
+  uint8_t ordinal_;
 };
 
 template <typename Sink>
