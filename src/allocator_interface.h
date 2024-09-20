@@ -55,7 +55,7 @@ inline void* calloc(size_t nmemb, size_t size) {
 inline void* realloc(void* ptr, size_t size) {
   // TODO: implement
   void* new_ptr = malloc(size);
-  if (ptr != nullptr) {
+  if (ptr != nullptr && new_ptr != nullptr) {
     memcpy(new_ptr, ptr, size);
   }
   return new_ptr;
