@@ -66,6 +66,7 @@ constexpr size_t OrdinalMapIdx(size_t user_size) {
 static_assert(OrdinalMapIdx(kMaxSmallSize) + 1 ==
               SizeClass::kNumSizeClassLookupIdx);
 
+// TODO: Check if cheaper to do this lookup or to recompute on the fly.
 constexpr std::array<uint8_t, SizeClass::kNumSizeClassLookupIdx> kOrdinalMap =
     []() -> std::array<uint8_t, SizeClass::kNumSizeClassLookupIdx> {
   std::array<uint8_t, SizeClass::kNumSizeClassLookupIdx> ordinal_map;
@@ -77,7 +78,7 @@ constexpr std::array<uint8_t, SizeClass::kNumSizeClassLookupIdx> kOrdinalMap =
     size_t next_map_idx = OrdinalMapIdx(size);
     while (map_idx <= next_map_idx) {
       assert(map_idx <= std::numeric_limits<uint8_t>::max());
-      ordinal_map[map_idx] = info_idx + 1;
+      ordinal_map[map_idx] = info_idx;
       map_idx++;
     }
 
@@ -91,14 +92,21 @@ constexpr std::array<uint8_t, SizeClass::kNumSizeClassLookupIdx> kOrdinalMap =
 }  // namespace
 
 /* static */
+SizeClass SizeClass::FromUserDataSize(size_t user_size) {
+  CK_ASSERT_LE(user_size, kMaxSmallSize);
+  CK_ASSERT_NE(user_size, 0);
+  size_t idx = OrdinalMapIdx(user_size);
+  return SizeClass(kOrdinalMap[idx]);
+}
+
+/* static */
 SizeClass SizeClass::FromSliceSize(uint64_t slice_size) {
   CK_ASSERT_LE(slice_size, kMaxSmallSize);
   CK_ASSERT_NE(slice_size, 0);
   CK_ASSERT_TRUE(slice_size == kMinAlignment ||
                  slice_size % kDefaultAlignment == 0);
 
-  size_t idx = OrdinalMapIdx(slice_size);
-  return SizeClass(kOrdinalMap[idx]);
+  return FromUserDataSize(slice_size);
 }
 
 uint64_t SizeClass::SliceSize() const {

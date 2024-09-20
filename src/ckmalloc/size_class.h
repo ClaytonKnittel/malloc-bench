@@ -2,6 +2,7 @@
 
 #include <cinttypes>
 #include <cstdint>
+#include <limits>
 #include <ostream>
 
 #include "absl/strings/str_format.h"
@@ -22,7 +23,7 @@ class SizeClass {
   static constexpr size_t kNumSizeClassLookupIdx =
       kMaxSmallSize / kDefaultAlignment + 1;
 
-  constexpr SizeClass() : ordinal_(0) {}
+  constexpr SizeClass() = default;
 
   static constexpr SizeClass Nil() {
     return SizeClass();
@@ -30,16 +31,10 @@ class SizeClass {
 
   static constexpr SizeClass FromOrdinal(size_t ord) {
     CK_ASSERT_LT(ord, kNumSizeClasses);
-    return SizeClass(ord + 1);
+    return SizeClass(ord);
   }
 
-  static SizeClass FromUserDataSize(size_t user_size) {
-    CK_ASSERT_LE(user_size, kMaxSmallSize);
-    CK_ASSERT_NE(user_size, 0);
-    return FromSliceSize(user_size <= kMinAlignment
-                             ? kMinAlignment
-                             : AlignUp(user_size, kDefaultAlignment));
-  }
+  static SizeClass FromUserDataSize(size_t user_size);
 
   static SizeClass FromSliceSize(uint64_t slice_size);
 
@@ -56,7 +51,7 @@ class SizeClass {
   // Returns a number 0 - `kNumSizeClasses`-1,
   constexpr size_t Ordinal() const {
     CK_ASSERT_NE(*this, Nil());
-    return ordinal_ - 1;
+    return ordinal_;
   }
 
   // The number of slices that can fit into a small slab of this size class.
@@ -100,9 +95,11 @@ class SizeClass {
   }
 
  private:
+  static constexpr uint8_t kNilOrdinal = std::numeric_limits<uint8_t>::max();
+
   explicit constexpr SizeClass(uint8_t ord) : ordinal_(ord) {}
 
-  uint8_t ordinal_;
+  uint8_t ordinal_ = kNilOrdinal;
 };
 
 template <typename Sink>

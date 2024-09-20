@@ -347,6 +347,16 @@ cc_library(
     ],
 )
 
+cc_test(
+    name = "size_class_test",
+    srcs = ["size_class_test.cc"],
+    deps = [
+        ":size_class",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
 cc_library(
     name = "slab",
     srcs = ["slab.cc"],
