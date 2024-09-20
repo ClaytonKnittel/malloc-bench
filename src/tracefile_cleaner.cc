@@ -1,3 +1,4 @@
+#include <cstdio>
 #include <cstdlib>
 #include <fstream>
 #include <ios>
@@ -6,6 +7,7 @@
 #include <regex>
 #include <set>
 #include <sstream>
+#include <unistd.h>
 #include <vector>
 
 #include "absl/flags/flag.h"
@@ -17,6 +19,10 @@
 #include "src/tracefile_reader.h"
 
 ABSL_FLAG(std::string, trace, "", "File path of the trace to clean.");
+
+ABSL_FLAG(bool, i, false,
+          "In-place edit, which will overwrite the input file with the cleaned "
+          "contents.");
 
 namespace bench {
 
@@ -238,24 +244,30 @@ class AllocationState {
 };
 
 absl::Status CleanTracefile(absl::string_view input_path, std::ostream& out) {
-  DEFINE_OR_RETURN(DirtyTracefileReader, reader,
-                   DirtyTracefileReader::Open(std::string(input_path)));
   std::optional<int32_t> pid;
   AllocationState allocation_state;
-  for (TraceLine line : reader) {
-    if (!pid.has_value()) {
-      pid = line.pid;
-    }
 
-    if (line.pid != pid) {
-      continue;
-    }
+  // Read the tracefile and filter out all non-alloc lines and allocations made
+  // by processes other than the main process.
+  {
+    DEFINE_OR_RETURN(DirtyTracefileReader, reader,
+                     DirtyTracefileReader::Open(std::string(input_path)));
+    for (TraceLine line : reader) {
+      if (!pid.has_value()) {
+        // Assume the main process makes the first allocation.
+        pid = line.pid;
+      }
 
-    if (!allocation_state.Try(line)) {
-      continue;
-    }
+      if (line.pid != pid) {
+        continue;
+      }
 
-    out << FormatLine(line) << std::endl;
+      if (!allocation_state.Try(line)) {
+        continue;
+      }
+
+      out << FormatLine(line) << std::endl;
+    }
   }
 
   // Free all unfreed memory.
@@ -282,9 +294,17 @@ int main(int argc, char* argv[]) {
     std::cerr << "Flag --input is required" << std::endl;
   }
 
-  absl::Status s = bench::CleanTracefile(input_tracefile_path, std::cout);
+  std::stringstream out;
+  absl::Status s = bench::CleanTracefile(input_tracefile_path, out);
   if (!s.ok()) {
     std::cerr << "Fatal error: " << s << std::endl;
+  }
+
+  if (absl::GetFlag(FLAGS_i)) {
+    std::ofstream file(input_tracefile_path, std::ios_base::out);
+    file << out.str();
+  } else {
+    std::cout << out.str();
   }
 
   return 0;
