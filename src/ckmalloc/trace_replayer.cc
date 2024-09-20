@@ -260,6 +260,8 @@ class TraceReplayer : public TracefileExecutor {
         skips_--;
         return absl::OkStatus();
       }
+    } else {
+      skips_ = 0;
     }
 
     while (true) {
@@ -478,6 +480,8 @@ absl::Status Run(const std::string& tracefile) {
   TraceReplayer replayer(std::move(reader), heap_factory);
   replayer.SetSkips(skips);
   RETURN_IF_ERROR(replayer.Run());
+  LocalCache::Instance<GlobalMetadataAlloc>()->Flush(
+      *CkMalloc::Instance()->GlobalState()->MainAllocator());
   RETURN_IF_ERROR(replayer.SetDone());
   while (true) {
     RETURN_IF_ERROR(replayer.AwaitInput());
