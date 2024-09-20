@@ -47,7 +47,8 @@ bool ShouldIgnoreForScoring(const std::string& trace) {
          absl::StrContains(trace, "/bdd-") ||
          absl::StrContains(trace, "/cbit-") ||
          absl::StrContains(trace, "/syn-") ||
-         absl::StrContains(trace, "/ngram-");
+         absl::StrContains(trace, "/ngram-") ||
+         absl::StrContains(trace, "/server.trace");
 }
 
 absl::StatusOr<TraceResult> RunTrace(const std::string& tracefile,
