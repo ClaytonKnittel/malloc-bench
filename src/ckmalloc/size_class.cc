@@ -18,7 +18,8 @@ struct SizeClassParams {
   uint16_t max_size;
 };
 
-static_assert(SizeClass::kNumSizeClasses == 14);
+static_assert(SizeClass::kNumSizeClasses == 21);
+static_assert(kMaxSmallSize == 512);
 const SizeClassParams kSizeClassParams[SizeClass::kNumSizeClasses] = {
   // clang-format off
       { /*max_size=*/8 },
@@ -35,6 +36,13 @@ const SizeClassParams kSizeClassParams[SizeClass::kNumSizeClasses] = {
       { /*max_size=*/192 },
       { /*max_size=*/224 },
       { /*max_size=*/256 },
+      { /*max_size=*/272 },
+      { /*max_size=*/304 },
+      { /*max_size=*/336 },
+      { /*max_size=*/368 },
+      { /*max_size=*/400 },
+      { /*max_size=*/448 },
+      { /*max_size=*/512 },
   // clang-format on
 };
 

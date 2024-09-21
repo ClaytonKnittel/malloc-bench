@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cinttypes>
+#include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <ostream>
@@ -18,7 +19,7 @@ std::ostream& operator<<(std::ostream& ostr, ckmalloc::SizeClass size_class);
 // array of equally-sized slices of memory for individual allocation.
 class SizeClass {
  public:
-  static constexpr size_t kNumSizeClasses = 14;
+  static constexpr size_t kNumSizeClasses = 21;
 
   static constexpr size_t kNumSizeClassLookupIdx =
       kMaxSmallSize / kDefaultAlignment + 1;
@@ -88,7 +89,7 @@ class SizeClass {
 
   // TODO check if this is the fastest way to do this.
   uint32_t OffsetToIdx(uint64_t offset_bytes) const {
-    static_assert(kNumSizeClasses == 14);
+    static_assert(kNumSizeClasses == 21);
     switch (Ordinal()) {
       // NOLINTNEXTLINE(bugprone-branch-clone)
       case 0:
@@ -118,6 +119,22 @@ class SizeClass {
       case 12:
         return offset_bytes / SliceSize();
       case 13:
+        return offset_bytes / SliceSize();
+      case 14:
+        return offset_bytes / SliceSize();
+      case 15:
+        return offset_bytes / SliceSize();
+      case 16:
+        return offset_bytes / SliceSize();
+      case 17:
+        return offset_bytes / SliceSize();
+      case 18:
+        return offset_bytes / SliceSize();
+      case 19:
+        return offset_bytes / SliceSize();
+      case 20:
+        return offset_bytes / SliceSize();
+      case 21:
         return offset_bytes / SliceSize();
       default:
         __builtin_unreachable();
