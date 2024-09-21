@@ -116,8 +116,7 @@ Void* SmallAllocatorImpl<SlabMap, SlabManager>::ReallocSmall(SmallSlab* slab,
 
   Void* new_ptr = AllocSmall(user_size);
   if (new_ptr != nullptr) {
-    std::memcpy(new_ptr, ptr,
-                std::min(size_class.SliceSize(), cur_size_class.SliceSize()));
+    std::memcpy(new_ptr, ptr, std::min(user_size, cur_size_class.SliceSize()));
     FreeSmall(slab, ptr);
   }
   return new_ptr;

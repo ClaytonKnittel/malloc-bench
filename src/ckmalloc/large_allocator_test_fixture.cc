@@ -118,6 +118,12 @@ absl::Status LargeAllocatorFixture::ValidateHeap() {
     Block* prev_block = nullptr;
     uint64_t allocated_bytes = 0;
     while (!block->IsPhonyHeader()) {
+      if (block->Size() >= PtrDistance(slab_end, slab_start)) {
+        return FailedTest(
+            "Encountered block with likely invalid size: %p of size %016x",
+            &block, block->Size());
+      }
+
       if (block < slab_start || block->NextAdjacentBlock() >= slab_end) {
         return FailedTest(
             "Encountered block outside the range of the heap while iterating "

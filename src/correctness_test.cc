@@ -193,270 +193,270 @@ absl::Status TestCkMalloc::Free(void* ptr) {
   return absl::OkStatus();
 }
 
-// TEST_F(TestCorrectness, bddaa32) {
-//   ASSERT_THAT(RunTrace("traces/bdd-aa32.trace", /*validate_every_n=*/1024),
-//               util::IsOk());
-//   ASSERT_THAT(ValidateEmpty(), IsOk());
-// }
-//
-// TEST_F(TestCorrectness, bddaa4) {
-//   ASSERT_THAT(RunTrace("traces/bdd-aa4.trace", /*validate_every_n=*/1024),
-//               util::IsOk());
-//   ASSERT_THAT(ValidateEmpty(), IsOk());
-// }
-//
-// TEST_F(TestCorrectness, bddma4) {
-//   ASSERT_THAT(RunTrace("traces/bdd-ma4.trace", /*validate_every_n=*/1024),
-//               util::IsOk());
-//   ASSERT_THAT(ValidateEmpty(), IsOk());
-// }
-//
-// TEST_F(TestCorrectness, bddnq7) {
-//   ASSERT_THAT(RunTrace("traces/bdd-nq7.trace", /*validate_every_n=*/1024),
-//               util::IsOk());
-//   ASSERT_THAT(ValidateEmpty(), IsOk());
-// }
-//
-// TEST_F(TestCorrectness, cbitabs) {
-//   ASSERT_THAT(RunTrace("traces/cbit-abs.trace", /*validate_every_n=*/1024),
-//               util::IsOk());
-//   ASSERT_THAT(ValidateEmpty(), IsOk());
-// }
-//
-// TEST_F(TestCorrectness, cbitparity) {
-//   ASSERT_THAT(RunTrace("traces/cbit-parity.trace",
-//                        /*validate_every_n=*/1024),
-//               util::IsOk());
-//   ASSERT_THAT(ValidateEmpty(), IsOk());
-// }
-//
-// TEST_F(TestCorrectness, cbitsatadd) {
-//   ASSERT_THAT(RunTrace("traces/cbit-satadd.trace",
-//                        /*validate_every_n=*/1024),
-//               util::IsOk());
-//   ASSERT_THAT(ValidateEmpty(), IsOk());
-// }
-//
-// TEST_F(TestCorrectness, cbitxyz) {
-//   ASSERT_THAT(RunTrace("traces/cbit-xyz.trace", /*validate_every_n=*/1024),
-//               util::IsOk());
-//   ASSERT_THAT(ValidateEmpty(), IsOk());
-// }
-//
-// TEST_F(TestCorrectness, Firefox) {
-//   ASSERT_THAT(RunTrace("traces/firefox.trace", /*validate_every_n=*/16384),
-//               util::IsOk());
-//   ASSERT_THAT(ValidateEmpty(), IsOk());
-// }
-//
-// TEST_F(TestCorrectness, FourInARow) {
-//   ASSERT_THAT(
-//       RunTrace("traces/four-in-a-row.trace", /*validate_every_n=*/16384),
-//       util::IsOk());
-//   ASSERT_THAT(ValidateEmpty(), IsOk());
-// }
-//
-// TEST_F(TestCorrectness, Grep) {
-//   ASSERT_THAT(RunTrace("traces/grep.trace", /*validate_every_n=*/1024),
-//               util::IsOk());
-//   ASSERT_THAT(ValidateEmpty(), IsOk());
-// }
-//
-// TEST_F(TestCorrectness, HaskellWebServer) {
-//   ASSERT_THAT(
-//       RunTrace("traces/haskell-web-server.trace",
-//       /*validate_every_n=*/16384), util::IsOk());
-//   ASSERT_THAT(ValidateEmpty(), IsOk());
-// }
-//
-// TEST_F(TestCorrectness, McServerSmall) {
-//   ASSERT_THAT(
-//       RunTrace("traces/mc_server_small.trace", /*validate_every_n=*/1024),
-//       util::IsOk());
-//   ASSERT_THAT(ValidateEmpty(), IsOk());
-// }
-//
-// TEST_F(TestCorrectness, McServer) {
-//   ASSERT_THAT(RunTrace("traces/mc_server.trace", /*validate_every_n=*/16384),
-//               util::IsOk());
-//   ASSERT_THAT(ValidateEmpty(), IsOk());
-// }
-//
-// TEST_F(TestCorrectness, McServerLarge) {
-//   ASSERT_THAT(
-//       RunTrace("traces/mc_server_large.trace", /*validate_every_n=*/16384),
-//       util::IsOk());
-//   ASSERT_THAT(ValidateEmpty(), IsOk());
-// }
-//
-// TEST_F(TestCorrectness, NgramFox1) {
-//   ASSERT_THAT(RunTrace("traces/ngram-fox1.trace", /*validate_every_n=*/1024),
-//               util::IsOk());
-//   ASSERT_THAT(ValidateEmpty(), IsOk());
-// }
-//
-// TEST_F(TestCorrectness, NgramGulliver1) {
-//   ASSERT_THAT(
-//       RunTrace("traces/ngram-gulliver1.trace", /*validate_every_n=*/1024),
-//       util::IsOk());
-//   ASSERT_THAT(ValidateEmpty(), IsOk());
-// }
-//
-// TEST_F(TestCorrectness, NgramGulliver2) {
-//   ASSERT_THAT(
-//       RunTrace("traces/ngram-gulliver2.trace", /*validate_every_n=*/1024),
-//       util::IsOk());
-//   ASSERT_THAT(ValidateEmpty(), IsOk());
-// }
-//
-// TEST_F(TestCorrectness, NgramMoby1) {
-//   ASSERT_THAT(RunTrace("traces/ngram-moby1.trace",
-//                        /*validate_every_n=*/1024),
-//               util::IsOk());
-//   ASSERT_THAT(ValidateEmpty(), IsOk());
-// }
-//
-// TEST_F(TestCorrectness, NgramShake1) {
-//   ASSERT_THAT(RunTrace("traces/ngram-shake1.trace",
-//                        /*validate_every_n=*/1024),
-//               util::IsOk());
-//   ASSERT_THAT(ValidateEmpty(), IsOk());
-// }
-//
-// TEST_F(TestCorrectness, Onoro) {
-//   ASSERT_THAT(RunTrace("traces/onoro.trace", /*validate_every_n=*/16384),
-//               util::IsOk());
-//   ASSERT_THAT(ValidateEmpty(), IsOk());
-// }
-//
-// TEST_F(TestCorrectness, OnoroCC) {
-//   ASSERT_THAT(RunTrace("traces/onoro-cc.trace", /*validate_every_n=*/4096),
-//               util::IsOk());
-//   ASSERT_THAT(ValidateEmpty(), IsOk());
-// }
-//
-// TEST_F(TestCorrectness, PyCatanAi) {
-//   ASSERT_THAT(RunTrace("traces/py-catan-ai.trace",
-//   /*validate_every_n=*/16384),
-//               util::IsOk());
-//   ASSERT_THAT(ValidateEmpty(), IsOk());
-// }
-//
-// TEST_F(TestCorrectness, PyEulerNayuki) {
-//   ASSERT_THAT(
-//       RunTrace("traces/py-euler-nayuki.trace", /*validate_every_n=*/16384),
-//       util::IsOk());
-//   ASSERT_THAT(ValidateEmpty(), IsOk());
-// }
-//
-// TEST_F(TestCorrectness, Scp) {
-//   ASSERT_THAT(RunTrace("traces/scp.trace", /*validate_every_n=*/4096),
-//               util::IsOk());
-//   ASSERT_THAT(ValidateEmpty(), IsOk());
-// }
-//
-// TEST_F(TestCorrectness, Server) {
-//   ASSERT_THAT(RunTrace("traces/server.trace", /*validate_every_n=*/1024),
-//               util::IsOk());
-//   ASSERT_THAT(ValidateEmpty(), IsOk());
-// }
-//
-// TEST_F(TestCorrectness, Simple) {
-//   ASSERT_THAT(RunTrace("traces/simple.trace"), util::IsOk());
-//   ASSERT_THAT(ValidateEmpty(), IsOk());
-// }
-//
-// TEST_F(TestCorrectness, SimpleCalloc) {
-//   ASSERT_THAT(RunTrace("traces/simple_calloc.trace"), util::IsOk());
-//   ASSERT_THAT(ValidateEmpty(), IsOk());
-// }
-//
-// TEST_F(TestCorrectness, SimpleRealloc) {
-//   ASSERT_THAT(RunTrace("traces/simple_realloc.trace"), util::IsOk());
-//   ASSERT_THAT(ValidateEmpty(), IsOk());
-// }
-//
-// TEST_F(TestCorrectness, Solitaire) {
-//   ASSERT_THAT(RunTrace("traces/solitaire.trace", /*validate_every_n=*/1024),
-//               util::IsOk());
-//   ASSERT_THAT(ValidateEmpty(), IsOk());
-// }
-//
-// TEST_F(TestCorrectness, Ssh) {
-//   ASSERT_THAT(RunTrace("traces/ssh.trace", /*validate_every_n=*/1024),
-//               util::IsOk());
-//   ASSERT_THAT(ValidateEmpty(), IsOk());
-// }
-//
-// TEST_F(TestCorrectness, SynArray) {
-//   ASSERT_THAT(RunTrace("traces/syn-array.trace", /*validate_every_n=*/1024),
-//               util::IsOk());
-//   ASSERT_THAT(ValidateEmpty(), IsOk());
-// }
-//
-// TEST_F(TestCorrectness, SynArrayShort) {
-//   ASSERT_THAT(RunTrace("traces/syn-array-short.trace"), util::IsOk());
-//   ASSERT_THAT(ValidateEmpty(), IsOk());
-// }
-//
-// TEST_F(TestCorrectness, SynMix) {
-//   ASSERT_THAT(RunTrace("traces/syn-mix.trace", /*validate_every_n=*/1024),
-//               util::IsOk());
-//   ASSERT_THAT(ValidateEmpty(), IsOk());
-// }
-//
-// TEST_F(TestCorrectness, SynMixRealloc) {
-//   ASSERT_THAT(
-//       RunTrace("traces/syn-mix-realloc.trace", /*validate_every_n=*/1024),
-//       util::IsOk());
-//   ASSERT_THAT(ValidateEmpty(), IsOk());
-// }
-//
-// TEST_F(TestCorrectness, SynMixShort) {
-//   ASSERT_THAT(RunTrace("traces/syn-mix-short.trace"), util::IsOk());
-//   ASSERT_THAT(ValidateEmpty(), IsOk());
-// }
-//
-// TEST_F(TestCorrectness, SynString) {
-//   ASSERT_THAT(RunTrace("traces/syn-string.trace", /*validate_every_n=*/1024),
-//               util::IsOk());
-//   ASSERT_THAT(ValidateEmpty(), IsOk());
-// }
-//
-// TEST_F(TestCorrectness, SynStringShort) {
-//   ASSERT_THAT(RunTrace("traces/syn-string-short.trace"), util::IsOk());
-//   ASSERT_THAT(ValidateEmpty(), IsOk());
-// }
-//
-// TEST_F(TestCorrectness, SynStruct) {
-//   ASSERT_THAT(RunTrace("traces/syn-struct.trace", /*validate_every_n=*/1024),
-//               util::IsOk());
-//   ASSERT_THAT(ValidateEmpty(), IsOk());
-// }
-//
-// TEST_F(TestCorrectness, SynStructShort) {
-//   ASSERT_THAT(RunTrace("traces/syn-struct-short.trace"), util::IsOk());
-//   ASSERT_THAT(ValidateEmpty(), IsOk());
-// }
-//
-// TEST_F(TestCorrectness, Test) {
-//   ASSERT_THAT(RunTrace("traces/test.trace"), util::IsOk());
-//   ASSERT_THAT(ValidateEmpty(), IsOk());
-// }
-//
-// TEST_F(TestCorrectness, TestZero) {
-//   ASSERT_THAT(RunTrace("traces/test-zero.trace"), util::IsOk());
-//   ASSERT_THAT(ValidateEmpty(), IsOk());
-// }
-//
-// TEST_F(TestCorrectness, Vim) {
-//   ASSERT_THAT(RunTrace("traces/vim.trace", /*validate_every_n=*/65535),
-//               util::IsOk());
-//   ASSERT_THAT(ValidateEmpty(), IsOk());
-// }
+TEST_F(TestCorrectness, bddaa32) {
+  ASSERT_THAT(RunTrace("traces/bdd-aa32.trace", /*validate_every_n=*/1024),
+              util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, bddaa4) {
+  ASSERT_THAT(RunTrace("traces/bdd-aa4.trace", /*validate_every_n=*/1024),
+              util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, bddma4) {
+  ASSERT_THAT(RunTrace("traces/bdd-ma4.trace", /*validate_every_n=*/1024),
+              util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, bddnq7) {
+  ASSERT_THAT(RunTrace("traces/bdd-nq7.trace", /*validate_every_n=*/1024),
+              util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, cbitabs) {
+  ASSERT_THAT(RunTrace("traces/cbit-abs.trace", /*validate_every_n=*/1024),
+              util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, cbitparity) {
+  ASSERT_THAT(RunTrace("traces/cbit-parity.trace",
+                       /*validate_every_n=*/1024),
+              util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, cbitsatadd) {
+  ASSERT_THAT(RunTrace("traces/cbit-satadd.trace",
+                       /*validate_every_n=*/1024),
+              util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, cbitxyz) {
+  ASSERT_THAT(RunTrace("traces/cbit-xyz.trace", /*validate_every_n=*/1024),
+              util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, Firefox) {
+  ASSERT_THAT(RunTrace("traces/firefox.trace", /*validate_every_n=*/16384),
+              util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, FourInARow) {
+  ASSERT_THAT(
+      RunTrace("traces/four-in-a-row.trace", /*validate_every_n=*/16384),
+      util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, Grep) {
+  ASSERT_THAT(RunTrace("traces/grep.trace", /*validate_every_n=*/1024),
+              util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, HaskellWebServer) {
+  ASSERT_THAT(RunTrace("traces/haskell-web-server.trace",
+                       /*validate_every_n=*/16384),
+              util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, McServerSmall) {
+  ASSERT_THAT(
+      RunTrace("traces/mc_server_small.trace", /*validate_every_n=*/1024),
+      util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, McServer) {
+  ASSERT_THAT(RunTrace("traces/mc_server.trace", /*validate_every_n=*/16384),
+              util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, McServerLarge) {
+  ASSERT_THAT(
+      RunTrace("traces/mc_server_large.trace", /*validate_every_n=*/16384),
+      util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, NgramFox1) {
+  ASSERT_THAT(RunTrace("traces/ngram-fox1.trace", /*validate_every_n=*/1024),
+              util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, NgramGulliver1) {
+  ASSERT_THAT(
+      RunTrace("traces/ngram-gulliver1.trace", /*validate_every_n=*/1024),
+      util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, NgramGulliver2) {
+  ASSERT_THAT(
+      RunTrace("traces/ngram-gulliver2.trace", /*validate_every_n=*/1024),
+      util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, NgramMoby1) {
+  ASSERT_THAT(RunTrace("traces/ngram-moby1.trace",
+                       /*validate_every_n=*/1024),
+              util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, NgramShake1) {
+  ASSERT_THAT(RunTrace("traces/ngram-shake1.trace",
+                       /*validate_every_n=*/1024),
+              util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, Onoro) {
+  ASSERT_THAT(RunTrace("traces/onoro.trace", /*validate_every_n=*/16384),
+              util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, OnoroCC) {
+  ASSERT_THAT(RunTrace("traces/onoro-cc.trace", /*validate_every_n=*/4096),
+              util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, PyCatanAi) {
+  ASSERT_THAT(RunTrace("traces/py-catan-ai.trace",
+                       /*validate_every_n=*/16384),
+              util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, PyEulerNayuki) {
+  ASSERT_THAT(
+      RunTrace("traces/py-euler-nayuki.trace", /*validate_every_n=*/16384),
+      util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, Scp) {
+  ASSERT_THAT(RunTrace("traces/scp.trace", /*validate_every_n=*/4096),
+              util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, Server) {
+  ASSERT_THAT(RunTrace("traces/server.trace", /*validate_every_n=*/1024),
+              util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, Simple) {
+  ASSERT_THAT(RunTrace("traces/simple.trace"), util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, SimpleCalloc) {
+  ASSERT_THAT(RunTrace("traces/simple_calloc.trace"), util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, SimpleRealloc) {
+  ASSERT_THAT(RunTrace("traces/simple_realloc.trace"), util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, Solitaire) {
+  ASSERT_THAT(RunTrace("traces/solitaire.trace", /*validate_every_n=*/1024),
+              util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, Ssh) {
+  ASSERT_THAT(RunTrace("traces/ssh.trace", /*validate_every_n=*/1024),
+              util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, SynArray) {
+  ASSERT_THAT(RunTrace("traces/syn-array.trace", /*validate_every_n=*/1024),
+              util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, SynArrayShort) {
+  ASSERT_THAT(RunTrace("traces/syn-array-short.trace"), util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, SynMix) {
+  ASSERT_THAT(RunTrace("traces/syn-mix.trace", /*validate_every_n=*/1024),
+              util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, SynMixRealloc) {
+  ASSERT_THAT(
+      RunTrace("traces/syn-mix-realloc.trace", /*validate_every_n=*/1024),
+      util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, SynMixShort) {
+  ASSERT_THAT(RunTrace("traces/syn-mix-short.trace"), util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, SynString) {
+  ASSERT_THAT(RunTrace("traces/syn-string.trace", /*validate_every_n=*/1024),
+              util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, SynStringShort) {
+  ASSERT_THAT(RunTrace("traces/syn-string-short.trace"), util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, SynStruct) {
+  ASSERT_THAT(RunTrace("traces/syn-struct.trace", /*validate_every_n=*/1024),
+              util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, SynStructShort) {
+  ASSERT_THAT(RunTrace("traces/syn-struct-short.trace"), util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, Test) {
+  ASSERT_THAT(RunTrace("traces/test.trace"), util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, TestZero) {
+  ASSERT_THAT(RunTrace("traces/test-zero.trace"), util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, Vim) {
+  ASSERT_THAT(RunTrace("traces/vim.trace", /*validate_every_n=*/65535),
+              util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
 
 TEST_F(TestCorrectness, Vlc) {
-  ASSERT_THAT(RunTrace("traces/vlc.trace", /*validate_every_n=*/1),
+  ASSERT_THAT(RunTrace("traces/vlc.trace", /*validate_every_n=*/16384),
               util::IsOk());
   ASSERT_THAT(ValidateEmpty(), IsOk());
 }
