@@ -40,7 +40,7 @@ class SizeClass {
     return SizeClass();
   }
 
-  static constexpr SizeClass FromOrdinal(size_t ord) {
+  static SizeClass FromOrdinal(size_t ord) {
     CK_ASSERT_LT(ord, kNumSizeClasses);
     return SizeClass(ord);
   }
@@ -61,10 +61,10 @@ class SizeClass {
     return FromUserDataSize(slice_size);
   }
 
-  constexpr bool operator==(SizeClass other) const {
+  bool operator==(SizeClass other) const {
     return ordinal_ == other.ordinal_;
   }
-  constexpr bool operator!=(SizeClass other) const {
+  bool operator!=(SizeClass other) const {
     return !(*this == other);
   }
 
@@ -75,7 +75,7 @@ class SizeClass {
   }
 
   // Returns a number 0 - `kNumSizeClasses`-1,
-  constexpr size_t Ordinal() const {
+  size_t Ordinal() const {
     CK_ASSERT_NE(*this, Nil());
     return ordinal_;
   }
@@ -87,37 +87,38 @@ class SizeClass {
   }
 
   // TODO check if this is the fastest way to do this.
-  constexpr uint32_t OffsetToIdx(uint64_t offset_bytes) const {
+  uint32_t OffsetToIdx(uint64_t offset_bytes) const {
     static_assert(kNumSizeClasses == 14);
     switch (Ordinal()) {
+      // NOLINTNEXTLINE(bugprone-branch-clone)
       case 0:
-        return offset_bytes / 8;
+        return offset_bytes / SliceSize();
       case 1:
-        return offset_bytes / 16;
+        return offset_bytes / SliceSize();
       case 2:
-        return offset_bytes / 32;
+        return offset_bytes / SliceSize();
       case 3:
-        return offset_bytes / 48;
+        return offset_bytes / SliceSize();
       case 4:
-        return offset_bytes / 64;
+        return offset_bytes / SliceSize();
       case 5:
-        return offset_bytes / 80;
+        return offset_bytes / SliceSize();
       case 6:
-        return offset_bytes / 96;
+        return offset_bytes / SliceSize();
       case 7:
-        return offset_bytes / 112;
+        return offset_bytes / SliceSize();
       case 8:
-        return offset_bytes / 128;
+        return offset_bytes / SliceSize();
       case 9:
-        return offset_bytes / 144;
+        return offset_bytes / SliceSize();
       case 10:
-        return offset_bytes / 160;
+        return offset_bytes / SliceSize();
+      case 11:
+        return offset_bytes / SliceSize();
       case 12:
-        return offset_bytes / 192;
-      case 14:
-        return offset_bytes / 224;
-      case 16:
-        return offset_bytes / 256;
+        return offset_bytes / SliceSize();
+      case 13:
+        return offset_bytes / SliceSize();
       default:
         __builtin_unreachable();
     }
@@ -141,7 +142,7 @@ class SizeClass {
   static const std::array<SizeClass, SizeClass::kNumSizeClassLookupIdx>
       kOrdinalMap;
 
-  explicit constexpr SizeClass(uint8_t ord) : ordinal_(ord) {}
+  explicit SizeClass(uint8_t ord) : ordinal_(ord) {}
 
   uint8_t ordinal_ = kNilOrdinal;
 };

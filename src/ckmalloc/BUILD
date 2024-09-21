@@ -351,6 +351,7 @@ cc_test(
     name = "size_class_test",
     srcs = ["size_class_test.cc"],
     deps = [
+        ":common",
         ":size_class",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
