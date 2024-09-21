@@ -23,6 +23,17 @@ class SizeClass {
   static constexpr size_t kNumSizeClassLookupIdx =
       kMaxSmallSize / kDefaultAlignment + 1;
 
+  struct SizeClassInfo {
+    // The maximum allocation size that fits in allocations for this size class.
+    uint16_t max_size;
+
+    // The number of allocations that fit in a single slab holding allocations
+    // of this size class.
+    uint16_t slices_per_slab;
+  };
+  static const std::array<SizeClassInfo, SizeClass::kNumSizeClasses>
+      kSizeClassInfo;
+
   constexpr SizeClass() = default;
 
   static constexpr SizeClass Nil() {
@@ -34,9 +45,21 @@ class SizeClass {
     return SizeClass(ord);
   }
 
-  static SizeClass FromUserDataSize(size_t user_size);
+  static SizeClass FromUserDataSize(size_t user_size) {
+    CK_ASSERT_LE(user_size, kMaxSmallSize);
+    CK_ASSERT_NE(user_size, 0);
+    size_t idx = OrdinalMapIdx(user_size);
+    return SizeClass(kOrdinalMap[idx]);
+  }
 
-  static SizeClass FromSliceSize(uint64_t slice_size);
+  static SizeClass FromSliceSize(uint64_t slice_size) {
+    CK_ASSERT_LE(slice_size, kMaxSmallSize);
+    CK_ASSERT_NE(slice_size, 0);
+    CK_ASSERT_TRUE(slice_size == kMinAlignment ||
+                   slice_size % kDefaultAlignment == 0);
+
+    return FromUserDataSize(slice_size);
+  }
 
   constexpr bool operator==(SizeClass other) const {
     return ordinal_ == other.ordinal_;
@@ -46,7 +69,10 @@ class SizeClass {
   }
 
   // Returns the size of slices represented by this size class.
-  uint64_t SliceSize() const;
+  uint64_t SliceSize() const {
+    CK_ASSERT_NE(*this, Nil());
+    return kSizeClassInfo[Ordinal()].max_size;
+  }
 
   // Returns a number 0 - `kNumSizeClasses`-1,
   constexpr size_t Ordinal() const {
@@ -55,7 +81,10 @@ class SizeClass {
   }
 
   // The number of slices that can fit into a small slab of this size class.
-  uint32_t MaxSlicesPerSlab() const;
+  uint32_t MaxSlicesPerSlab() const {
+    CK_ASSERT_NE(*this, Nil());
+    return kSizeClassInfo[Ordinal()].slices_per_slab;
+  }
 
   // TODO check if this is the fastest way to do this.
   constexpr uint32_t OffsetToIdx(uint64_t offset_bytes) const {
@@ -94,13 +123,31 @@ class SizeClass {
     }
   }
 
+  // Given a user size, returns the index into the ordinal map. This is called
+  // on every allocation.
+  static constexpr size_t OrdinalMapIdx(size_t user_size) {
+    if (user_size <= 8) {
+      return 0;
+    }
+    return CeilDiv(user_size, kDefaultAlignment);
+  }
+
  private:
   static constexpr uint8_t kNilOrdinal = std::numeric_limits<uint8_t>::max();
+
+  // A map from a quickly-computed index (from `OrdinalMapIdx()`) derived from a
+  // user allocation request size to the corresponding size class that holds
+  // allocations of that size.
+  static const std::array<SizeClass, SizeClass::kNumSizeClassLookupIdx>
+      kOrdinalMap;
 
   explicit constexpr SizeClass(uint8_t ord) : ordinal_(ord) {}
 
   uint8_t ordinal_ = kNilOrdinal;
 };
+
+static_assert(SizeClass::OrdinalMapIdx(kMaxSmallSize) + 1 ==
+              SizeClass::kNumSizeClassLookupIdx);
 
 template <typename Sink>
 void AbslStringify(Sink& sink, ckmalloc::SizeClass size_class) {

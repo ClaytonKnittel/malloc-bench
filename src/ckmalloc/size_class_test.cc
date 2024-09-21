@@ -1,5 +1,7 @@
 #include "src/ckmalloc/size_class.h"
 
+#include <cstddef>
+
 #include "gtest/gtest.h"
 
 namespace ckmalloc {
@@ -11,12 +13,17 @@ TEST_F(SizeClassTest, TestNil) {
 }
 
 TEST_F(SizeClassTest, TestSizes) {
-  EXPECT_EQ(SizeClass::FromUserDataSize(1), SizeClass::FromOrdinal(0));
-  EXPECT_EQ(SizeClass::FromUserDataSize(8), SizeClass::FromOrdinal(0));
-  EXPECT_EQ(SizeClass::FromUserDataSize(9), SizeClass::FromOrdinal(1));
-  EXPECT_EQ(SizeClass::FromUserDataSize(16), SizeClass::FromOrdinal(1));
-  EXPECT_EQ(SizeClass::FromUserDataSize(17), SizeClass::FromOrdinal(2));
-  EXPECT_EQ(SizeClass::FromUserDataSize(32), SizeClass::FromOrdinal(2));
+  size_t prev_size = 0;
+  size_t ord = 0;
+  for (const SizeClass::SizeClassInfo& info : SizeClass::kSizeClassInfo) {
+    size_t user_size = info.max_size;
+    EXPECT_EQ(SizeClass::FromUserDataSize(prev_size + 1),
+              SizeClass::FromOrdinal(ord));
+    EXPECT_EQ(SizeClass::FromUserDataSize(user_size),
+              SizeClass::FromOrdinal(ord));
+    ord++;
+    prev_size = user_size;
+  }
 }
 
 }  // namespace ckmalloc
