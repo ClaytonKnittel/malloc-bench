@@ -215,6 +215,7 @@ int RunAllTraces() {
            "traces/cbit-parity.trace",
            "traces/cbit-satadd.trace",
            "traces/cbit-xyz.trace",
+	   "traces/firefox.trace",
            "traces/four-in-a-row.trace",
            "traces/grep.trace",
            "traces/haskell-web-server.trace",
@@ -228,6 +229,8 @@ int RunAllTraces() {
            "traces/ngram-shake1.trace",
            "traces/onoro.trace",
            "traces/onoro-cc.trace",
+	   "traces/py-catan-ai.trace",
+	   "traces/py-euler-nayuki.trace",
            "traces/scp.trace",
            "traces/server.trace",
            "traces/simple.trace",
@@ -247,6 +250,7 @@ int RunAllTraces() {
            "traces/test.trace",
            "traces/test-zero.trace",
            "traces/vim.trace",
+	   "traces/vlc.trace"
        }) {
     if (absl::GetFlag(FLAGS_ignore_test) && ShouldIgnoreForScoring(tracefile)) {
       continue;
