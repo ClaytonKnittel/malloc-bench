@@ -243,6 +243,12 @@ TEST_F(TestCorrectness, cbitxyz) {
   ASSERT_THAT(ValidateEmpty(), IsOk());
 }
 
+TEST_F(TestCorrectness, Firefox) {
+  ASSERT_THAT(RunTrace("traces/firefox.trace", /*validate_every_n=*/16384),
+              util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
 TEST_F(TestCorrectness, FourInARow) {
   ASSERT_THAT(
       RunTrace("traces/four-in-a-row.trace", /*validate_every_n=*/16384),
@@ -257,9 +263,9 @@ TEST_F(TestCorrectness, Grep) {
 }
 
 TEST_F(TestCorrectness, HaskellWebServer) {
-  ASSERT_THAT(
-      RunTrace("traces/haskell-web-server.trace", /*validate_every_n=*/16384),
-      util::IsOk());
+  ASSERT_THAT(RunTrace("traces/haskell-web-server.trace",
+                       /*validate_every_n=*/16384),
+              util::IsOk());
   ASSERT_THAT(ValidateEmpty(), IsOk());
 }
 
@@ -326,6 +332,20 @@ TEST_F(TestCorrectness, Onoro) {
 TEST_F(TestCorrectness, OnoroCC) {
   ASSERT_THAT(RunTrace("traces/onoro-cc.trace", /*validate_every_n=*/4096),
               util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, PyCatanAi) {
+  ASSERT_THAT(RunTrace("traces/py-catan-ai.trace",
+                       /*validate_every_n=*/16384),
+              util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, PyEulerNayuki) {
+  ASSERT_THAT(
+      RunTrace("traces/py-euler-nayuki.trace", /*validate_every_n=*/16384),
+      util::IsOk());
   ASSERT_THAT(ValidateEmpty(), IsOk());
 }
 
@@ -431,6 +451,12 @@ TEST_F(TestCorrectness, TestZero) {
 
 TEST_F(TestCorrectness, Vim) {
   ASSERT_THAT(RunTrace("traces/vim.trace", /*validate_every_n=*/65535),
+              util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, Vlc) {
+  ASSERT_THAT(RunTrace("traces/vlc.trace", /*validate_every_n=*/16384),
               util::IsOk());
   ASSERT_THAT(ValidateEmpty(), IsOk());
 }
