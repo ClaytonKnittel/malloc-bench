@@ -3,5 +3,50 @@ build --action_env=CC=clang-18
 build --action_env=CXX=clang++-18
 build --features=layering_check
 build --cxxopt=-std=c++20
-build:opt -c opt --copt="-DNDEBUG=1" --features=thin_lto
-build:profile --copt=-O2 --linkopt=-lprofiler --copt=-g3 --copt="-DNDEBUG=1"
+
+build:opt -c opt
+build:opt --copt="-DNDEBUG=1"
+build:opt --features=thin_lto
+
+build:profile --copt=-O2
+build:profile --linkopt=-lprofiler
+build:profile --copt=-g3
+build:profile --copt="-DNDEBUG=1"
+
+build:asan -c dbg
+build:asan --strip=never
+build:asan --copt -fsanitize=address
+build:asan --copt -DADDRESS_SANITIZER
+build:asan --copt -O1
+build:asan --copt -g3
+build:asan --copt -fno-omit-frame-pointer
+build:asan --linkopt -fsanitize=address
+
+# Thread sanitizer
+build:tsan -c dbg
+build:tsan --strip=never
+build:tsan --copt -fsanitize=thread
+build:tsan --copt -DTHREAD_SANITIZER
+build:tsan --copt -DDYNAMIC_ANNOTATIONS_ENABLED=1
+build:tsan --copt -DDYNAMIC_ANNOTATIONS_EXTERNAL_IMPL=1
+build:tsan --copt -O1
+build:tsan --copt -fno-omit-frame-pointer
+build:tsan --linkopt -fsanitize=thread
+
+# Memory sanitizer
+build:msan -c dbg
+build:msan --strip=never
+build:msan --copt -fsanitize=memory
+build:msan --copt -DADDRESS_SANITIZER
+build:msan --copt -O1
+build:msan --copt -fno-omit-frame-pointer
+build:msan --linkopt -fsanitize=memory
+
+# Undefined Behavior Sanitizer
+build:ubsan -c dbg
+build:ubsan --strip=never
+build:ubsan --copt -fsanitize=undefined
+build:ubsan --copt -O1
+build:ubsan --copt -fno-omit-frame-pointer
+build:ubsan --linkopt -fsanitize=undefined
+build:ubsan --linkopt -lubsan
