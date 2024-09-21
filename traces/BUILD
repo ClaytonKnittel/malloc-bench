@@ -44,7 +44,7 @@ filegroup(
         "test.trace",
         "test-zero.trace",
         "vim.trace",
-	"vlc.trace"
+	"vlc.trace",
     ],
     visibility = ["//visibility:public"],
 )

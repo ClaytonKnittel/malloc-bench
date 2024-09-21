@@ -250,7 +250,7 @@ int RunAllTraces() {
            "traces/test.trace",
            "traces/test-zero.trace",
            "traces/vim.trace",
-	   "traces/vlc.trace"
+	   "traces/vlc.trace",
        }) {
     if (absl::GetFlag(FLAGS_ignore_test) && ShouldIgnoreForScoring(tracefile)) {
       continue;
