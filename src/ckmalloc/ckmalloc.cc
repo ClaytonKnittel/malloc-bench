@@ -41,6 +41,7 @@ void* CkMalloc::Malloc(size_t size) {
     cache->Flush(*global_state_.MainAllocator());
   }
 
+  global_state_.AssertConsistency();
   return global_state_.MainAllocator()->Alloc(size);
 }
 
@@ -59,6 +60,7 @@ void* CkMalloc::Realloc(void* ptr, size_t size) {
     return Malloc(size);
   }
   // TODO: use cache here.
+  global_state_.AssertConsistency();
   return global_state_.MainAllocator()->Realloc(p, size);
 }
 
@@ -68,6 +70,7 @@ void CkMalloc::Free(void* ptr) {
     return;
   }
 
+  global_state_.AssertConsistency();
   MainAllocator* main_allocator = global_state_.MainAllocator();
   LocalCache* cache = LocalCache::Instance<GlobalMetadataAlloc>();
   SizeClass size_class = main_allocator->AllocSizeClass(p);
@@ -80,6 +83,7 @@ void CkMalloc::Free(void* ptr) {
 }
 
 size_t CkMalloc::GetSize(void* ptr) {
+  global_state_.AssertConsistency();
   return global_state_.MainAllocator()->AllocSize(reinterpret_cast<Void*>(ptr));
 }
 
