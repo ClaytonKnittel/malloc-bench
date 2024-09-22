@@ -176,16 +176,24 @@ void PrintTestResults(const std::vector<TraceResult>& results) {
   }
 }
 
-int RunAllTraces() {
-  std::vector<bench::TraceResult> results;
-  MMapHeapFactory heap_factory;
-
+std::vector<std::string> ListTracefiles() {
+  std::vector<std::string> paths;
   for (const auto& dir_entry : std::filesystem::directory_iterator("traces")) {
     const std::string& tracefile = dir_entry.path();
     if (!tracefile.ends_with(".trace")) {
       continue;
     }
+    paths.push_back(tracefile);
+  }
+  std::sort(paths.begin(), paths.end());
+  return paths;
+}
 
+int RunAllTraces() {
+  std::vector<bench::TraceResult> results;
+  MMapHeapFactory heap_factory;
+
+  for (const auto& tracefile : ListTracefiles()) {
     if (absl::GetFlag(FLAGS_ignore_test) && ShouldIgnoreForScoring(tracefile)) {
       continue;
     }
@@ -209,6 +217,7 @@ int RunAllTraces() {
 int main(int argc, char* argv[]) {
   absl::ParseCommandLine(argc, argv);
 
+  // Strip .gz in case the user specifies the compressed trace.
   const std::string tracefile(
       absl::StripSuffix(absl::GetFlag(FLAGS_trace), ".gz"));
   if (tracefile.empty()) {
