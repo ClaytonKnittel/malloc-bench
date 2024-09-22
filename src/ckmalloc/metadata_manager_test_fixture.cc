@@ -9,6 +9,7 @@
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/testlib.h"
 #include "src/ckmalloc/util.h"
+#include "src/heap_interface.h"
 #include "src/rng.h"
 
 namespace ckmalloc {
@@ -26,10 +27,8 @@ void* TestMetadataAlloc::Alloc(size_t size, size_t alignment) {
 };
 
 TestMetadataManager::TestMetadataManager(MetadataManagerFixture* test_fixture,
-                                         TestHeapFactory* heap_factory,
-                                         TestSlabMap* slab_map, size_t heap_idx)
-    : test_fixture_(test_fixture),
-      metadata_manager_(heap_factory, slab_map, heap_idx) {}
+                                         TestHeap* heap, TestSlabMap* slab_map)
+    : test_fixture_(test_fixture), metadata_manager_(heap, slab_map) {}
 
 void* TestMetadataManager::Alloc(size_t size, size_t alignment) {
   void* block = metadata_manager_.Alloc(size, alignment);
@@ -207,8 +206,7 @@ absl::Status MetadataManagerFixture::ValidateHeap() {
 absl::Status MetadataManagerFixture::TraceBlockAllocation(void* block,
                                                           size_t size,
                                                           size_t alignment) {
-  const auto* heap =
-      HeapFactory().Instance(metadata_manager_->Underlying().heap_idx_);
+  const bench::Heap* heap = metadata_manager_->Underlying().heap_;
   // Check that the pointer is aligned relative to the heap start. The heap
   // will be page-aligned in production, but may not be in tests.
   if ((PtrDistance(block, heap->Start()) & (alignment - 1)) != 0) {

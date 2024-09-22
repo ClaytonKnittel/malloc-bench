@@ -35,8 +35,7 @@ class TestMetadataManager {
       MetadataManagerImpl<TestGlobalMetadataAlloc, TestSlabMap>;
 
   TestMetadataManager(class MetadataManagerFixture* test_fixture,
-                      TestHeapFactory* heap_factory, TestSlabMap* slab_map,
-                      size_t heap_idx);
+                      TestHeap* heap, TestSlabMap* slab_map);
 
   MetadataManagerT& Underlying() {
     return metadata_manager_;
