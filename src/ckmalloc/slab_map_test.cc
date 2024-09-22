@@ -30,15 +30,16 @@ class SlabMapTest : public testing::Test, public CkMallocTest {
 };
 
 TEST_F(SlabMapTest, TestEmpty) {
-  EXPECT_EQ(SlabMap().FindSlab(PageId::Zero()), nullptr);
+  EXPECT_EQ(SlabMap().FindSlab(PageId(1000)), nullptr);
 }
 
 TEST_F(SlabMapTest, TestInsertZero) {
+  PageId page(1024);
   MappedSlab* test_slab = reinterpret_cast<MappedSlab*>(0x1230);
 
-  EXPECT_TRUE(SlabMap().AllocatePath(PageId::Zero(), PageId::Zero()));
-  SlabMap().Insert(PageId::Zero(), test_slab);
-  EXPECT_EQ(SlabMap().FindSlab(PageId::Zero()), test_slab);
+  EXPECT_TRUE(SlabMap().AllocatePath(page, page));
+  SlabMap().Insert(page, test_slab);
+  EXPECT_EQ(SlabMap().FindSlab(page), test_slab);
 }
 
 TEST_F(SlabMapTest, TestInsert) {
@@ -49,7 +50,7 @@ TEST_F(SlabMapTest, TestInsert) {
   SlabMap().Insert(id, test_slab);
   EXPECT_EQ(SlabMap().FindSlab(id), test_slab);
 
-  EXPECT_EQ(SlabMap().FindSlab(PageId::Zero()), nullptr);
+  EXPECT_EQ(SlabMap().FindSlab(PageId(0)), nullptr);
   EXPECT_EQ(SlabMap().FindSlab(PageId(2 * kLeafSize)), nullptr);
 }
 
