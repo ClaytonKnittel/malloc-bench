@@ -9,6 +9,7 @@ cc_binary(
         ":heap_factory",
         ":mmap_heap_factory",
         ":perftest",
+        ":tracefile_reader",
         ":utiltest",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/flags:parse",
@@ -44,7 +45,7 @@ cc_library(
     deps = [
         ":allocator_interface",
         ":heap_factory",
-        "@abseil-cpp//absl/container:flat_hash_map",
+        ":tracefile_reader",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/status:statusor",
     ],
@@ -70,6 +71,7 @@ cc_library(
         ":heap_factory",
         ":rng",
         ":tracefile_executor",
+        ":tracefile_reader",
         "@abseil-cpp//absl/algorithm:container",
         "@abseil-cpp//absl/container:btree",
         "@abseil-cpp//absl/status",
@@ -89,6 +91,7 @@ cc_test(
     deps = [
         ":correctness_checker",
         ":mmap_heap_factory",
+        ":tracefile_reader",
         "@abseil-cpp//absl/status",
         "@cc-util//util:absl_util",
         "@cc-util//util:gtest_util",
@@ -197,11 +200,11 @@ cc_library(
     deps = [
         ":heap_factory",
         ":tracefile_reader",
+        "//proto:tracefile_cc_proto",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings:str_format",
         "@cc-util//util:absl_util",
-        "//proto:tracefile_cc_proto",
     ],
 )
 

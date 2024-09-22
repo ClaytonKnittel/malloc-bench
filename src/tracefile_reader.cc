@@ -19,7 +19,10 @@ absl::StatusOr<TracefileReader> TracefileReader::Open(
   }
 
   class Tracefile tracefile;
-  tracefile.ParseFromIstream(&file);
+  if (!tracefile.ParseFromIstream(&file)) {
+    return absl::InternalError(
+        absl::StrCat("Failed to parse ", filename, " as proto"));
+  }
   file.close();
 
   return TracefileReader(std::move(tracefile));
