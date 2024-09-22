@@ -107,6 +107,8 @@ cc_library(
     visibility = ["//src:__subpackages__"],
     deps = [
         ":heap_interface",
+        "@abseil-cpp//absl/container:flat_hash_set",
+        "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings:str_format",
         "@cc-util//util:absl_util",
