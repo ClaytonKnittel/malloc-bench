@@ -38,13 +38,16 @@ absl::StatusOr<double> TimeTrace(TracefileReader& reader,
           break;
         }
         case TraceLine::kRealloc: {
-          void* ptr = realloc(ptrs[line.realloc().input_id()],
+          void* ptr = realloc(line.realloc().has_input_id()
+                                  ? ptrs[line.realloc().input_id()]
+                                  : nullptr,
                               line.realloc().input_size());
           ptrs[line.realloc().result_id()] = ptr;
           break;
         }
         case TraceLine::kFree: {
-          free(ptrs[line.free().input_id()]);
+          free(line.free().has_input_id() ? ptrs[line.free().input_id()]
+                                          : nullptr);
           break;
         }
         case TraceLine::OP_NOT_SET: {
