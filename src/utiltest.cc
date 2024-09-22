@@ -1,4 +1,5 @@
-#include "absl/container/flat_hash_map.h"
+#include <cstdint>
+
 #include "absl/flags/flag.h"
 #include "absl/status/statusor.h"
 
@@ -25,53 +26,61 @@ size_t RoundUp(size_t size) {
 
 absl::StatusOr<double> MeasureUtilization(TracefileReader& reader,
                                           HeapFactory& heap_factory) {
-  absl::flat_hash_map<void*, std::pair<void*, size_t>> id_to_ptrs;
+  std::vector<std::pair<void*, uint64_t>> ptrs(
+      reader.Tracefile().max_simultaneous_allocs());
 
   heap_factory.Reset();
   initialize_heap(heap_factory);
 
   size_t total_allocated_bytes = 0;
   size_t max_allocated_bytes = 0;
-  for (TraceLine line : reader) {
-    switch (line.op) {
-      case TraceLine::Op::kMalloc: {
-        void* ptr = malloc(line.input_size);
-        if (ptr != nullptr) {
-          id_to_ptrs[line.result] = { ptr, line.input_size };
-          total_allocated_bytes += RoundUp(line.input_size);
-        }
+  for (const TraceLine& line : reader) {
+    switch (line.op_case()) {
+      case TraceLine::kMalloc: {
+        uint64_t size = line.malloc().input_size();
+        void* ptr = malloc(size);
+        ptrs[line.malloc().result_id()] = { ptr, size };
+        total_allocated_bytes += RoundUp(size);
         break;
       }
-      case TraceLine::Op::kCalloc: {
-        void* ptr = calloc(line.nmemb, line.input_size);
-        size_t allocated_bytes = line.nmemb * line.input_size;
-        if (ptr != nullptr) {
-          id_to_ptrs[line.result] = { ptr, allocated_bytes };
-          total_allocated_bytes += RoundUp(allocated_bytes);
-        }
+      case TraceLine::kCalloc: {
+        uint64_t nmemb = line.calloc().input_nmemb();
+        uint64_t size = line.calloc().input_size();
+        void* ptr = calloc(nmemb, size);
+        size_t allocated_bytes = nmemb * size;
+        ptrs[line.calloc().result_id()] = { ptr, allocated_bytes };
+        total_allocated_bytes += RoundUp(allocated_bytes);
         break;
       }
-      case TraceLine::Op::kRealloc: {
-        void* new_ptr =
-            realloc(id_to_ptrs[line.input_ptr].first, line.input_size);
-        if (line.input_ptr != nullptr) {
-          total_allocated_bytes -= RoundUp(id_to_ptrs[line.input_ptr].second);
-          id_to_ptrs.erase(line.input_ptr);
+      case TraceLine::kRealloc: {
+        void* input_ptr = line.realloc().has_input_id()
+                              ? ptrs[line.realloc().input_id()].first
+                              : nullptr;
+        if (line.realloc().has_input_id()) {
+          total_allocated_bytes -=
+              RoundUp(ptrs[line.realloc().input_id()].second);
+          ptrs[line.realloc().input_id()].first = nullptr;
         }
-        total_allocated_bytes += RoundUp(line.input_size);
-        id_to_ptrs[line.result] = { new_ptr, line.input_size };
+
+        uint64_t size = line.realloc().input_size();
+        void* new_ptr = realloc(input_ptr, size);
+        total_allocated_bytes += RoundUp(size);
+        ptrs[line.realloc().result_id()] = { new_ptr, size };
         break;
       }
-      case TraceLine::Op::kFree: {
-        if (line.input_ptr == nullptr) {
+      case TraceLine::kFree: {
+        if (!line.free().has_input_id()) {
           free(nullptr);
           break;
         }
 
-        free(id_to_ptrs[line.input_ptr].first);
-        total_allocated_bytes -= RoundUp(id_to_ptrs[line.input_ptr].second);
-        id_to_ptrs.erase(line.input_ptr);
+        free(ptrs[line.free().input_id()].first);
+        total_allocated_bytes -= RoundUp(ptrs[line.free().input_id()].second);
+        ptrs[line.free().input_id()].first = nullptr;
         break;
+      }
+      case TraceLine::OP_NOT_SET: {
+        __builtin_unreachable();
       }
     }
 
@@ -79,9 +88,6 @@ absl::StatusOr<double> MeasureUtilization(TracefileReader& reader,
   }
 
   if (total_allocated_bytes != 0) {
-    for (const auto& [id, ptr] : id_to_ptrs) {
-      printf("%p: %p %zu\n", id, ptr.first, ptr.second);
-    }
     return absl::InternalError(
         "Tracefile does not free all the memory it allocates.");
   }
