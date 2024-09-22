@@ -23,7 +23,6 @@
 
 namespace bench {
 
-using ckmalloc::kPageSize;
 using util::IsOk;
 
 // #define PRINT
@@ -58,24 +57,24 @@ class TestCorrectness : public ::testing::Test {
       1 << (ckmalloc::kHeapSizeShift - ckmalloc::kPageShift);
 
   TestCorrectness()
-      : heap_factory_(std::make_shared<ckmalloc::TestHeapFactory>(
-            kNumPages * kPageSize, kNumPages * kPageSize)),
+      : metadata_heap_(std::make_shared<ckmalloc::TestHeap>(kNumPages)),
+        user_heap_(std::make_shared<ckmalloc::TestHeap>(kNumPages)),
         slab_map_(std::make_shared<ckmalloc::TestSlabMap>()),
         slab_manager_fixture_(std::make_shared<ckmalloc::SlabManagerFixture>(
-            heap_factory_, slab_map_, /*heap_idx=*/1)),
+            user_heap_, slab_map_)),
         metadata_manager_fixture_(
-            std::make_shared<ckmalloc::MetadataManagerFixture>(
-                heap_factory_, slab_map_, /*heap_idx=*/0)),
+            std::make_shared<ckmalloc::MetadataManagerFixture>(metadata_heap_,
+                                                               slab_map_)),
         freelist_(std::make_shared<ckmalloc::Freelist>()),
         small_allocator_fixture_(
             std::make_shared<ckmalloc::SmallAllocatorFixture>(
-                heap_factory_, slab_map_, slab_manager_fixture_, freelist_)),
+                user_heap_, slab_map_, slab_manager_fixture_, freelist_)),
         large_allocator_fixture_(
             std::make_shared<ckmalloc::LargeAllocatorFixture>(
-                heap_factory_, slab_map_, slab_manager_fixture_, freelist_)),
+                user_heap_, slab_map_, slab_manager_fixture_, freelist_)),
         main_allocator_fixture_(
             std::make_shared<ckmalloc::MainAllocatorFixture>(
-                heap_factory_, slab_map_, slab_manager_fixture_,
+                user_heap_, slab_map_, slab_manager_fixture_,
                 small_allocator_fixture_, large_allocator_fixture_)) {}
 
   ckmalloc::TestMetadataManager& MetadataManager() {
@@ -112,7 +111,8 @@ class TestCorrectness : public ::testing::Test {
   }
 
  private:
-  std::shared_ptr<ckmalloc::TestHeapFactory> heap_factory_;
+  std::shared_ptr<ckmalloc::TestHeap> metadata_heap_;
+  std::shared_ptr<ckmalloc::TestHeap> user_heap_;
   std::shared_ptr<ckmalloc::TestSlabMap> slab_map_;
   std::shared_ptr<ckmalloc::SlabManagerFixture> slab_manager_fixture_;
   std::shared_ptr<ckmalloc::MetadataManagerFixture> metadata_manager_fixture_;
