@@ -49,6 +49,10 @@ class MainAllocatorTest : public ::testing::Test {
     TestSysAlloc::NewInstance(heap_factory_.get());
   }
 
+  TestHeapFactory& HeapFactory() {
+    return *heap_factory_;
+  }
+
   TestHeap& Heap() {
     return *main_heap_;
   }
@@ -261,6 +265,44 @@ TEST_F(MainAllocatorTest, FreeHuge) {
   EXPECT_EQ(Heap().Size(), 0);
   EXPECT_THAT(ValidateHeap(), IsOk());
   EXPECT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(MainAllocatorTest, ReallocHugeToSmall) {
+  Void* ptr1 = MainAllocator().Alloc(kMinMmapSize);
+  MainAllocator().Realloc(ptr1, 64);
+
+  EXPECT_EQ(Heap().Size(), kPageSize);
+  EXPECT_THAT(ValidateHeap(), IsOk());
+  EXPECT_EQ(HeapFactory().Instances().size(), 1);
+}
+
+TEST_F(MainAllocatorTest, ReallocHugeToLarge) {
+  Void* ptr1 = MainAllocator().Alloc(kMinMmapSize);
+  MainAllocator().Realloc(ptr1, 1024);
+
+  EXPECT_EQ(Heap().Size(), kPageSize);
+  EXPECT_THAT(ValidateHeap(), IsOk());
+  EXPECT_EQ(HeapFactory().Instances().size(), 1);
+}
+
+TEST_F(MainAllocatorTest, ReallocHugeToHuge) {
+  Void* ptr1 = MainAllocator().Alloc(kMinMmapSize);
+  Void* ptr2 = MainAllocator().Realloc(ptr1, kMinMmapSize + 1);
+
+  EXPECT_NE(ptr1, ptr2);
+  EXPECT_EQ(Heap().Size(), 0);
+  EXPECT_THAT(ValidateHeap(), IsOk());
+  EXPECT_EQ(HeapFactory().Instances().size(), 2);
+}
+
+TEST_F(MainAllocatorTest, ReallocHugeToEqualHuge) {
+  Void* ptr1 = MainAllocator().Alloc(kMinMmapSize + kPageSize);
+  Void* ptr2 = MainAllocator().Realloc(ptr1, kMinMmapSize + kPageSize - 1);
+
+  EXPECT_EQ(ptr1, ptr2);
+  EXPECT_EQ(Heap().Size(), 0);
+  EXPECT_THAT(ValidateHeap(), IsOk());
+  EXPECT_EQ(HeapFactory().Instances().size(), 2);
 }
 
 }  // namespace ckmalloc

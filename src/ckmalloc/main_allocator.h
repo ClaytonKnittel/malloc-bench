@@ -142,8 +142,7 @@ Void* MainAllocatorImpl<MetadataAlloc, SlabMap, SlabManager, SmallAllocator,
         return nullptr;
       }
 
-      // Then copy user data over. Note that the slice's size will always be
-      // smaller than `block`'s size, so no need to take the min of the two.
+      // Then copy user data over.
       std::memcpy(new_ptr, ptr, copy_size);
 
       // Free the block and return the newly allocated slice.
@@ -151,8 +150,31 @@ Void* MainAllocatorImpl<MetadataAlloc, SlabMap, SlabManager, SmallAllocator,
       return new_ptr;
     }
     case SlabType::kMmap: {
-      // TODO
-      return nullptr;
+      MmapSlab* const mmap_slab = slab->ToMmap();
+      Void* new_ptr;
+      size_t copy_size;
+      if (IsMmapSize(user_size)) {
+        uint32_t n_pages = CeilDiv(user_size, kPageSize);
+        if (n_pages == mmap_slab->Pages()) {
+          return ptr;
+        }
+
+        new_ptr = AllocMmap(user_size);
+        copy_size = std::min(mmap_slab->Pages(), n_pages) * kPageSize;
+      } else if (IsSmallSize(user_size)) {
+        new_ptr = small_alloc_->AllocSmall(user_size);
+        copy_size = user_size;
+      } else {
+        new_ptr = large_alloc_->AllocLarge(user_size);
+        copy_size = user_size;
+      }
+
+      // Copy user data over.
+      std::memcpy(new_ptr, ptr, copy_size);
+
+      // Free the block and return the newly allocated pointer.
+      FreeMmap(mmap_slab, ptr);
+      return new_ptr;
     }
     case SlabType::kUnmapped:
     case SlabType::kFree: {
