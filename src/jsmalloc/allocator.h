@@ -60,8 +60,7 @@ class HeapFactoryAdaptor : public MemRegionAllocator {
     if (!s.ok()) {
       return nullptr;
     }
-    bench::Heap* heap = s->second;
-    regions_.emplace_back(heap);
+    regions_.emplace_back(*s);
     return &regions_.back();
   }
 

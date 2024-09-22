@@ -2,8 +2,9 @@
 
 #include <cstddef>
 #include <memory>
-#include <vector>
 
+#include "absl/container/flat_hash_set.h"
+#include "absl/status/status.h"
 #include "absl/status/statusor.h"
 
 #include "src/heap_interface.h"
@@ -18,13 +19,12 @@ class HeapFactory {
 
   // Allocates a new heap of the requested size, returning the index of the new
   // heap and a pointer to it.
-  absl::StatusOr<std::pair<size_t, Heap*>> NewInstance(size_t size);
+  absl::StatusOr<Heap*> NewInstance(size_t size);
 
-  // Returns the heap instance at index `idx`.
-  Heap* Instance(size_t idx);
-  const Heap* Instance(size_t idx) const;
+  // Deletes a heap at the given index.
+  absl::Status DeleteInstance(Heap* heap);
 
-  const std::vector<std::unique_ptr<Heap>>& Instances() const;
+  const absl::flat_hash_set<std::unique_ptr<Heap>>& Instances() const;
 
   // Clears the heap factory and deletes all allocated heaps.
   void Reset();
@@ -33,7 +33,7 @@ class HeapFactory {
   virtual absl::StatusOr<std::unique_ptr<Heap>> MakeHeap(size_t size) = 0;
 
  private:
-  std::vector<std::unique_ptr<Heap>> heaps_;
+  absl::flat_hash_set<std::unique_ptr<Heap>> heaps_;
 };
 
 }  // namespace bench

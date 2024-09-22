@@ -82,8 +82,8 @@ void initialize_heap(bench::HeapFactory& heap_factory) {
     std::exit(-1);
   }
 
-  heap_globals = new (globals_data) HeapGlobals(
-      heap_factory, *small_block_heap->second, *large_block_heap->second);
+  heap_globals = new (globals_data)
+      HeapGlobals(heap_factory, **small_block_heap, **large_block_heap);
   heap_globals->Init();
 }
 

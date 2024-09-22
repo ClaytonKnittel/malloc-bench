@@ -154,9 +154,9 @@ void PrintTestResults(const std::vector<TraceResult>& results) {
 
   if (all_correct) {
     constexpr double kMinUtilThresh = 0.55;
-    constexpr double kMaxUtilThresh = 0.75;
-    constexpr double kMinOpsThresh = 50;
-    constexpr double kMaxOpsThresh = 150;
+    constexpr double kMaxUtilThresh = 0.875;
+    constexpr double kMinOpsThresh = 40;
+    constexpr double kMaxOpsThresh = 100;
 
     double util_score = std::clamp((total_util / n_correct - kMinUtilThresh) /
                                        (kMaxUtilThresh - kMinUtilThresh),
@@ -174,34 +174,6 @@ void PrintTestResults(const std::vector<TraceResult>& results) {
   }
 }
 
-absl::Status PrintTrace(const std::string& tracefile) {
-  DEFINE_OR_RETURN(TracefileReader, reader, TracefileReader::Open(tracefile));
-
-  for (TraceLine line : reader) {
-    switch (line.op) {
-      case TraceLine::Op::kMalloc:
-        std::cout << "malloc(" << line.input_size << ") = " << line.result
-                  << std::endl;
-        break;
-      case TraceLine::Op::kCalloc:
-        std::cout << "calloc(" << line.nmemb << ", " << line.input_size
-                  << ") = " << line.result << std::endl;
-        break;
-      case TraceLine::Op::kRealloc:
-        std::cout << "realloc(" << line.input_ptr << ", " << line.input_size
-                  << ") = " << line.result << std::endl;
-        break;
-      case TraceLine::Op::kFree:
-        if (line.input_ptr != nullptr) {
-          std::cout << "free(" << line.input_ptr << ")" << std::endl;
-        }
-        break;
-    }
-  }
-
-  return absl::OkStatus();
-}
-
 int RunAllTraces() {
   std::vector<bench::TraceResult> results;
   MMapHeapFactory heap_factory;
@@ -215,7 +187,7 @@ int RunAllTraces() {
            "traces/cbit-parity.trace",
            "traces/cbit-satadd.trace",
            "traces/cbit-xyz.trace",
-	   "traces/firefox.trace",
+           "traces/firefox.trace",
            "traces/four-in-a-row.trace",
            "traces/grep.trace",
            "traces/haskell-web-server.trace",
@@ -229,8 +201,8 @@ int RunAllTraces() {
            "traces/ngram-shake1.trace",
            "traces/onoro.trace",
            "traces/onoro-cc.trace",
-	   "traces/py-catan-ai.trace",
-	   "traces/py-euler-nayuki.trace",
+           "traces/py-catan-ai.trace",
+           "traces/py-euler-nayuki.trace",
            "traces/scp.trace",
            "traces/server.trace",
            "traces/simple.trace",
@@ -250,7 +222,7 @@ int RunAllTraces() {
            "traces/test.trace",
            "traces/test-zero.trace",
            "traces/vim.trace",
-	   "traces/vlc.trace"
+           "traces/vlc.trace",
        }) {
     if (absl::GetFlag(FLAGS_ignore_test) && ShouldIgnoreForScoring(tracefile)) {
       continue;

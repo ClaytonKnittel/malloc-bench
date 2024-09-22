@@ -30,7 +30,6 @@ cc_library(
         ":allocator_interface",
         ":heap_factory",
         ":tracefile_reader",
-        "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/time",
     ],
@@ -47,7 +46,6 @@ cc_library(
         ":allocator_interface",
         ":heap_factory",
         ":tracefile_reader",
-        "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/status:statusor",
     ],
@@ -110,6 +108,8 @@ cc_library(
     visibility = ["//src:__subpackages__"],
     deps = [
         ":heap_interface",
+        "@abseil-cpp//absl/container:flat_hash_set",
+        "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings:str_format",
         "@cc-util//util:absl_util",
@@ -177,18 +177,22 @@ cc_library(
 )
 
 cc_binary(
-    name = "tracefile_cleaner",
-    srcs = ["tracefile_cleaner.cc"],
+    name = "tracefile_parser",
+    srcs = ["tracefile_parser.cc"],
     data = [
         "//traces",
     ],
     deps = [
-        ":tracefile_reader",
+        "//proto:tracefile_cc_proto",
+        "@abseil-cpp//absl/container:btree",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/flags:parse",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:str_format",
         "@cc-util//util:absl_util",
+        "@protobuf",
+        "@protobuf//src/google/protobuf/io",
     ],
 )
 
@@ -199,7 +203,7 @@ cc_library(
     deps = [
         ":heap_factory",
         ":tracefile_reader",
-        "@abseil-cpp//absl/container:flat_hash_map",
+        "//proto:tracefile_cc_proto",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings:str_format",
@@ -212,10 +216,9 @@ cc_library(
     srcs = ["tracefile_reader.cc"],
     hdrs = ["tracefile_reader.h"],
     deps = [
+        "//proto:tracefile_cc_proto",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
-        "@abseil-cpp//absl/strings:string_view",
-        "@cc-util//util:absl_util",
     ],
 )
 

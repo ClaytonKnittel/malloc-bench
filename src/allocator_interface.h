@@ -13,8 +13,6 @@ namespace bench {
 
 static constexpr size_t kHeapSize = 512 * (1 << 20);
 
-extern std::mutex g_lock;
-
 // Called before any allocations are made.
 inline void initialize_heap(HeapFactory& heap_factory) {
   jsmalloc::initialize_heap(heap_factory);
@@ -34,12 +32,6 @@ inline void* realloc(void* ptr, size_t size) {
 
 inline void free(void* ptr, size_t size = 0, size_t alignment = 0) {
   return jsmalloc::free(ptr);
-}
-
-inline size_t get_size(void* ptr) {
-  // TODO: implement
-  (void) ptr;
-  return 0;
 }
 
 }  // namespace bench
