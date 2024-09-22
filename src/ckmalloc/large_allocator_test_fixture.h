@@ -9,7 +9,6 @@
 #include "src/ckmalloc/large_allocator.h"
 #include "src/ckmalloc/slab_manager_test_fixture.h"
 #include "src/ckmalloc/testlib.h"
-#include "src/heap_interface.h"
 
 namespace ckmalloc {
 
@@ -36,7 +35,7 @@ class LargeAllocatorFixture : public CkMallocTest {
     return kPrefix;
   }
 
-  bench::Heap& Heap() {
+  TestHeap& Heap() {
     return *heap_;
   }
 

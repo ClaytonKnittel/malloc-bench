@@ -186,6 +186,10 @@ class TraceReplayer : public TracefileExecutor {
 
   void InitializeHeap(HeapFactory& heap_factory) override {
     CkMalloc::InitializeHeap(heap_factory);
+    metadata_heap_ =
+        CkMalloc::Instance()->GlobalState()->MetadataManager()->MetadataHeap();
+    user_heap_ = CkMalloc::Instance()->GlobalState()->SlabManager()->heap_;
+    cur_heap_ = user_heap_;
   }
 
   absl::StatusOr<void*> Malloc(size_t size) override {
@@ -308,10 +312,13 @@ class TraceReplayer : public TracefileExecutor {
         case '0':
         case '1': {
           size_t idx = static_cast<size_t>(c) - static_cast<size_t>('0');
-          if (heap_factory_->Instance(idx) != nullptr) {
-            heap_idx_ = idx;
-            RETURN_IF_ERROR(RefreshPrintedHeap());
+          heap_factory_->Instances();
+          if (idx == 0) {
+            cur_heap_ = metadata_heap_;
+          } else {
+            cur_heap_ = user_heap_;
           }
+          RETURN_IF_ERROR(RefreshPrintedHeap());
           break;
         }
         default: {
@@ -421,8 +428,7 @@ class TraceReplayer : public TracefileExecutor {
 
     DEFINE_OR_RETURN(uint16_t, term_height, TermHeight());
 
-    HeapPrinter p(heap_factory_->Instance(heap_idx_),
-                  CkMalloc::Instance()->GlobalState()->SlabMap(),
+    HeapPrinter p(cur_heap_, CkMalloc::Instance()->GlobalState()->SlabMap(),
                   CkMalloc::Instance()->GlobalState()->SlabManager(),
                   CkMalloc::Instance()->GlobalState()->MetadataManager());
 
@@ -450,6 +456,9 @@ class TraceReplayer : public TracefileExecutor {
 
   HeapFactory* const heap_factory_;
 
+  bench::Heap* metadata_heap_ = nullptr;
+  bench::Heap* user_heap_ = nullptr;
+
   // The op about to be executed.
   TraceOp next_op_;
   // The op that was just executed. If nullopt, then there was no previous op
@@ -457,7 +466,7 @@ class TraceReplayer : public TracefileExecutor {
   std::optional<TraceOp> prev_op_;
 
   // Which heap we are currently looking at.
-  size_t heap_idx_ = 1;
+  bench::Heap* cur_heap_;
 
   uint64_t iter_ = 0;
   uint64_t skips_ = 0;

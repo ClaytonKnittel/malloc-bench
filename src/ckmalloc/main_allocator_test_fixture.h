@@ -60,12 +60,12 @@ class MainAllocatorFixture : public CkMallocTest {
   static constexpr size_t kNumPages = 64;
 
   MainAllocatorFixture(
-      std::shared_ptr<TestHeapFactory> heap_factory,
+      std::shared_ptr<TestHeap> heap,
       const std::shared_ptr<TestSlabMap>& slab_map,
       std::shared_ptr<SlabManagerFixture> slab_manager_test_fixture,
       std::shared_ptr<SmallAllocatorFixture> small_allocator_test_fixture,
       std::shared_ptr<LargeAllocatorFixture> large_allocator_test_fixture)
-      : heap_factory_(std::move(heap_factory)),
+      : heap_(std::move(heap)),
         slab_map_(slab_map),
         slab_manager_test_fixture_(std::move(slab_manager_test_fixture)),
         small_allocator_test_fixture_(std::move(small_allocator_test_fixture)),
@@ -81,8 +81,8 @@ class MainAllocatorFixture : public CkMallocTest {
     return kPrefix;
   }
 
-  TestHeapFactory& HeapFactory() {
-    return *heap_factory_;
+  TestHeap& Heap() {
+    return *heap_;
   }
 
   TestSlabMap& SlabMap() {
@@ -118,7 +118,7 @@ class MainAllocatorFixture : public CkMallocTest {
 
   absl::Status CheckMagic(void* allocation, size_t size, uint64_t magic);
 
-  std::shared_ptr<TestHeapFactory> heap_factory_;
+  std::shared_ptr<TestHeap> heap_;
   std::shared_ptr<TestSlabMap> slab_map_;
   std::shared_ptr<SlabManagerFixture> slab_manager_test_fixture_;
   std::shared_ptr<SmallAllocatorFixture> small_allocator_test_fixture_;

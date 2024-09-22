@@ -10,6 +10,7 @@
 #include "src/ckmalloc/size_class.h"
 #include "src/ckmalloc/util.h"
 #include "src/heap_factory.h"
+#include "src/heap_interface.h"
 
 namespace ckmalloc {
 
@@ -81,13 +82,12 @@ size_t CkMalloc::GetSize(void* ptr) {
   return global_state_.MainAllocator()->AllocSize(reinterpret_cast<Void*>(ptr));
 }
 
-CkMalloc::CkMalloc(bench::HeapFactory* heap_factory)
-    : global_state_(heap_factory, /*metadata_heap_idx=*/0,
-                    /*user_heap_idx=*/1) {}
+CkMalloc::CkMalloc(bench::Heap* metadata_heap, bench::Heap* user_heap)
+    : global_state_(metadata_heap, user_heap) {}
 
 /* static */
 CkMalloc* CkMalloc::InitializeWithEmptyHeap(bench::HeapFactory* heap_factory) {
-  CK_ASSERT_EQ(heap_factory->Instance(0), nullptr);
+  CK_ASSERT_TRUE(heap_factory->Instances().empty());
   auto result = heap_factory->NewInstance(kHeapSize);
   CK_ASSERT_TRUE(result.ok());
   auto result2 = heap_factory->NewInstance(kHeapSize);
@@ -95,10 +95,11 @@ CkMalloc* CkMalloc::InitializeWithEmptyHeap(bench::HeapFactory* heap_factory) {
 
   // Allocate a metadata slab and place ourselves at the beginning of it.
   size_t metadata_size = AlignUp(sizeof(CkMalloc), kPageSize);
-  void* metadata_heap_start = heap_factory->Instance(0)->sbrk(metadata_size);
+  void* metadata_heap_start = result.value()->sbrk(metadata_size);
   CK_ASSERT_NE(metadata_heap_start, nullptr);
 
-  CkMalloc* instance = new (metadata_heap_start) CkMalloc(heap_factory);
+  CkMalloc* instance =
+      new (metadata_heap_start) CkMalloc(result.value(), result2.value());
   instance_ = instance;
   return instance;
 }

@@ -15,6 +15,7 @@ class MetadataManagerImpl {
   friend class HeapPrinter;
   friend class MetadataManagerFixture;
   friend class GlobalState;
+  friend class TraceReplayer;
 
  public:
   // alloc_offset is by default kPageSize. Initializing this to kPageSize tricks

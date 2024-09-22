@@ -19,9 +19,9 @@ class SlabManagerTest : public testing::Test {
   static constexpr size_t kNumPages = 64;
 
   SlabManagerTest()
-      : heap_(kNumPages),
+      : heap_(std::make_shared<TestHeap>(kNumPages)),
         slab_map_(std::make_shared<TestSlabMap>()),
-        test_fixture_(&heap_, slab_map_) {}
+        test_fixture_(heap_, slab_map_) {}
 
   TestSlabManager& SlabManager() {
     return test_fixture_.SlabManager();
@@ -40,7 +40,7 @@ class SlabManagerTest : public testing::Test {
   }
 
  private:
-  TestHeap heap_;
+  std::shared_ptr<TestHeap> heap_;
   std::shared_ptr<TestSlabMap> slab_map_;
   SlabManagerFixture test_fixture_;
 };

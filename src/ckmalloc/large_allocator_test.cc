@@ -19,7 +19,6 @@
 #include "src/ckmalloc/slab_manager_test_fixture.h"
 #include "src/ckmalloc/testlib.h"
 #include "src/ckmalloc/util.h"
-#include "src/heap_interface.h"
 
 namespace ckmalloc {
 
@@ -53,7 +52,7 @@ class LargeAllocatorTest : public ::testing::Test {
     block->WriteFooterAndPrevFree();
   }
 
-  bench::Heap& Heap() {
+  TestHeap& Heap() {
     return slab_manager_fixture_->SlabHeap();
   }
 

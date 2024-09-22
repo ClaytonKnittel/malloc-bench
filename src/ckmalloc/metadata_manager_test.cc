@@ -32,7 +32,7 @@ class MetadataManagerTest : public testing::Test {
         metadata_manager_fixture_(
             std::make_shared<MetadataManagerFixture>(heap_, slab_map_)) {}
 
-  bench::Heap& Heap() {
+  TestHeap& Heap() {
     return *heap_;
   }
 

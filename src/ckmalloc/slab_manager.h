@@ -23,6 +23,7 @@ template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
 class SlabManagerImpl {
   friend class SlabManagerFixture;
   friend class GlobalState;
+  friend class TraceReplayer;
 
  public:
   explicit SlabManagerImpl(bench::Heap* heap, SlabMap* slab_map);

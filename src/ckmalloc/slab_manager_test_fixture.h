@@ -11,7 +11,6 @@
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/slab_manager.h"
 #include "src/ckmalloc/testlib.h"
-#include "src/heap_interface.h"
 #include "src/rng.h"
 
 namespace ckmalloc {
@@ -123,8 +122,8 @@ class SlabManagerFixture : public CkMallocTest {
     return kPrefix;
   }
 
-  bench::Heap& SlabHeap() {
-    return *slab_manager_->Underlying().heap_;
+  TestHeap& SlabHeap() {
+    return *heap_;
   }
 
   TestSlabMap& SlabMap() {

@@ -18,11 +18,11 @@ class SmallAllocatorFixture : public CkMallocTest {
   static constexpr const char* kPrefix = "[SmallAllocatorFixture]";
 
   SmallAllocatorFixture(
-      std::shared_ptr<TestHeapFactory> heap_factory,
+      std::shared_ptr<TestHeap> heap,
       const std::shared_ptr<TestSlabMap>& slab_map,
       std::shared_ptr<SlabManagerFixture> slab_manager_test_fixture,
       std::shared_ptr<Freelist> freelist)
-      : heap_factory_(std::move(heap_factory)),
+      : heap_(std::move(heap)),
         slab_map_(std::move(slab_map)),
         slab_manager_test_fixture_(std::move(slab_manager_test_fixture)),
         slab_manager_(slab_manager_test_fixture_->SlabManagerPtr()),
@@ -34,8 +34,8 @@ class SmallAllocatorFixture : public CkMallocTest {
     return kPrefix;
   }
 
-  TestHeapFactory& HeapFactory() {
-    return *heap_factory_;
+  TestHeap& Heap() {
+    return *heap_;
   }
 
   TestSlabMap& SlabMap() {
@@ -59,7 +59,7 @@ class SmallAllocatorFixture : public CkMallocTest {
   absl::Status ValidateEmpty();
 
  private:
-  std::shared_ptr<TestHeapFactory> heap_factory_;
+  std::shared_ptr<TestHeap> heap_;
   std::shared_ptr<TestSlabMap> slab_map_;
   std::shared_ptr<SlabManagerFixture> slab_manager_test_fixture_;
   std::shared_ptr<TestSlabManager> slab_manager_;

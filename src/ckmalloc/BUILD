@@ -11,6 +11,7 @@ cc_library(
         ":size_class",
         ":util",
         "//src:heap_factory",
+        "//src:heap_interface",
     ],
 )
 
@@ -134,7 +135,6 @@ cc_test(
         ":slab_manager_test_fixture",
         ":testlib",
         ":util",
-        "//src:heap_interface",
         "@abseil-cpp//absl/status",
         "@cc-util//util:absl_util",
         "@cc-util//util:gtest_util",
@@ -158,7 +158,6 @@ cc_library(
         ":slab_manager_test_fixture",
         ":testlib",
         ":util",
-        "//src:heap_interface",
         "@abseil-cpp//absl/container:flat_hash_set",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/strings:str_format",
@@ -223,7 +222,6 @@ cc_test(
         ":slab_manager_test_fixture",
         ":small_allocator_test_fixture",
         ":testlib",
-        "//src:heap_interface",
         "@cc-util//util:absl_util",
         "@cc-util//util:gtest_util",
         "@googletest//:gtest",
