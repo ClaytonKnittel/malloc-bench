@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <utility>
@@ -318,8 +319,8 @@ Block* SlabManagerImpl<MetadataAlloc, SlabMap>::FirstBlockInBlockedSlab(
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
 size_t SlabManagerImpl<MetadataAlloc, SlabMap>::HeapSize() const {
-  return static_cast<uint8_t*>(heap_->End()) -
-         static_cast<uint8_t*>(heap_start_);
+  return static_cast<size_t>(static_cast<uint8_t*>(heap_->End()) -
+                             static_cast<uint8_t*>(heap_start_));
 }
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>

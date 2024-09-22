@@ -156,8 +156,7 @@ struct TraceOp {
 class TraceReplayer : public TracefileExecutor {
  public:
   TraceReplayer(TracefileReader&& reader, HeapFactory& heap_factory)
-      : TracefileExecutor(std::move(reader), heap_factory),
-        heap_factory_(&heap_factory) {
+      : TracefileExecutor(std::move(reader), heap_factory) {
     if (!absl::GetFlag(FLAGS_test_run)) {
       std::cout << CSI_ALTERNATE_DISPLAY << CSI_HIDE << CSI_CHP(1, 1);
       SetNonCanonicalMode(/*enable=*/true);
@@ -312,7 +311,6 @@ class TraceReplayer : public TracefileExecutor {
         case '0':
         case '1': {
           size_t idx = static_cast<size_t>(c) - static_cast<size_t>('0');
-          heap_factory_->Instances();
           if (idx == 0) {
             cur_heap_ = metadata_heap_;
           } else {
@@ -453,8 +451,6 @@ class TraceReplayer : public TracefileExecutor {
 
     return absl::OkStatus();
   }
-
-  HeapFactory* const heap_factory_;
 
   bench::Heap* metadata_heap_ = nullptr;
   bench::Heap* user_heap_ = nullptr;

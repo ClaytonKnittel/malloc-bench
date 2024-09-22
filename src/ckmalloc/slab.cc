@@ -39,7 +39,8 @@ requires std::is_integral_v<T>
 SmallSlabMetadata<T>::SmallSlabMetadata(class SizeClass size_class)
     : size_class_(size_class),
       freelist_node_offset_(FreelistNodesPerSlice(size_class) - 1),
-      uninitialized_count_(size_class.MaxSlicesPerSlab()) {}
+      uninitialized_count_(
+          static_cast<uint16_t>(size_class.MaxSlicesPerSlab())) {}
 
 template <typename T>
 requires std::is_integral_v<T>
