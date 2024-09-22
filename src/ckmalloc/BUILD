@@ -158,6 +158,7 @@ cc_library(
         ":slab_manager_test_fixture",
         ":testlib",
         ":util",
+        "//src:heap_interface",
         "@abseil-cpp//absl/container:flat_hash_set",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/strings:str_format",

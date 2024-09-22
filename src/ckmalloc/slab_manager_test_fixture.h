@@ -111,10 +111,12 @@ class SlabManagerFixture : public CkMallocTest {
 
   // Only used for initializing `TestSlabManager` via the default constructor,
   // which needs the heap and slab_map to have been defined already.
-  SlabManagerFixture(TestHeap* heap, std::shared_ptr<TestSlabMap> slab_map)
-      : slab_map_(std::move(slab_map)),
-        slab_manager_(
-            std::make_shared<TestSlabManager>(this, heap, slab_map_.get())),
+  SlabManagerFixture(std::shared_ptr<TestHeap> heap,
+                     std::shared_ptr<TestSlabMap> slab_map)
+      : heap_(std::move(heap)),
+        slab_map_(std::move(slab_map)),
+        slab_manager_(std::make_shared<TestSlabManager>(this, heap_.get(),
+                                                        slab_map_.get())),
         rng_(1027, 3) {}
 
   const char* TestPrefix() const override {
@@ -155,6 +157,7 @@ class SlabManagerFixture : public CkMallocTest {
 
   absl::Status CheckMagic(AllocatedSlab* slab, uint64_t magic);
 
+  std::shared_ptr<TestHeap> heap_;
   std::shared_ptr<TestSlabMap> slab_map_;
   std::shared_ptr<TestSlabManager> slab_manager_;
   util::Rng rng_;
