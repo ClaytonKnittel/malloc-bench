@@ -75,16 +75,14 @@ class LargeAllocatorTest : public ::testing::Test {
   }
 
   AllocatedBlock* Realloc(AllocatedBlock* block, uint64_t block_size) {
-    LargeSlab* slab =
-        SlabMap().FindSlab(SlabManager().PageIdFromPtr(block))->ToLarge();
+    LargeSlab* slab = SlabMap().FindSlab(PageId::FromPtr(block))->ToLarge();
     Void* res = LargeAllocator().ReallocLarge(
         slab, block->UserDataPtr(), Block::UserSizeForBlockSize(block_size));
     return res != nullptr ? AllocatedBlock::FromUserDataPtr(res) : nullptr;
   }
 
   void Free(AllocatedBlock* block) {
-    LargeSlab* slab =
-        SlabMap().FindSlab(SlabManager().PageIdFromPtr(block))->ToLarge();
+    LargeSlab* slab = SlabMap().FindSlab(PageId::FromPtr(block))->ToLarge();
     LargeAllocator().FreeLarge(slab, block->UserDataPtr());
   }
 
@@ -173,7 +171,7 @@ class LargeAllocatorTest : public ::testing::Test {
     auto result =
         SlabManager().Alloc<BlockedSlab>(CeilDiv(total_bytes_, kPageSize));
     CK_ASSERT_TRUE(result.has_value());
-    CK_ASSERT_EQ(result.value().first, PageId::Zero());
+    CK_ASSERT_EQ(result.value().first, PageId::FromPtr(heap_->Start()));
     BlockedSlab* slab = result.value().second;
 
     uint64_t offset = Block::kFirstBlockInSlabOffset;

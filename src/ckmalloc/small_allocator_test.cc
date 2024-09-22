@@ -47,8 +47,7 @@ class SmallAllocatorTest : public ::testing::Test {
   }
 
   void FreeSmall(Void* ptr) {
-    SmallSlab* slab =
-        SlabMap().FindSlab(SlabManager().PageIdFromPtr(ptr))->ToSmall();
+    SmallSlab* slab = SlabMap().FindSlab(PageId::FromPtr(ptr))->ToSmall();
     SmallAllocator().FreeSmall(slab, ptr);
   }
 
@@ -80,7 +79,7 @@ TEST_F(SmallAllocatorTest, SingleSlab) {
   void* ptr = SmallAllocator().AllocSmall(16);
   ASSERT_NE(ptr, nullptr);
 
-  Slab* slab = SlabMap().FindSlab(SlabManager().PageIdFromPtr(ptr));
+  Slab* slab = SlabMap().FindSlab(PageId::FromPtr(ptr));
   ASSERT_NE(slab, nullptr);
   EXPECT_EQ(slab->Type(), SlabType::kSmall);
 

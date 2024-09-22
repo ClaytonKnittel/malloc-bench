@@ -79,7 +79,7 @@ Void* SmallAllocatorImpl<SlabMap, SlabManager>::AllocSmall(size_t user_size) {
     TrackedBlock* block = freelist_->FindFreeExact(block_size);
     if (block != nullptr) {
       BlockedSlab* slab =
-          slab_map_->FindSlab(slab_manager_->PageIdFromPtr(block))->ToBlocked();
+          slab_map_->FindSlab(PageId::FromPtr(block))->ToBlocked();
       slab->AddAllocation(Block::BlockSizeForUserSize(user_size));
       CK_ASSERT_EQ(block->Size(), block_size);
       auto [allocated, free] = freelist_->Split(block, block_size);
@@ -106,8 +106,7 @@ Void* SmallAllocatorImpl<SlabMap, SlabManager>::ReallocSmall(SmallSlab* slab,
     return AllocSmall(user_size);
   }
 
-  CK_ASSERT_EQ(
-      slab_map_->FindSlab(slab_manager_->PageIdFromPtr(ptr))->ToSmall(), slab);
+  CK_ASSERT_EQ(slab_map_->FindSlab(PageId::FromPtr(ptr))->ToSmall(), slab);
   SizeClass size_class = SizeClass::FromUserDataSize(user_size);
   SizeClass cur_size_class = slab->SizeClass();
   if (cur_size_class == size_class) {
@@ -125,8 +124,7 @@ Void* SmallAllocatorImpl<SlabMap, SlabManager>::ReallocSmall(SmallSlab* slab,
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
 void SmallAllocatorImpl<SlabMap, SlabManager>::FreeSmall(SmallSlab* slab,
                                                          Void* ptr) {
-  CK_ASSERT_EQ(
-      slab_map_->FindSlab(slab_manager_->PageIdFromPtr(ptr))->ToSmall(), slab);
+  CK_ASSERT_EQ(slab_map_->FindSlab(PageId::FromPtr(ptr))->ToSmall(), slab);
   if (slab->Full()) {
     AddToFreelist(slab);
   }
@@ -150,8 +148,7 @@ template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
 AllocatedSlice* SmallAllocatorImpl<SlabMap, SlabManager>::TakeSlice(
     SmallSlab* slab) {
   CK_ASSERT_FALSE(slab->Full());
-  AllocatedSlice* slice =
-      slab->PopSlice(slab_manager_->PageStartFromId(slab->StartId()));
+  AllocatedSlice* slice = slab->PopSlice(slab->StartId().PageStart());
 
   if (slab->Full()) {
     RemoveFromFreelist(slab);
@@ -176,13 +173,13 @@ SmallAllocatorImpl<SlabMap, SlabManager>::TakeSliceFromNewSlab(
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
 void SmallAllocatorImpl<SlabMap, SlabManager>::ReturnSlice(
     SmallSlab* slab, AllocatedSlice* slice) {
-  void* slab_start = slab_manager_->PageStartFromId(slab->StartId());
+  void* slab_start = slab->StartId().PageStart();
   CK_ASSERT_GE(slice, slab_start);
   CK_ASSERT_LE(
       slice, PtrAdd<AllocatedSlice>(slab_start,
                                     kPageSize - slab->SizeClass().SliceSize()));
 
-  slab->PushSlice(slab_manager_->PageStartFromId(slab->StartId()), slice);
+  slab->PushSlice(slab->StartId().PageStart(), slice);
   if (slab->Empty()) {
     RemoveFromFreelist(slab);
     slab_manager_->Free(slab);

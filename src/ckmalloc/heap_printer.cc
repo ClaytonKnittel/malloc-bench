@@ -39,15 +39,15 @@ std::string HeapPrinter::Print() {
   std::string result;
 
   if (heap_ == metadata_manager_->MetadataHeap()) {
-    for (PageId page_id = PageId::Zero();
-         page_id < PageId(heap_->Size() / kPageSize); ++page_id) {
+    for (PageId page_id = PageId::FromPtr(heap_->Start());
+         page_id < PageId::FromPtr(heap_->End()); ++page_id) {
       result += absl::StrFormat("Metadata slab: %v\n", page_id);
     }
     return result;
   }
 
-  for (PageId page_id = PageId::Zero();
-       page_id < PageId(heap_->Size() / kPageSize);) {
+  for (PageId page_id = PageId::FromPtr(heap_->Start());
+       page_id < PageId::FromPtr(heap_->End());) {
     MappedSlab* slab = slab_map_->FindSlab(page_id);
     CK_ASSERT_NE(slab, nullptr);
 
@@ -112,7 +112,7 @@ std::string HeapPrinter::PrintSmall(const SmallSlab* slab) {
   // Track which slices in the small slab are free. Start off with all marked as
   // allocated, then go through and mark each free slab in the freelist as free.
   std::vector<bool> free_slots(slab->SizeClass().MaxSlicesPerSlab(), false);
-  void* const slab_start = slab_manager_->PageStartFromId(slab->StartId());
+  void* const slab_start = slab->StartId().PageStart();
   slab->IterateSlices(slab_start, [&free_slots](uint32_t slice_idx) {
     free_slots[slice_idx] = true;
   });
@@ -273,7 +273,7 @@ std::string HeapPrinter::PrintSingleAlloc(const SingleAllocSlab* slab) {
                           ? ""
                           : absl::StrFormat(" - %v", slab->EndId()));
 
-  void* alloc = slab_manager_->PageStartFromId(slab->StartId());
+  void* alloc = slab->StartId().PageStart();
   auto it = highlight_addrs_.find(alloc);
 
   for (const auto& row :

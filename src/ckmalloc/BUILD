@@ -239,7 +239,6 @@ cc_library(
         ":common",
         ":freelist",
         ":large_allocator_test_fixture",
-        ":local_cache",
         ":main_allocator",
         ":size_class",
         ":slab",

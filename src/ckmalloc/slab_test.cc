@@ -32,7 +32,7 @@ class TestSmallSlab {
  public:
   explicit TestSmallSlab(SizeClass size_class) {
     static_cast<Slab*>(&slab_)->Init<SmallSlab>(
-        PageId::Zero(), /*n_pages=*/UINT32_C(1), size_class);
+        PageId(0), /*n_pages=*/UINT32_C(1), size_class);
   }
 
   SmallSlab& Underlying() {

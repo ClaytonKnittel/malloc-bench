@@ -74,7 +74,7 @@ template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager,
           LargeAllocatorInterface LargeAllocator>
 Void* MainAllocatorImpl<SlabMap, SlabManager, SmallAllocator,
                         LargeAllocator>::Realloc(Void* ptr, size_t user_size) {
-  Slab* slab = slab_map_->FindSlab(slab_manager_->PageIdFromPtr(ptr));
+  Slab* slab = slab_map_->FindSlab(PageId::FromPtr(ptr));
   CK_ASSERT_NE(slab->Type(), SlabType::kFree);
   CK_ASSERT_NE(slab->Type(), SlabType::kUnmapped);
 
@@ -136,7 +136,7 @@ template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager,
           LargeAllocatorInterface LargeAllocator>
 void MainAllocatorImpl<SlabMap, SlabManager, SmallAllocator,
                        LargeAllocator>::Free(Void* ptr) {
-  Slab* slab = slab_map_->FindSlab(slab_manager_->PageIdFromPtr(ptr));
+  Slab* slab = slab_map_->FindSlab(PageId::FromPtr(ptr));
   CK_ASSERT_NE(slab->Type(), SlabType::kFree);
   CK_ASSERT_NE(slab->Type(), SlabType::kUnmapped);
 
@@ -164,7 +164,7 @@ template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager,
           LargeAllocatorInterface LargeAllocator>
 size_t MainAllocatorImpl<SlabMap, SlabManager, SmallAllocator,
                          LargeAllocator>::AllocSize(Void* ptr) const {
-  PageId page_id = slab_manager_->PageIdFromPtr(ptr);
+  PageId page_id = PageId::FromPtr(ptr);
   SizeClass size_class = slab_map_->FindSizeClass(page_id);
   if (size_class != SizeClass::Nil()) {
     return size_class.SliceSize();

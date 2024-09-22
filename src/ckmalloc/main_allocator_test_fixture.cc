@@ -9,7 +9,6 @@
 #include "src/ckmalloc/block.h"
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/freelist.h"
-#include "src/ckmalloc/local_cache.h"
 #include "src/ckmalloc/size_class.h"
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/testlib.h"
@@ -108,7 +107,7 @@ absl::Status MainAllocatorFixture::ValidateHeap() {
     // Check magic bytes of block.
     RETURN_IF_ERROR(CheckMagic(alloc, size, magic));
 
-    MappedSlab* slab = SlabMap().FindSlab(SlabManager().PageIdFromPtr(alloc));
+    MappedSlab* slab = SlabMap().FindSlab(PageId::FromPtr(alloc));
     size_t derived_size = MainAllocator().AllocSize(alloc);
     size_t aligned_size;
     switch (slab->Type()) {

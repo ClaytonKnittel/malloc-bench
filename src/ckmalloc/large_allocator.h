@@ -173,8 +173,7 @@ AllocatedBlock* LargeAllocatorImpl<SlabMap, SlabManager>::MakeBlockFromFreelist(
   }
 
   BlockedSlab* slab =
-      slab_map_->FindSlab(slab_manager_->PageIdFromPtr(free_block))
-          ->ToBlocked();
+      slab_map_->FindSlab(PageId::FromPtr(free_block))->ToBlocked();
 
   auto [allocated_block, remainder_block] =
       freelist_->Split(free_block, block_size);
@@ -237,7 +236,7 @@ Void* LargeAllocatorImpl<SlabMap, SlabManager>::AllocSingleAllocSlab(
     return nullptr;
   }
 
-  return reinterpret_cast<Void*>(slab_manager_->PageStartFromId(result->first));
+  return reinterpret_cast<Void*>(result->first.PageStart());
 }
 
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
