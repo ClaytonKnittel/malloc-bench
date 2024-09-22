@@ -183,6 +183,8 @@ cc_binary(
     ],
     deps = [
         "//proto:tracefile_cc_proto",
+        "@protobuf//:protobuf",
+        "@protobuf//src/google/protobuf/io",
         "@abseil-cpp//absl/container:btree",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/flags:parse",

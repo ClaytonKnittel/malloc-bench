@@ -15,6 +15,8 @@
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
+#include "google/protobuf/io/zero_copy_stream_impl.h"
+#include "google/protobuf/text_format.h"
 #include "util/absl_util.h"
 
 #include "proto/tracefile.pb.h"
@@ -63,12 +65,14 @@ class DirtyTracefileReader {
 
     const auto get_next_id = [&available_ids, &next_id,
                               &id_map](void* ptr) -> absl::StatusOr<uint64_t> {
+      uint64_t id;
       if (available_ids.empty()) {
-        return next_id++;
+        id = next_id++;
+      } else {
+        auto it = available_ids.begin();
+        id = *it;
+        available_ids.erase(it);
       }
-      auto it = available_ids.begin();
-      uint64_t id = *it;
-      available_ids.erase(it);
 
       auto [_it, inserted] = id_map.emplace(ptr, id);
       if (!inserted) {
@@ -215,10 +219,16 @@ class DirtyTracefileReader {
   const class Tracefile tracefile_;
 };
 
-absl::Status CleanTracefile(absl::string_view input_path, std::ostream& out) {
+absl::Status CleanTracefile(absl::string_view input_path, std::ostream& out,
+                            bool text_serialize = false) {
   DEFINE_OR_RETURN(DirtyTracefileReader, reader,
                    DirtyTracefileReader::Open(std::string(input_path)));
-  reader.Tracefile().SerializeToOstream(&out);
+  if (text_serialize) {
+    google::protobuf::io::OstreamOutputStream os(&out);
+    google::protobuf::TextFormat::Print(reader.Tracefile(), &os);
+  } else {
+    reader.Tracefile().SerializeToOstream(&out);
+  }
 
   return absl::OkStatus();
 }
@@ -239,7 +249,8 @@ int main(int argc, char* argv[]) {
     std::ofstream file(output, std::ios_base::out);
     s = bench::CleanTracefile(input_tracefile_path, file);
   } else {
-    s = bench::CleanTracefile(input_tracefile_path, std::cout);
+    s = bench::CleanTracefile(input_tracefile_path, std::cout,
+                              /*text_serialize=*/true);
   }
 
   if (!s.ok()) {
