@@ -181,7 +181,7 @@ int RunAllTraces() {
   MMapHeapFactory heap_factory;
 
   for (const auto& dir_entry : std::filesystem::directory_iterator("traces")) {
-    std::string tracefile(absl::StripSuffix(dir_entry.path().c_str(), ".gz"));
+    const std::string& tracefile = dir_entry.path();
     if (!tracefile.ends_with(".trace")) {
       continue;
     }
@@ -209,7 +209,8 @@ int RunAllTraces() {
 int main(int argc, char* argv[]) {
   absl::ParseCommandLine(argc, argv);
 
-  const std::string& tracefile = absl::GetFlag(FLAGS_trace);
+  const std::string tracefile(
+      absl::StripSuffix(absl::GetFlag(FLAGS_trace), ".gz"));
   if (tracefile.empty()) {
     return bench::RunAllTraces();
   }
