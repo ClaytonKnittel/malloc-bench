@@ -70,9 +70,10 @@ void CkMalloc::Free(void* ptr) {
 
   MainAllocator* main_allocator = global_state_.MainAllocator();
   LocalCache* cache = LocalCache::Instance<GlobalMetadataAlloc>();
-  size_t alloc_size = main_allocator->AllocSize(p);
-  if (LocalCache::CanHoldSize(alloc_size)) {
-    cache->CacheAlloc(p, alloc_size);
+  SizeClass size_class = main_allocator->AllocSizeClass(p);
+  if (size_class != SizeClass::Nil() &&
+      LocalCache::CanHoldSize(size_class.SliceSize())) {
+    cache->CacheAlloc(p, size_class.SliceSize());
   } else {
     main_allocator->Free(p);
   }

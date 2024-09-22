@@ -137,6 +137,9 @@ concept MainAllocatorInterface =
       { main_alloc.Realloc(ptr, user_size) } -> std::convertible_to<Void*>;
       { main_alloc.Free(ptr) } -> std::same_as<void>;
       { main_alloc.AllocSize(ptr) } -> std::convertible_to<size_t>;
+      {
+        main_alloc.AllocSizeClass(ptr)
+      } -> std::convertible_to<class SizeClass>;
     };
 
 // This is defined in `state.cc` to avoid circular dependencies.

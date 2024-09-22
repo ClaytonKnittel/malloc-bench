@@ -50,6 +50,9 @@ class MainAllocatorImpl {
   // Given a pointer to an allocated region, returns the size of the region.
   size_t AllocSize(Void* ptr) const;
 
+  // Given a pointer to an allocated region, returns the size of the region.
+  SizeClass AllocSizeClass(Void* ptr) const;
+
  private:
   SlabMap* const slab_map_;
   SlabManager* const slab_manager_;
@@ -164,12 +167,12 @@ template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager,
           LargeAllocatorInterface LargeAllocator>
 size_t MainAllocatorImpl<SlabMap, SlabManager, SmallAllocator,
                          LargeAllocator>::AllocSize(Void* ptr) const {
-  PageId page_id = PageId::FromPtr(ptr);
-  SizeClass size_class = slab_map_->FindSizeClass(page_id);
+  SizeClass size_class = AllocSizeClass(ptr);
   if (size_class != SizeClass::Nil()) {
     return size_class.SliceSize();
   }
 
+  PageId page_id = PageId::FromPtr(ptr);
   Slab* slab = slab_map_->FindSlab(page_id);
   CK_ASSERT_NE(slab->Type(), SlabType::kFree);
   CK_ASSERT_NE(slab->Type(), SlabType::kSmall);
@@ -191,6 +194,15 @@ size_t MainAllocatorImpl<SlabMap, SlabManager, SmallAllocator,
       return 0;
     }
   }
+}
+
+template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager,
+          SmallAllocatorInterface SmallAllocator,
+          LargeAllocatorInterface LargeAllocator>
+SizeClass MainAllocatorImpl<SlabMap, SlabManager, SmallAllocator,
+                            LargeAllocator>::AllocSizeClass(Void* ptr) const {
+  PageId page_id = PageId::FromPtr(ptr);
+  return slab_map_->FindSizeClass(page_id);
 }
 
 using MainAllocator =
