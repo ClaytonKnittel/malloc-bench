@@ -52,9 +52,6 @@ class MetadataManagerImpl {
 
   bench::Heap* const heap_;
 
-  // The index of the metadata heap in the heap factory.
-  const size_t heap_idx_;
-
   SlabMap* const slab_map_;
 
   // The head of a singly-linked list of free slabs.

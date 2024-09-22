@@ -33,17 +33,13 @@ class LargeAllocatorTest : public ::testing::Test {
   static constexpr size_t kNumPages = 64;
 
   LargeAllocatorTest()
-      : heap_factory_(std::make_shared<TestHeapFactory>(kNumPages * kPageSize)),
+      : heap_(std::make_shared<TestHeap>(kNumPages)),
         slab_map_(std::make_shared<TestSlabMap>()),
-        slab_manager_fixture_(std::make_shared<SlabManagerFixture>(
-            heap_factory_, slab_map_, /*heap_idx=*/0)),
+        slab_manager_fixture_(
+            std::make_shared<SlabManagerFixture>(heap_, slab_map_)),
         freelist_(std::make_shared<class Freelist>()),
         large_allocator_fixture_(std::make_shared<LargeAllocatorFixture>(
-            heap_factory_, slab_map_, slab_manager_fixture_, freelist_)) {}
-
-  TestHeapFactory& HeapFactory() {
-    return slab_manager_fixture_->HeapFactory();
-  }
+            heap_, slab_map_, slab_manager_fixture_, freelist_)) {}
 
   static bool PrevFree(const Block* block) {
     return block->PrevFree();
@@ -58,7 +54,7 @@ class LargeAllocatorTest : public ::testing::Test {
   }
 
   bench::Heap& Heap() {
-    return *HeapFactory().Instance(0);
+    return slab_manager_fixture_->SlabHeap();
   }
 
   TestSlabMap& SlabMap() {
@@ -220,7 +216,7 @@ class LargeAllocatorTest : public ::testing::Test {
                          Block::kFirstBlockInSlabOffset + total_bytes_);
   }
 
-  std::shared_ptr<TestHeapFactory> heap_factory_;
+  std::shared_ptr<TestHeap> heap_;
   std::shared_ptr<TestSlabMap> slab_map_;
   std::shared_ptr<SlabManagerFixture> slab_manager_fixture_;
   std::shared_ptr<class Freelist> freelist_;

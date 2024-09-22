@@ -79,7 +79,7 @@ cc_library(
         ":slab_manager",
         ":slab_map",
         ":small_allocator",
-        "//src:heap_factory",
+        "//src:heap_interface",
     ],
 )
 
@@ -295,6 +295,7 @@ cc_library(
         ":testlib",
         ":util",
         "//src:rng",
+        "//src:heap_interface",
         "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/container:flat_hash_set",
         "@abseil-cpp//absl/status",
