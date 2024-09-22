@@ -31,6 +31,9 @@ std::ostream& operator<<(std::ostream& ostr, SlabType slab_type) {
     case SlabType::kSingleAlloc: {
       return ostr << "kSingleAlloc";
     }
+    case SlabType::kMmap: {
+      return ostr << "kMmap";
+    }
   }
 }
 
@@ -357,6 +360,8 @@ bool MappedSlab::HasSizeClass() const {
       return HasSizeClassT<BlockedSlab>;
     case SlabType::kSingleAlloc:
       return HasSizeClassT<SingleAllocSlab>;
+    case SlabType::kMmap:
+      return HasSizeClassT<MmapSlab>;
     case SlabType::kUnmapped:
       __builtin_unreachable();
   }

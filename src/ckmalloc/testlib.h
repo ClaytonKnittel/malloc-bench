@@ -80,6 +80,9 @@ void AbslStringify(Sink& sink, SlabType slab_type) {
       sink.Append("kSingleAlloc");
       break;
     }
+    case SlabType::kMmap: {
+      sink.Append("kMmap");
+    }
   }
 }
 
@@ -92,7 +95,8 @@ void AbslStringify(Sink& sink, const Slab& slab) {
     }
     case SlabType::kFree:
     case SlabType::kSmall:
-    case SlabType::kSingleAlloc: {
+    case SlabType::kSingleAlloc:
+    case SlabType::kMmap: {
       const MappedSlab& mapped_slab = *slab.ToMapped();
       absl::Format(&sink, "Slab: [type=%v, pages=%" PRIu32 ", start_id=%v]",
                    mapped_slab.Type(), mapped_slab.Pages(),

@@ -89,9 +89,11 @@ absl::Status SlabManagerFixture::ValidateHeap() {
     visited_slabs.insert(slab);
 
     switch (slab->Type()) {
-      case SlabType::kUnmapped: {
+      case SlabType::kUnmapped:
+      case SlabType::kMmap: {
         return FailedTest(
-            "Unexpected unmapped slab found in slab map at page id %v", page);
+            "Unexpected slab of type %v found in slab map at page id %v",
+            slab->Type(), page);
       }
       case SlabType::kFree: {
         if (previous_was_free) {

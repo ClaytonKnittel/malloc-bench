@@ -111,7 +111,8 @@ absl::Status MainAllocatorFixture::ValidateHeap() {
     size_t derived_size = MainAllocator().AllocSize(alloc);
     size_t aligned_size;
     switch (slab->Type()) {
-      case SlabType::kSingleAlloc: {
+      case SlabType::kSingleAlloc:
+      case SlabType::kMmap: {
         aligned_size = AlignUp(size, kPageSize);
         break;
       }

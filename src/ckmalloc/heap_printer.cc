@@ -71,6 +71,10 @@ std::string HeapPrinter::Print() {
         result += PrintSingleAlloc(slab->ToSingleAlloc());
         break;
       }
+      case SlabType::kMmap: {
+        result += PrintMmap(slab->ToMmap());
+        break;
+      }
     }
 
     result += "\n";
@@ -287,6 +291,17 @@ std::string HeapPrinter::PrintSingleAlloc(const SingleAllocSlab* slab) {
       result += P_RESET;
     }
   }
+
+  return result;
+}
+
+/* static */
+std::string HeapPrinter::PrintMmap(const MmapSlab* slab) {
+  std::string result =
+      absl::StrFormat("Pages %v%v: mmapped", slab->StartId(),
+                      slab->StartId() == slab->EndId()
+                          ? ""
+                          : absl::StrFormat(" - %v", slab->EndId()));
 
   return result;
 }

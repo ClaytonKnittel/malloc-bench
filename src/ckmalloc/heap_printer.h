@@ -37,6 +37,8 @@ class HeapPrinter {
 
   std::string PrintSingleAlloc(const SingleAllocSlab* slab);
 
+  static std::string PrintMmap(const MmapSlab* slab);
+
   const bench::Heap* const heap_;
   const SlabMap* const slab_map_;
   const SlabManager* const slab_manager_;

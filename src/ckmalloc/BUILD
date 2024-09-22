@@ -9,6 +9,7 @@ cc_library(
         ":local_cache",
         ":main_allocator",
         ":size_class",
+        ":sys_alloc",
         ":util",
         "//src:heap_factory",
         "//src:heap_interface",
@@ -534,6 +535,16 @@ cc_library(
         "@abseil-cpp//absl/container:btree",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/strings:str_format",
+    ],
+)
+
+cc_library(
+    name = "sys_alloc",
+    srcs = ["sys_alloc.cc"],
+    hdrs = ["sys_alloc.h"],
+    deps = [
+        "//src:heap_factory",
+        "//src:mmap_heap_factory",
     ],
 )
 

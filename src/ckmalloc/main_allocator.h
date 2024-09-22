@@ -127,7 +127,7 @@ Void* MainAllocatorImpl<SlabMap, SlabManager, SmallAllocator,
     }
     case SlabType::kMmap: {
       // TODO
-      break;
+      return nullptr;
     }
     case SlabType::kUnmapped:
     case SlabType::kFree: {

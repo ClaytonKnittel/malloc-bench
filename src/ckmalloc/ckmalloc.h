@@ -36,9 +36,9 @@ class CkMalloc {
  private:
   explicit CkMalloc(bench::Heap* metadata_heap, bench::Heap* user_heap);
 
-  // Initializes a new `CkMalloc` with a heap factory that has not been
-  // allocated from yet. The `CkMalloc` takes ownership of the heap factory.
-  static CkMalloc* InitializeWithEmptyHeap(bench::HeapFactory* heap_factory);
+  // Initializes the allocator by allocating the metadata heap and first user
+  // heap.
+  static CkMalloc* Initialize();
 
   static CkMalloc* instance_;
 
