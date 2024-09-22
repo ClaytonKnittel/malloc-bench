@@ -34,6 +34,7 @@ absl::StatusOr<double> MeasureUtilization(TracefileReader& reader,
 
   size_t total_allocated_bytes = 0;
   size_t max_allocated_bytes = 0;
+  size_t max_heap_size = 0;
   for (const TraceLine& line : reader) {
     switch (line.op_case()) {
       case TraceLine::kMalloc: {
@@ -85,6 +86,12 @@ absl::StatusOr<double> MeasureUtilization(TracefileReader& reader,
     }
 
     max_allocated_bytes = std::max(total_allocated_bytes, max_allocated_bytes);
+
+    size_t heap_size = 0;
+    for (const auto& heap : heap_factory.Instances()) {
+      heap_size += heap->Size();
+    }
+    max_heap_size = std::max(heap_size, max_heap_size);
   }
 
   if (total_allocated_bytes != 0) {
@@ -92,11 +99,9 @@ absl::StatusOr<double> MeasureUtilization(TracefileReader& reader,
         "Tracefile does not free all the memory it allocates.");
   }
 
-  size_t total_size = 0;
-  for (const auto& heap : heap_factory.Instances()) {
-    total_size += heap->Size();
-  }
-  return static_cast<double>(max_allocated_bytes) / total_size;
+  return max_heap_size != 0
+             ? static_cast<double>(max_allocated_bytes) / max_heap_size
+             : -1;
 }
 
 }  // namespace bench
