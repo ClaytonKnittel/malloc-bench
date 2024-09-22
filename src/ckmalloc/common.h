@@ -39,9 +39,17 @@ static_assert(kHeapSize == (size_t(1) << kHeapSizeShift));
 // size larger will go in large blocks.
 static constexpr size_t kMaxSmallSize = 256;
 
+// The smallest user-request size which will be allocated in a
+// separately-allocated mmap region.
+static constexpr size_t kMinMmapSize = 32 * kPageSize;
+
 // If true, memory for this request will be allocated from a small slab.
 inline constexpr bool IsSmallSize(size_t user_size) {
   return user_size <= kMaxSmallSize;
+}
+
+inline constexpr bool IsMmapSize(size_t user_size) {
+  return user_size >= kMinMmapSize;
 }
 
 // Forward declarations for concepts (to prevent circular dependencies):

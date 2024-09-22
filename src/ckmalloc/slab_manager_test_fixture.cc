@@ -143,6 +143,12 @@ absl::Status SlabManagerFixture::ValidateHeap() {
 
         for (PageId page_id = allocated_slab->StartId();
              page_id <= allocated_slab->EndId(); ++page_id) {
+          // Skip internal pages for single-alloc slabs.
+          if (HasOneAllocation(slab->Type()) &&
+              (page_id != allocated_slab->StartId() &&
+               page_id != allocated_slab->EndId())) {
+            continue;
+          }
           MappedSlab* mapped_slab = SlabMap().FindSlab(page_id);
           if (mapped_slab != allocated_slab) {
             return FailedTest(

@@ -219,6 +219,21 @@ SingleAllocSlab* Slab::Init(PageId start_id, uint32_t n_pages) {
   return slab;
 }
 
+template <>
+MmapSlab* Slab::Init(PageId start_id, uint32_t n_pages, bench::Heap* heap) {
+  type_ = SlabType::kMmap;
+  mapped = {
+    .id_ = start_id,
+    .n_pages_ = n_pages,
+    .mmap = {
+      .heap_ = heap,
+    },
+  };
+
+  MmapSlab* slab = static_cast<MmapSlab*>(this);
+  return slab;
+}
+
 UnmappedSlab* Slab::ToUnmapped() {
   CK_ASSERT_EQ(Type(), SlabType::kUnmapped);
   return static_cast<UnmappedSlab*>(this);
@@ -363,7 +378,7 @@ bool MappedSlab::HasSizeClass() const {
     case SlabType::kMmap:
       return HasSizeClassT<MmapSlab>;
     case SlabType::kUnmapped:
-      __builtin_unreachable();
+      CK_UNREACHABLE();
   }
 }
 

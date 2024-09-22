@@ -1,3 +1,5 @@
+#include "absl/status/status.h"
+#include "absl/strings/str_format.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "util/absl_util.h"
@@ -10,6 +12,7 @@
 #include "src/ckmalloc/main_allocator_test_fixture.h"
 #include "src/ckmalloc/slab_manager_test_fixture.h"
 #include "src/ckmalloc/small_allocator_test_fixture.h"
+#include "src/ckmalloc/sys_alloc.h"
 #include "src/ckmalloc/testlib.h"
 
 namespace ckmalloc {
@@ -21,22 +24,33 @@ class MainAllocatorTest : public ::testing::Test {
  public:
   static constexpr size_t kNumPages = 64;
 
+  template <typename T>
+  static void Noop(T* val) {
+    (void) val;
+  }
+
   MainAllocatorTest()
-      : heap_(std::make_shared<TestHeap>(kNumPages)),
+      : heap_factory_(std::make_shared<TestHeapFactory>(
+            /*initial_size=*/kNumPages * kPageSize)),
+        main_heap_(
+            static_cast<TestHeap*>(heap_factory_->Instances().begin()->get()),
+            Noop<TestHeap>),
         slab_map_(std::make_shared<TestSlabMap>()),
         slab_manager_fixture_(
-            std::make_shared<SlabManagerFixture>(heap_, slab_map_)),
+            std::make_shared<SlabManagerFixture>(main_heap_, slab_map_)),
         freelist_(std::make_shared<class Freelist>()),
         small_allocator_fixture_(std::make_shared<SmallAllocatorFixture>(
-            heap_, slab_map_, slab_manager_fixture_, freelist_)),
+            main_heap_, slab_map_, slab_manager_fixture_, freelist_)),
         large_allocator_fixture_(std::make_shared<LargeAllocatorFixture>(
-            heap_, slab_map_, slab_manager_fixture_, freelist_)),
+            main_heap_, slab_map_, slab_manager_fixture_, freelist_)),
         main_allocator_fixture_(std::make_shared<MainAllocatorFixture>(
-            heap_, slab_map_, slab_manager_fixture_, small_allocator_fixture_,
-            large_allocator_fixture_)) {}
+            main_heap_, slab_map_, slab_manager_fixture_,
+            small_allocator_fixture_, large_allocator_fixture_)) {
+    TestSysAlloc::NewInstance(heap_factory_.get());
+  }
 
   TestHeap& Heap() {
-    return *heap_;
+    return *main_heap_;
   }
 
   TestSlabManager& SlabManager() {
@@ -72,11 +86,19 @@ class MainAllocatorTest : public ::testing::Test {
     RETURN_IF_ERROR(small_allocator_fixture_->ValidateEmpty());
     RETURN_IF_ERROR(large_allocator_fixture_->ValidateEmpty());
     RETURN_IF_ERROR(main_allocator_fixture_->ValidateEmpty());
+
+    if (heap_factory_->Instances().size() != 1) {
+      return absl::FailedPreconditionError(
+          absl::StrFormat("Expected empty heap, but found %zu heap instances "
+                          "(only the main heap should be remaining",
+                          heap_factory_->Instances().size()));
+    }
     return absl::OkStatus();
   }
 
  private:
-  std::shared_ptr<TestHeap> heap_;
+  std::shared_ptr<TestHeapFactory> heap_factory_;
+  std::shared_ptr<TestHeap> main_heap_;
   std::shared_ptr<TestSlabMap> slab_map_;
   std::shared_ptr<SlabManagerFixture> slab_manager_fixture_;
   std::shared_ptr<Freelist> freelist_;
@@ -127,7 +149,7 @@ TEST_F(MainAllocatorTest, AllocLarge) {
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
-TEST_F(MainAllocatorTest, AllocHuge) {
+TEST_F(MainAllocatorTest, AllocVeryLarge) {
   MainAllocator().Alloc(472);
   MainAllocator().Alloc(kPageSize + 1);
   EXPECT_EQ(Heap().Size(), 3 * kPageSize);
@@ -223,6 +245,22 @@ TEST_F(MainAllocatorTest, ReallocPagesizeMultiple) {
   EXPECT_EQ(ptr1, ptr2);
   EXPECT_EQ(Heap().Size(), 2 * kPageSize);
   EXPECT_THAT(ValidateHeap(), IsOk());
+}
+
+TEST_F(MainAllocatorTest, AllocHuge) {
+  MainAllocator().Alloc(kMinMmapSize);
+
+  EXPECT_EQ(Heap().Size(), 0);
+  EXPECT_THAT(ValidateHeap(), IsOk());
+}
+
+TEST_F(MainAllocatorTest, FreeHuge) {
+  Void* ptr = MainAllocator().Alloc(kMinMmapSize);
+  MainAllocator().Free(ptr);
+
+  EXPECT_EQ(Heap().Size(), 0);
+  EXPECT_THAT(ValidateHeap(), IsOk());
+  EXPECT_THAT(ValidateEmpty(), IsOk());
 }
 
 }  // namespace ckmalloc

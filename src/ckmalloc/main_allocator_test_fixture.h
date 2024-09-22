@@ -20,8 +20,8 @@ namespace ckmalloc {
 class TestMainAllocator {
  public:
   using MainAllocatorT =
-      MainAllocatorImpl<TestSlabMap, TestSlabManager, TestSmallAllocator,
-                        TestLargeAllocator>;
+      MainAllocatorImpl<TestGlobalMetadataAlloc, TestSlabMap, TestSlabManager,
+                        TestSmallAllocator, TestLargeAllocator>;
 
   TestMainAllocator(class MainAllocatorFixture* test_fixture,
                     TestSlabMap* slab_map, TestSlabManager* slab_manager,

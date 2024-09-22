@@ -9,6 +9,7 @@
 #include "src/ckmalloc/size_class.h"
 #include "src/ckmalloc/slice.h"
 #include "src/ckmalloc/slice_id.h"
+#include "src/heap_interface.h"
 
 namespace ckmalloc {
 
@@ -24,6 +25,19 @@ struct HasMetadataHelper<class SingleAllocSlab> : public std::true_type {};
 
 template <typename S>
 inline constexpr bool kHasMetadata = HasMetadataHelper<S>::value;
+
+template <typename>
+struct HasOneAllocationHelper : public std::false_type {};
+
+template <>
+struct HasOneAllocationHelper<class SingleAllocSlab> : public std::true_type {};
+template <>
+struct HasOneAllocationHelper<class MmapSlab> : public std::true_type {};
+
+template <typename S>
+inline constexpr bool kHasOneAllocation = HasOneAllocationHelper<S>::value;
+
+inline constexpr bool HasOneAllocation(SlabType type);
 
 template <typename S>
 concept HasSizeClassT = requires(S s) {
@@ -52,7 +66,24 @@ enum class SlabType : uint8_t {
   // This slab is managing an entire mmapped region which contains a single
   // allocated block.
   kMmap,
-};
+};  // namespace ckmalloc
+
+inline constexpr bool HasOneAllocation(SlabType type) {
+  switch (type) {
+    case SlabType::kSmall:
+    case SlabType::kBlocked: {
+      return false;
+    }
+    case SlabType::kSingleAlloc:
+    case SlabType::kMmap: {
+      return true;
+    }
+    case SlabType::kUnmapped:
+    case SlabType::kFree: {
+      CK_UNREACHABLE();
+    }
+  }
+}
 
 std::ostream& operator<<(std::ostream& ostr, SlabType slab_type);
 
@@ -220,6 +251,10 @@ class Slab {
         } large;
         struct {
         } page_multiple;
+        struct {
+          // The heap backed by this slab.
+          bench::Heap* heap_;
+        } mmap;
       };
     } mapped;
   };
@@ -430,6 +465,8 @@ template <>
 BlockedSlab* Slab::Init(PageId start_id, uint32_t n_pages);
 template <>
 SingleAllocSlab* Slab::Init(PageId start_id, uint32_t n_pages);
+template <>
+MmapSlab* Slab::Init(PageId start_id, uint32_t n_pages, bench::Heap* heap);
 
 template <typename T>
 requires std::is_integral_v<T>

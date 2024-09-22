@@ -25,6 +25,7 @@
 #include "src/ckmalloc/global_state.h"
 #include "src/ckmalloc/heap_printer.h"
 #include "src/ckmalloc/local_cache.h"
+#include "src/ckmalloc/util.h"
 #include "src/heap_factory.h"
 #include "src/mmap_heap_factory.h"
 #include "src/tracefile_executor.h"
@@ -382,7 +383,7 @@ class TraceReplayer : public TracefileExecutor {
         break;
       }
       case Op::OP_NOT_SET: {
-        __builtin_unreachable();
+        CK_UNREACHABLE();
       }
     }
     std::cout << " (" << iter_ << ")" << std::endl;

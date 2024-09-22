@@ -206,6 +206,7 @@ cc_library(
         ":slab_manager",
         ":slab_map",
         ":small_allocator",
+        ":sys_alloc",
         ":util",
     ],
 )
@@ -223,6 +224,8 @@ cc_test(
         ":slab_manager_test_fixture",
         ":small_allocator_test_fixture",
         ":testlib",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/strings:str_format",
         "@cc-util//util:absl_util",
         "@cc-util//util:gtest_util",
         "@googletest//:gtest",
@@ -293,8 +296,8 @@ cc_library(
         ":slab",
         ":testlib",
         ":util",
-        "//src:rng",
         "//src:heap_interface",
+        "//src:rng",
         "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/container:flat_hash_set",
         "@abseil-cpp//absl/status",
@@ -358,6 +361,7 @@ cc_library(
         ":slice",
         ":slice_id",
         ":util",
+        "//src:heap_interface",
     ],
 )
 

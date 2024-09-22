@@ -165,8 +165,14 @@ SlabManagerImpl<MetadataAlloc, SlabMap>::Alloc(uint32_t n_pages, Args... args) {
   } else {
     size_class = SizeClass::Nil();
   }
-  slab_map_->InsertRange(page_id, page_id + n_pages - 1, initialized_slab,
-                         size_class);
+
+  if constexpr (kHasOneAllocation<S>) {
+    slab_map_->Insert(page_id, initialized_slab, size_class);
+    slab_map_->Insert(page_id + n_pages - 1, initialized_slab, size_class);
+  } else {
+    slab_map_->InsertRange(page_id, page_id + n_pages - 1, initialized_slab,
+                           size_class);
+  }
   return std::make_pair(page_id, initialized_slab);
 }
 
@@ -253,8 +259,12 @@ bool SlabManagerImpl<MetadataAlloc, SlabMap>::Resize(AllocatedSlab* slab,
 
     // At this point, we know for certain that the slab can be extended and will
     // not fail. Update the slab map for the soon-to-be-added pages.
-    slab_map_->InsertRange(slab_start + n_pages, free_start - 1, slab,
-                           SizeClass::Nil());
+    if (HasOneAllocation(slab->Type())) {
+      slab_map_->Insert(free_start - 1, slab, SizeClass::Nil());
+    } else {
+      slab_map_->InsertRange(slab_start + n_pages, free_start - 1, slab,
+                             SizeClass::Nil());
+    }
 
     if (available_pages == new_size) {
       // If we exactly fill the next free slab, then we can just change our size

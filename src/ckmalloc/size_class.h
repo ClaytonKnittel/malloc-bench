@@ -126,7 +126,7 @@ class SizeClass {
       case 16:
         return static_cast<uint32_t>(offset_bytes / 256);
       default:
-        __builtin_unreachable();
+        CK_UNREACHABLE();
     }
   }
 
