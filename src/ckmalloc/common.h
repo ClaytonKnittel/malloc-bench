@@ -7,6 +7,17 @@
 
 namespace ckmalloc {
 
+#ifdef __x86_64__
+
+// Only the bottom 48 bits are used for virtual addresses.
+static constexpr uint32_t kAddressBits = 48;
+
+#else
+
+static_assert(false, "Only compiles for X86");
+
+#endif
+
 // The alignment of all allocations above the default alignment threshold.
 static constexpr uint64_t kDefaultAlignment = 16;
 
