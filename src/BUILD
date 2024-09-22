@@ -9,7 +9,6 @@ cc_binary(
         ":heap_factory",
         ":mmap_heap_factory",
         ":perftest",
-        ":tracefile_reader",
         ":utiltest",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/flags:parse",
@@ -29,7 +28,6 @@ cc_library(
     deps = [
         ":allocator_interface",
         ":heap_factory",
-        ":tracefile_reader",
         "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/time",
@@ -46,7 +44,6 @@ cc_library(
     deps = [
         ":allocator_interface",
         ":heap_factory",
-        ":tracefile_reader",
         "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/status:statusor",
@@ -73,7 +70,6 @@ cc_library(
         ":heap_factory",
         ":rng",
         ":tracefile_executor",
-        ":tracefile_reader",
         "@abseil-cpp//absl/algorithm:container",
         "@abseil-cpp//absl/container:btree",
         "@abseil-cpp//absl/status",
@@ -93,7 +89,6 @@ cc_test(
     deps = [
         ":correctness_checker",
         ":mmap_heap_factory",
-        ":tracefile_reader",
         "@abseil-cpp//absl/status",
         "@cc-util//util:absl_util",
         "@cc-util//util:gtest_util",
@@ -183,8 +178,6 @@ cc_binary(
     ],
     deps = [
         "//proto:tracefile_cc_proto",
-        "@protobuf//:protobuf",
-        "@protobuf//src/google/protobuf/io",
         "@abseil-cpp//absl/container:btree",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/flags:parse",
@@ -192,6 +185,8 @@ cc_binary(
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",
         "@cc-util//util:absl_util",
+        "@protobuf",
+        "@protobuf//src/google/protobuf/io",
     ],
 )
 
@@ -202,11 +197,11 @@ cc_library(
     deps = [
         ":heap_factory",
         ":tracefile_reader",
-        "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings:str_format",
         "@cc-util//util:absl_util",
+        "//proto:tracefile_cc_proto",
     ],
 )
 
@@ -215,10 +210,9 @@ cc_library(
     srcs = ["tracefile_reader.cc"],
     hdrs = ["tracefile_reader.h"],
     deps = [
+        "//proto:tracefile_cc_proto",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
-        "@abseil-cpp//absl/strings:string_view",
-        "@cc-util//util:absl_util",
     ],
 )
 

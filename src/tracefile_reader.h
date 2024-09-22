@@ -2,37 +2,20 @@
 
 #include <cstddef>
 #include <string>
-#include <vector>
 
 #include "absl/status/statusor.h"
 
+#include "proto/tracefile.pb.h"
+
 namespace bench {
 
-struct TraceLine {
-  enum class Op {
-    kMalloc,
-    kCalloc,
-    kRealloc,
-    kFree,
-  };
-
-  Op op;
-
-  // For free/realloc, the input pointer.
-  void* input_ptr;
-  // For malloc/calloc/realloc/free_hint, the requested size.
-  size_t input_size;
-  // For calloc, the nmemb argument.
-  size_t nmemb;
-  // For malloc/calloc/realloc, the returned pointer.
-  void* result;
-  // Process ID.
-  int32_t pid;
-};
+using proto::Tracefile;
+using proto::TraceLine;
 
 class TracefileReader {
  public:
-  using const_iterator = std::vector<TraceLine>::const_iterator;
+  using const_iterator = google::protobuf::internal::RepeatedPtrIterator<
+      const TraceLine>::iterator;
 
   static absl::StatusOr<TracefileReader> Open(const std::string& filename);
 
@@ -41,10 +24,14 @@ class TracefileReader {
   const_iterator begin() const;
   const_iterator end() const;
 
- private:
-  explicit TracefileReader(std::vector<TraceLine>&& lines);
+  const Tracefile& Tracefile() const {
+    return tracefile_;
+  }
 
-  const std::vector<TraceLine> lines_;
+ private:
+  explicit TracefileReader(class Tracefile&& tracefile);
+
+  const class Tracefile tracefile_;
 };
 
 }  // namespace bench

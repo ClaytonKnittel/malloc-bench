@@ -32,6 +32,22 @@ using proto::TraceLine;
 
 namespace {
 
+/**
+ * Matches a single line of valigrind --trace-malloc=yes output.
+ *
+ * Lines have one of the following formats:
+ *
+ * --{pid}-- free({ptr})
+ * --{pid}-- malloc({size}) = {ptr}
+ * --{pid}-- calloc({size},{nmemb}) = {ptr}
+ * --{pid}-- realloc({ptr},{size}) = {ptr}
+ * --{pid}-- realloc(0x0,{size})malloc({size}) = {ptr}
+ *
+ * Where pid, size, and nmemb are decimal numbers, and ptr is a hex value.
+ *
+ * "free" has aliases "_ZdlPv", "_ZdaPv", "_ZdlPvm", "_ZdaPvm", and
+ * "malloc" has aliases "_Znwm", "_Znam".
+ */
 const std::regex kFreeRegex(
     R"(--(\d+)-- (?:free|_ZdlPv|_ZdaPv|_ZdlPvm|_ZdaPvm)\(([0-9A-Fa-fx]+)\))");
 const std::regex kMallocRegex(
@@ -248,6 +264,7 @@ int main(int argc, char* argv[]) {
   if (!output.empty()) {
     std::ofstream file(output, std::ios_base::out);
     s = bench::CleanTracefile(input_tracefile_path, file);
+    file.close();
   } else {
     s = bench::CleanTracefile(input_tracefile_path, std::cout,
                               /*text_serialize=*/true);
