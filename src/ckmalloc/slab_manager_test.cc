@@ -17,17 +17,11 @@ using util::IsOk;
 class SlabManagerTest : public testing::Test {
  public:
   static constexpr size_t kNumPages = 64;
-  static constexpr size_t kHeapIdx = 1;
 
   SlabManagerTest()
-      : heap_factory_(
-            std::make_shared<TestHeapFactory>(0, kNumPages * kPageSize)),
+      : heap_(kNumPages),
         slab_map_(std::make_shared<TestSlabMap>()),
-        test_fixture_(heap_factory_, slab_map_, kHeapIdx) {}
-
-  TestHeapFactory& HeapFactory() {
-    return *heap_factory_;
-  }
+        test_fixture_(&heap_, slab_map_) {}
 
   TestSlabManager& SlabManager() {
     return test_fixture_.SlabManager();
@@ -46,27 +40,23 @@ class SlabManagerTest : public testing::Test {
   }
 
  private:
-  std::shared_ptr<TestHeapFactory> heap_factory_;
+  TestHeap heap_;
   std::shared_ptr<TestSlabMap> slab_map_;
   SlabManagerFixture test_fixture_;
 };
 
 TEST_F(SlabManagerTest, HeapStartIsPageIdZero) {
   ASSERT_THAT(Fixture().AllocateSlab(1), IsOk());
-  ASSERT_EQ(HeapFactory().Instances().size(), 2);
-  EXPECT_EQ(
-      SlabManager().PageIdFromPtr(HeapFactory().Instance(kHeapIdx)->Start()),
-      PageId(0));
+  EXPECT_EQ(SlabManager().PageIdFromPtr(Fixture().SlabHeap().Start()),
+            PageId(0));
 }
 
 TEST_F(SlabManagerTest, AllPtrsInFirstPageIdZero) {
   ASSERT_THAT(Fixture().AllocateSlab(1), IsOk());
   for (size_t offset = 0; offset < kPageSize; offset++) {
-    EXPECT_EQ(
-        SlabManager().PageIdFromPtr(
-            static_cast<uint8_t*>(HeapFactory().Instance(kHeapIdx)->Start()) +
-            offset),
-        PageId(0));
+    EXPECT_EQ(SlabManager().PageIdFromPtr(
+                  static_cast<uint8_t*>(Fixture().SlabHeap().Start()) + offset),
+              PageId(0));
   }
 }
 
@@ -74,9 +64,8 @@ TEST_F(SlabManagerTest, PageIdIncreasesPerPage) {
   constexpr size_t kPages = 16;
   ASSERT_THAT(Fixture().AllocateSlab(kPages), IsOk());
   for (size_t page_n = 0; page_n < kPages; page_n++) {
-    void* beginning =
-        static_cast<uint8_t*>(HeapFactory().Instance(kHeapIdx)->Start()) +
-        page_n * kPageSize;
+    void* beginning = static_cast<uint8_t*>(Fixture().SlabHeap().Start()) +
+                      page_n * kPageSize;
     void* end = static_cast<uint8_t*>(beginning) + kPageSize - 1;
     EXPECT_EQ(SlabManager().PageIdFromPtr(beginning), PageId(page_n));
     EXPECT_EQ(SlabManager().PageIdFromPtr(end), PageId(page_n));
@@ -88,7 +77,7 @@ TEST_F(SlabManagerTest, SlabStartFromId) {
   ASSERT_THAT(Fixture().AllocateSlab(kPages), IsOk());
   for (size_t page_n = 0; page_n < kPages; page_n++) {
     EXPECT_EQ(SlabManager().PageStartFromId(PageId(page_n)),
-              static_cast<uint8_t*>(HeapFactory().Instance(kHeapIdx)->Start()) +
+              static_cast<uint8_t*>(Fixture().SlabHeap().Start()) +
                   page_n * kPageSize);
   }
 }
@@ -122,7 +111,7 @@ TEST_F(SlabManagerTest, SlabTooLargeDoesNotAllocate) {
   ASSERT_OK_AND_DEFINE(AllocatedSlab*, slab,
                        Fixture().AllocateSlab(kNumPages + 1));
   EXPECT_EQ(slab, nullptr);
-  EXPECT_EQ(HeapFactory().Instance(kHeapIdx)->Size(), 0);
+  EXPECT_EQ(Fixture().SlabHeap().Size(), 0);
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
@@ -188,7 +177,7 @@ TEST_F(SlabManagerTest, ReAllocateFreed) {
   ASSERT_THAT(Fixture().FreeSlab(slab1), IsOk());
   ASSERT_THAT(Fixture().AllocateSlab(1).status(), IsOk());
   EXPECT_THAT(ValidateHeap(), IsOk());
-  EXPECT_EQ(HeapFactory().Instance(kHeapIdx)->Size(), 2 * kPageSize);
+  EXPECT_EQ(Fixture().SlabHeap().Size(), 2 * kPageSize);
 }
 
 TEST_F(SlabManagerTest, ExtendHeapWithFreeAtEnd) {
@@ -196,7 +185,7 @@ TEST_F(SlabManagerTest, ExtendHeapWithFreeAtEnd) {
   ASSERT_THAT(Fixture().FreeSlab(slab1), IsOk());
   ASSERT_THAT(Fixture().AllocateSlab(3).status(), IsOk());
   EXPECT_THAT(ValidateHeap(), IsOk());
-  EXPECT_EQ(HeapFactory().Instance(kHeapIdx)->Size(), 3 * kPageSize);
+  EXPECT_EQ(Fixture().SlabHeap().Size(), 3 * kPageSize);
 }
 
 TEST_F(SlabManagerTest, BestFit) {
@@ -221,7 +210,7 @@ TEST_F(SlabManagerTest, BestFit) {
 
   // We should have found the perfect fit, which used to be slab 5.
   EXPECT_EQ(slab8->StartId(), slab5_start);
-  EXPECT_EQ(HeapFactory().Instance(kHeapIdx)->Size(), 24 * kPageSize);
+  EXPECT_EQ(Fixture().SlabHeap().Size(), 24 * kPageSize);
 }
 
 }  // namespace ckmalloc

@@ -163,13 +163,13 @@ void SlabMapImpl<MetadataAlloc>::Insert(PageId page_id, MappedSlab* slab,
   uint64_t leaf_idx = LeafIdx(page_id);
 
   SlabNode& node = *SlabNodeAt(root_idx);
-  SlabLeaf& leaf = node[middle_idx];
-  leaf.SetLeaf(leaf_idx, slab);
+  SlabLeaf& leaf = *node[middle_idx];
+  leaf.SetChild(leaf_idx, slab);
 
   if (size_class.has_value()) {
     SizeNode& node = *SizeNodeAt(root_idx);
-    SizeLeaf& leaf = node[middle_idx];
-    leaf.SetLeaf(leaf_idx, size_class.value());
+    SizeLeaf& leaf = *node[middle_idx];
+    leaf.SetChild(leaf_idx, size_class.value());
   }
 }
 
@@ -191,8 +191,8 @@ void SlabMapImpl<MetadataAlloc>::InsertRange(
          middle_idx <=
          (root_idx == root_idxs.second ? middle_idxs.second : kLeafSize - 1);
          middle_idx++) {
-      SlabLeaf& leaf = node[middle_idx];
-      SizeLeaf& size_leaf = size_node[middle_idx];
+      SlabLeaf& leaf = *node[middle_idx];
+      SizeLeaf& size_leaf = *size_node[middle_idx];
 
       for (size_t leaf_idx =
                (root_idx == root_idxs.first && middle_idx == middle_idxs.first
@@ -203,9 +203,9 @@ void SlabMapImpl<MetadataAlloc>::InsertRange(
                 ? leaf_idxs.second
                 : kLeafSize - 1);
            leaf_idx++) {
-        leaf.SetLeaf(leaf_idx, slab);
+        leaf.SetChild(leaf_idx, slab);
         if (size_class.has_value()) {
-          size_leaf.SetLeaf(leaf_idx, size_class.value());
+          size_leaf.SetChild(leaf_idx, size_class.value());
         }
       }
     }
@@ -229,8 +229,8 @@ bool SlabMapImpl<MetadataAlloc>::DoAllocatePath(PageId start_id,
       }
     }
 
-    SizeNode& size_node = size_nodes_[root_idx];
-    SlabNode& slab_node = slab_nodes_[root_idx];
+    SizeNode& size_node = *size_nodes_[root_idx];
+    SlabNode& slab_node = *slab_nodes_[root_idx];
     for (size_t middle_idx =
              (root_idx == root_idxs.first ? middle_idxs.first : 0);
          middle_idx <=

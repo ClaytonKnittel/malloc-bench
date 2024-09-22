@@ -397,7 +397,7 @@ cc_library(
         ":slab",
         ":slab_map",
         ":util",
-        "//src:heap_factory",
+        "//src:heap_interface",
         "@cc-util//util:std_util",
     ],
 )

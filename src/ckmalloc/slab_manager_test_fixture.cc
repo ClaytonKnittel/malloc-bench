@@ -17,10 +17,8 @@
 namespace ckmalloc {
 
 TestSlabManager::TestSlabManager(SlabManagerFixture* test_fixture,
-                                 TestHeapFactory* heap_factory,
-                                 TestSlabMap* slab_map, size_t heap_idx)
-    : test_fixture_(test_fixture),
-      slab_manager_(heap_factory, slab_map, heap_idx) {}
+                                 TestHeap* heap, TestSlabMap* slab_map)
+    : test_fixture_(test_fixture), slab_manager_(heap, slab_map) {}
 
 void* TestSlabManager::PageStartFromId(PageId page_id) const {
   return slab_manager_.PageStartFromId(page_id);
@@ -62,12 +60,10 @@ void TestSlabManager::HandleAlloc(AllocatedSlab* slab) {
 }
 
 absl::Status SlabManagerFixture::ValidateHeap() {
-  if (heap_factory_->Instance(slab_manager_->Underlying().heap_idx_)->Size() %
-          kPageSize !=
-      0) {
+  if (SlabHeap().Size() % kPageSize != 0) {
     return FailedTest(
         "Expected heap size to be a multiple of page size, but was %zu",
-        heap_factory_->Instance(slab_manager_->Underlying().heap_idx_)->Size());
+        SlabHeap().Size());
   }
 
   absl::flat_hash_set<MappedSlab*> visited_slabs;
