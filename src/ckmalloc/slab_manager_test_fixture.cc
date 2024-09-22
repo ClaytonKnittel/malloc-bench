@@ -20,14 +20,6 @@ TestSlabManager::TestSlabManager(SlabManagerFixture* test_fixture,
                                  TestHeap* heap, TestSlabMap* slab_map)
     : test_fixture_(test_fixture), slab_manager_(heap, slab_map) {}
 
-void* TestSlabManager::PageStartFromId(PageId page_id) const {
-  return slab_manager_.PageStartFromId(page_id);
-}
-
-PageId TestSlabManager::PageIdFromPtr(const void* ptr) const {
-  return slab_manager_.PageIdFromPtr(ptr);
-}
-
 bool TestSlabManager::Resize(AllocatedSlab* slab, uint32_t new_size) {
   if (!slab_manager_.Resize(slab, new_size)) {
     return false;
@@ -67,7 +59,7 @@ absl::Status SlabManagerFixture::ValidateHeap() {
   }
 
   absl::flat_hash_set<MappedSlab*> visited_slabs;
-  PageId page = PageId::Zero();
+  PageId page = PageId::FromPtr(heap_->Start());
   PageId end = HeapEndId();
   MappedSlab* previous_slab = nullptr;
   bool previous_was_free = false;
@@ -205,7 +197,7 @@ absl::Status SlabManagerFixture::ValidateHeap() {
   absl::flat_hash_set<class FreeSlab*> single_page_slabs;
   for (const FreeSinglePageSlab& slab_start :
        SlabManager().Underlying().single_page_freelist_) {
-    PageId start_id = SlabManager().PageIdFromPtr(&slab_start);
+    PageId start_id = PageId::FromPtr(&slab_start);
     MappedSlab* slab = SlabMap().FindSlab(start_id);
     if (slab == nullptr) {
       return FailedTest(
@@ -250,7 +242,7 @@ absl::Status SlabManagerFixture::ValidateHeap() {
   }
   for (const FreeMultiPageSlab& slab_start :
        SlabManager().Underlying().multi_page_free_slabs_) {
-    PageId start_id = SlabManager().PageIdFromPtr(&slab_start);
+    PageId start_id = PageId::FromPtr(&slab_start);
     MappedSlab* slab = SlabMap().FindSlab(start_id);
     if (slab == nullptr) {
       return FailedTest(
@@ -306,7 +298,7 @@ absl::Status SlabManagerFixture::ValidateHeap() {
 }
 
 absl::Status SlabManagerFixture::ValidateEmpty() {
-  PageId page = PageId::Zero();
+  PageId page = PageId::FromPtr(heap_->Start());
   PageId end = HeapEndId();
   while (page < end) {
     MappedSlab* slab = SlabMap().FindSlab(page);
@@ -378,13 +370,12 @@ absl::Status SlabManagerFixture::FreeSlab(AllocatedSlab* slab) {
   return absl::OkStatus();
 }
 
+/* static */
 void SlabManagerFixture::FillMagic(AllocatedSlab* slab, uint64_t magic) {
   CK_ASSERT_EQ(slab->Type(), SlabType::kBlocked);
-  auto* start = reinterpret_cast<uint64_t*>(
-      SlabManager().PageStartFromId(slab->StartId()));
+  auto* start = reinterpret_cast<uint64_t*>(slab->StartId().PageStart());
   auto* end = reinterpret_cast<uint64_t*>(
-      static_cast<uint8_t*>(SlabManager().PageStartFromId(slab->EndId())) +
-      kPageSize);
+      static_cast<uint8_t*>(slab->EndId().PageStart()) + kPageSize);
 
   for (; start != end; start++) {
     *start = magic;
@@ -394,16 +385,13 @@ void SlabManagerFixture::FillMagic(AllocatedSlab* slab, uint64_t magic) {
 absl::Status SlabManagerFixture::CheckMagic(AllocatedSlab* slab,
                                             uint64_t magic) {
   CK_ASSERT_EQ(slab->Type(), SlabType::kBlocked);
-  auto* start = reinterpret_cast<uint64_t*>(
-      SlabManager().PageStartFromId(slab->StartId()));
+  auto* start = reinterpret_cast<uint64_t*>(slab->StartId().PageStart());
   auto* end = reinterpret_cast<uint64_t*>(
-      static_cast<uint8_t*>(SlabManager().PageStartFromId(slab->EndId())) +
-      kPageSize);
+      static_cast<uint8_t*>(slab->EndId().PageStart()) + kPageSize);
 
   for (; start != end; start++) {
     if (*start != magic) {
-      auto* begin = reinterpret_cast<uint64_t*>(
-          SlabManager().PageStartFromId(slab->StartId()));
+      auto* begin = reinterpret_cast<uint64_t*>(slab->StartId().PageStart());
       return FailedTest(
           "Allocated metadata slab %v was dirtied starting from offset %zu",
           *slab, (start - begin) * sizeof(uint64_t));

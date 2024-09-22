@@ -45,18 +45,13 @@ class SlabManagerTest : public testing::Test {
   SlabManagerFixture test_fixture_;
 };
 
-TEST_F(SlabManagerTest, HeapStartIsPageIdZero) {
-  ASSERT_THAT(Fixture().AllocateSlab(1), IsOk());
-  EXPECT_EQ(SlabManager().PageIdFromPtr(Fixture().SlabHeap().Start()),
-            PageId(0));
-}
-
 TEST_F(SlabManagerTest, AllPtrsInFirstPageIdZero) {
   ASSERT_THAT(Fixture().AllocateSlab(1), IsOk());
+  PageId start_id = PageId::FromPtr(Fixture().SlabHeap().Start());
   for (size_t offset = 0; offset < kPageSize; offset++) {
-    EXPECT_EQ(SlabManager().PageIdFromPtr(
+    EXPECT_EQ(PageId::FromPtr(
                   static_cast<uint8_t*>(Fixture().SlabHeap().Start()) + offset),
-              PageId(0));
+              start_id);
   }
 }
 
@@ -67,8 +62,8 @@ TEST_F(SlabManagerTest, PageIdIncreasesPerPage) {
     void* beginning = static_cast<uint8_t*>(Fixture().SlabHeap().Start()) +
                       page_n * kPageSize;
     void* end = static_cast<uint8_t*>(beginning) + kPageSize - 1;
-    EXPECT_EQ(SlabManager().PageIdFromPtr(beginning), PageId(page_n));
-    EXPECT_EQ(SlabManager().PageIdFromPtr(end), PageId(page_n));
+    EXPECT_EQ(PageId::FromPtr(beginning), Fixture().HeapStartId() + page_n);
+    EXPECT_EQ(PageId::FromPtr(end), Fixture().HeapStartId() + page_n);
   }
 }
 
@@ -76,7 +71,7 @@ TEST_F(SlabManagerTest, SlabStartFromId) {
   constexpr size_t kPages = 16;
   ASSERT_THAT(Fixture().AllocateSlab(kPages), IsOk());
   for (size_t page_n = 0; page_n < kPages; page_n++) {
-    EXPECT_EQ(SlabManager().PageStartFromId(PageId(page_n)),
+    EXPECT_EQ((Fixture().HeapStartId() + page_n).PageStart(),
               static_cast<uint8_t*>(Fixture().SlabHeap().Start()) +
                   page_n * kPageSize);
   }
@@ -89,21 +84,21 @@ TEST_F(SlabManagerTest, EmptyHeapValid) {
 
 TEST_F(SlabManagerTest, SinglePageHeapValid) {
   ASSERT_OK_AND_DEFINE(AllocatedSlab*, slab, Fixture().AllocateSlab(1));
-  EXPECT_EQ(slab->StartId(), PageId::Zero());
+  EXPECT_EQ(slab->StartId(), Fixture().HeapStartId());
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
 TEST_F(SlabManagerTest, TwoAdjacentAllocatedSlabs) {
   ASSERT_OK_AND_DEFINE(AllocatedSlab*, slab1, Fixture().AllocateSlab(1));
   ASSERT_OK_AND_DEFINE(AllocatedSlab*, slab2, Fixture().AllocateSlab(1));
-  EXPECT_EQ(slab1->StartId(), PageId::Zero());
-  EXPECT_EQ(slab2->StartId(), PageId(1));
+  EXPECT_EQ(slab1->StartId(), Fixture().HeapStartId());
+  EXPECT_EQ(slab2->StartId(), Fixture().HeapStartId() + 1);
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
 TEST_F(SlabManagerTest, SingleLargeSlab) {
   ASSERT_OK_AND_DEFINE(AllocatedSlab*, slab, Fixture().AllocateSlab(9));
-  EXPECT_EQ(slab->StartId(), PageId::Zero());
+  EXPECT_EQ(slab->StartId(), Fixture().HeapStartId());
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 

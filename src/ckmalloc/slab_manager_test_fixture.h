@@ -26,10 +26,6 @@ class TestSlabManager {
     return slab_manager_;
   }
 
-  void* PageStartFromId(PageId page_id) const;
-
-  PageId PageIdFromPtr(const void* ptr) const;
-
   template <typename S, typename... Args>
   std::optional<std::pair<PageId, S*>> Alloc(uint32_t n_pages, Args...);
 
@@ -90,9 +86,6 @@ class SlabManagerFixture : public CkMallocTest {
     }
 
    private:
-    explicit HeapIterator(SlabManagerFixture* fixture)
-        : HeapIterator(fixture, PageId::Zero()) {}
-
     HeapIterator(SlabManagerFixture* fixture, PageId page_id)
         : fixture_(fixture), current_(page_id) {}
 
@@ -101,7 +94,7 @@ class SlabManagerFixture : public CkMallocTest {
   };
 
   HeapIterator HeapBegin() {
-    return HeapIterator(this);
+    return HeapIterator(this, HeapStartId());
   }
 
   HeapIterator HeapEnd() {
@@ -138,8 +131,12 @@ class SlabManagerFixture : public CkMallocTest {
     return *slab_manager_;
   }
 
+  PageId HeapStartId() const {
+    return PageId::FromPtr(heap_->Start());
+  }
+
   PageId HeapEndId() const {
-    return PageId(slab_manager_->Underlying().heap_->Size() / kPageSize);
+    return PageId::FromPtr(heap_->End());
   }
 
   absl::Status ValidateHeap() override;
@@ -152,7 +149,7 @@ class SlabManagerFixture : public CkMallocTest {
   absl::Status FreeSlab(AllocatedSlab* slab);
 
  private:
-  void FillMagic(AllocatedSlab* slab, uint64_t magic);
+  static void FillMagic(AllocatedSlab* slab, uint64_t magic);
 
   absl::Status CheckMagic(AllocatedSlab* slab, uint64_t magic);
 
