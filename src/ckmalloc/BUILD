@@ -583,6 +583,7 @@ cc_binary(
         ":global_state",
         ":heap_printer",
         ":local_cache",
+        "//proto:tracefile_cc_proto",
         "//src:heap_factory",
         "//src:mmap_heap_factory",
         "//src:tracefile_executor",

@@ -51,7 +51,7 @@ namespace ckmalloc {
 using bench::HeapFactory;
 using bench::TracefileExecutor;
 using bench::TracefileReader;
-using Op = bench::TraceLine::Op;
+using Op = bench::proto::TraceLine::OpCase;
 
 class FindMaxAllocations : public TracefileExecutor {
  public:
@@ -375,6 +375,9 @@ class TraceReplayer : public TracefileExecutor {
       case Op::kFree: {
         std::cout << absl::StrFormat("free(%p)", next_op_.input_ptr);
         break;
+      }
+      case Op::OP_NOT_SET: {
+        __builtin_unreachable();
       }
     }
     std::cout << " (" << iter_ << ")" << std::endl;
