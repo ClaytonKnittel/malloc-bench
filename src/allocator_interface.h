@@ -23,7 +23,7 @@ inline void initialize_heap(HeapFactory& heap_factory) {
     std::cerr << "Failed to initialize heap" << std::endl;
     std::exit(-1);
   }
-  g_heap = res.value().second;
+  g_heap = res.value();
 }
 
 void initialize();
