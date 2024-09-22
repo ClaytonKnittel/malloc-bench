@@ -39,10 +39,8 @@ absl::StatusOr<double> MeasureUtilization(TracefileReader& reader,
       case TraceLine::kMalloc: {
         uint64_t size = line.malloc().input_size();
         void* ptr = malloc(size);
-        if (ptr != nullptr) {
-          ptrs[line.malloc().result_id()] = { ptr, size };
-          total_allocated_bytes += RoundUp(size);
-        }
+        ptrs[line.malloc().result_id()] = { ptr, size };
+        total_allocated_bytes += RoundUp(size);
         break;
       }
       case TraceLine::kCalloc: {
@@ -50,22 +48,22 @@ absl::StatusOr<double> MeasureUtilization(TracefileReader& reader,
         uint64_t size = line.calloc().input_size();
         void* ptr = calloc(nmemb, size);
         size_t allocated_bytes = nmemb * size;
-        if (ptr != nullptr) {
-          ptrs[line.calloc().result_id()] = { ptr, allocated_bytes };
-          total_allocated_bytes += RoundUp(allocated_bytes);
-        }
+        ptrs[line.calloc().result_id()] = { ptr, allocated_bytes };
+        total_allocated_bytes += RoundUp(allocated_bytes);
         break;
       }
       case TraceLine::kRealloc: {
         void* input_ptr = line.realloc().has_input_id()
                               ? ptrs[line.realloc().input_id()].first
                               : nullptr;
-        uint64_t size = line.realloc().input_size();
-        void* new_ptr = realloc(input_ptr, size);
         if (line.realloc().has_input_id()) {
           total_allocated_bytes -=
               RoundUp(ptrs[line.realloc().input_id()].second);
+          ptrs[line.realloc().input_id()].first = nullptr;
         }
+
+        uint64_t size = line.realloc().input_size();
+        void* new_ptr = realloc(input_ptr, size);
         total_allocated_bytes += RoundUp(size);
         ptrs[line.realloc().result_id()] = { new_ptr, size };
         break;
@@ -78,6 +76,7 @@ absl::StatusOr<double> MeasureUtilization(TracefileReader& reader,
 
         free(ptrs[line.free().input_id()].first);
         total_allocated_bytes -= RoundUp(ptrs[line.free().input_id()].second);
+        ptrs[line.free().input_id()].first = nullptr;
         break;
       }
       case TraceLine::OP_NOT_SET: {
