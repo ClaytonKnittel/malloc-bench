@@ -2,10 +2,10 @@
 
 #include <cstddef>
 
-#include "src/jsmalloc/allocator.h"
 #include "src/jsmalloc/blocks/block.h"
 #include "src/jsmalloc/blocks/sentinel_block_allocator.h"
-#include "src/jsmalloc/collections/intrusive_linked_list.h"
+#include "src/jsmalloc/collections/rbtree.h"
+#include "src/jsmalloc/util/twiddle.h"
 
 namespace jsmalloc {
 namespace blocks {
@@ -14,6 +14,8 @@ class FreeBlock;
 struct FreeBlockFooter {
   FreeBlock* block;
 };
+
+class FreeBlockList;
 
 /**
  * A free block.
@@ -60,16 +62,35 @@ class FreeBlock {
   /** Consumes the next block. */
   void ConsumeNextBlock();
 
-  class List : public IntrusiveLinkedList<FreeBlock> {
+  class TreeComparator {
    public:
-    List() : IntrusiveLinkedList<FreeBlock>(&FreeBlock::list_node_){};
+    bool operator()(const FreeBlock& lhs, const FreeBlock& rhs) const {
+      return lhs.BlockSize() < rhs.BlockSize();
+    }
+  };
+
+  class Tree : public RbTree<FreeBlock, Tree, TreeComparator> {
+   public:
+    class Comparator {
+      bool operator()(const FreeBlock& lhs, const FreeBlock& rhs) const {
+        return lhs.BlockSize() < rhs.BlockSize();
+      }
+    };
+
+    static constexpr RbNode* GetNode(FreeBlock* block) {
+      return &block->free_tree_node_;
+    }
+
+    static constexpr FreeBlock* GetItem(RbNode* node) {
+      return twiddle::OwnerOf(node, &FreeBlock::free_tree_node_);
+    }
   };
 
  private:
   FreeBlock(size_t size, bool prev_block_is_free);
 
   BlockHeader header_;
-  IntrusiveLinkedList<FreeBlock>::Node list_node_;
+  RbNode free_tree_node_;
 };
 
 }  // namespace blocks

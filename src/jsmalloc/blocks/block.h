@@ -74,7 +74,9 @@ class BlockHeader {
   void SetBlockSize(uint32_t size);
   void SetPrevBlockIsFree(bool value);
 
-  uint32_t data_;
+  BlockKind kind_ : 3;
+  bool prev_block_is_free_ : 1;
+  uint32_t block_size_ : 28;
 
 #ifdef ENABLE_MAGIC_CHECKS
   static constexpr uint32_t kMagicValue = 0xdeadbeef;

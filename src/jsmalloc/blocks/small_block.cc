@@ -1,28 +1,18 @@
 #include "src/jsmalloc/blocks/small_block.h"
 
-#include <bit>
 #include <cstddef>
 
-#include "src/jsmalloc/blocks/block.h"
-#include "src/jsmalloc/blocks/free_block.h"
 #include "src/jsmalloc/util/assert.h"
 #include "src/jsmalloc/util/math.h"
 
 namespace jsmalloc {
 namespace blocks {
 
-SmallBlock* SmallBlock::Init(FreeBlock* block, size_t bin_size,
-                             size_t bin_count) {
-  auto* small_block = new (block)
-      SmallBlock(block->BlockSize(), block->Header()->PrevBlockIsFree(),
-                 bin_size, bin_count);
+SmallBlock* SmallBlock::Init(void* block, size_t bin_size, size_t bin_count) {
+  auto* small_block = new (block) SmallBlock(bin_size, bin_count);
   BitSet::Init(small_block->data_, small_block->bin_count_);
 
   return small_block;
-}
-
-size_t SmallBlock::BlockSize() const {
-  return header_.BlockSize();
 }
 
 size_t SmallBlock::BinSize() const {
@@ -42,7 +32,7 @@ bool SmallBlock::IsEmpty() const {
 }
 
 void* SmallBlock::DataPtrForBinIndex(int index) {
-  return &MutableDataRegion()[index * bin_size_];
+  return &DataRegion()[index * bin_size_];
 }
 
 int SmallBlock::BinIndexForDataPtr(void* ptr) const {
@@ -70,15 +60,15 @@ size_t SmallBlock::UsedBinBitSetSize() const {
 
 void SmallBlock::MarkBinFree(int index) {
   used_bin_count_--;
-  MutableUsedBinBitSet()->set(index, false);
+  UsedBinBitSet()->set(index, false);
 }
 
 void SmallBlock::MarkBinUsed(int index) {
   used_bin_count_++;
-  MutableUsedBinBitSet()->set(index, true);
+  UsedBinBitSet()->set(index, true);
 }
 
-uint8_t* SmallBlock::MutableDataRegion() {
+uint8_t* SmallBlock::DataRegion() {
   return &data_[UsedBinBitSetSize()];
 }
 
@@ -86,7 +76,7 @@ const uint8_t* SmallBlock::DataRegion() const {
   return &data_[UsedBinBitSetSize()];
 }
 
-SmallBlock::BitSet* SmallBlock::MutableUsedBinBitSet() {
+SmallBlock::BitSet* SmallBlock::UsedBinBitSet() {
   return reinterpret_cast<BitSet*>(data_);
 }
 
@@ -98,12 +88,9 @@ size_t SmallBlock::DataSize() const {
   return bin_size_;
 }
 
-SmallBlock::SmallBlock(size_t block_size, bool prev_block_is_free,
-                       size_t bin_size, size_t bin_count)
-    : header_(block_size, BlockKind::kSmall, prev_block_is_free),
-      bin_size_(bin_size),
-      bin_count_(bin_count) {
-  DCHECK_EQ(block_size % 16, 0);
+SmallBlock::SmallBlock(size_t bin_size, size_t bin_count)
+    : bin_size_(bin_size), bin_count_(bin_count) {
+  DCHECK_GT(bin_size_, 0);
   DCHECK_GT(bin_count_, 0);
 }
 

@@ -2,24 +2,43 @@
 
 #include <cstddef>
 
-#include "src/jsmalloc/blocks/free_block_allocator.h"
+#include "src/jsmalloc/allocator.h"
+#include "src/jsmalloc/blocks/fixed_size_free_block_allocator.h"
 #include "src/jsmalloc/blocks/small_block.h"
 
 namespace jsmalloc {
 namespace blocks {
+
+namespace small {
+
+/** Returns the size class that `data_size` belongs to. */
+static constexpr uint32_t SizeClass(uint32_t data_size) {
+  if (data_size <= 8) {
+    return 0;
+  }
+  return (data_size + 15) / 16;
+}
+
+}  // namespace small
 
 /**
  * A malloc that only services small sizes of data.
  */
 class SmallBlockAllocator {
  public:
-  explicit SmallBlockAllocator(FreeBlockAllocator& allocator);
+  static constexpr size_t kBlockSize = 4096;
+
+  explicit SmallBlockAllocator(MemRegion& mem_region)
+      : allocator_(mem_region) {}
 
   /** Allocates a chunk of user data from a SmallBlock. */
   void* Allocate(size_t size);
 
   /** Frees a chunk of user data from its SmallBlock. */
   void Free(void* ptr);
+
+  /** Reallocates a chunk of user data from a SmallBlock. */
+  void* Realloc(void* ptr, size_t size);
 
   /** The max allocable data size for each size class. */
   static constexpr uint32_t kMaxDataSizePerSizeClass[] = {
@@ -35,10 +54,12 @@ class SmallBlockAllocator {
       kMaxDataSizePerSizeClass[kSizeClasses - 1];
 
  private:
-  SmallBlock::List& SmallBlockList(size_t data_size);
+  static SmallBlock* FindBlock(void* data_ptr);
+
+  SmallBlock::List& GetSmallBlockList(size_t data_size);
   SmallBlock* NewSmallBlock(size_t data_size);
 
-  FreeBlockAllocator& allocator_;
+  FixedSizeFreeBlockAllocator<kBlockSize> allocator_;
   SmallBlock::List small_block_lists_[kSizeClasses];
 };
 

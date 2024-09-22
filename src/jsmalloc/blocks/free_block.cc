@@ -2,7 +2,6 @@
 
 #include <cstddef>
 
-#include "src/jsmalloc/allocator.h"
 #include "src/jsmalloc/blocks/block.h"
 #include "src/jsmalloc/blocks/sentinel_block_allocator.h"
 #include "src/jsmalloc/util/assert.h"
@@ -60,21 +59,14 @@ void FreeBlock::ConsumeNextBlock() {
 }
 
 bool FreeBlock::CanMarkUsed(size_t new_block_size) const {
-  bool this_block_ok =
-      BlockSize() >= new_block_size && new_block_size >= kMinFreeBlockSize;
-
-  size_t next_block_size = BlockSize() - new_block_size;
-  bool next_block_ok =
-      next_block_size == 0 || next_block_size >= kMinFreeBlockSize;
-
-  return this_block_ok && next_block_ok;
+  return BlockSize() >= new_block_size;
 }
 
 FreeBlock* FreeBlock::MarkUsed(size_t new_block_size) {
   DCHECK_TRUE(CanMarkUsed(new_block_size));
 
   size_t next_block_size = BlockSize() - new_block_size;
-  if (next_block_size == 0) {
+  if (next_block_size <= kMinFreeBlockSize) {
     this->Header()->SignalFreeToNextBlock(false);
     this->Header()->SetKind(BlockKind::kLeasedFreeBlock);
     return nullptr;

@@ -78,4 +78,11 @@ TEST(BitSet512Test, CountTrailingOnesBasic) {
   EXPECT_EQ(b->countr_one(), 1);
 }
 
+TEST(BitSet, StaticallyAllocated) {
+  BitSet<201> b;
+  EXPECT_FALSE(b.test(200));
+  b.set(200, true);
+  EXPECT_TRUE(b.test(200));
+}
+
 }  // namespace jsmalloc

@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <cstdlib>
 #include <iomanip>
 #include <ios>
@@ -27,6 +28,10 @@ ABSL_FLAG(bool, skip_correctness, false,
 
 ABSL_FLAG(bool, ignore_test, false, "If true, test traces are not run.");
 
+ABSL_FLAG(size_t, perftest_iters, 1000000,
+          "The minimum number of alloc/free operations to perform for each "
+          "tracefile when measuring allocator throughput.");
+
 namespace bench {
 
 struct TraceResult {
@@ -37,10 +42,13 @@ struct TraceResult {
 };
 
 bool ShouldIgnoreForScoring(const std::string& trace) {
-  return trace.ends_with("-short.trace") ||
-         absl::StrContains(trace, "simple") ||
+  return absl::StrContains(trace, "simple") ||
          absl::StrContains(trace, "test") ||
-         trace.ends_with("ngram-fox1.trace");
+         absl::StrContains(trace, "/bdd-") ||
+         absl::StrContains(trace, "/cbit-") ||
+         absl::StrContains(trace, "/syn-") ||
+         absl::StrContains(trace, "/ngram-") ||
+         absl::StrContains(trace, "/server.trace");
 }
 
 absl::StatusOr<TraceResult> RunTrace(const std::string& tracefile,
@@ -71,7 +79,9 @@ absl::StatusOr<TraceResult> RunTrace(const std::string& tracefile,
   }
 
   if (result.correct) {
-    DEFINE_OR_RETURN(double, mega_ops, TimeTrace(reader, heap_factory));
+    DEFINE_OR_RETURN(
+        double, mega_ops,
+        TimeTrace(reader, heap_factory, absl::GetFlag(FLAGS_perftest_iters)));
     DEFINE_OR_RETURN(double, utilization,
                      MeasureUtilization(reader, heap_factory));
 
@@ -205,22 +215,22 @@ int RunAllTraces() {
            "traces/cbit-parity.trace",
            "traces/cbit-satadd.trace",
            "traces/cbit-xyz.trace",
+	   "traces/firefox.trace",
            "traces/four-in-a-row.trace",
            "traces/grep.trace",
            "traces/haskell-web-server.trace",
            "traces/mc_server.trace",
            "traces/mc_server_large.trace",
            "traces/mc_server_small.trace",
-           // These have pathological utils for the separate heap approach.
-           // Can be fixed by allowing unmmaping, so disable for now to get a
-           // better idea of utils.
-           //  "traces/ngram-fox1.trace",
-           //  "traces/ngram-gulliver1.trace",
-           //  "traces/ngram-gulliver2.trace",
-           //  "traces/ngram-moby1.trace",
-           //  "traces/ngram-shake1.trace",
+           "traces/ngram-fox1.trace",
+           "traces/ngram-gulliver1.trace",
+           "traces/ngram-gulliver2.trace",
+           "traces/ngram-moby1.trace",
+           "traces/ngram-shake1.trace",
            "traces/onoro.trace",
            "traces/onoro-cc.trace",
+	   "traces/py-catan-ai.trace",
+	   "traces/py-euler-nayuki.trace",
            "traces/scp.trace",
            "traces/server.trace",
            "traces/simple.trace",
@@ -239,6 +249,8 @@ int RunAllTraces() {
            "traces/syn-struct-short.trace",
            "traces/test.trace",
            "traces/test-zero.trace",
+           "traces/vim.trace",
+	   "traces/vlc.trace"
        }) {
     if (absl::GetFlag(FLAGS_ignore_test) && ShouldIgnoreForScoring(tracefile)) {
       continue;

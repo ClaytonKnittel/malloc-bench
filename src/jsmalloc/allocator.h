@@ -4,6 +4,7 @@
 
 #include "src/heap_factory.h"
 #include "src/heap_interface.h"
+#include "src/jsmalloc/util/assert.h"
 #include "src/jsmalloc/util/twiddle.h"
 
 namespace jsmalloc {
@@ -38,6 +39,11 @@ class HeapAdaptor : public MemRegion {
 
   void* End() override {
     return heap_->End();
+  }
+
+  bool Contains(void* ptr) {
+    return twiddle::PtrValue(ptr) >= twiddle::PtrValue(heap_->Start()) &&
+           twiddle::PtrValue(ptr) < twiddle::PtrValue(heap_->End());
   }
 
  private:

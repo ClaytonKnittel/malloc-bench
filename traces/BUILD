@@ -9,6 +9,7 @@ filegroup(
         "cbit-parity.trace",
         "cbit-satadd.trace",
         "cbit-xyz.trace",
+	"firefox.trace",
         "four-in-a-row.trace",
         "grep.trace",
         "haskell-web-server.trace",
@@ -22,6 +23,8 @@ filegroup(
         "ngram-shake1.trace",
         "onoro.trace",
         "onoro-cc.trace",
+	"py-catan-ai.trace",
+	"py-euler-nayuki.trace",
         "scp.trace",
         "server.trace",
         "simple.trace",
@@ -40,6 +43,8 @@ filegroup(
         "syn-struct-short.trace",
         "test.trace",
         "test-zero.trace",
+        "vim.trace",
+	"vlc.trace"
     ],
     visibility = ["//visibility:public"],
 )

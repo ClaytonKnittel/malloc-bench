@@ -1,33 +1,19 @@
 #pragma once
 
-#include <cstddef>
-#include <cstdint>
-
 #include "src/jsmalloc/util/assert.h"
 
 namespace jsmalloc {
 
-template <class T, class M>
-static inline constexpr ptrdiff_t offset_of(const M T::*member) {
-  return reinterpret_cast<ptrdiff_t>(&(reinterpret_cast<T*>(0)->*member));
-}
-
-template <class T, class M>
-static inline constexpr T* owner_of(const M* ptr, const M T::*member) {
-  return reinterpret_cast<T*>(reinterpret_cast<intptr_t>(ptr) -
-                              offset_of(member));
-}
-
-template <typename T>
+template <typename Item, typename Accessor>
 class IntrusiveLinkedList {
  public:
   class Node {
-    friend IntrusiveLinkedList;
-
    public:
     Node() : Node(nullptr, nullptr) {}
 
    private:
+    friend IntrusiveLinkedList<Item, Accessor>;
+
     Node(Node* prev, Node* next) : next_(next), prev_(prev) {}
 
     /** Inserts `this` after `node`. */
@@ -53,10 +39,6 @@ class IntrusiveLinkedList {
       this->next_ = nullptr;
     }
 
-    T* item(Node T::*node_field) const {
-      return owner_of(this, node_field);
-    }
-
     bool linked() const {
       return next_ != nullptr;
     }
@@ -65,8 +47,7 @@ class IntrusiveLinkedList {
     Node* prev_ = nullptr;
   };
 
-  explicit IntrusiveLinkedList(Node T::*node_field)
-      : node_field_(node_field), head_(&head_, &head_) {}
+  explicit IntrusiveLinkedList() : head_(&head_, &head_) {}
 
   class Iterator {
     friend IntrusiveLinkedList;
@@ -90,28 +71,22 @@ class IntrusiveLinkedList {
       return !(*this == other);
     }
 
-    T& operator*() {
-      return *curr_->item(node_field_);
+    Item& operator*() {
+      return *Accessor::GetItem(curr_);
     }
 
    private:
-    explicit Iterator(Node& node, Node T::*node_field)
-        : curr_(&node), node_field_(node_field) {}
+    explicit Iterator(Node& node) : curr_(&node) {}
 
     Node* curr_;
-    Node T::* const node_field_;
   };
 
-  size_t size() const {
-    return size_;
-  }
-
   Iterator begin() {
-    return Iterator(*head_.next_, node_field_);
+    return Iterator(*head_.next_);
   }
 
   Iterator end() {
-    return Iterator(head_, node_field_);
+    return Iterator(head_);
   }
 
   /**
@@ -119,47 +94,48 @@ class IntrusiveLinkedList {
    *
    * Assumes that `el` _could_ only be in this list.
    */
-  bool contains(T& el) {
-    return (el.*node_field_).linked();
+  bool empty() const {
+    return head_.next_ == &head_;
+  }
+
+  /**
+   * Returns whether `el` is linked in some list.
+   */
+  static bool is_linked(Item& el) {
+    return Accessor::GetNode(&el)->linked();
   }
 
   /**
    * Removes `el` from this list.
-   *
-   * Assumes that `el` is in the list.
    */
-  void remove(T& el) {
-    (el.*node_field_).remove();
-    size_--;
+  static void unlink(Item& el) {
+    Accessor::GetNode(&el)->remove();
   }
 
-  void insert_back(T& el) {
-    (el.*node_field_).insert_before(head_);
-    size_++;
+  void insert_back(Item& el) {
+    Accessor::GetNode(&el)->insert_before(head_);
   }
 
-  void insert_front(T& el) {
-    (el.*node_field_).insert_after(head_);
-    size_++;
+  void insert_front(Item& el) {
+    Accessor::GetNode(&el)->insert_after(head_);
   }
 
-  T* front() {
-    if (size_ == 0) {
+  Item* front() {
+    if (empty()) {
       return nullptr;
     }
-    return head_.next_->item(node_field_);
+    return Accessor::GetItem(head_.next_);
   }
 
-  T* back() {
-    if (size_ == 0) {
+  Item* back() {
+    if (empty()) {
       return nullptr;
     }
-    return head_.prev_->item(node_field_);
+    return Accessor::GetItem(head_.prev_);
   }
 
-  Node T::* const node_field_;
+ private:
   Node head_;
-  size_t size_ = 0;
 };
 
 }  // namespace jsmalloc

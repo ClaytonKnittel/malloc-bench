@@ -2,6 +2,7 @@
 
 #include "src/jsmalloc/allocator.h"
 #include "src/jsmalloc/blocks/block.h"
+#include "src/jsmalloc/util/twiddle.h"
 
 namespace jsmalloc {
 namespace blocks {

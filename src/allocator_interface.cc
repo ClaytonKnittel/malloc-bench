@@ -1,11 +1,27 @@
 #include "src/allocator_interface.h"
 
-#include "src/heap_factory.h"
+#include <mutex>
+#include <optional>
+
+#include "src/heap_interface.h"
+#include "src/mmap_heap.h"
 
 namespace bench {
 
-HeapFactory* g_heap_factory = nullptr;
+namespace {
 
-size_t g_heap_idx = 0;
+std::optional<MMapHeap> heap;
+
+}
+
+Heap* g_heap = nullptr;
+
+std::mutex g_lock;
+
+void initialize() {
+  auto res = MMapHeap::New(kHeapSize);
+  heap.emplace(std::move(res.value()));
+  g_heap = &heap.value();
+}
 
 }  // namespace bench

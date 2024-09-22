@@ -60,6 +60,8 @@ cc_library(
     deps = [
         ":heap_factory",
         "//src/jsmalloc",
+        ":heap_interface",
+        ":mmap_heap",
     ],
 )
 
@@ -111,6 +113,22 @@ cc_library(
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings:str_format",
         "@cc-util//util:absl_util",
+    ],
+)
+
+cc_library(
+    name = "libc_override",
+    srcs = ["libc_override.cc"],
+    deps = [
+        ":allocator_interface",
+    ],
+)
+
+cc_shared_library(
+    name = "liballoc",
+    shared_lib_name = "liballoc.so",
+    deps = [
+        ":libc_override",
     ],
 )
 

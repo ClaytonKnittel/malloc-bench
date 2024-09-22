@@ -3,11 +3,10 @@
 #include <cstddef>
 #include <cstdint>
 
-#include "src/jsmalloc/blocks/block.h"
-#include "src/jsmalloc/blocks/free_block.h"
 #include "src/jsmalloc/collections/intrusive_linked_list.h"
 #include "src/jsmalloc/util/bitset.h"
 #include "src/jsmalloc/util/math.h"
+#include "src/jsmalloc/util/twiddle.h"
 
 namespace jsmalloc {
 namespace blocks {
@@ -19,7 +18,7 @@ class SmallBlock {
   /**
    * Returns a new SmallBlock that can lease out data_size byte chunks.
    */
-  static SmallBlock* Init(FreeBlock* block, size_t bin_size, size_t bin_count);
+  static SmallBlock* Init(void* block, size_t bin_size, size_t bin_count);
 
   /**
    * The block size required for the provided configuration.
@@ -44,45 +43,43 @@ class SmallBlock {
   /** Whether this block has free bins and can support an `Alloc()`. */
   bool IsFull() const;
 
-  /** This block's total size. */
-  size_t BlockSize() const;
-
   /** The size of data this block can allocate. */
   size_t DataSize() const;
 
-  /** A list of `SmallBlock` values. */
-  class List : public IntrusiveLinkedList<SmallBlock> {
+  class List : public IntrusiveLinkedList<SmallBlock, List> {
    public:
-    List()
-        : jsmalloc::IntrusiveLinkedList<SmallBlock>(&SmallBlock::list_node_) {}
+    constexpr static Node* GetNode(SmallBlock* item) {
+      return &item->list_node_;
+    }
+    constexpr static SmallBlock* GetItem(Node* node) {
+      return twiddle::OwnerOf(node, &SmallBlock::list_node_);
+    }
   };
 
  private:
-  SmallBlock(size_t block_size, bool prev_block_is_free, size_t bin_size,
-             size_t bin_count);
+  SmallBlock(size_t bin_size, size_t bin_count);
 
   using BitSet = BitSet1024;
 
   size_t BinSize() const;
-  int FreeBinIndex() const;
-
-  void MarkBinFree(int index);
-  void MarkBinUsed(int index);
 
   void* DataPtrForBinIndex(int index);
   int BinIndexForDataPtr(void* ptr) const;
 
-  uint8_t* MutableDataRegion();
+  uint8_t* DataRegion();
   const uint8_t* DataRegion() const;
 
-  BitSet* MutableUsedBinBitSet();
+  void MarkBinFree(int index);
+  void MarkBinUsed(int index);
+
+  BitSet* UsedBinBitSet();
   const BitSet* UsedBinBitSet() const;
   size_t UsedBinBitSetSize() const;
+  int FreeBinIndex() const;
 
-  BlockHeader header_;
   uint16_t bin_size_;
   uint16_t bin_count_;
-  IntrusiveLinkedList<SmallBlock>::Node list_node_;
+  List::Node list_node_;
   uint16_t used_bin_count_ = 0;
   alignas(16) uint8_t data_[];
 };

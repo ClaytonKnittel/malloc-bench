@@ -31,8 +31,10 @@ cc_library(
         ":sentinel_block_allocator",
         "//src/jsmalloc:allocator",
         "//src/jsmalloc/collections:intrusive_linked_list",
+        "//src/jsmalloc/collections:rbtree",
         "//src/jsmalloc/util:assert",
         "//src/jsmalloc/util:math",
+        "//src/jsmalloc/util:twiddle",
     ],
 )
 
@@ -92,6 +94,7 @@ cc_library(
         ":sentinel_block_allocator",
         "//src/jsmalloc:allocator",
         "//src/jsmalloc/collections:intrusive_linked_list",
+        "//src/jsmalloc/collections:rbtree",
         "//src/jsmalloc/util:assert",
         "//src/jsmalloc/util:math",
     ],
@@ -125,6 +128,7 @@ cc_library(
         "//src/jsmalloc/util:assert",
         "//src/jsmalloc/util:bitset",
         "//src/jsmalloc/util:math",
+        "//src/jsmalloc/util:twiddle",
     ],
 )
 
@@ -149,6 +153,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":block",
+        ":fixed_size_free_block_allocator",
         ":free_block",
         ":free_block_allocator",
         ":sentinel_block_allocator",
@@ -164,7 +169,6 @@ cc_test(
     name = "small_block_allocator_test",
     srcs = ["small_block_allocator_test.cc"],
     deps = [
-        ":sentinel_block_allocator",
         ":small_block_allocator",
         "//src/jsmalloc:allocator",
         "@googletest//:gtest",
@@ -199,6 +203,19 @@ cc_test(
         "//src/jsmalloc:allocator",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "fixed_size_free_block_allocator",
+    hdrs = ["fixed_size_free_block_allocator.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//src/jsmalloc:allocator",
+        "//src/jsmalloc/collections:intrusive_stack",
+        "//src/jsmalloc/util:assert",
+        "//src/jsmalloc/util:math",
+        "//src/jsmalloc/util:twiddle",
     ],
 )
 
