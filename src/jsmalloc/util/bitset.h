@@ -9,6 +9,7 @@
 #include <cstring>
 
 #include "src/jsmalloc/util/allocable.h"
+#include "src/jsmalloc/util/math.h"
 
 namespace jsmalloc {
 namespace internal {
@@ -17,10 +18,12 @@ template <typename B>
 concept BitSetT =
     AllocableT<B, size_t> &&
     requires(B bitset, size_t pos, bool value, void* ptr, size_t num_bits) {
-      { bitset.set(pos, value) } -> std::same_as<void>;
-      { bitset.set(pos) } -> std::same_as<void>;
-      { bitset.test(pos) } -> std::same_as<bool>;
-      { bitset.countr_one() } -> std::same_as<size_t>;
+      { bitset.Set(pos, value) } -> std::same_as<void>;
+      { bitset.Set(pos) } -> std::same_as<void>;
+      { bitset.SetRange(pos, pos) } -> std::same_as<void>;
+      { bitset.Test(pos) } -> std::same_as<bool>;
+      { bitset.FindFirstUnsetBit() } -> std::same_as<size_t>;
+      // { bitset.find_unsetr_from(pos) } -> std::same_as<size_t>;
       { B::kMaxBits } -> std::convertible_to<size_t>;
     };
 
@@ -43,21 +46,30 @@ class PrimitiveBitSet : public DefaultAllocable<PrimitiveBitSet<T>, size_t> {
  public:
   explicit PrimitiveBitSet(size_t /*num_bits*/) {}
 
-  void set(size_t pos, bool value = true) {
+  void Set(size_t pos, bool value = true) {
     bits_ &= ~(kOne << pos);
     bits_ |= static_cast<T>(value) << pos;
   }
 
-  bool test(size_t pos) const {
+  bool Test(size_t pos) const {
     return static_cast<bool>(bits_ & (kOne << pos));
   }
 
-  size_t popcount() const {
+  size_t PopCount() const {
     return std::popcount(bits_);
   }
 
-  size_t countr_one() const {
+  size_t FindFirstUnsetBit() const {
     return std::countr_one(bits_);
+  }
+
+  size_t FindFirstUnsetBitFrom(size_t pos) const {
+    return std::countr_one(bits_ | ~((-kOne) << pos));
+  }
+
+  void SetRange(size_t start, size_t end) {
+    size_t size = end - start;
+    bits_ |= ((-kOne) >> (kMaxBits - size)) << start;
   }
 
  private:
@@ -70,7 +82,7 @@ static_assert(BitSetT<PrimitiveBitSet<uint64_t>>);
  * A multi-level bitset.
  *
  * Allows composing BitSetT classes to an arbitrary depth,
- * while supporting logarithmic countr_one.
+ * while supporting logarithmic find_unsetr.
  */
 template <PrimitiveBitsT FirstLevelPrim, BitSetT SecondLevel>
 class MultiLevelBitSet {
@@ -110,36 +122,79 @@ class MultiLevelBitSet {
     return reinterpret_cast<This*>(ptr);
   }
 
-  void set(size_t pos, bool value = true) {
+  void SetRange(size_t start, size_t end) {
+    for (int i = start / SecondLevel::kMaxBits;
+         i < math::div_ceil(end, SecondLevel::kMaxBits); i++) {
+      int lvl_start = 0;
+      if (start > i * SecondLevel::kMaxBits) {
+        lvl_start = start - i * SecondLevel::kMaxBits;
+      }
+
+      int lvl_end = SecondLevel::kMaxBits;
+      if (end < (i + 1) * SecondLevel::kMaxBits) {
+        lvl_end = end - i * SecondLevel::kMaxBits;
+      }
+
+      SecondLevel* lvl = GetSecondLevel(i);
+      lvl->SetRange(lvl_start, lvl_end);
+      first_level_.Set(i, lvl->FindFirstUnsetBit() == SecondLevel::kMaxBits);
+    }
+  }
+
+  void Set(size_t pos, bool value = true) {
     assert(0 <= pos && pos < kMaxBits);
 
     size_t quot = pos / SecondLevel::kMaxBits;
     size_t rem = pos % SecondLevel::kMaxBits;
     SecondLevel* second_level = GetSecondLevel(quot);
-    second_level->set(rem, value);
+    second_level->Set(rem, value);
 
-    bool full = second_level->countr_one() == SecondLevel::kMaxBits;
-    first_level_.set(quot, full);
+    bool full = second_level->FindFirstUnsetBit() == SecondLevel::kMaxBits;
+    first_level_.Set(quot, full);
   }
 
-  bool test(size_t pos) const {
+  bool Test(size_t pos) const {
     assert(0 <= pos && pos < kMaxBits);
 
     size_t quot = pos / SecondLevel::kMaxBits;
     size_t rem = pos % SecondLevel::kMaxBits;
-    return GetSecondLevel(quot)->test(rem);
+    return GetSecondLevel(quot)->Test(rem);
   }
 
-  size_t countr_one() const {
-    size_t first_level_ones = first_level_.countr_one();
+  size_t FindFirstUnsetBit() const {
+    size_t first_level_ones = first_level_.FindFirstUnsetBit();
     // If every second level block is full,
     // then subtract one from the index to avoid going out of bounds.
     //
     // We could alternatively return early here, but this way is *branchless*.
     size_t idx = first_level_ones == FirstLevel::kMaxBits ? first_level_ones - 1
                                                           : first_level_ones;
-    size_t unfull_block_count = GetSecondLevel(idx)->countr_one();
-    return idx * SecondLevel::kMaxBits + unfull_block_count;
+    return idx * SecondLevel::kMaxBits +
+           GetSecondLevel(idx)->FindFirstUnsetBit();
+  }
+
+  size_t FindFirstUnsetBitFrom(size_t pos) const {
+    size_t start_block_idx = pos / SecondLevel::kMaxBits;
+    size_t pos_within_start_block = pos % SecondLevel::kMaxBits;
+    size_t start_block_first_unset_bit =
+        GetSecondLevel(start_block_idx)
+            ->FindFirstUnsetBitFrom(pos_within_start_block);
+    size_t first_unset_bit_from_start_block =
+        start_block_idx * SecondLevel::kMaxBits + start_block_first_unset_bit;
+
+    size_t first_level_ones =
+        first_level_.FindFirstUnsetBitFrom(start_block_idx + 1);
+    // Subtract one from the index to avoid going out of bounds.
+    size_t end_block_idx = first_level_ones == FirstLevel::kMaxBits
+                               ? first_level_ones - 1
+                               : first_level_ones;
+    size_t first_unset_bit_after_start_block =
+        end_block_idx * SecondLevel::kMaxBits +
+        GetSecondLevel(end_block_idx)->FindFirstUnsetBit();
+
+    return start_block_first_unset_bit < SecondLevel::kMaxBits
+               ? first_unset_bit_from_start_block
+               : first_unset_bit_after_start_block;
   }
 
  private:
@@ -188,20 +243,20 @@ class PackedPrimitiveBitSet
 
   explicit PackedPrimitiveBitSet(size_t /*num_bits*/) {}
 
-  void set(size_t pos, bool value = true) {
+  void Set(size_t pos, bool value = true) {
     size_t quot = pos / kBitsPerPrimitive;
     size_t rem = pos % kBitsPerPrimitive;
     bits_[quot] &= ~(kOne << rem);
     bits_[quot] |= static_cast<Primitive>(value) << rem;
   }
 
-  bool test(size_t pos) const {
+  bool Test(size_t pos) const {
     size_t quot = pos / kBitsPerPrimitive;
     size_t rem = pos % kBitsPerPrimitive;
     return static_cast<bool>(bits_[quot] & (kOne << rem));
   }
 
-  size_t popcount() const {
+  size_t PopCount() const {
     size_t count = 0;
     for (uint64_t bit : bits_) {
       count += std::popcount(bit);
@@ -209,7 +264,7 @@ class PackedPrimitiveBitSet
     return count;
   }
 
-  size_t countr_one() const {
+  size_t FindFirstUnsetBit() const {
     size_t res = 0;
     for (int i = 0; i < N; i++) {
       res += ZeroIfFalse(res == (i * kBitsPerPrimitive),
@@ -241,16 +296,24 @@ class BitSet {
     T::Init(data_, N);
   }
 
-  void set(size_t pos, bool value = true) {
-    return reinterpret_cast<T*>(data_)->set(pos, value);
+  void Set(size_t pos, bool value = true) {
+    return reinterpret_cast<T*>(data_)->Set(pos, value);
   }
 
-  bool test(size_t pos) const {
-    return reinterpret_cast<const T*>(data_)->test(pos);
+  bool Test(size_t pos) const {
+    return reinterpret_cast<const T*>(data_)->Test(pos);
   }
 
-  size_t countr_one() const {
-    return reinterpret_cast<const T*>(data_)->countr_one();
+  void SetRange(size_t start, size_t end) {
+    return reinterpret_cast<T*>(data_)->SetRange(start, end);
+  }
+
+  size_t FindFirstUnsetBit() const {
+    return reinterpret_cast<const T*>(data_)->FindFirstUnsetBit();
+  }
+
+  size_t FindFirstUnsetBitFrom(size_t pos) const {
+    return reinterpret_cast<const T*>(data_)->FindFirstUnsetBitFrom(pos);
   }
 
  private:

@@ -32,7 +32,7 @@ cc_library(
     name = "bitset",
     hdrs = ["bitset.h"],
     visibility = ["//visibility:public"],
-    deps = [":allocable"],
+    deps = [":allocable", ":math"],
 )
 
 cc_test(

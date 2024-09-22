@@ -188,6 +188,7 @@ cc_library(
         "//src/jsmalloc:allocator",
         "//src/jsmalloc/collections:intrusive_linked_list",
         "//src/jsmalloc/util:assert",
+        "//src/jsmalloc/util:bitset",
         "//src/jsmalloc/util:math",
     ],
 )

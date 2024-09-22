@@ -20,7 +20,7 @@ size_t SmallBlock::BinSize() const {
 }
 
 int SmallBlock::FreeBinIndex() const {
-  return UsedBinBitSet()->countr_one();
+  return UsedBinBitSet()->FindFirstUnsetBit();
 }
 
 bool SmallBlock::IsFull() const {
@@ -60,12 +60,12 @@ size_t SmallBlock::UsedBinBitSetSize() const {
 
 void SmallBlock::MarkBinFree(int index) {
   used_bin_count_--;
-  UsedBinBitSet()->set(index, false);
+  UsedBinBitSet()->Set(index, false);
 }
 
 void SmallBlock::MarkBinUsed(int index) {
   used_bin_count_++;
-  UsedBinBitSet()->set(index, true);
+  UsedBinBitSet()->Set(index, true);
 }
 
 uint8_t* SmallBlock::DataRegion() {

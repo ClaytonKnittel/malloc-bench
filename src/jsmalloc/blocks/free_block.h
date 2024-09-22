@@ -4,6 +4,7 @@
 
 #include "src/jsmalloc/blocks/block.h"
 #include "src/jsmalloc/blocks/sentinel_block_allocator.h"
+#include "src/jsmalloc/collections/intrusive_linked_list.h"
 #include "src/jsmalloc/collections/rbtree.h"
 #include "src/jsmalloc/util/twiddle.h"
 
@@ -86,11 +87,23 @@ class FreeBlock {
     }
   };
 
+  class List : public IntrusiveLinkedList<FreeBlock, List> {
+   public:
+    static constexpr Node* GetNode(FreeBlock* block) {
+      return &block->list_node_;
+    }
+
+    static constexpr FreeBlock* GetItem(Node* node) {
+      return twiddle::OwnerOf(node, &FreeBlock::list_node_);
+    }
+  };
+
  private:
   FreeBlock(size_t size, bool prev_block_is_free);
 
   BlockHeader header_;
   RbNode free_tree_node_;
+  List::Node list_node_;
 };
 
 }  // namespace blocks
