@@ -11,6 +11,7 @@
 #include "src/ckmalloc/size_class.h"
 #include "src/ckmalloc/slice.h"
 #include "src/ckmalloc/util.h"
+#include "src/heap_interface.h"
 
 namespace ckmalloc {
 
@@ -516,6 +517,11 @@ bool SingleAllocSlab::SizeSuitableForSingleAlloc(size_t user_size) {
   return AlignUp(user_size, kPageSize) !=
          BlockedSlab::NPagesForBlock(Block::BlockSizeForUserSize(user_size)) *
              kPageSize;
+}
+
+bench::Heap* MmapSlab::Heap() {
+  CK_ASSERT_EQ(Type(), SlabType::kMmap);
+  return mapped.mmap.heap_;
 }
 
 }  // namespace ckmalloc

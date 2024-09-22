@@ -147,20 +147,18 @@ absl::Status MainAllocatorFixture::ValidateHeap() {
     // Mmapped slabs are not validated by the slab manager. Check that their
     // slab map entry is correct.
     if (slab->Type() == SlabType::kMmap) {
-      for (PageId page_id : { slab->StartId(), slab->EndId() }) {
-        MappedSlab* mapped_slab = SlabMap().FindSlab(page_id);
-        if (mapped_slab != slab) {
-          return FailedTest(
-              "Page %v of %v does not map to the correct slab metadata: %v",
-              page_id, *slab, *mapped_slab);
-        }
+      MappedSlab* mapped_slab = SlabMap().FindSlab(slab->StartId());
+      if (mapped_slab != slab) {
+        return FailedTest(
+            "Page %v of %v does not map to the correct slab metadata: %v",
+            slab->StartId(), *slab, mapped_slab);
+      }
 
-        SizeClass size_class = SlabMap().FindSizeClass(page_id);
-        if (size_class != SizeClass::Nil()) {
-          return FailedTest(
-              "Found non-nil size class for mmap slab %v at %v, size class %v",
-              *slab, page_id, size_class);
-        }
+      SizeClass size_class = SlabMap().FindSizeClass(slab->StartId());
+      if (size_class != SizeClass::Nil()) {
+        return FailedTest(
+            "Found non-nil size class for mmap slab %v at %v, size class %v",
+            *slab, slab->StartId(), size_class);
       }
     }
 

@@ -441,6 +441,8 @@ class MmapSlab : public AllocatedSlab {
   const BlockedSlab* ToBlocked() const = delete;
   SingleAllocSlab* ToSingleAlloc() = delete;
   const SingleAllocSlab* ToSingleAlloc() const = delete;
+
+  bench::Heap* Heap();
 };
 
 // The sizes of all subtypes of slab must be equal.
