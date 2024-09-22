@@ -132,6 +132,7 @@ class SmallSlabMetadata {
 
 // Slab metadata class, which is stored separately from the slab it describes,
 // in a metadata slab.
+// TODO: Maybe make multiple of cache line size?
 class Slab {
   friend class SlabManagerTest;
   friend constexpr size_t TinySizeClassOffset();
