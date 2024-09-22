@@ -174,34 +174,6 @@ void PrintTestResults(const std::vector<TraceResult>& results) {
   }
 }
 
-absl::Status PrintTrace(const std::string& tracefile) {
-  DEFINE_OR_RETURN(TracefileReader, reader, TracefileReader::Open(tracefile));
-
-  for (TraceLine line : reader) {
-    switch (line.op) {
-      case TraceLine::Op::kMalloc:
-        std::cout << "malloc(" << line.input_size << ") = " << line.result
-                  << std::endl;
-        break;
-      case TraceLine::Op::kCalloc:
-        std::cout << "calloc(" << line.nmemb << ", " << line.input_size
-                  << ") = " << line.result << std::endl;
-        break;
-      case TraceLine::Op::kRealloc:
-        std::cout << "realloc(" << line.input_ptr << ", " << line.input_size
-                  << ") = " << line.result << std::endl;
-        break;
-      case TraceLine::Op::kFree:
-        if (line.input_ptr != nullptr) {
-          std::cout << "free(" << line.input_ptr << ")" << std::endl;
-        }
-        break;
-    }
-  }
-
-  return absl::OkStatus();
-}
-
 int RunAllTraces() {
   std::vector<bench::TraceResult> results;
   MMapHeapFactory heap_factory;
