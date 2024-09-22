@@ -290,14 +290,24 @@ const BlockedSlab* Slab::ToBlocked() const {
   return static_cast<const BlockedSlab*>(this);
 }
 
-class SingleAllocSlab* Slab::ToSingleAlloc() {
+SingleAllocSlab* Slab::ToSingleAlloc() {
   CK_ASSERT_EQ(Type(), SlabType::kSingleAlloc);
   return static_cast<SingleAllocSlab*>(this);
 }
 
-const class SingleAllocSlab* Slab::ToSingleAlloc() const {
+const SingleAllocSlab* Slab::ToSingleAlloc() const {
   CK_ASSERT_EQ(Type(), SlabType::kSingleAlloc);
   return static_cast<const SingleAllocSlab*>(this);
+}
+
+MmapSlab* Slab::ToMmap() {
+  CK_ASSERT_EQ(Type(), SlabType::kMmap);
+  return static_cast<MmapSlab*>(this);
+}
+
+const MmapSlab* Slab::ToMmap() const {
+  CK_ASSERT_EQ(Type(), SlabType::kMmap);
+  return static_cast<const MmapSlab*>(this);
 }
 
 UnmappedSlab* UnmappedSlab::NextUnmappedSlab() {

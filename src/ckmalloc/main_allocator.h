@@ -125,6 +125,10 @@ Void* MainAllocatorImpl<SlabMap, SlabManager, SmallAllocator,
       large_alloc_->FreeLarge(slab->ToLarge(), ptr);
       return new_ptr;
     }
+    case SlabType::kMmap: {
+      // TODO
+      break;
+    }
     case SlabType::kUnmapped:
     case SlabType::kFree: {
       // Unexpected free/unmapped slab.
@@ -151,6 +155,10 @@ void MainAllocatorImpl<SlabMap, SlabManager, SmallAllocator,
     case SlabType::kBlocked:
     case SlabType::kSingleAlloc: {
       large_alloc_->FreeLarge(slab->ToLarge(), ptr);
+      break;
+    }
+    case SlabType::kMmap: {
+      // TODO
       break;
     }
     case SlabType::kUnmapped:
@@ -185,6 +193,9 @@ size_t MainAllocatorImpl<SlabMap, SlabManager, SmallAllocator,
     }
     case SlabType::kSingleAlloc: {
       return slab->ToSingleAlloc()->Pages() * kPageSize;
+    }
+    case SlabType::kMmap: {
+      return slab->ToMmap()->Pages() * kPageSize;
     }
     case SlabType::kUnmapped:
     case SlabType::kFree:

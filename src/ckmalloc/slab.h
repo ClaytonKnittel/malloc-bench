@@ -48,6 +48,10 @@ enum class SlabType : uint8_t {
   // This slab is managing a single allocation of a page-size multiple (or
   // nearly page-size multiple) block.
   kSingleAlloc,
+
+  // This slab is managing an entire mmapped region which contains a single
+  // allocated block.
+  kMmap,
 };
 
 std::ostream& operator<<(std::ostream& ostr, SlabType slab_type);
@@ -176,6 +180,9 @@ class Slab {
   class SingleAllocSlab* ToSingleAlloc();
   const class SingleAllocSlab* ToSingleAlloc() const;
 
+  class MmapSlab* ToMmap();
+  const class MmapSlab* ToMmap() const;
+
  protected:
   Slab() {}
 
@@ -234,6 +241,8 @@ class UnmappedSlab : public Slab {
   const class LargeSlab* ToLarge() const = delete;
   class SingleAllocSlab* ToSingleAlloc() = delete;
   const class SingleAllocSlab* ToSingleAlloc() const = delete;
+  class MmapSlab* ToMmap() = delete;
+  const class MmapSlab* ToMmap() const = delete;
 
   // Returns the next unmapped slab in the freelist.
   UnmappedSlab* NextUnmappedSlab();
@@ -280,6 +289,8 @@ class FreeSlab : public MappedSlab {
   const class BlockedSlab* ToBlocked() const = delete;
   class SingleAllocSlab* ToSingleAlloc() = delete;
   const class SingleAllocSlab* ToSingleAlloc() const = delete;
+  class MmapSlab* ToMmap() = delete;
+  const class MmapSlab* ToMmap() const = delete;
 };
 
 class AllocatedSlab : public MappedSlab {
@@ -299,6 +310,8 @@ class SmallSlab : public AllocatedSlab {
   const class LargeSlab* ToLarge() const = delete;
   class SingleAllocSlab* ToSingleAlloc() = delete;
   const class SingleAllocSlab* ToSingleAlloc() const = delete;
+  class MmapSlab* ToMmap() = delete;
+  const class MmapSlab* ToMmap() const = delete;
 
   // Small slabs range only one page.
   PageId EndId() const = delete;
@@ -342,9 +355,11 @@ class LargeSlab : public AllocatedSlab {
  public:
   class SmallSlab* ToSmall() = delete;
   const class SmallSlab* ToSmall() const = delete;
+  class MmapSlab* ToMmap() = delete;
+  const class MmapSlab* ToMmap() const = delete;
 };
 
-class BlockedSlab : public AllocatedSlab {
+class BlockedSlab : public LargeSlab {
  public:
   class SingleAllocSlab* ToSingleAlloc() = delete;
   const class SingleAllocSlab* ToSingleAlloc() const = delete;
@@ -369,7 +384,7 @@ class BlockedSlab : public AllocatedSlab {
   uint64_t AllocatedBytes() const;
 };
 
-class SingleAllocSlab : public AllocatedSlab {
+class SingleAllocSlab : public LargeSlab {
  public:
   BlockedSlab* ToBlocked() = delete;
   const BlockedSlab* ToBlocked() const = delete;
@@ -381,6 +396,16 @@ class SingleAllocSlab : public AllocatedSlab {
   // Returns true if this size is suitable to be allocated within a
   // page-multiple slab.
   static bool SizeSuitableForSingleAlloc(size_t user_size);
+};
+
+// Mmap slabs are slabs holding a single allocation in its own mmapped region of
+// memory.
+class MmapSlab : public AllocatedSlab {
+ public:
+  BlockedSlab* ToBlocked() = delete;
+  const BlockedSlab* ToBlocked() const = delete;
+  SingleAllocSlab* ToSingleAlloc() = delete;
+  const SingleAllocSlab* ToSingleAlloc() const = delete;
 };
 
 // The sizes of all subtypes of slab must be equal.
