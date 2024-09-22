@@ -183,6 +183,7 @@ cc_binary(
     ],
     deps = [
         ":tracefile_reader",
+        "//proto:tracefile_cc_proto",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/flags:parse",
         "@abseil-cpp//absl/status",
