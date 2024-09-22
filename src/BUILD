@@ -28,7 +28,7 @@ cc_library(
     deps = [
         ":allocator_interface",
         ":heap_factory",
-        "@abseil-cpp//absl/container:flat_hash_map",
+        ":tracefile_reader",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/time",
     ],
@@ -171,8 +171,8 @@ cc_library(
 )
 
 cc_binary(
-    name = "tracefile_cleaner",
-    srcs = ["tracefile_cleaner.cc"],
+    name = "tracefile_parser",
+    srcs = ["tracefile_parser.cc"],
     data = [
         "//traces",
     ],

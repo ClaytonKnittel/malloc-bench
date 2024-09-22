@@ -2,7 +2,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
-#include <ios>
 #include <iostream>
 #include <ostream>
 #include <regex>
@@ -23,7 +22,7 @@
 
 ABSL_FLAG(std::string, trace, "", "File path of the trace to clean.");
 
-ABSL_FLAG(std::string, output, "", "Output file to dump contents to.");
+ABSL_FLAG(bool, binary, false, "Output binary proto");
 
 namespace bench {
 
@@ -78,6 +77,7 @@ class DirtyTracefileReader {
     absl::flat_hash_map<void*, uint64_t> id_map;
     absl::btree_set<uint64_t> available_ids;
     uint64_t next_id = 0;
+    uint64_t max_simultaneous_allocs = 0;
 
     const auto get_next_id = [&available_ids, &next_id,
                               &id_map](void* ptr) -> absl::StatusOr<uint64_t> {
@@ -188,6 +188,9 @@ class DirtyTracefileReader {
         continue;
       }
       *tracefile.mutable_lines()->Add() = std::move(line);
+
+      max_simultaneous_allocs =
+          std::max<uint64_t>(max_simultaneous_allocs, id_map.size());
     }
 
     file.close();
@@ -199,6 +202,7 @@ class DirtyTracefileReader {
       free->set_input_id(id);
     }
 
+    tracefile.set_max_simultaneous_allocs(max_simultaneous_allocs);
     return DirtyTracefileReader(std::move(tracefile));
   }
 
@@ -259,16 +263,9 @@ int main(int argc, char* argv[]) {
     std::cerr << "Flag --input is required" << std::endl;
   }
 
-  absl::Status s;
-  const std::string& output = absl::GetFlag(FLAGS_output);
-  if (!output.empty()) {
-    std::ofstream file(output, std::ios_base::out);
-    s = bench::CleanTracefile(input_tracefile_path, file);
-    file.close();
-  } else {
-    s = bench::CleanTracefile(input_tracefile_path, std::cout,
-                              /*text_serialize=*/true);
-  }
+  absl::Status s =
+      bench::CleanTracefile(input_tracefile_path, std::cout,
+                            /*text_serialize=*/!absl::GetFlag(FLAGS_binary));
 
   if (!s.ok()) {
     std::cerr << "Fatal error: " << s << std::endl;
