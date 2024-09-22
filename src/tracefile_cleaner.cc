@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
@@ -5,26 +6,27 @@
 #include <iostream>
 #include <ostream>
 #include <regex>
-#include <set>
 #include <sstream>
 #include <unistd.h>
-#include <vector>
 
+#include "absl/container/btree_set.h"
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_format.h"
 #include "util/absl_util.h"
 
-#include "src/tracefile_reader.h"
+#include "proto/tracefile.pb.h"
 
 ABSL_FLAG(std::string, trace, "", "File path of the trace to clean.");
 
-ABSL_FLAG(bool, i, false,
-          "In-place edit, which will overwrite the input file with the cleaned "
-          "contents.");
+ABSL_FLAG(std::string, output, "", "Output file to dump contents to.");
 
 namespace bench {
+
+using proto::Tracefile;
+using proto::TraceLine;
 
 namespace {
 
@@ -41,7 +43,8 @@ const std::regex kReallocRegex(
 
 class DirtyTracefileReader {
  public:
-  using const_iterator = std::vector<TraceLine>::const_iterator;
+  using const_iterator =
+      google::protobuf::internal::RepeatedPtrIterator<const TraceLine>;
 
   static absl::StatusOr<DirtyTracefileReader> Open(
       const std::string& filename) {
@@ -52,39 +55,140 @@ class DirtyTracefileReader {
           absl::StrCat("Failed to open file ", filename));
     }
 
-    std::vector<TraceLine> lines;
+    class Tracefile tracefile;
+    std::optional<int32_t> required_pid;
+    absl::flat_hash_map<void*, uint64_t> id_map;
+    absl::btree_set<uint64_t> available_ids;
+    uint64_t next_id = 0;
+
+    const auto get_next_id = [&available_ids, &next_id,
+                              &id_map](void* ptr) -> absl::StatusOr<uint64_t> {
+      if (available_ids.empty()) {
+        return next_id++;
+      }
+      auto it = available_ids.begin();
+      uint64_t id = *it;
+      available_ids.erase(it);
+
+      auto [_it, inserted] = id_map.emplace(ptr, id);
+      if (!inserted) {
+        return absl::FailedPreconditionError(
+            absl::StrFormat("Allocated duplicate pointer %p", ptr));
+      }
+      return id;
+    };
+    const auto find_and_erase_id =
+        [&available_ids, &id_map](void* ptr) -> absl::StatusOr<uint64_t> {
+      auto it = id_map.find(ptr);
+      if (it == id_map.end()) {
+        return absl::FailedPreconditionError(
+            absl::StrFormat("Tracefile frees unallocated ptr %p", ptr));
+      }
+      uint64_t id = it->second;
+      id_map.erase(it);
+
+      auto [_it, inserted] = available_ids.insert(id);
+      assert(inserted);
+      return id;
+    };
+
     while (true) {
-      std::string line;
-      if (std::getline(file, line).eof()) {
+      std::string line_str;
+      if (std::getline(file, line_str).eof()) {
         break;
       }
 
-      DEFINE_OR_RETURN(std::optional<TraceLine>, trace_line, MatchLine(line));
-      if (trace_line.has_value()) {
-        lines.push_back(*trace_line);
+      TraceLine line;
+      std::smatch match;
+      int32_t pid;
+      if (std::regex_match(line_str, match, kFreeRegex)) {
+        ASSIGN_OR_RETURN(pid, ParsePid(match[1].str()));
+
+        void* input_ptr;
+        ASSIGN_OR_RETURN(input_ptr, ParsePtr(match[2].str()));
+
+        proto::TraceLine_Free* free = line.mutable_free();
+        if (input_ptr != nullptr) {
+          DEFINE_OR_RETURN(uint64_t, id, find_and_erase_id(input_ptr));
+          free->set_input_id(id);
+        }
+      } else if (std::regex_match(line_str, match, kMallocRegex)) {
+        ASSIGN_OR_RETURN(pid, ParsePid(match[1].str()));
+
+        uint64_t input_size;
+        ASSIGN_OR_RETURN(input_size, ParseSize(match[2].str()));
+        void* result_ptr;
+        ASSIGN_OR_RETURN(result_ptr, ParsePtr(match[3].str()));
+
+        DEFINE_OR_RETURN(uint64_t, id, get_next_id(result_ptr));
+        proto::TraceLine_Malloc* malloc = line.mutable_malloc();
+        malloc->set_input_size(input_size);
+        malloc->set_result_id(id);
+      } else if (std::regex_match(line_str, match, kCallocRegex)) {
+        ASSIGN_OR_RETURN(pid, ParsePid(match[1].str()));
+
+        uint64_t nmemb;
+        ASSIGN_OR_RETURN(nmemb, ParseSize(match[2].str()));
+        uint64_t input_size;
+        ASSIGN_OR_RETURN(input_size, ParseSize(match[3].str()));
+        void* result_ptr;
+        ASSIGN_OR_RETURN(result_ptr, ParsePtr(match[4].str()));
+
+        DEFINE_OR_RETURN(uint64_t, id, get_next_id(result_ptr));
+        proto::TraceLine_Calloc* calloc = line.mutable_calloc();
+        calloc->set_input_nmemb(nmemb);
+        calloc->set_input_size(input_size);
+        calloc->set_result_id(id);
+      } else if (std::regex_match(line_str, match, kReallocRegex)) {
+        ASSIGN_OR_RETURN(pid, ParsePid(match[1].str()));
+
+        void* input_ptr;
+        ASSIGN_OR_RETURN(input_ptr, ParsePtr(match[2].str()));
+        uint64_t input_size;
+        ASSIGN_OR_RETURN(input_size, ParseSize(match[3].str()));
+        void* result_ptr;
+        ASSIGN_OR_RETURN(result_ptr, ParsePtr(match[4].str()));
+
+        proto::TraceLine_Realloc* realloc = line.mutable_realloc();
+        if (input_ptr != nullptr) {
+          DEFINE_OR_RETURN(uint64_t, id, find_and_erase_id(input_ptr));
+          realloc->set_input_id(id);
+        }
+        DEFINE_OR_RETURN(uint64_t, id, get_next_id(result_ptr));
+        realloc->set_input_size(input_size);
+        realloc->set_result_id(id);
+      } else {
+        continue;
       }
+
+      if (!required_pid.has_value()) {
+        // Assume the main process makes the first allocation.
+        required_pid = pid;
+      } else if (required_pid.value() != pid) {
+        continue;
+      }
+      *tracefile.mutable_lines()->Add() = std::move(line);
     }
 
     file.close();
 
-    return DirtyTracefileReader(std::move(lines));
+    // Free all unfreed memory.
+    for (auto [ptr, id] : id_map) {
+      TraceLine* line = tracefile.mutable_lines()->Add();
+      proto::TraceLine_Free* free = line->mutable_free();
+      free->set_input_id(id);
+    }
+
+    return DirtyTracefileReader(std::move(tracefile));
   }
 
-  size_t size() const {
-    return lines_.size();
-  }
-
-  const_iterator begin() const {
-    return lines_.cbegin();
-  }
-
-  const_iterator end() const {
-    return lines_.cend();
+  const Tracefile& Tracefile() const {
+    return tracefile_;
   }
 
  private:
-  explicit DirtyTracefileReader(std::vector<TraceLine>&& lines)
-      : lines_(std::move(lines)) {}
+  explicit DirtyTracefileReader(class Tracefile&& tracefile)
+      : tracefile_(std::move(tracefile)) {}
 
   template <typename T>
   static absl::StatusOr<T> ParsePrimitive(const std::string& str,
@@ -108,178 +212,13 @@ class DirtyTracefileReader {
     return ParsePrimitive<size_t>(ssize, "size");
   }
 
-  static absl::StatusOr<std::optional<TraceLine>> MatchLine(
-      const std::string& line) {
-    TraceLine parsed;
-    std::smatch match;
-    if (std::regex_match(line, match, kFreeRegex)) {
-      parsed.op = TraceLine::Op::kFree;
-      ASSIGN_OR_RETURN(parsed.pid, ParsePid(match[1].str()));
-      ASSIGN_OR_RETURN(parsed.input_ptr, ParsePtr(match[2].str()));
-      return parsed;
-    }
-
-    if (std::regex_match(line, match, kMallocRegex)) {
-      parsed.op = TraceLine::Op::kMalloc;
-      ASSIGN_OR_RETURN(parsed.pid, ParsePid(match[1].str()));
-      ASSIGN_OR_RETURN(parsed.input_size, ParseSize(match[2].str()));
-      ASSIGN_OR_RETURN(parsed.result, ParsePtr(match[3].str()));
-      return parsed;
-    }
-
-    if (std::regex_match(line, match, kCallocRegex)) {
-      parsed.op = TraceLine::Op::kCalloc;
-      ASSIGN_OR_RETURN(parsed.pid, ParsePid(match[1].str()));
-      ASSIGN_OR_RETURN(parsed.input_size, ParseSize(match[2].str()));
-      ASSIGN_OR_RETURN(parsed.nmemb, ParseSize(match[3].str()));
-      ASSIGN_OR_RETURN(parsed.result, ParsePtr(match[4].str()));
-      return parsed;
-    }
-
-    if (std::regex_match(line, match, kReallocRegex)) {
-      parsed.op = TraceLine::Op::kRealloc;
-      ASSIGN_OR_RETURN(parsed.pid, ParsePid(match[1].str()));
-      ASSIGN_OR_RETURN(parsed.input_ptr, ParsePtr(match[2].str()));
-      ASSIGN_OR_RETURN(parsed.input_size, ParseSize(match[3].str()));
-      ASSIGN_OR_RETURN(parsed.result, ParsePtr(match[4].str()));
-      return parsed;
-    }
-
-    return std::nullopt;
-  }
-
-  const std::vector<TraceLine> lines_;
-};
-
-std::string FormatPtr(void* ptr) {
-  std::ostringstream ss;
-  ss << "0x" << std::uppercase << std::hex << reinterpret_cast<uintptr_t>(ptr);
-  return ss.str();
-}
-
-std::string FormatLine(const TraceLine& line) {
-  std::ostringstream ss;
-  ss << "--" << line.pid << "-- ";
-  switch (line.op) {
-    case bench::TraceLine::Op::kMalloc:
-      ss << "malloc(" << line.input_size << ") = " << FormatPtr(line.result);
-      break;
-    case bench::TraceLine::Op::kCalloc:
-      ss << "calloc(" << line.nmemb << "," << line.input_size
-         << ") = " << FormatPtr(line.result);
-      break;
-    case bench::TraceLine::Op::kRealloc:
-      ss << "realloc(" << FormatPtr(line.input_ptr) << "," << line.input_size
-         << ") = " << FormatPtr(line.result);
-      break;
-    case bench::TraceLine::Op::kFree:
-      ss << "free(" << FormatPtr(line.input_ptr) << ")";
-      break;
-  }
-  return ss.str();
-}
-
-class AllocationState {
- public:
-  std::vector<void*> UnfreedPtrs() {
-    std::vector<void*> ptrs;
-    ptrs.reserve(allocated_ptrs_.size());
-    for (void* ptr : allocated_ptrs_) {
-      ptrs.push_back(ptr);
-    }
-    return ptrs;
-  }
-
-  /**
-   * Tries to run the trace line.
-   *
-   * Returns whether the trace line could run successfully, else false.
-   */
-  bool Try(const TraceLine& line) {
-    if (line.op == TraceLine::Op::kFree) {
-      return Free(line.input_ptr);
-    }
-
-    if (line.op == TraceLine::Op::kCalloc ||
-        line.op == TraceLine::Op::kMalloc) {
-      return Malloc(line.input_size, line.result);
-    }
-
-    if (line.op == TraceLine::Op::kRealloc) {
-      return Realloc(line.input_ptr, line.input_size, line.result);
-    }
-
-    return true;
-  }
-
- private:
-  bool Free(void* ptr) {
-    if (ptr == nullptr) {
-      return false;
-    }
-    if (!allocated_ptrs_.contains(ptr)) {
-      return false;
-    }
-    allocated_ptrs_.erase(ptr);
-    return true;
-  }
-
-  bool Malloc(size_t size, void* result) {
-    // Don't malloc(0). Who the heck does that.
-    if (size == 0) {
-      return false;
-    }
-    if (allocated_ptrs_.contains(result)) {
-      return false;
-    }
-    allocated_ptrs_.insert(result);
-    return true;
-  }
-
-  bool Realloc(void* ptr, size_t size, void* result) {
-    return (ptr == nullptr || Free(ptr)) && Malloc(size, result);
-  }
-
-  std::set<void*> allocated_ptrs_;
+  const class Tracefile tracefile_;
 };
 
 absl::Status CleanTracefile(absl::string_view input_path, std::ostream& out) {
-  std::optional<int32_t> pid;
-  AllocationState allocation_state;
-
-  // Read the tracefile and filter out all non-alloc lines and allocations made
-  // by processes other than the main process.
-  {
-    DEFINE_OR_RETURN(DirtyTracefileReader, reader,
-                     DirtyTracefileReader::Open(std::string(input_path)));
-    for (TraceLine line : reader) {
-      if (!pid.has_value()) {
-        // Assume the main process makes the first allocation.
-        pid = line.pid;
-      }
-
-      if (line.pid != pid) {
-        continue;
-      }
-
-      if (!allocation_state.Try(line)) {
-        continue;
-      }
-
-      out << FormatLine(line) << std::endl;
-    }
-  }
-
-  // Free all unfreed memory.
-  for (void* ptr : allocation_state.UnfreedPtrs()) {
-    TraceLine line = {
-      .op = TraceLine::Op::kFree,
-      .input_ptr = ptr,
-      .pid = *pid,
-    };
-
-    out << FormatLine(line) << std::endl;
-  }
+  DEFINE_OR_RETURN(DirtyTracefileReader, reader,
+                   DirtyTracefileReader::Open(std::string(input_path)));
+  reader.Tracefile().SerializeToOstream(&out);
 
   return absl::OkStatus();
 }
@@ -294,17 +233,17 @@ int main(int argc, char* argv[]) {
     std::cerr << "Flag --input is required" << std::endl;
   }
 
-  std::stringstream out;
-  absl::Status s = bench::CleanTracefile(input_tracefile_path, out);
-  if (!s.ok()) {
-    std::cerr << "Fatal error: " << s << std::endl;
+  absl::Status s;
+  const std::string& output = absl::GetFlag(FLAGS_output);
+  if (!output.empty()) {
+    std::ofstream file(output, std::ios_base::out);
+    s = bench::CleanTracefile(input_tracefile_path, file);
+  } else {
+    s = bench::CleanTracefile(input_tracefile_path, std::cout);
   }
 
-  if (absl::GetFlag(FLAGS_i)) {
-    std::ofstream file(input_tracefile_path, std::ios_base::out);
-    file << out.str();
-  } else {
-    std::cout << out.str();
+  if (!s.ok()) {
+    std::cerr << "Fatal error: " << s << std::endl;
   }
 
   return 0;
