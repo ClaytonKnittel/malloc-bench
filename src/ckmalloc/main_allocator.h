@@ -133,7 +133,11 @@ Void* MainAllocatorImpl<MetadataAlloc, SlabMap, SlabManager, SmallAllocator,
       size_t copy_size;
       if (IsMmapSize(user_size)) {
         new_ptr = AllocMmap(user_size);
-        copy_size = AllocatedBlock::FromUserDataPtr(ptr)->UserDataSize();
+        if (slab->Type() == SlabType::kBlocked) {
+          copy_size = AllocatedBlock::FromUserDataPtr(ptr)->UserDataSize();
+        } else {
+          copy_size = slab->ToSingleAlloc()->Pages() * kPageSize;
+        }
       } else {
         new_ptr = small_alloc_->AllocSmall(user_size);
         copy_size = user_size;

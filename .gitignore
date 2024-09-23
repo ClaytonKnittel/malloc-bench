@@ -2,3 +2,4 @@
 /bazel-*
 /agg.py
 /allocs.txt
+traces/*.trace

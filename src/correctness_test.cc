@@ -15,6 +15,7 @@
 #include "src/ckmalloc/metadata_manager_test_fixture.h"
 #include "src/ckmalloc/slab_manager_test_fixture.h"
 #include "src/ckmalloc/small_allocator_test_fixture.h"
+#include "src/ckmalloc/sys_alloc.h"
 #include "src/ckmalloc/testlib.h"
 #include "src/heap_factory.h"
 #include "src/mmap_heap_factory.h"
@@ -124,6 +125,7 @@ class TestCorrectness : public ::testing::Test {
 
 void TestCkMalloc::InitializeHeap(HeapFactory& heap_factory) {
   heap_factory.Reset();
+  ckmalloc::TestSysAlloc::NewInstance(&heap_factory);
 }
 
 absl::StatusOr<void*> TestCkMalloc::Malloc(size_t size) {
