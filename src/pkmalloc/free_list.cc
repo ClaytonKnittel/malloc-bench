@@ -11,6 +11,7 @@ void FreeList::add_free_block_to_list(AllocatedBlock* curr_block,
   if (free_list_iter == nullptr) {
     begin = current_block;
   }
+  // CALL COALESCE IN HERE ?????????????????
   // current is adress first in free list
   else if (&current_block < &free_list_iter) {
     begin = current_block;
