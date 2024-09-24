@@ -78,8 +78,6 @@ class SlabMapImpl {
   using SlabLeaf = Node<MappedSlab*>;
   using SlabNode = Node<Node<MappedSlab*>*>;
 
-  bool DoAllocatePath(PageId start_id, PageId end_id);
-
   template <typename T>
   static T* Allocate() {
     T* ptr = static_cast<T*>(MetadataAlloc::Alloc(sizeof(T), alignof(T)));
@@ -154,7 +152,39 @@ MappedSlab* SlabMapImpl<MetadataAlloc>::FindSlab(PageId page_id) const {
 
 template <MetadataAllocInterface MetadataAlloc>
 bool SlabMapImpl<MetadataAlloc>::AllocatePath(PageId start_id, PageId end_id) {
-  return DoAllocatePath(start_id, end_id);
+  auto root_idxs = std::make_pair(RootIdx(start_id), RootIdx(end_id));
+  auto middle_idxs = std::make_pair(MiddleIdx(start_id), MiddleIdx(end_id));
+
+  for (size_t root_idx = root_idxs.first; root_idx <= root_idxs.second;
+       root_idx++) {
+    if (slab_nodes_[root_idx] == nullptr) {
+      size_nodes_[root_idx] = Allocate<SizeNode>();
+      slab_nodes_[root_idx] = Allocate<SlabNode>();
+      if (size_nodes_[root_idx] == nullptr ||
+          slab_nodes_[root_idx] == nullptr) {
+        return false;
+      }
+    }
+
+    SizeNode& size_node = *size_nodes_[root_idx];
+    SlabNode& slab_node = *slab_nodes_[root_idx];
+    for (size_t middle_idx =
+             (root_idx == root_idxs.first ? middle_idxs.first : 0);
+         middle_idx <=
+         (root_idx == root_idxs.second ? middle_idxs.second : kNodeSize - 1);
+         middle_idx++) {
+      if (slab_node[middle_idx] == nullptr) {
+        size_node[middle_idx] = Allocate<SizeLeaf>();
+        slab_node[middle_idx] = Allocate<SlabLeaf>();
+        if (size_node[middle_idx] == nullptr ||
+            slab_node[middle_idx] == nullptr) {
+          return false;
+        }
+      }
+    }
+  }
+
+  return true;
 }
 
 template <MetadataAllocInterface MetadataAlloc>
@@ -212,44 +242,6 @@ void SlabMapImpl<MetadataAlloc>::InsertRange(
       }
     }
   }
-}
-
-template <MetadataAllocInterface MetadataAlloc>
-bool SlabMapImpl<MetadataAlloc>::DoAllocatePath(PageId start_id,
-                                                PageId end_id) {
-  auto root_idxs = std::make_pair(RootIdx(start_id), RootIdx(end_id));
-  auto middle_idxs = std::make_pair(MiddleIdx(start_id), MiddleIdx(end_id));
-
-  for (size_t root_idx = root_idxs.first; root_idx <= root_idxs.second;
-       root_idx++) {
-    if (slab_nodes_[root_idx] == nullptr) {
-      size_nodes_[root_idx] = Allocate<SizeNode>();
-      slab_nodes_[root_idx] = Allocate<SlabNode>();
-      if (size_nodes_[root_idx] == nullptr ||
-          slab_nodes_[root_idx] == nullptr) {
-        return false;
-      }
-    }
-
-    SizeNode& size_node = *size_nodes_[root_idx];
-    SlabNode& slab_node = *slab_nodes_[root_idx];
-    for (size_t middle_idx =
-             (root_idx == root_idxs.first ? middle_idxs.first : 0);
-         middle_idx <=
-         (root_idx == root_idxs.second ? middle_idxs.second : kNodeSize - 1);
-         middle_idx++) {
-      if (slab_node[middle_idx] == nullptr) {
-        size_node[middle_idx] = Allocate<SizeLeaf>();
-        slab_node[middle_idx] = Allocate<SlabLeaf>();
-        if (size_node[middle_idx] == nullptr ||
-            slab_node[middle_idx] == nullptr) {
-          return false;
-        }
-      }
-    }
-  }
-
-  return true;
 }
 
 template <MetadataAllocInterface MetadataAlloc>
