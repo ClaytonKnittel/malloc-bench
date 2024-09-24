@@ -305,7 +305,7 @@ void SlabMapImpl<MetadataAlloc>::DeallocatePath(PageId start_id,
       slab_leaf->RemoveAllocatedCount(removed_leaves);
 
       if (size_leaf->Empty()) {
-        size_leaf->ClearChild(middle_idx, nullptr);
+        size_leaf->ClearChild(middle_idx, SizeClass::Nil());
         slab_node->ClearChild(middle_idx, nullptr);
         Free(size_leaf);
         Free(slab_leaf);

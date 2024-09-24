@@ -116,4 +116,15 @@ TEST_F(SlabMapTest, TestInsertLongRange) {
   }
 }
 
+TEST_F(SlabMapTest, TestDeallocate) {
+  MappedSlab* test_slab = reinterpret_cast<MappedSlab*>(0x5010203040);
+
+  PageId id = PageId(88 + 400 * kNodeSize + 123 * kNodeSize * kNodeSize);
+  EXPECT_TRUE(SlabMap().AllocatePath(id, id));
+  SlabMap().Insert(id, test_slab);
+  EXPECT_EQ(SlabMap().FindSlab(id), test_slab);
+
+  SlabMap().DeallocatePath(id, id);
+}
+
 }  // namespace ckmalloc
