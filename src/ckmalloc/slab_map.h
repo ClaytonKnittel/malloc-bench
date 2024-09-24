@@ -11,13 +11,13 @@
 
 namespace ckmalloc {
 
-// The leaf size should be roughly the square root of heap size / page size.
+// The node size should be roughly the square root of heap size / page size.
 // Round up so the leaf sizes are larger.
-constexpr uint32_t kLeafShift = (kAddressBits - kPageShift + 2) / 3;
-// The number of pages in the leaf nodes of the slab map.
-constexpr size_t kLeafSize = 1 << kLeafShift;
+constexpr uint32_t kNodeShift = (kAddressBits - kPageShift + 2) / 3;
+// The number of pages in the middle and leaf nodes of the slab map.
+constexpr size_t kNodeSize = 1 << kNodeShift;
 
-constexpr uint32_t kRootShift = kAddressBits - kPageShift - 2 * kLeafShift;
+constexpr uint32_t kRootShift = kAddressBits - kPageShift - 2 * kNodeShift;
 // The length of the root node in the slab map.
 constexpr size_t kRootSize = 1 << kRootShift;
 
@@ -53,15 +53,15 @@ class SlabMapImpl {
 
  private:
   template <typename T>
-  class Leaf {
+  class Node {
    public:
     T operator[](size_t idx) const {
-      CK_ASSERT_LT(idx, kLeafSize);
+      CK_ASSERT_LT(idx, kNodeSize);
       return vals_[idx];
     }
 
     T& operator[](size_t idx) {
-      CK_ASSERT_LT(idx, kLeafSize);
+      CK_ASSERT_LT(idx, kNodeSize);
       return vals_[idx];
     }
 
@@ -70,13 +70,13 @@ class SlabMapImpl {
     }
 
    private:
-    T vals_[kLeafSize] = {};
+    T vals_[kNodeSize] = {};
   };
 
-  using SizeLeaf = Leaf<SizeClass>;
-  using SizeNode = Leaf<Leaf<SizeClass>*>;
-  using SlabLeaf = Leaf<MappedSlab*>;
-  using SlabNode = Leaf<Leaf<MappedSlab*>*>;
+  using SizeLeaf = Node<SizeClass>;
+  using SizeNode = Node<Node<SizeClass>*>;
+  using SlabLeaf = Node<MappedSlab*>;
+  using SlabNode = Node<Node<MappedSlab*>*>;
 
   bool DoAllocatePath(PageId start_id, PageId end_id);
 
@@ -90,15 +90,15 @@ class SlabMapImpl {
   }
 
   static size_t RootIdx(PageId page_id) {
-    return page_id.Idx() / (kLeafSize * kLeafSize);
+    return page_id.Idx() / (kNodeSize * kNodeSize);
   }
 
   static size_t MiddleIdx(PageId page_id) {
-    return (page_id.Idx() / kLeafSize) % kLeafSize;
+    return (page_id.Idx() / kNodeSize) % kNodeSize;
   }
 
   static size_t LeafIdx(PageId page_id) {
-    return page_id.Idx() % kLeafSize;
+    return page_id.Idx() % kNodeSize;
   }
 
   SizeNode* SizeNodeAt(size_t idx) const {
@@ -191,7 +191,7 @@ void SlabMapImpl<MetadataAlloc>::InsertRange(
     for (size_t middle_idx =
              (root_idx == root_idxs.first ? middle_idxs.first : 0);
          middle_idx <=
-         (root_idx == root_idxs.second ? middle_idxs.second : kLeafSize - 1);
+         (root_idx == root_idxs.second ? middle_idxs.second : kNodeSize - 1);
          middle_idx++) {
       SlabLeaf& leaf = *node[middle_idx];
       SizeLeaf& size_leaf = *size_node[middle_idx];
@@ -203,7 +203,7 @@ void SlabMapImpl<MetadataAlloc>::InsertRange(
            leaf_idx <=
            (root_idx == root_idxs.second && middle_idx == middle_idxs.second
                 ? leaf_idxs.second
-                : kLeafSize - 1);
+                : kNodeSize - 1);
            leaf_idx++) {
         leaf.SetChild(leaf_idx, slab);
         if (size_class.has_value()) {
@@ -236,7 +236,7 @@ bool SlabMapImpl<MetadataAlloc>::DoAllocatePath(PageId start_id,
     for (size_t middle_idx =
              (root_idx == root_idxs.first ? middle_idxs.first : 0);
          middle_idx <=
-         (root_idx == root_idxs.second ? middle_idxs.second : kLeafSize - 1);
+         (root_idx == root_idxs.second ? middle_idxs.second : kNodeSize - 1);
          middle_idx++) {
       if (slab_node[middle_idx] == nullptr) {
         size_node[middle_idx] = Allocate<SizeLeaf>();
