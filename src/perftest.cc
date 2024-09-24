@@ -33,7 +33,7 @@ absl::StatusOr<double> TimeTrace(TracefileReader& reader,
         }
         case TraceLine::kCalloc: {
           void* ptr =
-              calloc(line.calloc().input_nmemb(), line.calloc().input_size());
+              malloc(line.calloc().input_nmemb() * line.calloc().input_size());
           ptrs[line.calloc().result_id()] = ptr;
           break;
         }
