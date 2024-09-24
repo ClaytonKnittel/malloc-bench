@@ -68,7 +68,12 @@ enum class SlabType : uint8_t {
   kMmap,
 };  // namespace ckmalloc
 
+std::ostream& operator<<(std::ostream& ostr, SlabType slab_type);
+
 inline constexpr bool HasOneAllocation(SlabType type) {
+  CK_ASSERT_NE(type, SlabType::kUnmapped);
+  CK_ASSERT_NE(type, SlabType::kFree);
+
   switch (type) {
     case SlabType::kSmall:
     case SlabType::kBlocked: {
@@ -84,8 +89,6 @@ inline constexpr bool HasOneAllocation(SlabType type) {
     }
   }
 }
-
-std::ostream& operator<<(std::ostream& ostr, SlabType slab_type);
 
 template <typename T>
 requires std::is_integral_v<T>
