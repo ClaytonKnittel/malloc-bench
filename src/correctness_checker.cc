@@ -204,8 +204,6 @@ absl::Status CorrectnessChecker::ValidateNewBlock(void* ptr,
                         return ptr >= heap->Start() &&
                                static_cast<uint8_t*>(ptr) + size <= heap->End();
                       })) {
-    // Search for an instance containing this block.
-    void* ptr_end = reinterpret_cast<uint8_t*>(ptr) + size;
     std::string heaps;
     for (const auto& heap : heap_factory_->Instances()) {
       if (!heaps.empty()) {
