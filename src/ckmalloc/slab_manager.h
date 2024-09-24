@@ -214,6 +214,12 @@ bool SlabManagerImpl<MetadataAlloc, SlabMap>::Resize(AllocatedSlab* slab,
         return false;
       }
     }
+
+    // If this is a single-allocation slab, the end of this slab may not
+    // correctly map to this slab.
+    if (HasOneAllocation(slab->Type())) {
+      slab_map_->Insert(free_start - 1, slab, SizeClass::Nil());
+    }
   } else {
     FreeSlab* next_free_slab;
     uint32_t available_pages = n_pages;

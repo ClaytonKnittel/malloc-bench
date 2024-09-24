@@ -243,11 +243,11 @@ TEST_F(MainAllocatorTest, FreePagesizeMultiple) {
 }
 
 TEST_F(MainAllocatorTest, ReallocPagesizeMultiple) {
-  Void* ptr1 = MainAllocator().Alloc(2 * kPageSize);
-  Void* ptr2 = MainAllocator().Realloc(ptr1, kPageSize);
+  Void* ptr1 = MainAllocator().Alloc(4 * kPageSize);
+  Void* ptr2 = MainAllocator().Realloc(ptr1, 2 * kPageSize);
 
   EXPECT_EQ(ptr1, ptr2);
-  EXPECT_EQ(Heap().Size(), 2 * kPageSize);
+  EXPECT_EQ(Heap().Size(), 4 * kPageSize);
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
