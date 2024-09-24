@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <type_traits>
 
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/page_id.h"
@@ -107,14 +108,39 @@ class SlabMapImpl {
   using SlabLeaf = Node<MappedSlab*>;
   using SlabNode = Node<SlabLeaf*>;
 
-  template <typename T>
-  static T* Allocate() {
-    T* ptr = static_cast<T*>(MetadataAlloc::Alloc(sizeof(T), alignof(T)));
-    if (ptr != nullptr) {
-      new (ptr) T();
+  template <size_t Size>
+  class FreeNode {
+   public:
+    FreeNode* Next() {
+      return next_;
     }
-    return ptr;
-  }
+
+    template <typename N,
+              typename = typename std::enable_if_t<Size == sizeof(N)>>
+    static FreeNode* SetNext(N* node, FreeNode* next) {
+      FreeNode* free_node = reinterpret_cast<FreeNode*>(node);
+      free_node->next_ = next;
+      return free_node;
+    }
+
+    template <typename N,
+              typename = typename std::enable_if_t<Size == sizeof(N)>>
+    N* To() {
+      return reinterpret_cast<N*>(this);
+    }
+
+   private:
+    union {
+      FreeNode* next_;
+      uint8_t data_[Size];
+    };
+  };
+
+  template <typename T>
+  T* Allocate();
+
+  template <typename T>
+  void Free(T* node);
 
   static size_t RootIdx(PageId page_id) {
     return page_id.Idx() / (kNodeSize * kNodeSize);
@@ -138,11 +164,18 @@ class SlabMapImpl {
     return slab_nodes_[idx];
   }
 
-  bool TryAllocateNode(size_t idx);
-  bool TryAllocateLeaf(size_t idx);
-
   SizeNode* size_nodes_[kRootSize] = {};
   SlabNode* slab_nodes_[kRootSize] = {};
+
+  // The following are freelists of slab map nodes, for reuse by future
+  // allocations.
+  static_assert(sizeof(SizeNode) == sizeof(SlabNode));
+  static_assert(sizeof(SlabLeaf) == sizeof(SlabNode));
+  static constexpr size_t kFreeNodesSize = sizeof(SizeNode);
+  static constexpr size_t kFreeSizeLeavesSize = sizeof(SizeLeaf);
+
+  FreeNode<kFreeNodesSize>* free_nodes_ = nullptr;
+  FreeNode<kFreeSizeLeavesSize>* free_size_leaves_ = nullptr;
 };
 
 template <MetadataAllocInterface MetadataAlloc>
@@ -251,19 +284,19 @@ void SlabMapImpl<MetadataAlloc>::DeallocatePath(PageId start_id,
     const bool first_iter = root_idx == root_idxs.first;
     const bool last_iter = root_idx == root_idxs.second;
 
-    SizeNode& size_node = *size_nodes_[root_idx];
-    SlabNode& slab_node = *slab_nodes_[root_idx];
+    SizeNode* size_node = size_nodes_[root_idx];
+    SlabNode* slab_node = slab_nodes_[root_idx];
     for (size_t middle_idx = (first_iter ? middle_idxs.first : 0);
          middle_idx <= (last_iter ? middle_idxs.second : kNodeSize - 1);
          middle_idx++) {
-      CK_ASSERT_NE(size_node[middle_idx], nullptr);
-      CK_ASSERT_NE(slab_node[middle_idx], nullptr);
+      CK_ASSERT_NE((*size_node)[middle_idx], nullptr);
+      CK_ASSERT_NE((*slab_node)[middle_idx], nullptr);
       const bool first_inner_iter =
           first_iter && middle_idx == middle_idxs.first;
       const bool last_inner_iter =
           last_iter && middle_idx == middle_idxs.second;
-      SizeLeaf* size_leaf = size_node[middle_idx];
-      SlabLeaf* slab_leaf = slab_node[middle_idx];
+      SizeLeaf* size_leaf = (*size_node)[middle_idx];
+      SlabLeaf* slab_leaf = (*slab_node)[middle_idx];
 
       uint32_t removed_leaves =
           (last_inner_iter ? leaf_idxs.second : kNodeSize - 1) -
@@ -274,12 +307,17 @@ void SlabMapImpl<MetadataAlloc>::DeallocatePath(PageId start_id,
       if (size_leaf->Empty()) {
         size_leaf->ClearChild(middle_idx, nullptr);
         slab_node->ClearChild(middle_idx, nullptr);
-        // TODO: add these guys to freelist.
+        Free(size_leaf);
+        Free(slab_leaf);
       }
     }
 
-    if (size_node.Empty()) {
-      // TODO: delete these guys too.
+    if (size_node->Empty()) {
+      // TODO: don't do this if NDEBUG?
+      size_nodes_[root_idx] = nullptr;
+      slab_nodes_[root_idx] = nullptr;
+      Free(size_node);
+      Free(slab_node);
     }
   }
 }
@@ -342,29 +380,44 @@ void SlabMapImpl<MetadataAlloc>::InsertRange(
 }
 
 template <MetadataAllocInterface MetadataAlloc>
-bool SlabMapImpl<MetadataAlloc>::TryAllocateNode(size_t idx) {
-  if (size_nodes_[idx] == nullptr) {
-    size_nodes_[idx] = Allocate<SizeNode>();
-    slab_nodes_[idx] = Allocate<SlabNode>();
-    if (size_nodes_[idx] == nullptr || slab_nodes_[idx] == nullptr) {
-      return false;
-    }
+template <typename T>
+T* SlabMapImpl<MetadataAlloc>::Allocate() {
+  T* ptr;
+  FreeNode<sizeof(T)>** list_head;
+  if constexpr (sizeof(T) == kFreeNodesSize) {
+    list_head = &free_nodes_;
+  } else if constexpr (sizeof(T) == kFreeSizeLeavesSize) {
+    list_head = &free_size_leaves_;
+  } else {
+    static_assert(false);
+  }
+  if (*list_head != nullptr) {
+    ptr = (*list_head)->template To<T>();
+    *list_head = (*list_head)->Next();
+  } else {
+    ptr = static_cast<T*>(MetadataAlloc::Alloc(sizeof(T), alignof(T)));
   }
 
-  return true;
+  if (ptr != nullptr) {
+    new (ptr) T();
+  }
+  return ptr;
 }
 
 template <MetadataAllocInterface MetadataAlloc>
-bool SlabMapImpl<MetadataAlloc>::TryAllocateLeaf(size_t idx) {
-  if (size_nodes_[idx] == nullptr) {
-    size_nodes_[idx] = Allocate<SizeNode>();
-    slab_nodes_[idx] = Allocate<SlabNode>();
-    if (size_nodes_[idx] == nullptr || slab_nodes_[idx] == nullptr) {
-      return false;
-    }
+template <typename T>
+void SlabMapImpl<MetadataAlloc>::Free(T* node) {
+  FreeNode<sizeof(T)>** list_head;
+  if constexpr (sizeof(T) == kFreeNodesSize) {
+    list_head = &free_nodes_;
+  } else if constexpr (sizeof(T) == kFreeSizeLeavesSize) {
+    list_head = &free_size_leaves_;
+  } else {
+    static_assert(false);
   }
 
-  return true;
+  auto* free_node = FreeNode<sizeof(T)>::SetNext(node, (*list_head)->Next());
+  *list_head = free_node;
 }
 
 using SlabMap = SlabMapImpl<GlobalMetadataAlloc>;
