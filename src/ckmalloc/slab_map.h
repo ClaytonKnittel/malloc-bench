@@ -83,7 +83,9 @@ class SlabMapImpl {
   template <typename T>
   static T* Allocate() {
     T* ptr = static_cast<T*>(MetadataAlloc::Alloc(sizeof(T), alignof(T)));
-    new (ptr) T();
+    if (ptr != nullptr) {
+      new (ptr) T();
+    }
     return ptr;
   }
 

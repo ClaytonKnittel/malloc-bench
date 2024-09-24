@@ -295,9 +295,14 @@ Void* MainAllocatorImpl<MetadataAlloc, SlabMap, SlabManager, SmallAllocator,
   PageId start_id = PageId::FromPtr(heap_start);
   MmapSlab* mmap_slab = slab->Init<MmapSlab>(start_id, n_pages, heap);
 
-  slab_map_->AllocatePath(start_id, start_id);
+  Void* ptr = static_cast<Void*>(heap_start);
+  if (!slab_map_->AllocatePath(start_id, start_id)) {
+    FreeMmap(mmap_slab, ptr);
+    MetadataAlloc::SlabFree(mmap_slab);
+    return nullptr;
+  }
   slab_map_->Insert(start_id, mmap_slab, SizeClass::Nil());
-  return static_cast<Void*>(heap_start);
+  return ptr;
 }
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap,
