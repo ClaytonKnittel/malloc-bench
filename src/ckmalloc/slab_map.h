@@ -274,7 +274,12 @@ void SlabMapImpl<MetadataAlloc>::DeallocatePath(PageId start_id,
       if (size_leaf->Empty()) {
         size_leaf->ClearChild(middle_idx, nullptr);
         slab_node->ClearChild(middle_idx, nullptr);
+        // TODO: add these guys to freelist.
       }
+    }
+
+    if (size_node.Empty()) {
+      // TODO: delete these guys too.
     }
   }
 }
