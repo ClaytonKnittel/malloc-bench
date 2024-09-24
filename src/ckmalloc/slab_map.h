@@ -42,6 +42,10 @@ class SlabMapImpl {
   // between start and end page id's. If any allocation fails, returns `false`.
   bool AllocatePath(PageId start_id, PageId end_id);
 
+  // Deallocates the mappings within the given range of pages for reuse by
+  // future `AllocatePath()` calls. They all must be allocated.
+  void DeallocatePath(PageId start_id, PageId end_id);
+
   // Inserts an association from `page_id` to `slab`.
   void Insert(PageId page_id, MappedSlab* slab,
               std::optional<SizeClass> size_class = std::nullopt);
@@ -55,28 +59,53 @@ class SlabMapImpl {
   template <typename T>
   class Node {
    public:
-    T operator[](size_t idx) const {
-      CK_ASSERT_LT(idx, kNodeSize);
-      return vals_[idx];
+    // If true, this node's children are all deallocated and the node may be
+    // freed.
+    bool Empty() const {
+      return allocated_count_ == 0;
     }
 
-    T& operator[](size_t idx) {
+    T operator[](size_t idx) const {
       CK_ASSERT_LT(idx, kNodeSize);
       return vals_[idx];
     }
 
     void SetChild(size_t idx, T val) {
       vals_[idx] = val;
+      allocated_count_++;
+    }
+
+    void ClearChild(size_t idx, T val) {
+      // Only clear the child in debug builds, since we have assertions that
+      // check that children are set in slab map lookup. But really, we should
+      // expect no part of the code to ever try looking up a deallocated page.
+#ifndef NDEBUG
+      vals_[idx] = val;
+#else
+      (void) val;
+#endif
+      allocated_count_--;
+    }
+
+    void AddAllocatedCount(uint32_t count) {
+      CK_ASSERT_LE(count + allocated_count_, kNodeSize);
+      allocated_count_ += count;
+    }
+
+    void RemoveAllocatedCount(uint32_t count) {
+      CK_ASSERT_LE(count, allocated_count_);
+      allocated_count_ -= count;
     }
 
    private:
     T vals_[kNodeSize] = {};
+    uint32_t allocated_count_ = 0;
   };
 
   using SizeLeaf = Node<SizeClass>;
-  using SizeNode = Node<Node<SizeClass>*>;
+  using SizeNode = Node<SizeLeaf*>;
   using SlabLeaf = Node<MappedSlab*>;
-  using SlabNode = Node<Node<MappedSlab*>*>;
+  using SlabNode = Node<SlabLeaf*>;
 
   template <typename T>
   static T* Allocate() {
@@ -154,37 +183,100 @@ template <MetadataAllocInterface MetadataAlloc>
 bool SlabMapImpl<MetadataAlloc>::AllocatePath(PageId start_id, PageId end_id) {
   auto root_idxs = std::make_pair(RootIdx(start_id), RootIdx(end_id));
   auto middle_idxs = std::make_pair(MiddleIdx(start_id), MiddleIdx(end_id));
+  auto leaf_idxs = std::make_pair(LeafIdx(start_id), LeafIdx(end_id));
 
   for (size_t root_idx = root_idxs.first; root_idx <= root_idxs.second;
        root_idx++) {
+    const bool first_iter = root_idx == root_idxs.first;
+    const bool last_iter = root_idx == root_idxs.second;
+
     if (slab_nodes_[root_idx] == nullptr) {
       size_nodes_[root_idx] = Allocate<SizeNode>();
       slab_nodes_[root_idx] = Allocate<SlabNode>();
       if (size_nodes_[root_idx] == nullptr ||
           slab_nodes_[root_idx] == nullptr) {
+        // TODO: Free all of the nodes that successfully allocated.
         return false;
       }
     }
 
     SizeNode& size_node = *size_nodes_[root_idx];
     SlabNode& slab_node = *slab_nodes_[root_idx];
-    for (size_t middle_idx =
-             (root_idx == root_idxs.first ? middle_idxs.first : 0);
-         middle_idx <=
-         (root_idx == root_idxs.second ? middle_idxs.second : kNodeSize - 1);
+    for (size_t middle_idx = (first_iter ? middle_idxs.first : 0);
+         middle_idx <= (last_iter ? middle_idxs.second : kNodeSize - 1);
          middle_idx++) {
+      const bool first_inner_iter =
+          first_iter && middle_idx == middle_idxs.first;
+      const bool last_inner_iter =
+          last_iter && middle_idx == middle_idxs.second;
+
+      SizeLeaf* size_leaf;
+      SlabLeaf* slab_leaf;
       if (slab_node[middle_idx] == nullptr) {
-        size_node[middle_idx] = Allocate<SizeLeaf>();
-        slab_node[middle_idx] = Allocate<SlabLeaf>();
-        if (size_node[middle_idx] == nullptr ||
-            slab_node[middle_idx] == nullptr) {
+        size_leaf = Allocate<SizeLeaf>();
+        slab_leaf = Allocate<SlabLeaf>();
+        if (size_leaf == nullptr || slab_leaf == nullptr) {
+          // TODO: Free all of the nodes that successfully allocated.
           return false;
         }
+        size_node.SetChild(middle_idx, size_leaf);
+        slab_node.SetChild(middle_idx, slab_leaf);
+      } else {
+        size_leaf = size_node[middle_idx];
+        slab_leaf = slab_node[middle_idx];
       }
+
+      uint32_t new_leaves =
+          (last_inner_iter ? leaf_idxs.second : kNodeSize - 1) -
+          (first_inner_iter ? leaf_idxs.first : 0);
+      size_leaf->AddAllocatedCount(new_leaves);
+      slab_leaf->AddAllocatedCount(new_leaves);
     }
   }
 
   return true;
+}
+
+template <MetadataAllocInterface MetadataAlloc>
+void SlabMapImpl<MetadataAlloc>::DeallocatePath(PageId start_id,
+                                                PageId end_id) {
+  auto root_idxs = std::make_pair(RootIdx(start_id), RootIdx(end_id));
+  auto middle_idxs = std::make_pair(MiddleIdx(start_id), MiddleIdx(end_id));
+  auto leaf_idxs = std::make_pair(LeafIdx(start_id), LeafIdx(end_id));
+
+  for (size_t root_idx = root_idxs.first; root_idx <= root_idxs.second;
+       root_idx++) {
+    CK_ASSERT_NE(size_nodes_[root_idx], nullptr);
+    CK_ASSERT_NE(slab_nodes_[root_idx], nullptr);
+    const bool first_iter = root_idx == root_idxs.first;
+    const bool last_iter = root_idx == root_idxs.second;
+
+    SizeNode& size_node = *size_nodes_[root_idx];
+    SlabNode& slab_node = *slab_nodes_[root_idx];
+    for (size_t middle_idx = (first_iter ? middle_idxs.first : 0);
+         middle_idx <= (last_iter ? middle_idxs.second : kNodeSize - 1);
+         middle_idx++) {
+      CK_ASSERT_NE(size_node[middle_idx], nullptr);
+      CK_ASSERT_NE(slab_node[middle_idx], nullptr);
+      const bool first_inner_iter =
+          first_iter && middle_idx == middle_idxs.first;
+      const bool last_inner_iter =
+          last_iter && middle_idx == middle_idxs.second;
+      SizeLeaf* size_leaf = size_node[middle_idx];
+      SlabLeaf* slab_leaf = slab_node[middle_idx];
+
+      uint32_t removed_leaves =
+          (last_inner_iter ? leaf_idxs.second : kNodeSize - 1) -
+          (first_inner_iter ? leaf_idxs.first : 0);
+      size_leaf->RemoveAllocatedCount(removed_leaves);
+      slab_leaf->RemoveAllocatedCount(removed_leaves);
+
+      if (size_leaf->Empty()) {
+        size_leaf->ClearChild(middle_idx, nullptr);
+        slab_node->ClearChild(middle_idx, nullptr);
+      }
+    }
+  }
 }
 
 template <MetadataAllocInterface MetadataAlloc>
