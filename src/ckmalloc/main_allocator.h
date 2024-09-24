@@ -289,6 +289,7 @@ Void* MainAllocatorImpl<MetadataAlloc, SlabMap, SlabManager, SmallAllocator,
     MetadataAlloc::SlabFree(static_cast<AllocatedSlab*>(slab));
     return nullptr;
   }
+  heap->sbrk(n_pages * kPageSize);
 
   void* heap_start = heap->Start();
   PageId start_id = PageId::FromPtr(heap_start);
