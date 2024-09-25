@@ -416,6 +416,7 @@ cc_test(
         ":slab",
         ":slab_manager_test_fixture",
         ":testlib",
+        ":util",
         "@cc-util//util:gtest_util",
         "@googletest//:gtest",
         "@googletest//:gtest_main",

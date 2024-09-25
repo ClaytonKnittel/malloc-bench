@@ -9,6 +9,7 @@
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/slab_manager_test_fixture.h"
 #include "src/ckmalloc/testlib.h"
+#include "src/ckmalloc/util.h"
 
 namespace ckmalloc {
 
@@ -49,8 +50,7 @@ TEST_F(SlabManagerTest, AllPtrsInFirstPageIdZero) {
   ASSERT_THAT(Fixture().AllocateSlab(1), IsOk());
   PageId start_id = PageId::FromPtr(Fixture().SlabHeap().Start());
   for (size_t offset = 0; offset < kPageSize; offset++) {
-    EXPECT_EQ(PageId::FromPtr(
-                  static_cast<uint8_t*>(Fixture().SlabHeap().Start()) + offset),
+    EXPECT_EQ(PageId::FromPtr(PtrAdd(Fixture().SlabHeap().Start(), offset)),
               start_id);
   }
 }
@@ -59,9 +59,8 @@ TEST_F(SlabManagerTest, PageIdIncreasesPerPage) {
   constexpr size_t kPages = 16;
   ASSERT_THAT(Fixture().AllocateSlab(kPages), IsOk());
   for (size_t page_n = 0; page_n < kPages; page_n++) {
-    void* beginning = static_cast<uint8_t*>(Fixture().SlabHeap().Start()) +
-                      page_n * kPageSize;
-    void* end = static_cast<uint8_t*>(beginning) + kPageSize - 1;
+    void* beginning = PtrAdd(Fixture().SlabHeap().Start(), page_n * kPageSize);
+    void* end = PtrAdd(beginning, kPageSize - 1);
     EXPECT_EQ(PageId::FromPtr(beginning), Fixture().HeapStartId() + page_n);
     EXPECT_EQ(PageId::FromPtr(end), Fixture().HeapStartId() + page_n);
   }
@@ -72,8 +71,7 @@ TEST_F(SlabManagerTest, SlabStartFromId) {
   ASSERT_THAT(Fixture().AllocateSlab(kPages), IsOk());
   for (size_t page_n = 0; page_n < kPages; page_n++) {
     EXPECT_EQ((Fixture().HeapStartId() + page_n).PageStart(),
-              static_cast<uint8_t*>(Fixture().SlabHeap().Start()) +
-                  page_n * kPageSize);
+              PtrAdd(Fixture().SlabHeap().Start(), page_n * kPageSize));
   }
 }
 
