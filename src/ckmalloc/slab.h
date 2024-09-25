@@ -30,6 +30,8 @@ template <typename>
 struct HasOneAllocationHelper : public std::false_type {};
 
 template <>
+struct HasOneAllocationHelper<class FreeSlab> : public std::true_type {};
+template <>
 struct HasOneAllocationHelper<class SingleAllocSlab> : public std::true_type {};
 template <>
 struct HasOneAllocationHelper<class MmapSlab> : public std::true_type {};
