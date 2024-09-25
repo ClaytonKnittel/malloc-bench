@@ -24,7 +24,7 @@ class MetadataManagerImpl {
   // already been allocated, this number can be changed to reflect the number of
   // already-allocated bytes from the first page.
   explicit MetadataManagerImpl(bench::Heap* heap, SlabMap* slab_map)
-      : heap_(heap), slab_map_(slab_map) {}
+      : heap_(heap), slab_map_(slab_map), heap_end_(heap->End()) {}
 
   // Allocates `size` bytes aligned to `alignment` and returns a pointer to the
   // beginning of that region. This memory cannot be released back to the
@@ -44,16 +44,13 @@ class MetadataManagerImpl {
   bench::Heap* MetadataHeap();
   const bench::Heap* MetadataHeap() const;
 
-  // The most recently allocated metadata slab.
-  void* page_start_ = nullptr;
-
-  // The offset in bytes that the next piece of metadata should be allocated
-  // from `last_`.
-  uint32_t alloc_offset_ = kPageSize;
-
   bench::Heap* const heap_;
 
   SlabMap* const slab_map_;
+
+  // The end of the already-allocated region of metadata. Metadata heaps are
+  // alloc-only, except for slab metadata.
+  void* heap_end_;
 
   // The head of a singly-linked list of free slabs.
   UnmappedSlab* last_free_slab_ = nullptr;
@@ -68,33 +65,19 @@ void* MetadataManagerImpl<MetadataAlloc, SlabMap>::Alloc(size_t size,
   // Size must already be aligned to `alignment`.
   CK_ASSERT_EQ((size & (alignment - 1)), 0);
 
-  auto current_end = static_cast<uintptr_t>(alloc_offset_);
-  uintptr_t aligned_end = AlignUp(current_end, alignment);
+  uintptr_t current_end = reinterpret_cast<uintptr_t>(heap_end_);
+  size_t alignment_offset = (~current_end + 1) & (alignment - 1);
+  void* alloc_start = PtrAdd(heap_end_, alignment_offset);
+  void* alloc_end = PtrAdd(alloc_start, size);
 
-  if (aligned_end + size > kPageSize) {
-    uint32_t n_pages = (size + kPageSize - 1) / kPageSize;
-
-    void* alloc = MetadataHeap()->sbrk(n_pages * kPageSize);
-    if (alloc == nullptr) {
-      return nullptr;
-    }
-
-    // Decide whether to switch to allocating from this new slab, or stick with
-    // the old one. We choose the one with more remaining space.
-    size_t remaining_space = n_pages * kPageSize - size;
-    if (remaining_space > kPageSize - alloc_offset_) {
-      // TODO: shard up the rest of the space in the heap we throw away and give
-      // it to the slab freelist?
-      page_start_ = PtrAdd(alloc, (n_pages - 1) * kPageSize);
-      alloc_offset_ = kPageSize - remaining_space;
-    }
-
-    return alloc;
+  size_t total_size = alignment_offset + size;
+  void* cur_end = MetadataHeap()->sbrk(total_size);
+  if (cur_end == nullptr) {
+    return nullptr;
   }
+  CK_ASSERT_EQ(cur_end, heap_end_);
 
-  void* alloc_start = static_cast<uint8_t*>(page_start_) + aligned_end;
-  alloc_offset_ = aligned_end + size;
-  CK_ASSERT_LE(alloc_offset_, kPageSize);
+  heap_end_ = alloc_end;
   return alloc_start;
 }
 
