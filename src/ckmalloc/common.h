@@ -41,7 +41,7 @@ static constexpr size_t kMaxSmallSize = 256;
 
 // The smallest user-request size which will be allocated in a
 // separately-allocated mmap region.
-static constexpr size_t kMinMmapSize = 32 * kPageSize;
+static constexpr size_t kMinMmapSize = 2 << 20;
 
 // If true, memory for this request will be allocated from a small slab.
 inline constexpr bool IsSmallSize(size_t user_size) {
