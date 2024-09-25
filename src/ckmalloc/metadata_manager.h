@@ -43,7 +43,6 @@ class MetadataManagerImpl {
  private:
   bench::Heap* MetadataHeap();
   const bench::Heap* MetadataHeap() const;
-  ;
 
   bench::Heap* const heap_;
 
