@@ -29,7 +29,7 @@ class HeapPrinter {
 
   static std::string PrintMetadata(PageId page_id);
 
-  static std::string PrintFree(const FreeSlab* slab);
+  std::string PrintFree(const FreeSlab* slab);
 
   std::string PrintSmall(const SmallSlab* slab);
 
@@ -37,7 +37,9 @@ class HeapPrinter {
 
   std::string PrintSingleAlloc(const SingleAllocSlab* slab);
 
-  static std::string PrintMmap(const MmapSlab* slab);
+  std::string PrintMmap(const MmapSlab* slab);
+
+  PageId HeapStartId() const;
 
   const bench::Heap* const heap_;
   const SlabMap* const slab_map_;
