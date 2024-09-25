@@ -60,15 +60,27 @@ Slab* TestMetadataManager::NewSlabMeta() {
     test_fixture_->freed_slab_metadata_.erase(it);
   }
 
+  auto [it, inserted] = test_fixture_->alloc_slab_metadata_.insert(slab);
+  CK_ASSERT_TRUE(inserted);
+
   return slab;
 }
 
 void TestMetadataManager::FreeSlabMeta(MappedSlab* slab) {
+  auto it = test_fixture_->alloc_slab_metadata_.find(slab);
+  CK_ASSERT_TRUE(it != test_fixture_->alloc_slab_metadata_.end());
+  test_fixture_->alloc_slab_metadata_.erase(it);
+
   metadata_manager_.FreeSlabMeta(slab);
 
   auto [_, inserted] = test_fixture_->freed_slab_metadata_.insert(
       static_cast<Slab*>(slab)->ToUnmapped());
   CK_ASSERT_TRUE(inserted);
+}
+
+const absl::flat_hash_set<Slab*>& MetadataManagerFixture::AllocatedSlabMeta()
+    const {
+  return alloc_slab_metadata_;
 }
 
 absl::StatusOr<size_t> MetadataManagerFixture::SlabMetaFreelistLength() const {

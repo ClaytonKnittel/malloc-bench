@@ -1,3 +1,5 @@
+#include <memory>
+
 #include "absl/status/status.h"
 #include "absl/strings/str_format.h"
 #include "gmock/gmock.h"
@@ -10,6 +12,7 @@
 #include "src/ckmalloc/freelist.h"
 #include "src/ckmalloc/large_allocator_test_fixture.h"
 #include "src/ckmalloc/main_allocator_test_fixture.h"
+#include "src/ckmalloc/metadata_manager_test_fixture.h"
 #include "src/ckmalloc/slab_manager_test_fixture.h"
 #include "src/ckmalloc/small_allocator_test_fixture.h"
 #include "src/ckmalloc/sys_alloc.h"
@@ -30,14 +33,19 @@ class MainAllocatorTest : public ::testing::Test {
   }
 
   MainAllocatorTest()
-      : heap_factory_(std::make_shared<TestHeapFactory>(
-            /*initial_size=*/kNumPages * kPageSize)),
-        main_heap_(
+      : heap_factory_(std::make_shared<TestHeapFactory>(kNumPages * kPageSize,
+                                                        kNumPages * kPageSize)),
+        metadata_heap_(
             static_cast<TestHeap*>(heap_factory_->Instances().begin()->get()),
             Noop<TestHeap>),
+        main_heap_(static_cast<TestHeap*>(
+                       (++heap_factory_->Instances().begin())->get()),
+                   Noop<TestHeap>),
         slab_map_(std::make_shared<TestSlabMap>()),
         slab_manager_fixture_(
             std::make_shared<SlabManagerFixture>(main_heap_, slab_map_)),
+        metadata_manager_fixture_(std::make_shared<MetadataManagerFixture>(
+            metadata_heap_, slab_map_)),
         freelist_(std::make_shared<class Freelist>()),
         small_allocator_fixture_(std::make_shared<SmallAllocatorFixture>(
             main_heap_, slab_map_, slab_manager_fixture_, freelist_)),
@@ -45,7 +53,8 @@ class MainAllocatorTest : public ::testing::Test {
             main_heap_, slab_map_, slab_manager_fixture_, freelist_)),
         main_allocator_fixture_(std::make_shared<MainAllocatorFixture>(
             main_heap_, slab_map_, slab_manager_fixture_,
-            small_allocator_fixture_, large_allocator_fixture_)) {
+            metadata_manager_fixture_, small_allocator_fixture_,
+            large_allocator_fixture_)) {
     TestSysAlloc::NewInstance(heap_factory_.get());
   }
 
@@ -59,6 +68,10 @@ class MainAllocatorTest : public ::testing::Test {
 
   TestSlabManager& SlabManager() {
     return slab_manager_fixture_->SlabManager();
+  }
+
+  TestMetadataManager& MetadataManager() {
+    return metadata_manager_fixture_->MetadataManager();
   }
 
   TestMainAllocator& MainAllocator() {
@@ -79,6 +92,7 @@ class MainAllocatorTest : public ::testing::Test {
 
   absl::Status ValidateHeap() {
     RETURN_IF_ERROR(slab_manager_fixture_->ValidateHeap());
+    RETURN_IF_ERROR(metadata_manager_fixture_->ValidateHeap());
     RETURN_IF_ERROR(small_allocator_fixture_->ValidateHeap());
     RETURN_IF_ERROR(large_allocator_fixture_->ValidateHeap());
     RETURN_IF_ERROR(main_allocator_fixture_->ValidateHeap());
@@ -91,20 +105,22 @@ class MainAllocatorTest : public ::testing::Test {
     RETURN_IF_ERROR(large_allocator_fixture_->ValidateEmpty());
     RETURN_IF_ERROR(main_allocator_fixture_->ValidateEmpty());
 
-    if (heap_factory_->Instances().size() != 1) {
-      return absl::FailedPreconditionError(
-          absl::StrFormat("Expected empty heap, but found %zu heap instances "
-                          "(only the main heap should be remaining",
-                          heap_factory_->Instances().size()));
+    if (heap_factory_->Instances().size() != 2) {
+      return absl::FailedPreconditionError(absl::StrFormat(
+          "Expected empty heap, but found %zu heap instances "
+          "(only the metadata and main heap should be remaining)",
+          heap_factory_->Instances().size()));
     }
     return absl::OkStatus();
   }
 
  private:
   std::shared_ptr<TestHeapFactory> heap_factory_;
+  std::shared_ptr<TestHeap> metadata_heap_;
   std::shared_ptr<TestHeap> main_heap_;
   std::shared_ptr<TestSlabMap> slab_map_;
   std::shared_ptr<SlabManagerFixture> slab_manager_fixture_;
+  std::shared_ptr<MetadataManagerFixture> metadata_manager_fixture_;
   std::shared_ptr<Freelist> freelist_;
   std::shared_ptr<SmallAllocatorFixture> small_allocator_fixture_;
   std::shared_ptr<LargeAllocatorFixture> large_allocator_fixture_;
@@ -273,7 +289,7 @@ TEST_F(MainAllocatorTest, ReallocHugeToSmall) {
 
   EXPECT_EQ(Heap().Size(), kPageSize);
   EXPECT_THAT(ValidateHeap(), IsOk());
-  EXPECT_EQ(HeapFactory().Instances().size(), 1);
+  EXPECT_EQ(HeapFactory().Instances().size(), 2);
 }
 
 TEST_F(MainAllocatorTest, ReallocHugeToLarge) {
@@ -282,7 +298,7 @@ TEST_F(MainAllocatorTest, ReallocHugeToLarge) {
 
   EXPECT_EQ(Heap().Size(), kPageSize);
   EXPECT_THAT(ValidateHeap(), IsOk());
-  EXPECT_EQ(HeapFactory().Instances().size(), 1);
+  EXPECT_EQ(HeapFactory().Instances().size(), 2);
 }
 
 TEST_F(MainAllocatorTest, ReallocHugeToHuge) {
@@ -292,7 +308,7 @@ TEST_F(MainAllocatorTest, ReallocHugeToHuge) {
   EXPECT_NE(ptr1, ptr2);
   EXPECT_EQ(Heap().Size(), 0);
   EXPECT_THAT(ValidateHeap(), IsOk());
-  EXPECT_EQ(HeapFactory().Instances().size(), 2);
+  EXPECT_EQ(HeapFactory().Instances().size(), 3);
 }
 
 TEST_F(MainAllocatorTest, ReallocHugeToEqualHuge) {
@@ -302,7 +318,7 @@ TEST_F(MainAllocatorTest, ReallocHugeToEqualHuge) {
   EXPECT_EQ(ptr1, ptr2);
   EXPECT_EQ(Heap().Size(), 0);
   EXPECT_THAT(ValidateHeap(), IsOk());
-  EXPECT_EQ(HeapFactory().Instances().size(), 2);
+  EXPECT_EQ(HeapFactory().Instances().size(), 3);
 }
 
 }  // namespace ckmalloc

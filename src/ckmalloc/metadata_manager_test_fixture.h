@@ -101,6 +101,8 @@ class MetadataManagerFixture : public CkMallocTest {
     return metadata_manager_;
   }
 
+  const absl::flat_hash_set<Slab*>& AllocatedSlabMeta() const;
+
   absl::StatusOr<size_t> SlabMetaFreelistLength() const;
 
   absl::StatusOr<void*> Alloc(size_t size, size_t alignment = 1);
@@ -131,6 +133,8 @@ class MetadataManagerFixture : public CkMallocTest {
   // with.
   absl::flat_hash_map<void*, size_t> allocated_blocks_;
 
+  // A set of all the allocated slab metadata.
+  absl::flat_hash_set<Slab*> alloc_slab_metadata_;
   // A set of all the freed slab metadata.
   absl::flat_hash_set<Slab*> freed_slab_metadata_;
 

@@ -313,6 +313,8 @@ void MainAllocatorImpl<MetadataAlloc, SlabMap, SlabManager, SmallAllocator,
                        LargeAllocator>::FreeMmap(MmapSlab* slab, Void* ptr) {
   CK_ASSERT_EQ(slab->StartId().PageStart(), ptr);
   TestSysAlloc::Instance()->Munmap(slab->Heap());
+  slab_map_->DeallocatePath(slab->StartId(), slab->StartId());
+  // TODO: free ptr
 }
 
 using MainAllocator =
