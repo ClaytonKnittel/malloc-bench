@@ -342,7 +342,14 @@ absl::Status SlabManagerFixture::ValidateHeap() {
           continue;
         }
 
-        if (HasOneAllocation(slab->Type())) {
+        if (slab->Type() == SlabType::kUnmapped) {
+          return FailedTest("Encountered unmapped slab in slab map");
+        }
+
+        // Mmap slabs are a special case which only allocate the first slab. The
+        // remainder is left unallocated, and thus the allocation count of the
+        // containing node should be 1, not the length of the slab.
+        if (slab->Type() != SlabType::kMmap && HasOneAllocation(slab->Type())) {
           n_pages = slab->Pages() - 1;
         }
         allocated_leaf_count++;
