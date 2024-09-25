@@ -72,9 +72,9 @@ std::ostream& operator<<(std::ostream& ostr, SlabType slab_type);
 
 inline constexpr bool HasOneAllocation(SlabType type) {
   CK_ASSERT_NE(type, SlabType::kUnmapped);
-  CK_ASSERT_NE(type, SlabType::kFree);
 
   switch (type) {
+    case SlabType::kFree:
     case SlabType::kSmall:
     case SlabType::kBlocked: {
       return false;
@@ -83,8 +83,7 @@ inline constexpr bool HasOneAllocation(SlabType type) {
     case SlabType::kMmap: {
       return true;
     }
-    case SlabType::kUnmapped:
-    case SlabType::kFree: {
+    case SlabType::kUnmapped: {
       CK_UNREACHABLE();
     }
   }
