@@ -135,6 +135,9 @@ class MainAllocatorFixture : public CkMallocTest {
   // A map from allocation pointers to a pair of their size and magic number,
   // respectively.
   absl::btree_map<Void*, std::pair<size_t, uint64_t>> allocations_;
+
+  // A set of all known-to-be-allocated mmap-block heaps.
+  absl::flat_hash_set<Void*> mmap_blocks_;
 };
 
 }  // namespace ckmalloc

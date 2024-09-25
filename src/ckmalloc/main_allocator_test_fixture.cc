@@ -41,10 +41,24 @@ Void* TestMainAllocator::Alloc(size_t user_size) {
       test_fixture_->allocations_.insert({ alloc, { user_size, magic } });
   CK_ASSERT_TRUE(inserted);
 
+  MappedSlab* slab = test_fixture_->SlabMap().FindSlab(PageId::FromPtr(alloc));
+  CK_ASSERT_NE(slab, nullptr);
+  if (slab->Type() == SlabType::kMmap) {
+    auto [_, inserted] = test_fixture_->mmap_blocks_.insert(alloc);
+    CK_ASSERT_TRUE(inserted);
+  }
+
   return alloc;
 }
 
 Void* TestMainAllocator::Realloc(Void* ptr, size_t user_size) {
+  MappedSlab* slab = test_fixture_->SlabMap().FindSlab(PageId::FromPtr(ptr));
+  CK_ASSERT_NE(slab, nullptr);
+  if (slab->Type() == SlabType::kMmap) {
+    size_t res = test_fixture_->mmap_blocks_.erase(ptr);
+    CK_ASSERT_EQ(res, 1);
+  }
+
   auto it = test_fixture_->allocations_.find(ptr);
   CK_ASSERT_FALSE(it == test_fixture_->allocations_.end());
   auto [old_size, magic] = it->second;
@@ -68,10 +82,24 @@ Void* TestMainAllocator::Realloc(Void* ptr, size_t user_size) {
       test_fixture_->allocations_.insert({ new_alloc, { user_size, magic } });
   CK_ASSERT_TRUE(inserted);
 
+  slab = test_fixture_->SlabMap().FindSlab(PageId::FromPtr(ptr));
+  CK_ASSERT_NE(slab, nullptr);
+  if (slab->Type() == SlabType::kMmap) {
+    auto [_, inserted] = test_fixture_->mmap_blocks_.insert(ptr);
+    CK_ASSERT_TRUE(inserted);
+  }
+
   return new_alloc;
 }
 
 void TestMainAllocator::Free(Void* ptr) {
+  MappedSlab* slab = test_fixture_->SlabMap().FindSlab(PageId::FromPtr(ptr));
+  CK_ASSERT_NE(slab, nullptr);
+  if (slab->Type() == SlabType::kMmap) {
+    size_t res = test_fixture_->mmap_blocks_.erase(ptr);
+    CK_ASSERT_EQ(res, 1);
+  }
+
   auto it = test_fixture_->allocations_.find(ptr);
   CK_ASSERT_FALSE(it == test_fixture_->allocations_.end());
 
@@ -163,6 +191,42 @@ absl::Status MainAllocatorFixture::ValidateHeap() {
     }
 
     it = next_it;
+  }
+
+  // Iterate over the heap and validate that all encountered slabs are
+  // considered allocated by the metadata allocator, and that no slabs are
+  // missing.
+  uint64_t num_slabs = 0;
+  for (PageId page_id = PageId::FromPtr(heap_->Start());
+       page_id != PageId::FromPtr(heap_->End());) {
+    MappedSlab* mapped_slab = SlabMap().FindSlab(page_id);
+    if (!metadata_manager_test_fixture_->AllocatedSlabMeta().contains(
+            mapped_slab)) {
+      return FailedTest(
+          "Encountered non-allocated slab metadata %v in slab map!",
+          mapped_slab);
+    }
+    num_slabs++;
+    page_id += mapped_slab->Pages();
+  }
+
+  for (const Void* mmap_alloc : mmap_blocks_) {
+    MappedSlab* mapped_slab = SlabMap().FindSlab(PageId::FromPtr(mmap_alloc));
+    if (!metadata_manager_test_fixture_->AllocatedSlabMeta().contains(
+            mapped_slab)) {
+      return FailedTest(
+          "Encountered non-allocated slab metadata %v in slab map for mmapped "
+          "block %p!",
+          mapped_slab, mmap_alloc);
+    }
+    num_slabs++;
+  }
+
+  if (num_slabs != metadata_manager_test_fixture_->AllocatedSlabMeta().size()) {
+    return FailedTest(
+        "Encountered %v slabs while iterating over the heap, but expected %v, "
+        "did we leak a slab metadata?",
+        num_slabs, metadata_manager_test_fixture_->AllocatedSlabMeta().size());
   }
 
   return absl::OkStatus();

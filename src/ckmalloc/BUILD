@@ -244,6 +244,7 @@ cc_library(
         ":freelist",
         ":large_allocator_test_fixture",
         ":main_allocator",
+        ":metadata_manager_test_fixture",
         ":size_class",
         ":slab",
         ":slab_manager_test_fixture",
