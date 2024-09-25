@@ -304,56 +304,41 @@ absl::Status SlabManagerFixture::ValidateHeap() {
   }
 
   // Validate the slab map.
-  // for (uint32_t root_idx = 0; root_idx < kRootSize; root_idx++) {
-  //   TestSlabMap::SizeNode* size_node = slab_map_->size_nodes_[root_idx];
-  //   TestSlabMap::SlabNode* slab_node = slab_map_->slab_nodes_[root_idx];
-  //   if (size_node == nullptr || slab_node == nullptr) {
-  //     if (size_node != nullptr || slab_node != nullptr) {
-  //       return FailedTest("Encountered mismatched size/slab nodes: %p vs %p",
-  //                         size_node, slab_node);
-  //     }
-  //     continue;
-  //   }
+  for (uint32_t root_idx = 0; root_idx < kRootSize; root_idx++) {
+    TestSlabMap::Node* node = slab_map_->nodes_[root_idx];
+    if (node == nullptr) {
+      continue;
+    }
 
-  //   if (size_node->allocated_count_ != slab_node->allocated_count_) {
-  //     return FailedTest(
-  //         "Encountered slab map pair nodes with different allocated counts:
-  //         %v " "vs. %v", size_node->allocated_count_,
-  //         slab_node->allocated_count_);
-  //   }
+    uint64_t allocated_node_count = 0;
+    for (uint32_t middle_idx = 0; middle_idx < kNodeSize; middle_idx++) {
+      TestSlabMap::Leaf* leaf = node->GetLeaf(middle_idx);
+      if (leaf == nullptr) {
+        continue;
+      }
+      allocated_node_count++;
 
-  //   uint64_t allocated_node_count = 0;
-  //   for (uint32_t middle_idx = 0; middle_idx < kNodeSize; middle_idx++) {
-  //     TestSlabMap::SizeLeaf* size_leaf = (*size_node)[root_idx];
-  //     TestSlabMap::SlabLeaf* slab_leaf = (*slab_node)[root_idx];
-  //     if (size_leaf == nullptr || slab_leaf == nullptr) {
-  //       if (size_leaf != nullptr || slab_leaf != nullptr) {
-  //         return FailedTest("Encountered mismatched size/slab leaves: %p vs
-  //         %p",
-  //                           size_leaf, slab_leaf);
-  //       }
-  //       continue;
-  //     }
-  //     allocated_node_count++;
+      uint64_t allocated_leaf_count = 0;
+      for (uint32_t leaf_idx = 0; leaf_idx < kNodeSize; leaf_idx++) {
+        if (leaf->GetSlab(leaf_idx) == nullptr) {
+          continue;
+        }
 
-  //     if (size_leaf->allocated_count_ != slab_leaf->allocated_count_) {
-  //       return FailedTest(
-  //           "Encountered slab map pair leaves with different allocated
-  //           counts: "
-  //           "%v vs. %v",
-  //           size_leaf->allocated_count_, slab_leaf->allocated_count_);
-  //     }
+        allocated_leaf_count++;
+      }
 
-  //     for (uint32_t leaf_idx = 0; leaf_idx < kNodeSize; leaf_idx++) {
-  //     }
-  //   }
+      if (leaf->allocated_count_ != allocated_leaf_count) {
+        return FailedTest(
+            "Allocated leaf count mismatch: found %v, expected %v",
+            leaf->allocated_count_, allocated_leaf_count);
+      }
+    }
 
-  //   if (size_node->allocated_count_ != allocated_node_count) {
-  //     return FailedTest("Allocated node count mismatch: found %v, expected
-  //     %v",
-  //                       size_node->allocated_count_, allocated_node_count);
-  //   }
-  // }
+    if (node->allocated_count_ != allocated_node_count) {
+      return FailedTest("Allocated node count mismatch: found %v, expected %v",
+                        node->allocated_count_, allocated_node_count);
+    }
+  }
 
   return absl::OkStatus();
 }

@@ -59,6 +59,8 @@ class SlabMapImpl {
 
  private:
   class Leaf {
+    friend class SlabManagerFixture;
+
    public:
     // If true, this node's children are all deallocated and the node may be
     // freed.
@@ -113,6 +115,8 @@ class SlabMapImpl {
   };
 
   class Node {
+    friend class SlabManagerFixture;
+
    public:
     // If true, this node's children are all deallocated and the node may be
     // freed.
