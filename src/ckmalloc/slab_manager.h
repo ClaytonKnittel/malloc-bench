@@ -303,6 +303,7 @@ void SlabManagerImpl<MetadataAlloc, SlabMap>::Free(AllocatedSlab* slab) {
   }
 
   PageId start_id = slab->StartId();
+  // TODO: need to check that this isn't the first slab in it's heap?
   {
     MappedSlab* prev_slab = slab_map_->FindSlab(start_id - 1);
     if (prev_slab != nullptr && prev_slab->Type() == SlabType::kFree) {
