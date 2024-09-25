@@ -437,10 +437,6 @@ SlabManagerImpl<MetadataAlloc, SlabMap>::AllocEndWithSbrk(uint32_t n_pages) {
     return std::nullopt;
   }
 
-  if (!slab_map_->AllocatePath(new_memory_id, start_id + n_pages - 1)) {
-    return std::nullopt;
-  }
-
   return std::make_pair(start_id, slab);
 }
 

@@ -304,9 +304,15 @@ absl::Status SlabManagerFixture::ValidateHeap() {
   }
 
   // Validate the slab map.
+  uint64_t n_pages = 0;
   for (uint32_t root_idx = 0; root_idx < kRootSize; root_idx++) {
     TestSlabMap::Node* node = slab_map_->nodes_[root_idx];
     if (node == nullptr) {
+      if (n_pages != 0) {
+        return FailedTest(
+            "Encountered null root-level slab-map entry in the middle of an "
+            "allocated slab.");
+      }
       continue;
     }
 
@@ -314,17 +320,33 @@ absl::Status SlabManagerFixture::ValidateHeap() {
     for (uint32_t middle_idx = 0; middle_idx < kNodeSize; middle_idx++) {
       TestSlabMap::Leaf* leaf = node->GetLeaf(middle_idx);
       if (leaf == nullptr) {
+        if (n_pages != 0) {
+          return FailedTest(
+              "Encountered null leaf-level slab-map entry in the middle of an "
+              "allocated slab.");
+        }
         continue;
       }
       allocated_node_count++;
 
       uint64_t allocated_leaf_count = 0;
       for (uint32_t leaf_idx = 0; leaf_idx < kNodeSize; leaf_idx++) {
-        if (leaf->GetSlab(leaf_idx) == nullptr) {
-          continue;
+        MappedSlab* slab = leaf->GetSlab(leaf_idx);
+        if (slab == nullptr) {
+          if (n_pages != 0) {
+            allocated_leaf_count++;
+          }
+        } else {
+          if (HasOneAllocation(slab->Type())) {
+            n_pages = slab->Pages();
+          }
+
+          allocated_leaf_count++;
         }
 
-        allocated_leaf_count++;
+        if (n_pages > 0) {
+          n_pages--;
+        }
       }
 
       if (leaf->allocated_count_ != allocated_leaf_count) {

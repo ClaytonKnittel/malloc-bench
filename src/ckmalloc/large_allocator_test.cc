@@ -15,7 +15,6 @@
 #include "src/ckmalloc/large_allocator_test_fixture.h"
 #include "src/ckmalloc/page_id.h"
 #include "src/ckmalloc/slab.h"
-#include "src/ckmalloc/slab_manager.h"
 #include "src/ckmalloc/slab_manager_test_fixture.h"
 #include "src/ckmalloc/testlib.h"
 #include "src/ckmalloc/util.h"

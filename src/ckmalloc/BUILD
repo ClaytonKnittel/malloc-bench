@@ -132,7 +132,6 @@ cc_test(
         ":large_allocator_test_fixture",
         ":page_id",
         ":slab",
-        ":slab_manager",
         ":slab_manager_test_fixture",
         ":testlib",
         ":util",
