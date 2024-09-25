@@ -76,7 +76,8 @@ class TestCorrectness : public ::testing::Test {
         main_allocator_fixture_(
             std::make_shared<ckmalloc::MainAllocatorFixture>(
                 user_heap_, slab_map_, slab_manager_fixture_,
-                small_allocator_fixture_, large_allocator_fixture_)) {}
+                metadata_manager_fixture_, small_allocator_fixture_,
+                large_allocator_fixture_)) {}
 
   ckmalloc::TestMetadataManager& MetadataManager() {
     return metadata_manager_fixture_->MetadataManager();
