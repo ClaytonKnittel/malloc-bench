@@ -2,6 +2,7 @@
 build --action_env=CC=clang-18
 build --action_env=CXX=clang++-18
 build --features=layering_check
+build --features=external_include_paths
 build --cxxopt=-std=c++20
 build:opt -c opt --copt="-DNDEBUG=1" --features=thin_lto
 build:profile --copt=-O2 --linkopt=-lprofiler --copt=-g3 --copt="-DNDEBUG=1"

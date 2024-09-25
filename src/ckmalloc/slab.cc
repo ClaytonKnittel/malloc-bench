@@ -11,6 +11,7 @@
 #include "src/ckmalloc/size_class.h"
 #include "src/ckmalloc/slice.h"
 #include "src/ckmalloc/util.h"
+#include "src/heap_interface.h"
 
 namespace ckmalloc {
 
@@ -31,6 +32,9 @@ std::ostream& operator<<(std::ostream& ostr, SlabType slab_type) {
     case SlabType::kSingleAlloc: {
       return ostr << "kSingleAlloc";
     }
+    case SlabType::kMmap: {
+      return ostr << "kMmap";
+    }
   }
 }
 
@@ -39,7 +43,8 @@ requires std::is_integral_v<T>
 SmallSlabMetadata<T>::SmallSlabMetadata(class SizeClass size_class)
     : size_class_(size_class),
       freelist_node_offset_(FreelistNodesPerSlice(size_class) - 1),
-      uninitialized_count_(size_class.MaxSlicesPerSlab()) {}
+      uninitialized_count_(
+          static_cast<uint16_t>(size_class.MaxSlicesPerSlab())) {}
 
 template <typename T>
 requires std::is_integral_v<T>
@@ -215,6 +220,21 @@ SingleAllocSlab* Slab::Init(PageId start_id, uint32_t n_pages) {
   return slab;
 }
 
+template <>
+MmapSlab* Slab::Init(PageId start_id, uint32_t n_pages, bench::Heap* heap) {
+  type_ = SlabType::kMmap;
+  mapped = {
+    .id_ = start_id,
+    .n_pages_ = n_pages,
+    .mmap = {
+      .heap_ = heap,
+    },
+  };
+
+  MmapSlab* slab = static_cast<MmapSlab*>(this);
+  return slab;
+}
+
 UnmappedSlab* Slab::ToUnmapped() {
   CK_ASSERT_EQ(Type(), SlabType::kUnmapped);
   return static_cast<UnmappedSlab*>(this);
@@ -289,14 +309,24 @@ const BlockedSlab* Slab::ToBlocked() const {
   return static_cast<const BlockedSlab*>(this);
 }
 
-class SingleAllocSlab* Slab::ToSingleAlloc() {
+SingleAllocSlab* Slab::ToSingleAlloc() {
   CK_ASSERT_EQ(Type(), SlabType::kSingleAlloc);
   return static_cast<SingleAllocSlab*>(this);
 }
 
-const class SingleAllocSlab* Slab::ToSingleAlloc() const {
+const SingleAllocSlab* Slab::ToSingleAlloc() const {
   CK_ASSERT_EQ(Type(), SlabType::kSingleAlloc);
   return static_cast<const SingleAllocSlab*>(this);
+}
+
+MmapSlab* Slab::ToMmap() {
+  CK_ASSERT_EQ(Type(), SlabType::kMmap);
+  return static_cast<MmapSlab*>(this);
+}
+
+const MmapSlab* Slab::ToMmap() const {
+  CK_ASSERT_EQ(Type(), SlabType::kMmap);
+  return static_cast<const MmapSlab*>(this);
 }
 
 UnmappedSlab* UnmappedSlab::NextUnmappedSlab() {
@@ -346,8 +376,10 @@ bool MappedSlab::HasSizeClass() const {
       return HasSizeClassT<BlockedSlab>;
     case SlabType::kSingleAlloc:
       return HasSizeClassT<SingleAllocSlab>;
+    case SlabType::kMmap:
+      return HasSizeClassT<MmapSlab>;
     case SlabType::kUnmapped:
-      __builtin_unreachable();
+      CK_UNREACHABLE();
   }
 }
 
@@ -485,6 +517,11 @@ bool SingleAllocSlab::SizeSuitableForSingleAlloc(size_t user_size) {
   return AlignUp(user_size, kPageSize) !=
          BlockedSlab::NPagesForBlock(Block::BlockSizeForUserSize(user_size)) *
              kPageSize;
+}
+
+bench::Heap* MmapSlab::Heap() {
+  CK_ASSERT_EQ(Type(), SlabType::kMmap);
+  return mapped.mmap.heap_;
 }
 
 }  // namespace ckmalloc

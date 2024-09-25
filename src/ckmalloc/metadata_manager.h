@@ -6,7 +6,6 @@
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/slab_map.h"
 #include "src/ckmalloc/util.h"
-#include "src/heap_factory.h"
 #include "src/heap_interface.h"
 
 namespace ckmalloc {
@@ -16,6 +15,7 @@ class MetadataManagerImpl {
   friend class HeapPrinter;
   friend class MetadataManagerFixture;
   friend class GlobalState;
+  friend class TraceReplayer;
 
  public:
   // alloc_offset is by default kPageSize. Initializing this to kPageSize tricks
@@ -23,9 +23,8 @@ class MetadataManagerImpl {
   // have not allocated any slabs on initialization yet. If some metadata has
   // already been allocated, this number can be changed to reflect the number of
   // already-allocated bytes from the first page.
-  explicit MetadataManagerImpl(bench::HeapFactory* heap_factory,
-                               SlabMap* slab_map, size_t heap_idx)
-      : heap_factory_(heap_factory), heap_idx_(heap_idx), slab_map_(slab_map) {}
+  explicit MetadataManagerImpl(bench::Heap* heap, SlabMap* slab_map)
+      : heap_(heap), slab_map_(slab_map) {}
 
   // Allocates `size` bytes aligned to `alignment` and returns a pointer to the
   // beginning of that region. This memory cannot be released back to the
@@ -52,10 +51,7 @@ class MetadataManagerImpl {
   // from `last_`.
   uint32_t alloc_offset_ = kPageSize;
 
-  bench::HeapFactory* const heap_factory_;
-
-  // The index of the metadata heap in the heap factory.
-  const size_t heap_idx_;
+  bench::Heap* const heap_;
 
   SlabMap* const slab_map_;
 
@@ -123,13 +119,13 @@ void MetadataManagerImpl<MetadataAlloc, SlabMap>::FreeSlabMeta(
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
 bench::Heap* MetadataManagerImpl<MetadataAlloc, SlabMap>::MetadataHeap() {
-  return heap_factory_->Instance(heap_idx_);
+  return heap_;
 }
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
 const bench::Heap* MetadataManagerImpl<MetadataAlloc, SlabMap>::MetadataHeap()
     const {
-  return heap_factory_->Instance(heap_idx_);
+  return heap_;
 }
 
 using MetadataManager = MetadataManagerImpl<GlobalMetadataAlloc, SlabMap>;

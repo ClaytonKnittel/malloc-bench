@@ -11,7 +11,6 @@
 #include "src/ckmalloc/slab_manager_test_fixture.h"
 #include "src/ckmalloc/small_allocator_test_fixture.h"
 #include "src/ckmalloc/testlib.h"
-#include "src/heap_interface.h"
 
 namespace ckmalloc {
 
@@ -23,20 +22,16 @@ class SmallAllocatorTest : public ::testing::Test {
   static constexpr size_t kNumPages = 64;
 
   SmallAllocatorTest()
-      : heap_factory_(std::make_shared<TestHeapFactory>(kNumPages * kPageSize)),
+      : heap_(std::make_shared<TestHeap>(kNumPages)),
         slab_map_(std::make_shared<TestSlabMap>()),
-        slab_manager_fixture_(std::make_shared<SlabManagerFixture>(
-            heap_factory_, slab_map_, /*heap_idx=*/0)),
+        slab_manager_fixture_(
+            std::make_shared<SlabManagerFixture>(heap_, slab_map_)),
         freelist_(std::make_shared<Freelist>()),
         small_allocator_fixture_(std::make_shared<SmallAllocatorFixture>(
-            heap_factory_, slab_map_, slab_manager_fixture_, freelist_)) {}
+            heap_, slab_map_, slab_manager_fixture_, freelist_)) {}
 
-  TestHeapFactory& HeapFactory() {
-    return slab_manager_fixture_->HeapFactory();
-  }
-
-  bench::Heap& Heap() {
-    return *HeapFactory().Instance(0);
+  TestHeap& Heap() {
+    return *heap_;
   }
 
   TestSlabMap& SlabMap() {
@@ -52,8 +47,7 @@ class SmallAllocatorTest : public ::testing::Test {
   }
 
   void FreeSmall(Void* ptr) {
-    SmallSlab* slab =
-        SlabMap().FindSlab(SlabManager().PageIdFromPtr(ptr))->ToSmall();
+    SmallSlab* slab = SlabMap().FindSlab(PageId::FromPtr(ptr))->ToSmall();
     SmallAllocator().FreeSmall(slab, ptr);
   }
 
@@ -70,7 +64,7 @@ class SmallAllocatorTest : public ::testing::Test {
   }
 
  private:
-  std::shared_ptr<TestHeapFactory> heap_factory_;
+  std::shared_ptr<TestHeap> heap_;
   std::shared_ptr<TestSlabMap> slab_map_;
   std::shared_ptr<SlabManagerFixture> slab_manager_fixture_;
   std::shared_ptr<Freelist> freelist_;
@@ -85,7 +79,7 @@ TEST_F(SmallAllocatorTest, SingleSlab) {
   void* ptr = SmallAllocator().AllocSmall(16);
   ASSERT_NE(ptr, nullptr);
 
-  Slab* slab = SlabMap().FindSlab(SlabManager().PageIdFromPtr(ptr));
+  Slab* slab = SlabMap().FindSlab(PageId::FromPtr(ptr));
   ASSERT_NE(slab, nullptr);
   EXPECT_EQ(slab->Type(), SlabType::kSmall);
 

@@ -92,47 +92,47 @@ class SizeClass {
     static_assert(kNumSizeClasses == 17);
     switch (Ordinal()) {
       case 0:
-        return offset_bytes / 8;
+        return static_cast<uint32_t>(offset_bytes / 8);
       case 1:
-        return offset_bytes / 16;
+        return static_cast<uint32_t>(offset_bytes / 16);
       case 2:
-        return offset_bytes / 32;
+        return static_cast<uint32_t>(offset_bytes / 32);
       case 3:
-        return offset_bytes / 48;
+        return static_cast<uint32_t>(offset_bytes / 48);
       case 4:
-        return offset_bytes / 64;
+        return static_cast<uint32_t>(offset_bytes / 64);
       case 5:
-        return offset_bytes / 80;
+        return static_cast<uint32_t>(offset_bytes / 80);
       case 6:
-        return offset_bytes / 96;
+        return static_cast<uint32_t>(offset_bytes / 96);
       case 7:
-        return offset_bytes / 112;
+        return static_cast<uint32_t>(offset_bytes / 112);
       case 8:
-        return offset_bytes / 128;
+        return static_cast<uint32_t>(offset_bytes / 128);
       case 9:
-        return offset_bytes / 144;
+        return static_cast<uint32_t>(offset_bytes / 144);
       case 10:
-        return offset_bytes / 160;
+        return static_cast<uint32_t>(offset_bytes / 160);
       case 11:
-        return offset_bytes / 176;
+        return static_cast<uint32_t>(offset_bytes / 176);
       case 12:
-        return offset_bytes / 192;
+        return static_cast<uint32_t>(offset_bytes / 192);
       case 13:
-        return offset_bytes / 208;
+        return static_cast<uint32_t>(offset_bytes / 208);
       case 14:
-        return offset_bytes / 224;
+        return static_cast<uint32_t>(offset_bytes / 224);
       case 15:
-        return offset_bytes / 240;
+        return static_cast<uint32_t>(offset_bytes / 240);
       case 16:
-        return offset_bytes / 256;
+        return static_cast<uint32_t>(offset_bytes / 256);
       default:
-        __builtin_unreachable();
+        CK_UNREACHABLE();
     }
   }
 
  private:
   explicit constexpr SizeClass(uint32_t size_class)
-      : size_class_(size_class / kSizeClassDivisor) {}
+      : size_class_(static_cast<uint8_t>(size_class / kSizeClassDivisor)) {}
 
   static constexpr uint64_t kSizeClassDivisor = kMinAlignment;
 

@@ -11,7 +11,6 @@
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/slab_manager.h"
 #include "src/ckmalloc/testlib.h"
-#include "src/heap_interface.h"
 #include "src/rng.h"
 
 namespace ckmalloc {
@@ -20,16 +19,12 @@ class TestSlabManager {
  public:
   using SlabManagerT = SlabManagerImpl<TestGlobalMetadataAlloc, TestSlabMap>;
 
-  TestSlabManager(class SlabManagerFixture* test_fixture, TestHeapFactory* heap,
-                  TestSlabMap* slab_map, size_t heap_idx);
+  TestSlabManager(class SlabManagerFixture* test_fixture, TestHeap* heap,
+                  TestSlabMap* slab_map);
 
   SlabManagerT& Underlying() {
     return slab_manager_;
   }
-
-  void* PageStartFromId(PageId page_id) const;
-
-  PageId PageIdFromPtr(const void* ptr) const;
 
   template <typename S, typename... Args>
   std::optional<std::pair<PageId, S*>> Alloc(uint32_t n_pages, Args...);
@@ -91,9 +86,6 @@ class SlabManagerFixture : public CkMallocTest {
     }
 
    private:
-    explicit HeapIterator(SlabManagerFixture* fixture)
-        : HeapIterator(fixture, PageId::Zero()) {}
-
     HeapIterator(SlabManagerFixture* fixture, PageId page_id)
         : fixture_(fixture), current_(page_id) {}
 
@@ -102,7 +94,7 @@ class SlabManagerFixture : public CkMallocTest {
   };
 
   HeapIterator HeapBegin() {
-    return HeapIterator(this);
+    return HeapIterator(this, HeapStartId());
   }
 
   HeapIterator HeapEnd() {
@@ -111,24 +103,20 @@ class SlabManagerFixture : public CkMallocTest {
 
   // Only used for initializing `TestSlabManager` via the default constructor,
   // which needs the heap and slab_map to have been defined already.
-  SlabManagerFixture(std::shared_ptr<TestHeapFactory> heap_factory,
-                     std::shared_ptr<TestSlabMap> slab_map, size_t heap_idx)
-      : heap_factory_(std::move(heap_factory)),
+  SlabManagerFixture(std::shared_ptr<TestHeap> heap,
+                     std::shared_ptr<TestSlabMap> slab_map)
+      : heap_(std::move(heap)),
         slab_map_(std::move(slab_map)),
-        slab_manager_(std::make_shared<TestSlabManager>(
-            this, heap_factory_.get(), slab_map_.get(), heap_idx)),
+        slab_manager_(std::make_shared<TestSlabManager>(this, heap_.get(),
+                                                        slab_map_.get())),
         rng_(1027, 3) {}
 
   const char* TestPrefix() const override {
     return kPrefix;
   }
 
-  TestHeapFactory& HeapFactory() {
-    return *heap_factory_;
-  }
-
-  bench::Heap& SlabHeap() {
-    return *heap_factory_->Instance(slab_manager_->Underlying().heap_idx_);
+  TestHeap& SlabHeap() {
+    return *heap_;
   }
 
   TestSlabMap& SlabMap() {
@@ -143,10 +131,12 @@ class SlabManagerFixture : public CkMallocTest {
     return *slab_manager_;
   }
 
+  PageId HeapStartId() const {
+    return PageId::FromPtr(heap_->Start());
+  }
+
   PageId HeapEndId() const {
-    return PageId(
-        heap_factory_->Instance(slab_manager_->Underlying().heap_idx_)->Size() /
-        kPageSize);
+    return PageId::FromPtr(heap_->End());
   }
 
   absl::Status ValidateHeap() override;
@@ -159,11 +149,11 @@ class SlabManagerFixture : public CkMallocTest {
   absl::Status FreeSlab(AllocatedSlab* slab);
 
  private:
-  void FillMagic(AllocatedSlab* slab, uint64_t magic);
+  static void FillMagic(AllocatedSlab* slab, uint64_t magic);
 
   absl::Status CheckMagic(AllocatedSlab* slab, uint64_t magic);
 
-  std::shared_ptr<TestHeapFactory> heap_factory_;
+  std::shared_ptr<TestHeap> heap_;
   std::shared_ptr<TestSlabMap> slab_map_;
   std::shared_ptr<TestSlabManager> slab_manager_;
   util::Rng rng_;

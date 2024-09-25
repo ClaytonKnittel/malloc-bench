@@ -15,11 +15,9 @@
 #include "src/ckmalloc/large_allocator_test_fixture.h"
 #include "src/ckmalloc/page_id.h"
 #include "src/ckmalloc/slab.h"
-#include "src/ckmalloc/slab_manager.h"
 #include "src/ckmalloc/slab_manager_test_fixture.h"
 #include "src/ckmalloc/testlib.h"
 #include "src/ckmalloc/util.h"
-#include "src/heap_interface.h"
 
 namespace ckmalloc {
 
@@ -33,17 +31,13 @@ class LargeAllocatorTest : public ::testing::Test {
   static constexpr size_t kNumPages = 64;
 
   LargeAllocatorTest()
-      : heap_factory_(std::make_shared<TestHeapFactory>(kNumPages * kPageSize)),
+      : heap_(std::make_shared<TestHeap>(kNumPages)),
         slab_map_(std::make_shared<TestSlabMap>()),
-        slab_manager_fixture_(std::make_shared<SlabManagerFixture>(
-            heap_factory_, slab_map_, /*heap_idx=*/0)),
+        slab_manager_fixture_(
+            std::make_shared<SlabManagerFixture>(heap_, slab_map_)),
         freelist_(std::make_shared<class Freelist>()),
         large_allocator_fixture_(std::make_shared<LargeAllocatorFixture>(
-            heap_factory_, slab_map_, slab_manager_fixture_, freelist_)) {}
-
-  TestHeapFactory& HeapFactory() {
-    return slab_manager_fixture_->HeapFactory();
-  }
+            heap_, slab_map_, slab_manager_fixture_, freelist_)) {}
 
   static bool PrevFree(const Block* block) {
     return block->PrevFree();
@@ -57,8 +51,8 @@ class LargeAllocatorTest : public ::testing::Test {
     block->WriteFooterAndPrevFree();
   }
 
-  bench::Heap& Heap() {
-    return *HeapFactory().Instance(0);
+  TestHeap& Heap() {
+    return slab_manager_fixture_->SlabHeap();
   }
 
   TestSlabMap& SlabMap() {
@@ -80,16 +74,14 @@ class LargeAllocatorTest : public ::testing::Test {
   }
 
   AllocatedBlock* Realloc(AllocatedBlock* block, uint64_t block_size) {
-    LargeSlab* slab =
-        SlabMap().FindSlab(SlabManager().PageIdFromPtr(block))->ToLarge();
+    LargeSlab* slab = SlabMap().FindSlab(PageId::FromPtr(block))->ToLarge();
     Void* res = LargeAllocator().ReallocLarge(
         slab, block->UserDataPtr(), Block::UserSizeForBlockSize(block_size));
     return res != nullptr ? AllocatedBlock::FromUserDataPtr(res) : nullptr;
   }
 
   void Free(AllocatedBlock* block) {
-    LargeSlab* slab =
-        SlabMap().FindSlab(SlabManager().PageIdFromPtr(block))->ToLarge();
+    LargeSlab* slab = SlabMap().FindSlab(PageId::FromPtr(block))->ToLarge();
     LargeAllocator().FreeLarge(slab, block->UserDataPtr());
   }
 
@@ -178,7 +170,7 @@ class LargeAllocatorTest : public ::testing::Test {
     auto result =
         SlabManager().Alloc<BlockedSlab>(CeilDiv(total_bytes_, kPageSize));
     CK_ASSERT_TRUE(result.has_value());
-    CK_ASSERT_EQ(result.value().first, PageId::Zero());
+    CK_ASSERT_EQ(result.value().first, PageId::FromPtr(heap_->Start()));
     BlockedSlab* slab = result.value().second;
 
     uint64_t offset = Block::kFirstBlockInSlabOffset;
@@ -220,7 +212,7 @@ class LargeAllocatorTest : public ::testing::Test {
                          Block::kFirstBlockInSlabOffset + total_bytes_);
   }
 
-  std::shared_ptr<TestHeapFactory> heap_factory_;
+  std::shared_ptr<TestHeap> heap_;
   std::shared_ptr<TestSlabMap> slab_map_;
   std::shared_ptr<SlabManagerFixture> slab_manager_fixture_;
   std::shared_ptr<class Freelist> freelist_;

@@ -25,6 +25,7 @@
 #include "src/ckmalloc/global_state.h"
 #include "src/ckmalloc/heap_printer.h"
 #include "src/ckmalloc/local_cache.h"
+#include "src/ckmalloc/util.h"
 #include "src/heap_factory.h"
 #include "src/mmap_heap_factory.h"
 #include "src/tracefile_executor.h"
@@ -156,8 +157,7 @@ struct TraceOp {
 class TraceReplayer : public TracefileExecutor {
  public:
   TraceReplayer(TracefileReader&& reader, HeapFactory& heap_factory)
-      : TracefileExecutor(std::move(reader), heap_factory),
-        heap_factory_(&heap_factory) {
+      : TracefileExecutor(std::move(reader), heap_factory) {
     if (!absl::GetFlag(FLAGS_test_run)) {
       std::cout << CSI_ALTERNATE_DISPLAY << CSI_HIDE << CSI_CHP(1, 1);
       SetNonCanonicalMode(/*enable=*/true);
@@ -186,6 +186,10 @@ class TraceReplayer : public TracefileExecutor {
 
   void InitializeHeap(HeapFactory& heap_factory) override {
     CkMalloc::InitializeHeap(heap_factory);
+    metadata_heap_ =
+        CkMalloc::Instance()->GlobalState()->MetadataManager()->MetadataHeap();
+    user_heap_ = CkMalloc::Instance()->GlobalState()->SlabManager()->heap_;
+    cur_heap_ = user_heap_;
   }
 
   absl::StatusOr<void*> Malloc(size_t size) override {
@@ -308,10 +312,12 @@ class TraceReplayer : public TracefileExecutor {
         case '0':
         case '1': {
           size_t idx = static_cast<size_t>(c) - static_cast<size_t>('0');
-          if (heap_factory_->Instance(idx) != nullptr) {
-            heap_idx_ = idx;
-            RETURN_IF_ERROR(RefreshPrintedHeap());
+          if (idx == 0) {
+            cur_heap_ = metadata_heap_;
+          } else {
+            cur_heap_ = user_heap_;
           }
+          RETURN_IF_ERROR(RefreshPrintedHeap());
           break;
         }
         default: {
@@ -377,7 +383,7 @@ class TraceReplayer : public TracefileExecutor {
         break;
       }
       case Op::OP_NOT_SET: {
-        __builtin_unreachable();
+        CK_UNREACHABLE();
       }
     }
     std::cout << " (" << iter_ << ")" << std::endl;
@@ -421,8 +427,7 @@ class TraceReplayer : public TracefileExecutor {
 
     DEFINE_OR_RETURN(uint16_t, term_height, TermHeight());
 
-    HeapPrinter p(heap_factory_->Instance(heap_idx_),
-                  CkMalloc::Instance()->GlobalState()->SlabMap(),
+    HeapPrinter p(cur_heap_, CkMalloc::Instance()->GlobalState()->SlabMap(),
                   CkMalloc::Instance()->GlobalState()->SlabManager(),
                   CkMalloc::Instance()->GlobalState()->MetadataManager());
 
@@ -448,7 +453,8 @@ class TraceReplayer : public TracefileExecutor {
     return absl::OkStatus();
   }
 
-  HeapFactory* const heap_factory_;
+  bench::Heap* metadata_heap_ = nullptr;
+  bench::Heap* user_heap_ = nullptr;
 
   // The op about to be executed.
   TraceOp next_op_;
@@ -457,7 +463,7 @@ class TraceReplayer : public TracefileExecutor {
   std::optional<TraceOp> prev_op_;
 
   // Which heap we are currently looking at.
-  size_t heap_idx_ = 1;
+  bench::Heap* cur_heap_;
 
   uint64_t iter_ = 0;
   uint64_t skips_ = 0;

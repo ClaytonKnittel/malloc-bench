@@ -10,6 +10,7 @@
 #include "src/ckmalloc/page_id.h"
 #include "src/ckmalloc/size_class.h"
 #include "src/ckmalloc/slab.h"
+#include "src/ckmalloc/slab_map.h"
 #include "src/ckmalloc/testlib.h"
 #include "src/ckmalloc/util.h"
 #include "src/rng.h"
@@ -17,18 +18,8 @@
 namespace ckmalloc {
 
 TestSlabManager::TestSlabManager(SlabManagerFixture* test_fixture,
-                                 TestHeapFactory* heap_factory,
-                                 TestSlabMap* slab_map, size_t heap_idx)
-    : test_fixture_(test_fixture),
-      slab_manager_(heap_factory, slab_map, heap_idx) {}
-
-void* TestSlabManager::PageStartFromId(PageId page_id) const {
-  return slab_manager_.PageStartFromId(page_id);
-}
-
-PageId TestSlabManager::PageIdFromPtr(const void* ptr) const {
-  return slab_manager_.PageIdFromPtr(ptr);
-}
+                                 TestHeap* heap, TestSlabMap* slab_map)
+    : test_fixture_(test_fixture), slab_manager_(heap, slab_map) {}
 
 bool TestSlabManager::Resize(AllocatedSlab* slab, uint32_t new_size) {
   if (!slab_manager_.Resize(slab, new_size)) {
@@ -62,16 +53,14 @@ void TestSlabManager::HandleAlloc(AllocatedSlab* slab) {
 }
 
 absl::Status SlabManagerFixture::ValidateHeap() {
-  if (heap_factory_->Instance(slab_manager_->Underlying().heap_idx_)->Size() %
-          kPageSize !=
-      0) {
+  if (SlabHeap().Size() % kPageSize != 0) {
     return FailedTest(
         "Expected heap size to be a multiple of page size, but was %zu",
-        heap_factory_->Instance(slab_manager_->Underlying().heap_idx_)->Size());
+        SlabHeap().Size());
   }
 
   absl::flat_hash_set<MappedSlab*> visited_slabs;
-  PageId page = PageId::Zero();
+  PageId page = PageId::FromPtr(heap_->Start());
   PageId end = HeapEndId();
   MappedSlab* previous_slab = nullptr;
   bool previous_was_free = false;
@@ -101,9 +90,11 @@ absl::Status SlabManagerFixture::ValidateHeap() {
     visited_slabs.insert(slab);
 
     switch (slab->Type()) {
-      case SlabType::kUnmapped: {
+      case SlabType::kUnmapped:
+      case SlabType::kMmap: {
         return FailedTest(
-            "Unexpected unmapped slab found in slab map at page id %v", page);
+            "Unexpected slab of type %v found in slab map at page id %v",
+            slab->Type(), page);
       }
       case SlabType::kFree: {
         if (previous_was_free) {
@@ -153,6 +144,12 @@ absl::Status SlabManagerFixture::ValidateHeap() {
 
         for (PageId page_id = allocated_slab->StartId();
              page_id <= allocated_slab->EndId(); ++page_id) {
+          // Skip internal pages for single-alloc slabs.
+          if (HasOneAllocation(slab->Type()) &&
+              (page_id != allocated_slab->StartId() &&
+               page_id != allocated_slab->EndId())) {
+            continue;
+          }
           MappedSlab* mapped_slab = SlabMap().FindSlab(page_id);
           if (mapped_slab != allocated_slab) {
             return FailedTest(
@@ -209,7 +206,7 @@ absl::Status SlabManagerFixture::ValidateHeap() {
   absl::flat_hash_set<class FreeSlab*> single_page_slabs;
   for (const FreeSinglePageSlab& slab_start :
        SlabManager().Underlying().single_page_freelist_) {
-    PageId start_id = SlabManager().PageIdFromPtr(&slab_start);
+    PageId start_id = PageId::FromPtr(&slab_start);
     MappedSlab* slab = SlabMap().FindSlab(start_id);
     if (slab == nullptr) {
       return FailedTest(
@@ -254,7 +251,7 @@ absl::Status SlabManagerFixture::ValidateHeap() {
   }
   for (const FreeMultiPageSlab& slab_start :
        SlabManager().Underlying().multi_page_free_slabs_) {
-    PageId start_id = SlabManager().PageIdFromPtr(&slab_start);
+    PageId start_id = PageId::FromPtr(&slab_start);
     MappedSlab* slab = SlabMap().FindSlab(start_id);
     if (slab == nullptr) {
       return FailedTest(
@@ -306,11 +303,76 @@ absl::Status SlabManagerFixture::ValidateHeap() {
         single_page_slabs.size(), multi_page_slabs.size(), free_slabs);
   }
 
+  // Validate the slab map.
+  uint64_t n_pages = 0;
+  for (uint32_t root_idx = 0; root_idx < kRootSize; root_idx++) {
+    TestSlabMap::Node* node = slab_map_->NodeAt(root_idx);
+    if (node == nullptr) {
+      if (n_pages != 0) {
+        return FailedTest(
+            "Encountered null root-level slab-map entry in the middle of an "
+            "allocated slab.");
+      }
+      continue;
+    }
+
+    uint64_t allocated_node_count = 0;
+    for (uint32_t middle_idx = 0; middle_idx < kNodeSize; middle_idx++) {
+      TestSlabMap::Leaf* leaf = node->GetLeaf(middle_idx);
+      if (leaf == nullptr) {
+        if (n_pages != 0) {
+          return FailedTest(
+              "Encountered null leaf-level slab-map entry in the middle of an "
+              "allocated slab.");
+        }
+        continue;
+      }
+      allocated_node_count++;
+
+      uint64_t allocated_leaf_count = 0;
+      for (uint32_t leaf_idx = 0; leaf_idx < kNodeSize; leaf_idx++) {
+        if (n_pages != 0) {
+          allocated_leaf_count++;
+          n_pages--;
+          continue;
+        }
+
+        MappedSlab* slab = leaf->GetSlab(leaf_idx);
+        if (slab == nullptr) {
+          continue;
+        }
+
+        if (slab->Type() == SlabType::kUnmapped) {
+          return FailedTest("Encountered unmapped slab in slab map");
+        }
+
+        // Mmap slabs are a special case which only allocate the first slab. The
+        // remainder is left unallocated, and thus the allocation count of the
+        // containing node should be 1, not the length of the slab.
+        if (slab->Type() != SlabType::kMmap && HasOneAllocation(slab->Type())) {
+          n_pages = slab->Pages() - 1;
+        }
+        allocated_leaf_count++;
+      }
+
+      if (leaf->allocated_count_ != allocated_leaf_count) {
+        return FailedTest(
+            "Allocated leaf count mismatch: found %v, expected %v",
+            leaf->allocated_count_, allocated_leaf_count);
+      }
+    }
+
+    if (node->allocated_count_ != allocated_node_count) {
+      return FailedTest("Allocated node count mismatch: found %v, expected %v",
+                        node->allocated_count_, allocated_node_count);
+    }
+  }
+
   return absl::OkStatus();
 }
 
 absl::Status SlabManagerFixture::ValidateEmpty() {
-  PageId page = PageId::Zero();
+  PageId page = PageId::FromPtr(heap_->Start());
   PageId end = HeapEndId();
   while (page < end) {
     MappedSlab* slab = SlabMap().FindSlab(page);
@@ -382,13 +444,12 @@ absl::Status SlabManagerFixture::FreeSlab(AllocatedSlab* slab) {
   return absl::OkStatus();
 }
 
+/* static */
 void SlabManagerFixture::FillMagic(AllocatedSlab* slab, uint64_t magic) {
   CK_ASSERT_EQ(slab->Type(), SlabType::kBlocked);
-  auto* start = reinterpret_cast<uint64_t*>(
-      SlabManager().PageStartFromId(slab->StartId()));
+  auto* start = reinterpret_cast<uint64_t*>(slab->StartId().PageStart());
   auto* end = reinterpret_cast<uint64_t*>(
-      static_cast<uint8_t*>(SlabManager().PageStartFromId(slab->EndId())) +
-      kPageSize);
+      static_cast<uint8_t*>(slab->EndId().PageStart()) + kPageSize);
 
   for (; start != end; start++) {
     *start = magic;
@@ -398,16 +459,13 @@ void SlabManagerFixture::FillMagic(AllocatedSlab* slab, uint64_t magic) {
 absl::Status SlabManagerFixture::CheckMagic(AllocatedSlab* slab,
                                             uint64_t magic) {
   CK_ASSERT_EQ(slab->Type(), SlabType::kBlocked);
-  auto* start = reinterpret_cast<uint64_t*>(
-      SlabManager().PageStartFromId(slab->StartId()));
+  auto* start = reinterpret_cast<uint64_t*>(slab->StartId().PageStart());
   auto* end = reinterpret_cast<uint64_t*>(
-      static_cast<uint8_t*>(SlabManager().PageStartFromId(slab->EndId())) +
-      kPageSize);
+      static_cast<uint8_t*>(slab->EndId().PageStart()) + kPageSize);
 
   for (; start != end; start++) {
     if (*start != magic) {
-      auto* begin = reinterpret_cast<uint64_t*>(
-          SlabManager().PageStartFromId(slab->StartId()));
+      auto* begin = reinterpret_cast<uint64_t*>(slab->StartId().PageStart());
       return FailedTest(
           "Allocated metadata slab %v was dirtied starting from offset %zu",
           *slab, (start - begin) * sizeof(uint64_t));

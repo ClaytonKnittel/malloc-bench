@@ -27,17 +27,13 @@ class MetadataManagerTest : public testing::Test {
   static constexpr size_t kNumPages = 64;
 
   MetadataManagerTest()
-      : heap_factory_(std::make_shared<TestHeapFactory>(kNumPages * kPageSize)),
+      : heap_(std::make_shared<TestHeap>(kNumPages)),
         slab_map_(std::make_shared<TestSlabMap>()),
-        metadata_manager_fixture_(std::make_shared<MetadataManagerFixture>(
-            heap_factory_, slab_map_, /*heap_idx=*/0)) {}
+        metadata_manager_fixture_(
+            std::make_shared<MetadataManagerFixture>(heap_, slab_map_)) {}
 
-  TestHeapFactory& HeapFactory() {
-    return *heap_factory_;
-  }
-
-  const bench::Heap& Heap() {
-    return *HeapFactory().Instance(0);
+  TestHeap& Heap() {
+    return *heap_;
   }
 
   TestMetadataManager& MetadataManager() {
@@ -58,7 +54,7 @@ class MetadataManagerTest : public testing::Test {
   }
 
  private:
-  std::shared_ptr<TestHeapFactory> heap_factory_;
+  std::shared_ptr<TestHeap> heap_;
   std::shared_ptr<TestSlabMap> slab_map_;
   std::shared_ptr<MetadataManagerFixture> metadata_manager_fixture_;
 };

@@ -1,6 +1,7 @@
 #include "src/ckmalloc/ckmalloc.h"
 
 #include <cstddef>
+#include <cstdint>
 #include <cstring>
 
 #include "src/ckmalloc/common.h"
@@ -8,8 +9,10 @@
 #include "src/ckmalloc/local_cache.h"
 #include "src/ckmalloc/main_allocator.h"
 #include "src/ckmalloc/size_class.h"
+#include "src/ckmalloc/sys_alloc.h"
 #include "src/ckmalloc/util.h"
 #include "src/heap_factory.h"
+#include "src/heap_interface.h"
 
 namespace ckmalloc {
 
@@ -19,7 +22,8 @@ CkMalloc* CkMalloc::instance_ = nullptr;
 /* static */
 void CkMalloc::InitializeHeap(bench::HeapFactory& heap_factory) {
   LocalCache::ClearLocalCaches();
-  InitializeWithEmptyHeap(&heap_factory);
+  TestSysAlloc::NewInstance(&heap_factory);
+  Initialize();
 }
 
 void* CkMalloc::Malloc(size_t size) {
@@ -69,9 +73,10 @@ void CkMalloc::Free(void* ptr) {
 
   MainAllocator* main_allocator = global_state_.MainAllocator();
   LocalCache* cache = LocalCache::Instance<GlobalMetadataAlloc>();
-  size_t alloc_size = main_allocator->AllocSize(p);
-  if (LocalCache::CanHoldSize(alloc_size)) {
-    cache->CacheAlloc(p, alloc_size);
+  SizeClass size_class = main_allocator->AllocSizeClass(p);
+  if (size_class != SizeClass::Nil() &&
+      LocalCache::CanHoldSize(size_class.SliceSize())) {
+    cache->CacheAlloc(p, size_class.SliceSize());
   } else {
     main_allocator->Free(p);
   }
@@ -81,24 +86,24 @@ size_t CkMalloc::GetSize(void* ptr) {
   return global_state_.MainAllocator()->AllocSize(reinterpret_cast<Void*>(ptr));
 }
 
-CkMalloc::CkMalloc(bench::HeapFactory* heap_factory)
-    : global_state_(heap_factory, /*metadata_heap_idx=*/0,
-                    /*user_heap_idx=*/1) {}
+CkMalloc::CkMalloc(bench::Heap* metadata_heap, bench::Heap* user_heap)
+    : global_state_(metadata_heap, user_heap) {}
 
 /* static */
-CkMalloc* CkMalloc::InitializeWithEmptyHeap(bench::HeapFactory* heap_factory) {
-  CK_ASSERT_EQ(heap_factory->Instance(0), nullptr);
-  auto result = heap_factory->NewInstance(kHeapSize);
-  CK_ASSERT_TRUE(result.ok());
-  auto result2 = heap_factory->NewInstance(kHeapSize);
-  CK_ASSERT_TRUE(result2.ok());
+CkMalloc* CkMalloc::Initialize() {
+  TestSysAlloc* alloc = TestSysAlloc::Instance();
+  CK_ASSERT_NE(alloc, nullptr);
+  bench::Heap* metadata_heap = alloc->Mmap(/*start_hint=*/nullptr, kHeapSize);
+  bench::Heap* user_heap = alloc->Mmap(/*start_hint=*/nullptr, kHeapSize);
 
   // Allocate a metadata slab and place ourselves at the beginning of it.
   size_t metadata_size = AlignUp(sizeof(CkMalloc), kPageSize);
-  void* metadata_heap_start = heap_factory->Instance(0)->sbrk(metadata_size);
+  void* metadata_heap_start =
+      metadata_heap->sbrk(static_cast<intptr_t>(metadata_size));
   CK_ASSERT_NE(metadata_heap_start, nullptr);
 
-  CkMalloc* instance = new (metadata_heap_start) CkMalloc(heap_factory);
+  CkMalloc* instance =
+      new (metadata_heap_start) CkMalloc(metadata_heap, user_heap);
   instance_ = instance;
   return instance;
 }

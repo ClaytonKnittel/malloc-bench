@@ -9,8 +9,10 @@ cc_library(
         ":local_cache",
         ":main_allocator",
         ":size_class",
+        ":sys_alloc",
         ":util",
         "//src:heap_factory",
+        "//src:heap_interface",
     ],
 )
 
@@ -79,7 +81,7 @@ cc_library(
         ":slab_manager",
         ":slab_map",
         ":small_allocator",
-        "//src:heap_factory",
+        "//src:heap_interface",
     ],
 )
 
@@ -130,11 +132,9 @@ cc_test(
         ":large_allocator_test_fixture",
         ":page_id",
         ":slab",
-        ":slab_manager",
         ":slab_manager_test_fixture",
         ":testlib",
         ":util",
-        "//src:heap_interface",
         "@abseil-cpp//absl/status",
         "@cc-util//util:absl_util",
         "@cc-util//util:gtest_util",
@@ -205,6 +205,7 @@ cc_library(
         ":slab_manager",
         ":slab_map",
         ":small_allocator",
+        ":sys_alloc",
         ":util",
     ],
 )
@@ -219,10 +220,13 @@ cc_test(
         ":large_allocator_test_fixture",
         ":main_allocator",
         ":main_allocator_test_fixture",
+        ":metadata_manager_test_fixture",
         ":slab_manager_test_fixture",
         ":small_allocator_test_fixture",
+        ":sys_alloc",
         ":testlib",
-        "//src:heap_interface",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/strings:str_format",
         "@cc-util//util:absl_util",
         "@cc-util//util:gtest_util",
         "@googletest//:gtest",
@@ -240,8 +244,8 @@ cc_library(
         ":common",
         ":freelist",
         ":large_allocator_test_fixture",
-        ":local_cache",
         ":main_allocator",
+        ":metadata_manager_test_fixture",
         ":size_class",
         ":slab",
         ":slab_manager_test_fixture",
@@ -263,7 +267,6 @@ cc_library(
         ":slab",
         ":slab_map",
         ":util",
-        "//src:heap_factory",
         "//src:heap_interface",
     ],
 )
@@ -295,6 +298,7 @@ cc_library(
         ":slab",
         ":testlib",
         ":util",
+        "//src:heap_interface",
         "//src:rng",
         "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/container:flat_hash_set",
@@ -359,6 +363,7 @@ cc_library(
         ":slice",
         ":slice_id",
         ":util",
+        "//src:heap_interface",
     ],
 )
 
@@ -397,7 +402,7 @@ cc_library(
         ":slab",
         ":slab_map",
         ":util",
-        "//src:heap_factory",
+        "//src:heap_interface",
         "@cc-util//util:std_util",
     ],
 )
@@ -411,6 +416,7 @@ cc_test(
         ":slab",
         ":slab_manager_test_fixture",
         ":testlib",
+        ":util",
         "@cc-util//util:gtest_util",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
@@ -428,6 +434,7 @@ cc_library(
         ":size_class",
         ":slab",
         ":slab_manager",
+        ":slab_map",
         ":testlib",
         ":util",
         "//src:heap_interface",
@@ -540,6 +547,18 @@ cc_library(
 )
 
 cc_library(
+    name = "sys_alloc",
+    srcs = ["sys_alloc.cc"],
+    hdrs = ["sys_alloc.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//src:heap_factory",
+        "//src:heap_interface",
+        "//src:mmap_heap_factory",
+    ],
+)
+
+cc_library(
     name = "testlib",
     srcs = ["testlib.cc"],
     hdrs = ["testlib.h"],
@@ -572,6 +591,7 @@ cc_binary(
         ":global_state",
         ":heap_printer",
         ":local_cache",
+        ":util",
         "//proto:tracefile_cc_proto",
         "//src:heap_factory",
         "//src:mmap_heap_factory",

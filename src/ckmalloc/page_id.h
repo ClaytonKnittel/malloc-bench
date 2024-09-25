@@ -12,7 +12,7 @@
 
 namespace ckmalloc {
 
-constexpr uint32_t kMaxPageIdx = 1 << (kHeapSizeShift - kPageShift);
+constexpr uint64_t kMaxPageIdx = UINT64_C(1) << (kAddressBits - kPageShift);
 
 class PageId {
   template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
@@ -28,8 +28,8 @@ class PageId {
 
  public:
   // Constructs a `Nil` `PageId`.
-  constexpr PageId() : page_idx_(std::numeric_limits<uint32_t>::max()) {}
-  constexpr explicit PageId(uint32_t page_idx) : page_idx_(page_idx) {
+  constexpr PageId() : page_idx_(std::numeric_limits<uint64_t>::max()) {}
+  constexpr explicit PageId(uint64_t page_idx) : page_idx_(page_idx) {
     CK_ASSERT_LT(page_idx, kMaxPageIdx);
   }
 
@@ -56,10 +56,10 @@ class PageId {
     return !(*this < page_id);
   }
 
-  PageId operator+(uint32_t offset) const {
+  PageId operator+(uint64_t offset) const {
     return PageId(page_idx_ + offset);
   }
-  PageId operator+=(uint32_t offset) {
+  PageId operator+=(uint64_t offset) {
     *this = (*this + offset);
     return *this;
   }
@@ -74,10 +74,10 @@ class PageId {
     return copy;
   }
 
-  PageId operator-(uint32_t offset) const {
+  PageId operator-(uint64_t offset) const {
     return PageId(page_idx_ - offset);
   }
-  PageId operator-=(uint32_t offset) {
+  PageId operator-=(uint64_t offset) {
     *this = (*this - offset);
     return *this;
   }
@@ -92,29 +92,39 @@ class PageId {
     return copy;
   }
 
-  int32_t operator-(const PageId& page_id) const {
-    return static_cast<int32_t>(page_idx_) -
-           static_cast<int32_t>(page_id.page_idx_);
-  }
-
-  // The id of the first page in the heap. This is reserved for the first
-  // metadata slab.
-  static constexpr PageId Zero() {
-    return PageId(0);
+  int64_t operator-(const PageId& page_id) const {
+    return static_cast<int64_t>(page_idx_) -
+           static_cast<int64_t>(page_id.page_idx_);
   }
 
   static constexpr PageId Nil() {
     return PageId();
   }
 
+  // Returns the `PageId` for the page containing `ptr`.
+  static PageId FromPtr(const void* ptr) {
+    CK_ASSERT_LT(reinterpret_cast<uint64_t>(ptr), UINT64_C(1) << kAddressBits);
+    return PageId(reinterpret_cast<uint64_t>(ptr) / kPageSize);
+  }
+
+  // Returns a pointer to the start of the page for this `PageId`.
+  void* PageStart() const {
+    void* page_start =
+        // NOLINTNEXTLINE(performance-no-int-to-ptr)
+        reinterpret_cast<void*>(static_cast<uintptr_t>(Idx()) * kPageSize);
+    CK_ASSERT_LT(reinterpret_cast<uint64_t>(page_start), UINT64_C(1)
+                                                             << kAddressBits);
+    return page_start;
+  }
+
  private:
-  uint32_t Idx() const {
+  uint64_t Idx() const {
     return page_idx_;
   }
 
   // The index into the heap of this page, where idx 0 is the first page, idx 1
   // is the next page, and so on.
-  uint32_t page_idx_;
+  uint64_t page_idx_;
 };
 
 template <typename Sink>

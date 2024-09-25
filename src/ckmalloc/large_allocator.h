@@ -69,6 +69,7 @@ class LargeAllocatorImpl {
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
 Void* LargeAllocatorImpl<SlabMap, SlabManager>::AllocLarge(size_t user_size) {
   CK_ASSERT_GT(user_size, kMaxSmallSize);
+  CK_ASSERT_LT(user_size, kMinMmapSize);
   uint64_t block_size = Block::BlockSizeForUserSize(user_size);
   AllocatedBlock* block = MakeBlockFromFreelist(block_size);
   if (block != nullptr) {
@@ -92,6 +93,7 @@ Void* LargeAllocatorImpl<SlabMap, SlabManager>::ReallocLarge(LargeSlab* slab,
                                                              Void* ptr,
                                                              size_t user_size) {
   CK_ASSERT_GT(user_size, kMaxSmallSize);
+  CK_ASSERT_LT(user_size, kMinMmapSize);
 
   uint64_t orig_user_size;
   if (slab->Type() == SlabType::kBlocked) {
@@ -173,8 +175,7 @@ AllocatedBlock* LargeAllocatorImpl<SlabMap, SlabManager>::MakeBlockFromFreelist(
   }
 
   BlockedSlab* slab =
-      slab_map_->FindSlab(slab_manager_->PageIdFromPtr(free_block))
-          ->ToBlocked();
+      slab_map_->FindSlab(PageId::FromPtr(free_block))->ToBlocked();
 
   auto [allocated_block, remainder_block] =
       freelist_->Split(free_block, block_size);
@@ -237,7 +238,7 @@ Void* LargeAllocatorImpl<SlabMap, SlabManager>::AllocSingleAllocSlab(
     return nullptr;
   }
 
-  return reinterpret_cast<Void*>(slab_manager_->PageStartFromId(result->first));
+  return reinterpret_cast<Void*>(result->first.PageStart());
 }
 
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>

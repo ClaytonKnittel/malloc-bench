@@ -35,8 +35,7 @@ class TestMetadataManager {
       MetadataManagerImpl<TestGlobalMetadataAlloc, TestSlabMap>;
 
   TestMetadataManager(class MetadataManagerFixture* test_fixture,
-                      TestHeapFactory* heap_factory, TestSlabMap* slab_map,
-                      size_t heap_idx);
+                      TestHeap* heap, TestSlabMap* slab_map);
 
   MetadataManagerT& Underlying() {
     return metadata_manager_;
@@ -63,12 +62,12 @@ class MetadataManagerFixture : public CkMallocTest {
  public:
   static constexpr const char* kPrefix = "[MetadataManagerFixture]";
 
-  MetadataManagerFixture(std::shared_ptr<TestHeapFactory> heap_factory,
-                         std::shared_ptr<TestSlabMap> slab_map, size_t heap_idx)
-      : heap_factory_(std::move(heap_factory)),
+  MetadataManagerFixture(std::shared_ptr<TestHeap> heap,
+                         std::shared_ptr<TestSlabMap> slab_map)
+      : heap_(std::move(heap)),
         slab_map_(std::move(slab_map)),
         metadata_manager_(std::make_shared<TestMetadataManager>(
-            this, heap_factory_.get(), slab_map_.get(), heap_idx)),
+            this, heap_.get(), slab_map_.get())),
         allocator_(metadata_manager_.get()),
         rng_(2021, 5) {
     TestGlobalMetadataAlloc::OverrideAllocator(&allocator_);
@@ -82,8 +81,8 @@ class MetadataManagerFixture : public CkMallocTest {
     return kPrefix;
   }
 
-  TestHeapFactory& HeapFactory() {
-    return *heap_factory_;
+  TestHeap& Heap() {
+    return *heap_;
   }
 
   TestSlabMap& SlabMap() {
@@ -101,6 +100,8 @@ class MetadataManagerFixture : public CkMallocTest {
   std::shared_ptr<TestMetadataManager> MetadataManagerPtr() const {
     return metadata_manager_;
   }
+
+  const absl::flat_hash_set<Slab*>& AllocatedSlabMeta() const;
 
   absl::StatusOr<size_t> SlabMetaFreelistLength() const;
 
@@ -120,7 +121,7 @@ class MetadataManagerFixture : public CkMallocTest {
   // bytes.
   absl::Status TraceBlockAllocation(void* block, size_t size, size_t alignment);
 
-  std::shared_ptr<TestHeapFactory> heap_factory_;
+  std::shared_ptr<TestHeap> heap_;
   std::shared_ptr<TestSlabMap> slab_map_;
   std::shared_ptr<TestMetadataManager> metadata_manager_;
 
@@ -132,6 +133,8 @@ class MetadataManagerFixture : public CkMallocTest {
   // with.
   absl::flat_hash_map<void*, size_t> allocated_blocks_;
 
+  // A set of all the allocated slab metadata.
+  absl::flat_hash_set<Slab*> alloc_slab_metadata_;
   // A set of all the freed slab metadata.
   absl::flat_hash_set<Slab*> freed_slab_metadata_;
 

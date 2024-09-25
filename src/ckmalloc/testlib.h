@@ -45,6 +45,8 @@ class TestGlobalMetadataAlloc {
   static void SlabFree(MappedSlab* slab);
   static void* Alloc(size_t size, size_t alignment);
 
+  static uint64_t TotalAllocs();
+
   // Test-only function to delete memory allocted by `Alloc`.
   static void ClearAllAllocs();
 
@@ -53,6 +55,7 @@ class TestGlobalMetadataAlloc {
 
  private:
   static TestMetadataAllocInterface* allocator_;
+  static uint64_t n_allocs_;
 };
 
 using TestSlabMap = SlabMapImpl<TestGlobalMetadataAlloc>;
@@ -80,6 +83,9 @@ void AbslStringify(Sink& sink, SlabType slab_type) {
       sink.Append("kSingleAlloc");
       break;
     }
+    case SlabType::kMmap: {
+      sink.Append("kMmap");
+    }
   }
 }
 
@@ -92,7 +98,8 @@ void AbslStringify(Sink& sink, const Slab& slab) {
     }
     case SlabType::kFree:
     case SlabType::kSmall:
-    case SlabType::kSingleAlloc: {
+    case SlabType::kSingleAlloc:
+    case SlabType::kMmap: {
       const MappedSlab& mapped_slab = *slab.ToMapped();
       absl::Format(&sink, "Slab: [type=%v, pages=%" PRIu32 ", start_id=%v]",
                    mapped_slab.Type(), mapped_slab.Pages(),
