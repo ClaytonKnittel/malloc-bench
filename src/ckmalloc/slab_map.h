@@ -142,8 +142,6 @@ class SlabMapImpl {
       // expect no part of the code to ever try looking up a deallocated page.
 #ifndef NDEBUG
       leaves_[idx] = nullptr;
-#else
-      (void) val;
 #endif
       allocated_count_--;
     }
@@ -251,10 +249,13 @@ MappedSlab* SlabMapImpl<MetadataAlloc>::FindSlab(PageId page_id) const {
 
 template <MetadataAllocInterface MetadataAlloc>
 bool SlabMapImpl<MetadataAlloc>::AllocatePath(PageId start_id, PageId end_id) {
-  auto root_idxs = std::make_pair(RootIdx(start_id), RootIdx(end_id));
-  auto middle_idxs = std::make_pair(MiddleIdx(start_id), MiddleIdx(end_id));
-  auto leaf_idxs = std::make_pair(LeafIdx(start_id), LeafIdx(end_id));
+  // TODO: Do this with iterators.
+  const auto root_idxs = std::make_pair(RootIdx(start_id), RootIdx(end_id));
+  const auto middle_idxs =
+      std::make_pair(MiddleIdx(start_id), MiddleIdx(end_id));
+  const auto leaf_idxs = std::make_pair(LeafIdx(start_id), LeafIdx(end_id));
 
+  CK_ASSERT_LE(root_idxs.first, root_idxs.second);
   for (size_t root_idx = root_idxs.first; root_idx <= root_idxs.second;
        root_idx++) {
     const bool first_iter = root_idx == root_idxs.first;
@@ -268,9 +269,13 @@ bool SlabMapImpl<MetadataAlloc>::AllocatePath(PageId start_id, PageId end_id) {
       }
     }
 
+    const size_t middle_idx_low = (first_iter ? middle_idxs.first : 0);
+    const size_t middle_idx_high =
+        (last_iter ? middle_idxs.second : kNodeSize - 1);
+    CK_ASSERT_LE(middle_idx_low, middle_idx_high);
+
     Node& node = *nodes_[root_idx];
-    for (size_t middle_idx = (first_iter ? middle_idxs.first : 0);
-         middle_idx <= (last_iter ? middle_idxs.second : kNodeSize - 1);
+    for (size_t middle_idx = middle_idx_low; middle_idx <= middle_idx_high;
          middle_idx++) {
       const bool first_inner_iter =
           first_iter && middle_idx == middle_idxs.first;
@@ -302,10 +307,12 @@ bool SlabMapImpl<MetadataAlloc>::AllocatePath(PageId start_id, PageId end_id) {
 template <MetadataAllocInterface MetadataAlloc>
 void SlabMapImpl<MetadataAlloc>::DeallocatePath(PageId start_id,
                                                 PageId end_id) {
-  auto root_idxs = std::make_pair(RootIdx(start_id), RootIdx(end_id));
-  auto middle_idxs = std::make_pair(MiddleIdx(start_id), MiddleIdx(end_id));
-  auto leaf_idxs = std::make_pair(LeafIdx(start_id), LeafIdx(end_id));
+  const auto root_idxs = std::make_pair(RootIdx(start_id), RootIdx(end_id));
+  const auto middle_idxs =
+      std::make_pair(MiddleIdx(start_id), MiddleIdx(end_id));
+  const auto leaf_idxs = std::make_pair(LeafIdx(start_id), LeafIdx(end_id));
 
+  CK_ASSERT_LE(root_idxs.first, root_idxs.second);
   for (size_t root_idx = root_idxs.first; root_idx <= root_idxs.second;
        root_idx++) {
     const bool first_iter = root_idx == root_idxs.first;
@@ -314,8 +321,12 @@ void SlabMapImpl<MetadataAlloc>::DeallocatePath(PageId start_id,
     Node* node = NodeAt(root_idx);
     CK_ASSERT_NE(node, nullptr);
 
-    for (size_t middle_idx = (first_iter ? middle_idxs.first : 0);
-         middle_idx <= (last_iter ? middle_idxs.second : kNodeSize - 1);
+    const size_t middle_idx_low = (first_iter ? middle_idxs.first : 0);
+    const size_t middle_idx_high =
+        (last_iter ? middle_idxs.second : kNodeSize - 1);
+    CK_ASSERT_LE(middle_idx_low, middle_idx_high);
+
+    for (size_t middle_idx = middle_idx_low; middle_idx <= middle_idx_high;
          middle_idx++) {
       const bool first_inner_iter =
           first_iter && middle_idx == middle_idxs.first;
@@ -324,6 +335,12 @@ void SlabMapImpl<MetadataAlloc>::DeallocatePath(PageId start_id,
 
       Leaf* leaf = node->GetLeaf(middle_idx);
       CK_ASSERT_NE(leaf, nullptr);
+
+      // This loop will not happen in production builds with NDEBUG=1.
+      for (uint32_t i = (first_inner_iter ? leaf_idxs.first : 0);
+           i <= (last_inner_iter ? leaf_idxs.second : kNodeSize - 1); i++) {
+        leaf->ClearChild(i);
+      }
 
       uint32_t removed_leaves =
           1 + (last_inner_iter ? leaf_idxs.second : kNodeSize - 1) -
@@ -361,29 +378,38 @@ template <MetadataAllocInterface MetadataAlloc>
 void SlabMapImpl<MetadataAlloc>::InsertRange(
     PageId start_id, PageId end_id, MappedSlab* slab,
     std::optional<SizeClass> size_class) {
-  auto root_idxs = std::make_pair(RootIdx(start_id), RootIdx(end_id));
-  auto middle_idxs = std::make_pair(MiddleIdx(start_id), MiddleIdx(end_id));
-  auto leaf_idxs = std::make_pair(LeafIdx(start_id), LeafIdx(end_id));
+  const auto root_idxs = std::make_pair(RootIdx(start_id), RootIdx(end_id));
+  const auto middle_idxs =
+      std::make_pair(MiddleIdx(start_id), MiddleIdx(end_id));
+  const auto leaf_idxs = std::make_pair(LeafIdx(start_id), LeafIdx(end_id));
 
+  CK_ASSERT_LE(root_idxs.first, root_idxs.second);
   for (size_t root_idx = root_idxs.first; root_idx <= root_idxs.second;
        root_idx++) {
+    const bool first_iter = root_idx == root_idxs.first;
+    const bool last_iter = root_idx == root_idxs.second;
+
     Node& node = *NodeAt(root_idx);
 
-    for (size_t middle_idx =
-             (root_idx == root_idxs.first ? middle_idxs.first : 0);
-         middle_idx <=
-         (root_idx == root_idxs.second ? middle_idxs.second : kNodeSize - 1);
+    const size_t middle_idx_low = (first_iter ? middle_idxs.first : 0);
+    const size_t middle_idx_high =
+        (last_iter ? middle_idxs.second : kNodeSize - 1);
+    CK_ASSERT_LE(middle_idx_low, middle_idx_high);
+
+    for (size_t middle_idx = middle_idx_low; middle_idx <= middle_idx_high;
          middle_idx++) {
       Leaf& leaf = *node.GetLeaf(middle_idx);
 
-      for (size_t leaf_idx =
-               (root_idx == root_idxs.first && middle_idx == middle_idxs.first
-                    ? leaf_idxs.first
-                    : 0);
-           leaf_idx <=
-           (root_idx == root_idxs.second && middle_idx == middle_idxs.second
-                ? leaf_idxs.second
-                : kNodeSize - 1);
+      const bool first_inner_iter =
+          first_iter && middle_idx == middle_idxs.first;
+      const bool last_inner_iter =
+          last_iter && middle_idx == middle_idxs.second;
+      const size_t leaf_idx_low = (first_inner_iter ? leaf_idxs.first : 0);
+      const size_t leaf_idx_high =
+          (last_inner_iter ? leaf_idxs.second : kNodeSize - 1);
+      CK_ASSERT_LE(leaf_idx_low, leaf_idx_high);
+
+      for (size_t leaf_idx = leaf_idx_low; leaf_idx <= leaf_idx_high;
            leaf_idx++) {
         leaf.SetChild(leaf_idx, slab, size_class);
       }
