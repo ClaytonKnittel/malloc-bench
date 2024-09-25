@@ -434,6 +434,7 @@ cc_library(
         ":size_class",
         ":slab",
         ":slab_manager",
+        ":slab_map",
         ":testlib",
         ":util",
         "//src:heap_interface",
@@ -549,6 +550,7 @@ cc_library(
     name = "sys_alloc",
     srcs = ["sys_alloc.cc"],
     hdrs = ["sys_alloc.h"],
+    visibility = ["//visibility:public"],
     deps = [
         "//src:heap_factory",
         "//src:heap_interface",

@@ -43,7 +43,7 @@ TEST_F(SlabMapTest, TestInsertZero) {
   EXPECT_TRUE(SlabMap().AllocatePath(page, page));
   SlabMap().Insert(page, test_slab);
   EXPECT_EQ(SlabMap().FindSlab(page), test_slab);
-  EXPECT_EQ(TestGlobalMetadataAlloc::TotalAllocs(), 4);
+  EXPECT_EQ(TestGlobalMetadataAlloc::TotalAllocs(), 2);
 }
 
 TEST_F(SlabMapTest, TestInsert) {
@@ -56,7 +56,7 @@ TEST_F(SlabMapTest, TestInsert) {
 
   EXPECT_EQ(SlabMap().FindSlab(PageId(0)), nullptr);
   EXPECT_EQ(SlabMap().FindSlab(PageId(2 * kNodeSize)), nullptr);
-  EXPECT_EQ(TestGlobalMetadataAlloc::TotalAllocs(), 4);
+  EXPECT_EQ(TestGlobalMetadataAlloc::TotalAllocs(), 2);
 }
 
 TEST_F(SlabMapTest, TestAssignRange) {
@@ -80,7 +80,7 @@ TEST_F(SlabMapTest, TestAssignRange) {
     }
   }
 
-  EXPECT_EQ(TestGlobalMetadataAlloc::TotalAllocs(), (6 + 1) * 2);
+  EXPECT_EQ(TestGlobalMetadataAlloc::TotalAllocs(), 6 + 1);
 }
 
 TEST_F(SlabMapTest, TestInsertRange) {
@@ -101,7 +101,7 @@ TEST_F(SlabMapTest, TestInsertRange) {
     }
   }
 
-  EXPECT_EQ(TestGlobalMetadataAlloc::TotalAllocs(), (11 + 1) * 2);
+  EXPECT_EQ(TestGlobalMetadataAlloc::TotalAllocs(), 11 + 1);
 }
 
 TEST_F(SlabMapTest, TestInsertLongRange) {
@@ -122,8 +122,7 @@ TEST_F(SlabMapTest, TestInsertLongRange) {
     }
   }
 
-  EXPECT_EQ(TestGlobalMetadataAlloc::TotalAllocs(),
-            ((2 * kNodeSize + 11) + 3) * 2);
+  EXPECT_EQ(TestGlobalMetadataAlloc::TotalAllocs(), (2 * kNodeSize + 11) + 3);
 }
 
 TEST_F(SlabMapTest, TestDeallocate) {
@@ -131,7 +130,7 @@ TEST_F(SlabMapTest, TestDeallocate) {
   EXPECT_TRUE(SlabMap().AllocatePath(id, id));
   SlabMap().DeallocatePath(id, id);
 
-  EXPECT_EQ(TestGlobalMetadataAlloc::TotalAllocs(), 4);
+  EXPECT_EQ(TestGlobalMetadataAlloc::TotalAllocs(), 2);
 }
 
 TEST_F(SlabMapTest, TestReallocate) {
@@ -144,7 +143,7 @@ TEST_F(SlabMapTest, TestReallocate) {
 
   // The second AllocatePath should not require any more mallocs since it can
   // reuse the just-deleted nodes.
-  EXPECT_EQ(TestGlobalMetadataAlloc::TotalAllocs(), 4);
+  EXPECT_EQ(TestGlobalMetadataAlloc::TotalAllocs(), 2);
 }
 
 TEST_F(SlabMapTest, TestReallocateMultiple) {
@@ -168,14 +167,14 @@ TEST_F(SlabMapTest, TestReallocateMultiple) {
   PageId id10 = PageId(299 + 410 * kNodeSize + 10 * kNodeSize * kNodeSize);
   SlabMap().DeallocatePath(id9, id10);
 
-  EXPECT_EQ(TestGlobalMetadataAlloc::TotalAllocs(), (101 + 1) * 2);
+  EXPECT_EQ(TestGlobalMetadataAlloc::TotalAllocs(), 101 + 1);
 
   // We should be able to allocate 50 nodes worth without incurring any
   // additional allocations.
   PageId id11 = PageId(0 + 0 * kNodeSize + 10 * kNodeSize * kNodeSize);
   PageId id12 = PageId(0 + 49 * kNodeSize + 10 * kNodeSize * kNodeSize);
   EXPECT_TRUE(SlabMap().AllocatePath(id11, id12));
-  EXPECT_EQ(TestGlobalMetadataAlloc::TotalAllocs(), (101 + 1) * 2);
+  EXPECT_EQ(TestGlobalMetadataAlloc::TotalAllocs(), 101 + 1);
 }
 
 }  // namespace ckmalloc
