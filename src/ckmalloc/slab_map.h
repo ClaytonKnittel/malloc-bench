@@ -260,7 +260,7 @@ bool SlabMapImpl<MetadataAlloc>::AllocatePath(PageId start_id, PageId end_id) {
       }
 
       uint32_t new_leaves =
-          (last_inner_iter ? leaf_idxs.second : kNodeSize - 1) -
+          1 + (last_inner_iter ? leaf_idxs.second : kNodeSize - 1) -
           (first_inner_iter ? leaf_idxs.first : 0);
       size_leaf->AddAllocatedCount(new_leaves);
       slab_leaf->AddAllocatedCount(new_leaves);
@@ -299,13 +299,13 @@ void SlabMapImpl<MetadataAlloc>::DeallocatePath(PageId start_id,
       SlabLeaf* slab_leaf = (*slab_node)[middle_idx];
 
       uint32_t removed_leaves =
-          (last_inner_iter ? leaf_idxs.second : kNodeSize - 1) -
+          1 + (last_inner_iter ? leaf_idxs.second : kNodeSize - 1) -
           (first_inner_iter ? leaf_idxs.first : 0);
       size_leaf->RemoveAllocatedCount(removed_leaves);
       slab_leaf->RemoveAllocatedCount(removed_leaves);
 
       if (size_leaf->Empty()) {
-        size_leaf->ClearChild(middle_idx, SizeClass::Nil());
+        size_node->ClearChild(middle_idx, nullptr);
         slab_node->ClearChild(middle_idx, nullptr);
         Free(size_leaf);
         Free(slab_leaf);
@@ -416,7 +416,7 @@ void SlabMapImpl<MetadataAlloc>::Free(T* node) {
     static_assert(false);
   }
 
-  auto* free_node = FreeNode<sizeof(T)>::SetNext(node, (*list_head)->Next());
+  auto* free_node = FreeNode<sizeof(T)>::SetNext(node, *list_head);
   *list_head = free_node;
 }
 

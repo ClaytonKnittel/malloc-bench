@@ -127,14 +127,57 @@ TEST_F(SlabMapTest, TestInsertLongRange) {
 }
 
 TEST_F(SlabMapTest, TestDeallocate) {
-  MappedSlab* test_slab = reinterpret_cast<MappedSlab*>(0x5010203040);
-
   PageId id = PageId(88 + 400 * kNodeSize + 123 * kNodeSize * kNodeSize);
   EXPECT_TRUE(SlabMap().AllocatePath(id, id));
-  SlabMap().Insert(id, test_slab);
-  EXPECT_EQ(SlabMap().FindSlab(id), test_slab);
-
   SlabMap().DeallocatePath(id, id);
+
+  EXPECT_EQ(TestGlobalMetadataAlloc::TotalAllocs(), 4);
+}
+
+TEST_F(SlabMapTest, TestReallocate) {
+  PageId id1 = PageId(200 + 400 * kNodeSize + 600 * kNodeSize * kNodeSize);
+  EXPECT_TRUE(SlabMap().AllocatePath(id1, id1));
+  SlabMap().DeallocatePath(id1, id1);
+
+  PageId id2 = PageId(100 + 200 * kNodeSize + 300 * kNodeSize * kNodeSize);
+  EXPECT_TRUE(SlabMap().AllocatePath(id2, id2));
+
+  // The second AllocatePath should not require any more mallocs since it can
+  // reuse the just-deleted nodes.
+  EXPECT_EQ(TestGlobalMetadataAlloc::TotalAllocs(), 4);
+}
+
+TEST_F(SlabMapTest, TestReallocateMultiple) {
+  PageId id1 = PageId(200 + 400 * kNodeSize + 10 * kNodeSize * kNodeSize);
+  PageId id2 = PageId(100 + 500 * kNodeSize + 10 * kNodeSize * kNodeSize);
+  EXPECT_TRUE(SlabMap().AllocatePath(id1, id2));
+
+  PageId id3 = PageId(300 + 410 * kNodeSize + 10 * kNodeSize * kNodeSize);
+  PageId id4 = PageId(500 + 450 * kNodeSize + 10 * kNodeSize * kNodeSize);
+  SlabMap().DeallocatePath(id3, id4);
+
+  PageId id5 = PageId(200 + 400 * kNodeSize + 10 * kNodeSize * kNodeSize);
+  PageId id6 = PageId(250 + 410 * kNodeSize + 10 * kNodeSize * kNodeSize);
+  SlabMap().DeallocatePath(id5, id6);
+
+  PageId id7 = PageId(251 + 410 * kNodeSize + 10 * kNodeSize * kNodeSize);
+  PageId id8 = PageId(297 + 410 * kNodeSize + 10 * kNodeSize * kNodeSize);
+  SlabMap().DeallocatePath(id7, id8);
+
+  PageId id9 = PageId(298 + 410 * kNodeSize + 10 * kNodeSize * kNodeSize);
+  PageId id10 = PageId(299 + 410 * kNodeSize + 10 * kNodeSize * kNodeSize);
+  SlabMap().DeallocatePath(id9, id10);
+
+  // The second AllocatePath should not require any more mallocs since it can
+  // reuse the just-deleted nodes.
+  EXPECT_EQ(TestGlobalMetadataAlloc::TotalAllocs(), (101 + 1) * 2);
+
+  // We should be able to allocate 50 nodes worth without incurring any
+  // additional allocations.
+  PageId id11 = PageId(0 + 0 * kNodeSize + 10 * kNodeSize * kNodeSize);
+  PageId id12 = PageId(0 + 49 * kNodeSize + 10 * kNodeSize * kNodeSize);
+  EXPECT_TRUE(SlabMap().AllocatePath(id11, id12));
+  EXPECT_EQ(TestGlobalMetadataAlloc::TotalAllocs(), (101 + 1) * 2);
 }
 
 }  // namespace ckmalloc
