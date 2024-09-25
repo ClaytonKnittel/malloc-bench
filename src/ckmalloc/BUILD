@@ -221,8 +221,10 @@ cc_test(
         ":large_allocator_test_fixture",
         ":main_allocator",
         ":main_allocator_test_fixture",
+        ":metadata_manager_test_fixture",
         ":slab_manager_test_fixture",
         ":small_allocator_test_fixture",
+        ":sys_alloc",
         ":testlib",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/strings:str_format",
@@ -549,6 +551,7 @@ cc_library(
     hdrs = ["sys_alloc.h"],
     deps = [
         "//src:heap_factory",
+        "//src:heap_interface",
         "//src:mmap_heap_factory",
     ],
 )
@@ -586,6 +589,7 @@ cc_binary(
         ":global_state",
         ":heap_printer",
         ":local_cache",
+        ":util",
         "//proto:tracefile_cc_proto",
         "//src:heap_factory",
         "//src:mmap_heap_factory",
