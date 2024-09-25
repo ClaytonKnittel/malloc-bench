@@ -82,10 +82,10 @@ Void* TestMainAllocator::Realloc(Void* ptr, size_t user_size) {
       test_fixture_->allocations_.insert({ new_alloc, { user_size, magic } });
   CK_ASSERT_TRUE(inserted);
 
-  slab = test_fixture_->SlabMap().FindSlab(PageId::FromPtr(ptr));
+  slab = test_fixture_->SlabMap().FindSlab(PageId::FromPtr(new_alloc));
   CK_ASSERT_NE(slab, nullptr);
   if (slab->Type() == SlabType::kMmap) {
-    auto [_, inserted] = test_fixture_->mmap_blocks_.insert(ptr);
+    auto [_, inserted] = test_fixture_->mmap_blocks_.insert(new_alloc);
     CK_ASSERT_TRUE(inserted);
   }
 
