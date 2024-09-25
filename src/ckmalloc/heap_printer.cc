@@ -39,10 +39,9 @@ std::string HeapPrinter::Print() {
   std::string result;
 
   if (heap_ == metadata_manager_->MetadataHeap()) {
-    for (PageId page_id = PageId::FromPtr(heap_->Start());
-         page_id < PageId::FromPtr(heap_->End()); ++page_id) {
-      result += absl::StrFormat("Metadata slab: %v\n", page_id);
-    }
+    // TODO: print the metadata.
+    result += absl::StrFormat("Metadata size: %zu bytes (%zu pages)",
+                              heap_->Size(), CeilDiv(heap_->Size(), kPageSize));
     return result;
   }
 

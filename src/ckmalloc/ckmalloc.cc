@@ -1,7 +1,6 @@
 #include "src/ckmalloc/ckmalloc.h"
 
 #include <cstddef>
-#include <cstdint>
 #include <cstring>
 
 #include "src/ckmalloc/common.h"
@@ -97,9 +96,7 @@ CkMalloc* CkMalloc::Initialize() {
   bench::Heap* user_heap = alloc->Mmap(/*start_hint=*/nullptr, kHeapSize);
 
   // Allocate a metadata slab and place ourselves at the beginning of it.
-  size_t metadata_size = AlignUp(sizeof(CkMalloc), kPageSize);
-  void* metadata_heap_start =
-      metadata_heap->sbrk(static_cast<intptr_t>(metadata_size));
+  void* metadata_heap_start = metadata_heap->sbrk(sizeof(CkMalloc));
   CK_ASSERT_NE(metadata_heap_start, nullptr);
 
   CkMalloc* instance =
