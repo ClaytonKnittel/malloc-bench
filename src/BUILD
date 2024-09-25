@@ -113,6 +113,7 @@ cc_test(
         "//src/ckmalloc:metadata_manager_test_fixture",
         "//src/ckmalloc:slab_manager_test_fixture",
         "//src/ckmalloc:small_allocator_test_fixture",
+        "//src/ckmalloc:sys_alloc",
         "//src/ckmalloc:testlib",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
