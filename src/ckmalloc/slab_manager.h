@@ -367,6 +367,7 @@ SlabManagerImpl<MetadataAlloc, SlabMap>::DoAllocWithoutSbrk(uint32_t n_pages) {
 
     PageId page_id = PageId::FromPtr(slab_start);
     MappedSlab* slab = slab_map_->FindSlab(page_id);
+    CK_ASSERT_NE(slab, nullptr);
     return std::make_pair(page_id, slab);
   }
   if (smallest_multi_page_ == nullptr) {
@@ -522,12 +523,9 @@ bool SlabManagerImpl<MetadataAlloc, SlabMap>::ExtendHeap(PageId heap_end,
   if (slab_start == nullptr) {
     return false;
   }
+  CK_ASSERT_EQ(PageId::FromPtr(slab_start), heap_end);
 
-  if (!slab_map_->AllocatePath(heap_end, heap_end + n_pages - 1)) {
-    return false;
-  }
-
-  return true;
+  return slab_map_->AllocatePath(heap_end, heap_end + n_pages - 1);
 }
 
 using SlabManager = SlabManagerImpl<GlobalMetadataAlloc, SlabMap>;

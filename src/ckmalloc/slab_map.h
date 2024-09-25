@@ -27,6 +27,7 @@ class MappedSlab;
 template <MetadataAllocInterface MetadataAlloc>
 class SlabMapImpl {
   friend class SlabMapTest;
+  friend class SlabManagerFixture;
 
  public:
   // Returns the size class for the slab spanning `page_id`. Returns
@@ -59,6 +60,8 @@ class SlabMapImpl {
  private:
   template <typename T>
   class Node {
+    friend class SlabManagerFixture;
+
    public:
     // If true, this node's children are all deallocated and the node may be
     // freed.
@@ -72,11 +75,12 @@ class SlabMapImpl {
     }
 
     void SetChild(size_t idx, T val) {
+      CK_ASSERT_LT(idx, kNodeSize);
       vals_[idx] = val;
-      allocated_count_++;
     }
 
     void ClearChild(size_t idx, T val) {
+      CK_ASSERT_LT(idx, kNodeSize);
       // Only clear the child in debug builds, since we have assertions that
       // check that children are set in slab map lookup. But really, we should
       // expect no part of the code to ever try looking up a deallocated page.
@@ -85,7 +89,6 @@ class SlabMapImpl {
 #else
       (void) val;
 #endif
-      allocated_count_--;
     }
 
     void AddAllocatedCount(uint32_t count) {
@@ -253,7 +256,9 @@ bool SlabMapImpl<MetadataAlloc>::AllocatePath(PageId start_id, PageId end_id) {
           return false;
         }
         size_node.SetChild(middle_idx, size_leaf);
+        size_node.AddAllocatedCount(1);
         slab_node.SetChild(middle_idx, slab_leaf);
+        slab_node.AddAllocatedCount(1);
       } else {
         size_leaf = size_node[middle_idx];
         slab_leaf = slab_node[middle_idx];
@@ -306,7 +311,9 @@ void SlabMapImpl<MetadataAlloc>::DeallocatePath(PageId start_id,
 
       if (size_leaf->Empty()) {
         size_node->ClearChild(middle_idx, nullptr);
+        size_node->RemoveAllocatedCount(1);
         slab_node->ClearChild(middle_idx, nullptr);
+        slab_node->RemoveAllocatedCount(1);
         Free(size_leaf);
         Free(slab_leaf);
       }
