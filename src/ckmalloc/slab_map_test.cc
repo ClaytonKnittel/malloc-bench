@@ -168,8 +168,6 @@ TEST_F(SlabMapTest, TestReallocateMultiple) {
   PageId id10 = PageId(299 + 410 * kNodeSize + 10 * kNodeSize * kNodeSize);
   SlabMap().DeallocatePath(id9, id10);
 
-  // The second AllocatePath should not require any more mallocs since it can
-  // reuse the just-deleted nodes.
   EXPECT_EQ(TestGlobalMetadataAlloc::TotalAllocs(), (101 + 1) * 2);
 
   // We should be able to allocate 50 nodes worth without incurring any
