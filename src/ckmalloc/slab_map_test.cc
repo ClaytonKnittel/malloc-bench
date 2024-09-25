@@ -25,8 +25,6 @@ class SlabMapTest : public testing::Test, public CkMallocTest {
     return absl::OkStatus();
   }
 
-  bool AllocatePath(PageId start_id, PageId end_id);
-
  private:
   TestSlabMap slab_map_;
 };
