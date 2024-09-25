@@ -45,6 +45,8 @@ class TestGlobalMetadataAlloc {
   static void SlabFree(MappedSlab* slab);
   static void* Alloc(size_t size, size_t alignment);
 
+  static uint64_t TotalAllocs();
+
   // Test-only function to delete memory allocted by `Alloc`.
   static void ClearAllAllocs();
 
@@ -53,6 +55,7 @@ class TestGlobalMetadataAlloc {
 
  private:
   static TestMetadataAllocInterface* allocator_;
+  static uint64_t n_allocs_;
 };
 
 using TestSlabMap = SlabMapImpl<TestGlobalMetadataAlloc>;

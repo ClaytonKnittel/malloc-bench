@@ -1,5 +1,6 @@
 #include "src/ckmalloc/testlib.h"
 
+#include <cstdint>
 #include <memory>
 #include <new>
 #include <vector>
@@ -22,6 +23,8 @@ DetachedMetadataAlloc default_detached_allocator;
 
 TestMetadataAllocInterface* TestGlobalMetadataAlloc::allocator_ =
     &default_detached_allocator;
+
+uint64_t TestGlobalMetadataAlloc::n_allocs_ = 0;
 
 Slab* DetachedMetadataAlloc::SlabAlloc() {
 #ifdef __cpp_aligned_new
@@ -63,20 +66,31 @@ void DetachedMetadataAlloc::ClearAllAllocs() {
   allocs.clear();
 }
 
+/* static */
 Slab* TestGlobalMetadataAlloc::SlabAlloc() {
   return allocator_->SlabAlloc();
 }
 
+/* static */
 void TestGlobalMetadataAlloc::SlabFree(MappedSlab* slab) {
   allocator_->SlabFree(slab);
 }
 
+/* static */
 void* TestGlobalMetadataAlloc::Alloc(size_t size, size_t alignment) {
+  n_allocs_++;
   return allocator_->Alloc(size, alignment);
 }
 
+/* static */
+uint64_t TestGlobalMetadataAlloc::TotalAllocs() {
+  return n_allocs_;
+}
+
+/* static */
 void TestGlobalMetadataAlloc::ClearAllAllocs() {
   allocator_->ClearAllAllocs();
+  n_allocs_ = 0;
 }
 
 /* static */

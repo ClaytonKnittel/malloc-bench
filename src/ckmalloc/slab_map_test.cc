@@ -33,15 +33,17 @@ class SlabMapTest : public testing::Test, public CkMallocTest {
 
 TEST_F(SlabMapTest, TestEmpty) {
   EXPECT_EQ(SlabMap().FindSlab(PageId(1000)), nullptr);
+  EXPECT_EQ(TestGlobalMetadataAlloc::TotalAllocs(), 0);
 }
 
 TEST_F(SlabMapTest, TestInsertZero) {
-  PageId page(1024);
+  PageId page(0);
   MappedSlab* test_slab = reinterpret_cast<MappedSlab*>(0x1230);
 
   EXPECT_TRUE(SlabMap().AllocatePath(page, page));
   SlabMap().Insert(page, test_slab);
   EXPECT_EQ(SlabMap().FindSlab(page), test_slab);
+  EXPECT_EQ(TestGlobalMetadataAlloc::TotalAllocs(), 4);
 }
 
 TEST_F(SlabMapTest, TestInsert) {
@@ -54,6 +56,7 @@ TEST_F(SlabMapTest, TestInsert) {
 
   EXPECT_EQ(SlabMap().FindSlab(PageId(0)), nullptr);
   EXPECT_EQ(SlabMap().FindSlab(PageId(2 * kNodeSize)), nullptr);
+  EXPECT_EQ(TestGlobalMetadataAlloc::TotalAllocs(), 4);
 }
 
 TEST_F(SlabMapTest, TestAssignRange) {
@@ -76,6 +79,8 @@ TEST_F(SlabMapTest, TestAssignRange) {
       ASSERT_EQ(SlabMap().FindSlab(PageId(i)), nullptr);
     }
   }
+
+  EXPECT_EQ(TestGlobalMetadataAlloc::TotalAllocs(), (6 + 1) * 2);
 }
 
 TEST_F(SlabMapTest, TestInsertRange) {
@@ -95,6 +100,8 @@ TEST_F(SlabMapTest, TestInsertRange) {
       ASSERT_EQ(SlabMap().FindSlab(PageId(i)), nullptr);
     }
   }
+
+  EXPECT_EQ(TestGlobalMetadataAlloc::TotalAllocs(), (11 + 1) * 2);
 }
 
 TEST_F(SlabMapTest, TestInsertLongRange) {
@@ -114,6 +121,9 @@ TEST_F(SlabMapTest, TestInsertLongRange) {
       ASSERT_EQ(SlabMap().FindSlab(PageId(i)), nullptr);
     }
   }
+
+  EXPECT_EQ(TestGlobalMetadataAlloc::TotalAllocs(),
+            ((2 * kNodeSize + 11) + 3) * 2);
 }
 
 TEST_F(SlabMapTest, TestDeallocate) {
