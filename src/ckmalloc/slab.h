@@ -74,11 +74,11 @@ inline constexpr bool HasOneAllocation(SlabType type) {
   CK_ASSERT_NE(type, SlabType::kUnmapped);
 
   switch (type) {
-    case SlabType::kFree:
     case SlabType::kSmall:
     case SlabType::kBlocked: {
       return false;
     }
+    case SlabType::kFree:
     case SlabType::kSingleAlloc:
     case SlabType::kMmap: {
       return true;

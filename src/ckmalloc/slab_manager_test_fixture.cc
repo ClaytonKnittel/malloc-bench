@@ -306,7 +306,7 @@ absl::Status SlabManagerFixture::ValidateHeap() {
   // Validate the slab map.
   uint64_t n_pages = 0;
   for (uint32_t root_idx = 0; root_idx < kRootSize; root_idx++) {
-    TestSlabMap::Node* node = slab_map_->nodes_[root_idx];
+    TestSlabMap::Node* node = slab_map_->NodeAt(root_idx);
     if (node == nullptr) {
       if (n_pages != 0) {
         return FailedTest(
@@ -331,22 +331,21 @@ absl::Status SlabManagerFixture::ValidateHeap() {
 
       uint64_t allocated_leaf_count = 0;
       for (uint32_t leaf_idx = 0; leaf_idx < kNodeSize; leaf_idx++) {
+        if (n_pages != 0) {
+          allocated_leaf_count++;
+          n_pages--;
+          continue;
+        }
+
         MappedSlab* slab = leaf->GetSlab(leaf_idx);
         if (slab == nullptr) {
-          if (n_pages != 0) {
-            allocated_leaf_count++;
-          }
-        } else {
-          if (HasOneAllocation(slab->Type())) {
-            n_pages = slab->Pages();
-          }
-
-          allocated_leaf_count++;
+          continue;
         }
 
-        if (n_pages > 0) {
-          n_pages--;
+        if (HasOneAllocation(slab->Type())) {
+          n_pages = slab->Pages() - 1;
         }
+        allocated_leaf_count++;
       }
 
       if (leaf->allocated_count_ != allocated_leaf_count) {
