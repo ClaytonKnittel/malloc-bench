@@ -48,57 +48,12 @@ class SlabManagerFixture : public CkMallocTest {
  public:
   static constexpr const char* kPrefix = "[SlabManagerFixture]";
 
-  class HeapIterator {
-    friend class SlabManagerFixture;
-
-   public:
-    bool operator==(HeapIterator other) const {
-      return current_ == other.current_;
-    }
-    bool operator!=(HeapIterator other) const {
-      return !(*this == other);
-    }
-
-    Slab* operator*() {
-      Slab* slab = fixture_->SlabMap().FindSlab(current_);
-      // Since the slab map may have stale entries, we need to check that the
-      // slab we found still applies to this page.
-      return slab != nullptr && slab->Type() != SlabType::kUnmapped &&
-                     current_ >= slab->ToMapped()->StartId() &&
-                     current_ <= slab->ToMapped()->EndId()
-                 ? slab
-                 : nullptr;
-    }
-    Slab* operator->() {
-      return fixture_->SlabMap().FindSlab(current_);
-    }
-
-    HeapIterator operator++() {
-      Slab* current = **this;
-      // If current is `nullptr`, then this is a metadata slab.
-      current_ += current != nullptr ? current->ToMapped()->Pages() : 1;
-      return *this;
-    }
-    HeapIterator operator++(int) {
-      HeapIterator copy = *this;
-      ++*this;
-      return copy;
-    }
-
-   private:
-    HeapIterator(SlabManagerFixture* fixture, PageId page_id)
-        : fixture_(fixture), current_(page_id) {}
-
-    SlabManagerFixture* const fixture_;
-    PageId current_;
-  };
-
-  HeapIterator HeapBegin() {
-    return HeapIterator(this, HeapStartId());
+  TestHeapIterator HeapBegin() {
+    return TestHeapIterator::HeapBegin(&SlabHeap(), &SlabMap());
   }
 
-  HeapIterator HeapEnd() {
-    return HeapIterator(this, HeapEndId());
+  TestHeapIterator HeapEnd() {
+    return TestHeapIterator::HeapEnd(&SlabHeap(), &SlabMap());
   }
 
   // Only used for initializing `TestSlabManager` via the default constructor,

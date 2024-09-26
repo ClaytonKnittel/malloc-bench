@@ -8,7 +8,6 @@
 #include "src/ckmalloc/page_id.h"
 #include "src/ckmalloc/size_class.h"
 #include "src/ckmalloc/slab.h"
-#include "src/ckmalloc/slab_manager_test_fixture.h"
 #include "src/ckmalloc/small_allocator.h"
 
 namespace ckmalloc {

@@ -86,12 +86,25 @@ cc_library(
 )
 
 cc_library(
+    name = "heap_iterator",
+    hdrs = ["heap_iterator.h"],
+    deps = [
+        ":common",
+        ":page_id",
+        ":slab",
+        ":slab_map",
+        "//src:heap_interface",
+    ],
+)
+
+cc_library(
     name = "heap_printer",
     srcs = ["heap_printer.cc"],
     hdrs = ["heap_printer.h"],
     deps = [
         ":block",
         ":common",
+        ":heap_iterator",
         ":metadata_manager",
         ":page_id",
         ":size_class",
@@ -566,6 +579,7 @@ cc_library(
     deps = [
         ":block",
         ":common",
+        ":heap_iterator",
         ":page_id",
         ":slab",
         ":slab_map",

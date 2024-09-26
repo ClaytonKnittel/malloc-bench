@@ -11,6 +11,7 @@
 
 #include "src/ckmalloc/block.h"
 #include "src/ckmalloc/common.h"
+#include "src/ckmalloc/heap_iterator.h"
 #include "src/ckmalloc/page_id.h"
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/slab_map.h"
@@ -178,6 +179,8 @@ class TestHeapFactory : public bench::HeapFactory {
  protected:
   absl::StatusOr<std::unique_ptr<bench::Heap>> MakeHeap(size_t size) override;
 };
+
+using TestHeapIterator = HeapIteratorImpl<TestSlabMap>;
 
 class CkMallocTest {
  public:
