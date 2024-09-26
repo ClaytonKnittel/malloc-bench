@@ -1,3 +1,5 @@
+load("@rules_python//python:defs.bzl", "py_binary")
+
 cc_library(
     name = "ckmalloc",
     srcs = ["ckmalloc.cc"],
@@ -350,6 +352,21 @@ cc_test(
         "@cc-util//util:gtest_util",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
+    ],
+)
+
+cc_binary(
+    name = "profile",
+    srcs = ["profile.cc"],
+    data = [
+        "//traces",
+    ],
+    deps = [
+        ":common",
+        "//proto:tracefile_cc_proto",
+        "//src:tracefile_reader",
+        "@abseil-cpp//absl/algorithm:container",
+        "@abseil-cpp//absl/container:flat_hash_map",
     ],
 )
 

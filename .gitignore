@@ -3,3 +3,4 @@
 /agg.py
 /allocs.txt
 traces/*.trace
+/prof.out
