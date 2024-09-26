@@ -59,12 +59,8 @@ class SlabManagerImpl {
   MappedSlab* LastSlab();
 
   // Allocates `n_pages` contiguous pages, returning the `PageId` of the first
-  // page in the slab, and potentially returning an allocated a `Slab` metadata
-  // without initializing it. If there was no availability, it returns
-  // `nullopt`. This method will not attempt to allocate slab metadata, so if
-  // there was no extra slab metadata relinquished by changes made to the heap,
-  // the slab metadata pointer returned will be null and the user has to
-  // allocate slab metadata.
+  // page in the slab, and returning an allocated a `Slab` metadata without
+  // initializing it.
   std::optional<std::pair<PageId, Slab*>> Alloc(uint32_t n_pages);
 
   // Finds a region of memory to return for `Alloc`, returning the `PageId` of
@@ -72,8 +68,7 @@ class SlabManagerImpl {
   // to hold metadata for this region. This method will not increase the size of
   // the heap, and may return `std::nullopt` if there was no memory region large
   // enough for this allocation already available.
-  std::optional<std::pair<PageId, MappedSlab*>> DoAllocWithoutSbrk(
-      uint32_t n_pages);
+  std::optional<std::pair<PageId, Slab*>> DoAllocWithoutSbrk(uint32_t n_pages);
 
   // Tries to allocate `n_pages` at the end of the heap, which should increase
   // the size of the heap. This should be called if allocating within the heap
@@ -148,13 +143,7 @@ SlabManagerImpl<MetadataAlloc, SlabMap>::Alloc(uint32_t n_pages, Args... args) {
 
   DEFINE_OR_RETURN_OPT(AllocResult, result, Alloc(n_pages));
   auto [page_id, slab] = std::move(result);
-  if (slab == nullptr) {
-    slab = MetadataAlloc::SlabAlloc();
-    if (slab == nullptr) {
-      // TODO: clean up uninitialized allocated memory.
-      return std::nullopt;
-    }
-  }
+  CK_ASSERT_NE(slab, nullptr);
 
   S* initialized_slab =
       slab->Init<S>(page_id, n_pages, std::forward<Args>(args)...);
@@ -359,7 +348,7 @@ SlabManagerImpl<MetadataAlloc, SlabMap>::Alloc(uint32_t n_pages) {
 }
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
-std::optional<std::pair<PageId, MappedSlab*>>
+std::optional<std::pair<PageId, Slab*>>
 SlabManagerImpl<MetadataAlloc, SlabMap>::DoAllocWithoutSbrk(uint32_t n_pages) {
   if (n_pages == 1 && !single_page_freelist_.Empty()) {
     FreeSinglePageSlab* slab_start = single_page_freelist_.Front();
@@ -391,7 +380,7 @@ SlabManagerImpl<MetadataAlloc, SlabMap>::DoAllocWithoutSbrk(uint32_t n_pages) {
   RemoveMultiPageFreeSlab(slab_start);
 
   PageId page_id = PageId::FromPtr(slab_start);
-  MappedSlab* slab = slab_map_->FindSlab(page_id);
+  Slab* slab = slab_map_->FindSlab(page_id);
   CK_ASSERT_NE(slab, nullptr);
   uint32_t actual_pages = slab_start->Pages();
   CK_ASSERT_GE(actual_pages, n_pages);
@@ -401,8 +390,8 @@ SlabManagerImpl<MetadataAlloc, SlabMap>::DoAllocWithoutSbrk(uint32_t n_pages) {
     // to coalesce here.
     FreeRegion(slab, page_id + n_pages, actual_pages - n_pages);
     // We have used the slab metadata for this new free region, so we will need
-    // to allocate our own later.
-    slab = nullptr;
+    // to allocate another.
+    slab = MetadataAlloc::SlabAlloc();
   }
 
   return std::make_pair(page_id, slab);
@@ -432,6 +421,11 @@ SlabManagerImpl<MetadataAlloc, SlabMap>::AllocEndWithSbrk(uint32_t n_pages) {
 
   if (!ExtendHeap(new_memory_id, required_pages)) {
     return std::nullopt;
+  }
+  if (slab == nullptr) {
+    slab = MetadataAlloc::SlabAlloc();
+    // TODO: handle failed allocation.
+    CK_ASSERT_NE(slab, nullptr);
   }
 
   return std::make_pair(start_id, slab);
