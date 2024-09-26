@@ -25,7 +25,8 @@ void CkMalloc::InitializeHeap(bench::HeapFactory& heap_factory) {
   Initialize();
 }
 
-void* CkMalloc::Malloc(size_t size) {
+void* CkMalloc::Malloc(size_t size, size_t alignment) {
+  (void) alignment;
   if (size == 0) {
     return nullptr;
   }
@@ -47,7 +48,7 @@ void* CkMalloc::Malloc(size_t size) {
 }
 
 void* CkMalloc::Calloc(size_t nmemb, size_t size) {
-  void* block = Malloc(nmemb * size);
+  void* block = Malloc(nmemb * size, /*alignment=*/0);
   if (block != nullptr) {
     memset(block, 0, nmemb * size);
   }
@@ -58,13 +59,15 @@ void* CkMalloc::Realloc(void* ptr, size_t size) {
   CK_ASSERT_NE(size, 0);
   Void* p = reinterpret_cast<Void*>(ptr);
   if (p == nullptr) {
-    return Malloc(size);
+    return Malloc(size, /*alignment=*/0);
   }
   // TODO: use cache here.
   return global_state_.MainAllocator()->Realloc(p, size);
 }
 
-void CkMalloc::Free(void* ptr) {
+void CkMalloc::Free(void* ptr, size_t size_hint, size_t alignment_hint) {
+  (void) size_hint;
+  (void) alignment_hint;
   Void* p = reinterpret_cast<Void*>(ptr);
   if (p == nullptr) {
     return;

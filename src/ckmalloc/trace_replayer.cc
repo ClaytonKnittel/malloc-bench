@@ -72,9 +72,10 @@ class FindMaxAllocations : public TracefileExecutor {
     CkMalloc::InitializeHeap(heap_factory);
   }
 
-  absl::StatusOr<void*> Malloc(size_t size) override {
+  absl::StatusOr<void*> Malloc(size_t size,
+                               std::optional<size_t> alignment) override {
     iter_++;
-    void* result = CkMalloc::Instance()->Malloc(size);
+    void* result = CkMalloc::Instance()->Malloc(size, alignment.value_or(0));
     if (result != nullptr) {
       alloc_sizes_[result] = size;
       total_allocations_ += size;
@@ -120,14 +121,16 @@ class FindMaxAllocations : public TracefileExecutor {
     return result;
   }
 
-  absl::Status Free(void* ptr) override {
+  absl::Status Free(void* ptr, std::optional<size_t> size_hint,
+                    std::optional<size_t> alignment_hint) override {
     iter_++;
     if (ptr != nullptr) {
       auto it = alloc_sizes_.find(ptr);
       total_allocations_ -= it->second;
       alloc_sizes_.erase(it);
     }
-    CkMalloc::Instance()->Free(ptr);
+    CkMalloc::Instance()->Free(ptr, size_hint.value_or(0),
+                               alignment_hint.value_or(0));
     return absl::OkStatus();
   }
 
@@ -148,6 +151,8 @@ struct TraceOp {
   size_t input_nmemb;
   // For malloc/calloc/realloc/free_hint, the requested size.
   size_t input_size;
+  // For malloc/free_hint, the requested alignment.
+  size_t input_alignment;
 
   // For malloc/calloc/realloc, the result of this operation (only defined after
   // the operation has occurred).
@@ -192,17 +197,20 @@ class TraceReplayer : public TracefileExecutor {
     cur_heap_ = user_heap_;
   }
 
-  absl::StatusOr<void*> Malloc(size_t size) override {
+  absl::StatusOr<void*> Malloc(size_t size,
+                               std::optional<size_t> alignment) override {
     prev_op_ = next_op_;
     next_op_ = {
       .op = Op::kMalloc,
       .input_size = size,
+      .input_alignment = alignment.value_or(0),
     };
     RETURN_IF_ERROR(RefreshPrintedHeap());
 
     RETURN_IF_ERROR(AwaitInput());
 
-    DEFINE_OR_RETURN(void*, result, CkMalloc::Instance()->Malloc(size));
+    DEFINE_OR_RETURN(void*, result,
+                     CkMalloc::Instance()->Malloc(size, alignment.value_or(0)));
     next_op_.result = result;
     return result;
   }
@@ -239,17 +247,21 @@ class TraceReplayer : public TracefileExecutor {
     return result;
   }
 
-  absl::Status Free(void* ptr) override {
+  absl::Status Free(void* ptr, std::optional<size_t> size_hint,
+                    std::optional<size_t> alignment_hint) override {
     prev_op_ = next_op_;
     next_op_ = {
       .op = Op::kFree,
       .input_ptr = ptr,
+      .input_size = size_hint.value_or(0),
+      .input_alignment = alignment_hint.value_or(0),
     };
     RETURN_IF_ERROR(RefreshPrintedHeap());
 
     RETURN_IF_ERROR(AwaitInput());
 
-    CkMalloc::Instance()->Free(ptr);
+    CkMalloc::Instance()->Free(ptr, size_hint.value_or(0),
+                               alignment_hint.value_or(0));
     return absl::OkStatus();
   }
 

@@ -19,13 +19,13 @@ class CkMalloc {
 
   static void InitializeHeap(bench::HeapFactory& heap_factory);
 
-  void* Malloc(size_t size);
+  void* Malloc(size_t size, size_t alignment);
 
   void* Calloc(size_t nmemb, size_t size);
 
   void* Realloc(void* ptr, size_t size);
 
-  void Free(void* ptr);
+  void Free(void* ptr, size_t size_hint, size_t alignment_hint);
 
   size_t GetSize(void* ptr);
 

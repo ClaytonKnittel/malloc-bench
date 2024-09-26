@@ -41,10 +41,12 @@ class TestCkMalloc : public TracefileExecutor {
         validate_every_n_(validate_every_n) {}
 
   void InitializeHeap(HeapFactory& heap_factory) override;
-  absl::StatusOr<void*> Malloc(size_t size) override;
+  absl::StatusOr<void*> Malloc(size_t size,
+                               std::optional<size_t> alignment) override;
   absl::StatusOr<void*> Calloc(size_t nmemb, size_t size) override;
   absl::StatusOr<void*> Realloc(void* ptr, size_t size) override;
-  absl::Status Free(void* ptr) override;
+  absl::Status Free(void* ptr, std::optional<size_t> size_hint,
+                    std::optional<size_t> alignment_hint) override;
 
  private:
   class TestCorrectness* fixture_;
@@ -129,7 +131,9 @@ void TestCkMalloc::InitializeHeap(HeapFactory& heap_factory) {
   ckmalloc::TestSysAlloc::NewInstance(&heap_factory);
 }
 
-absl::StatusOr<void*> TestCkMalloc::Malloc(size_t size) {
+absl::StatusOr<void*> TestCkMalloc::Malloc(size_t size,
+                                           std::optional<size_t> alignment) {
+  (void) alignment;
   if (size == 0) {
     return nullptr;
   }
@@ -152,12 +156,12 @@ absl::StatusOr<void*> TestCkMalloc::Malloc(size_t size) {
 }
 
 absl::StatusOr<void*> TestCkMalloc::Calloc(size_t nmemb, size_t size) {
-  return Malloc(nmemb * size);
+  return Malloc(nmemb * size, /*alignment=*/0);
 }
 
 absl::StatusOr<void*> TestCkMalloc::Realloc(void* ptr, size_t size) {
   if (ptr == nullptr) {
-    return Malloc(size);
+    return Malloc(size, /*alignment=*/0);
   }
 
   CK_ASSERT_NE(size, 0);
@@ -180,7 +184,10 @@ absl::StatusOr<void*> TestCkMalloc::Realloc(void* ptr, size_t size) {
   return result;
 }
 
-absl::Status TestCkMalloc::Free(void* ptr) {
+absl::Status TestCkMalloc::Free(void* ptr, std::optional<size_t> size_hint,
+                                std::optional<size_t> alignment_hint) {
+  (void) size_hint;
+  (void) alignment_hint;
   if (ptr == nullptr) {
     return absl::OkStatus();
   }
