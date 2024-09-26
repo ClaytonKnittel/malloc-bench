@@ -48,9 +48,12 @@ namespace {
  * "malloc" has aliases "_Znwm", "_Znam".
  */
 const std::regex kFreeRegex(
-    R"(--(\d+)-- (?:free|_ZdlPv|_ZdaPv|_ZdlPvm|_ZdaPvm)\(([0-9A-Fa-fx]+)\))");
+    R"(--(\d+)-- (?:free|_ZdlPv|_ZdaPv|_ZdlPvm|_ZdaPvm|_ZdlPvSt11align_val_t)\(([0-9A-Fa-fx]+)\))");
 const std::regex kMallocRegex(
-    R"(--(\d+)-- (?:malloc|_Znwm|_Znam)\((\d+)\) = ([0-9A-Fa-fx]+))");
+    R"(--(\d+)-- (?:malloc|_Znwm|_Znam|_ZnwmRKSt9nothrow_t)\((\d+)\) = ([0-9A-Fa-fx]+))");
+const std::regex kAlignedAllocRegex(
+    R"(--(\d+)-- (?:_ZnwmSt11align_val_t)\(size (\d+), al (\d+)\) = ([0-9A-Fa-fx]+))"
+);
 const std::regex kCallocRegex(
     R"(--(\d+)-- calloc\((\d+),(\d+)\) = ([0-9A-Fa-fx]+))");
 const std::regex kReallocRegex(
@@ -118,6 +121,10 @@ class DirtyTracefileReader {
         break;
       }
 
+      if (!line_str.starts_with("--")) {
+        continue;
+      }
+
       TraceLine line;
       std::smatch match;
       int32_t pid;
@@ -143,6 +150,21 @@ class DirtyTracefileReader {
         DEFINE_OR_RETURN(uint64_t, id, get_next_id(result_ptr));
         proto::TraceLine_Malloc* malloc = line.mutable_malloc();
         malloc->set_input_size(input_size);
+        malloc->set_result_id(id);
+      } else if (std::regex_match(line_str, match, kAlignedAllocRegex)) {
+        ASSIGN_OR_RETURN(pid, ParsePid(match[1].str()));
+
+        uint64_t input_size;
+        ASSIGN_OR_RETURN(input_size, ParseSize(match[2].str()));
+        uint64_t input_alignment;
+        ASSIGN_OR_RETURN(input_alignment, ParseSize(match[3].str()));
+        void* result_ptr;
+        ASSIGN_OR_RETURN(result_ptr, ParsePtr(match[4].str()));
+
+        DEFINE_OR_RETURN(uint64_t, id, get_next_id(result_ptr));
+        proto::TraceLine_Malloc* malloc = line.mutable_malloc();
+        malloc->set_input_size(input_size);
+        malloc->set_input_alignment(input_alignment);
         malloc->set_result_id(id);
       } else if (std::regex_match(line_str, match, kCallocRegex)) {
         ASSIGN_OR_RETURN(pid, ParsePid(match[1].str()));
@@ -178,7 +200,7 @@ class DirtyTracefileReader {
         realloc->set_input_size(input_size);
         realloc->set_result_id(id);
       } else {
-        continue;
+        return absl::FailedPreconditionError(absl::StrFormat("Unrecognized operation: %v", line_str));
       }
 
       if (!required_pid.has_value()) {
