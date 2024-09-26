@@ -30,7 +30,11 @@ absl::Status TracefileExecutor::ProcessTracefile() {
     switch (line.op_case()) {
       case TraceLine::kMalloc: {
         const TraceLine::Malloc& malloc = line.malloc();
-        DEFINE_OR_RETURN(void*, ptr, Malloc(malloc.input_size()));
+        std::optional<size_t> alignment =
+            malloc.has_input_alignment()
+                ? std::optional(malloc.input_alignment())
+                : std::nullopt;
+        DEFINE_OR_RETURN(void*, ptr, Malloc(malloc.input_size(), alignment));
 
         if (malloc.input_size() != 0 && malloc.has_result_id()) {
           id_map[malloc.result_id()] = ptr;
@@ -65,12 +69,19 @@ absl::Status TracefileExecutor::ProcessTracefile() {
       case TraceLine::kFree: {
         const TraceLine::Free& free = line.free();
         if (!free.has_input_id()) {
-          RETURN_IF_ERROR(Free(nullptr));
+          RETURN_IF_ERROR(Free(nullptr, std::nullopt, std::nullopt));
           break;
         }
 
         void* ptr = id_map[free.input_id()];
-        RETURN_IF_ERROR(Free(ptr));
+        std::optional<size_t> size_hint =
+            free.has_input_size_hint() ? std::optional(free.input_size_hint())
+                                       : std::nullopt;
+        std::optional<size_t> alignment_hint =
+            free.has_input_alignment_hint()
+                ? std::optional(free.input_alignment_hint())
+                : std::nullopt;
+        RETURN_IF_ERROR(Free(ptr, size_hint, alignment_hint));
         break;
       }
       case TraceLine::OP_NOT_SET: {
