@@ -1,5 +1,3 @@
-load("@rules_python//python:defs.bzl", "py_binary")
-
 cc_library(
     name = "ckmalloc",
     srcs = ["ckmalloc.cc"],
