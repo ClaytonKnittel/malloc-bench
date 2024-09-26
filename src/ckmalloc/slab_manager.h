@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <utility>
@@ -15,6 +14,7 @@
 #include "src/ckmalloc/size_class.h"
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/slab_map.h"
+#include "src/ckmalloc/sys_alloc.h"
 #include "src/ckmalloc/util.h"
 #include "src/heap_interface.h"
 
@@ -48,8 +48,6 @@ class SlabManagerImpl {
   Block* FirstBlockInBlockedSlab(const BlockedSlab* slab) const;
 
  private:
-  size_t HeapSize() const;
-
   // Returns the `PageId` of the end of the heap (i.e. one page past the last
   // allocated slab).
   PageId HeapEndPageId();
@@ -108,11 +106,8 @@ class SlabManagerImpl {
   // `HeapEndPageId()`.
   bool ExtendHeap(PageId heap_end, uint32_t n_pages);
 
-  // The heap that this SlabManager allocates slabs from.
+  // The heap that this SlabManager is currently allocating new slabs from.
   bench::Heap* heap_;
-
-  // The start of the current heap being allocated from.
-  void* const heap_start_;
 
   // The slab manager needs to access the slab map when coalescing to know if
   // the adjacent slabs are free or allocated, and if they are free how large
@@ -131,7 +126,7 @@ class SlabManagerImpl {
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
 SlabManagerImpl<MetadataAlloc, SlabMap>::SlabManagerImpl(bench::Heap* heap,
                                                          SlabMap* slab_map)
-    : heap_(heap), heap_start_(heap_->Start()), slab_map_(slab_map) {}
+    : heap_(heap), slab_map_(slab_map) {}
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
 template <typename S, typename... Args>
@@ -324,18 +319,13 @@ Block* SlabManagerImpl<MetadataAlloc, SlabMap>::FirstBlockInBlockedSlab(
 }
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
-size_t SlabManagerImpl<MetadataAlloc, SlabMap>::HeapSize() const {
-  return PtrDistance(heap_->End(), heap_start_);
-}
-
-template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
 PageId SlabManagerImpl<MetadataAlloc, SlabMap>::HeapEndPageId() {
   return PageId::FromPtr(heap_->End());
 }
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
 MappedSlab* SlabManagerImpl<MetadataAlloc, SlabMap>::LastSlab() {
-  CK_ASSERT_NE(HeapSize(), 0);
+  CK_ASSERT_NE(heap_->Size(), 0);
   return slab_map_->FindSlab(HeapEndPageId() - 1);
 }
 
@@ -404,19 +394,40 @@ SlabManagerImpl<MetadataAlloc, SlabMap>::AllocEndWithSbrk(uint32_t n_pages) {
   // can use it and only allocate the difference past the end of the heap.
   Slab* slab;
   uint32_t required_pages = n_pages;
-  PageId start_id = PageId::Nil();
+
+  PageId start_id;
+  FreeSlab* last_free_slab;
   // The `PageId` of where newly allocated memory willl start.
   PageId new_memory_id = HeapEndPageId();
-  if (HeapSize() != 0 && (slab = LastSlab())->Type() == SlabType::kFree) {
-    FreeSlab* free_slab = slab->ToFree();
-    required_pages -= free_slab->Pages();
-    start_id = free_slab->StartId();
+  if (heap_->Size() != 0 && (slab = LastSlab())->Type() == SlabType::kFree) {
+    last_free_slab = slab->ToFree();
+    required_pages -= last_free_slab->Pages();
+    start_id = last_free_slab->StartId();
 
     // We will be taking `slab`, so remove it from its freelist.
-    RemoveFreeSlab(free_slab);
+    // RemoveFreeSlab(free_slab);
   } else {
+    last_free_slab = nullptr;
     slab = nullptr;
     start_id = new_memory_id;
+  }
+
+  uint32_t remaining_pages = (heap_->MaxSize() - heap_->Size()) / kPageSize;
+  if (remaining_pages < required_pages) {
+    // We need to allocate a new heap.
+
+    if (last_free_slab != nullptr) {
+      bool result = ExtendHeap(new_memory_id, remaining_pages);
+      CK_ASSERT_TRUE(result);
+
+      RemoveFreeSlab(last_free_slab);
+      FreeRegion(last_free_slab, start_id,
+                 last_free_slab->Pages() + remaining_pages);
+    }
+
+    CK_ASSERT_EQ(heap_->Size(), heap_->MaxSize());
+    // TODO: use new heap now
+    TestSysAlloc::Instance()->Mmap(/*start_hint=*/heap_->End(), kHeapSize);
   }
 
   if (!ExtendHeap(new_memory_id, required_pages)) {
