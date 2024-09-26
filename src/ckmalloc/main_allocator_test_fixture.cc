@@ -197,9 +197,10 @@ absl::Status MainAllocatorFixture::ValidateHeap() {
   // considered allocated by the metadata allocator, and that no slabs are
   // missing.
   uint64_t num_slabs = 0;
-  for (PageId page_id = PageId::FromPtr(heap_->Start());
-       page_id != PageId::FromPtr(heap_->End());) {
-    MappedSlab* mapped_slab = SlabMap().FindSlab(page_id);
+  for (auto slab_it = TestHeapIterator::HeapBegin(heap_.get(), slab_map_.get());
+       slab_it != TestHeapIterator::HeapEnd(heap_.get(), slab_map_.get());
+       ++slab_it) {
+    MappedSlab* mapped_slab = *slab_it;
     if (!metadata_manager_test_fixture_->AllocatedSlabMeta().contains(
             mapped_slab)) {
       return FailedTest(
@@ -207,7 +208,6 @@ absl::Status MainAllocatorFixture::ValidateHeap() {
           mapped_slab);
     }
     num_slabs++;
-    page_id += mapped_slab->Pages();
   }
 
   for (const Void* mmap_alloc : mmap_blocks_) {

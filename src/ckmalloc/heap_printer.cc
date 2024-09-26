@@ -10,6 +10,7 @@
 
 #include "src/ckmalloc/block.h"
 #include "src/ckmalloc/common.h"
+#include "src/ckmalloc/heap_iterator.h"
 #include "src/ckmalloc/metadata_manager.h"
 #include "src/ckmalloc/page_id.h"
 #include "src/ckmalloc/size_class.h"
@@ -45,9 +46,9 @@ std::string HeapPrinter::Print() {
     return result;
   }
 
-  for (PageId page_id = PageId::FromPtr(heap_->Start());
-       page_id < PageId::FromPtr(heap_->End());) {
-    MappedSlab* slab = slab_map_->FindSlab(page_id);
+  for (auto slab_it = HeapIterator::HeapBegin(heap_, slab_map_);
+       slab_it != HeapIterator::HeapEnd(heap_, slab_map_); ++slab_it) {
+    MappedSlab* slab = *slab_it;
     CK_ASSERT_NE(slab, nullptr);
 
     switch (slab->Type()) {
@@ -77,8 +78,6 @@ std::string HeapPrinter::Print() {
     }
 
     result += "\n";
-
-    page_id += slab->Pages();
   }
 
   return result;
