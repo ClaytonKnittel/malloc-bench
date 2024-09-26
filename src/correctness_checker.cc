@@ -182,8 +182,6 @@ absl::Status CorrectnessChecker::HandleNewAllocation(void* ptr, size_t size,
       ptr,
       AllocatedBlock{
           .size = size,
-          .alignment =
-              (alignment != 0 ? std::optional(alignment) : std::nullopt),
           .magic_bytes = magic_bytes,
       },
   });

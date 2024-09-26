@@ -27,7 +27,6 @@ class CorrectnessChecker : private TracefileExecutor {
  private:
   struct AllocatedBlock {
     size_t size;
-    std::optional<size_t> alignment;
     uint64_t magic_bytes;
   };
 
