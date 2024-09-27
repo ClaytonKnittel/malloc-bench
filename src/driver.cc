@@ -80,10 +80,11 @@ absl::StatusOr<TraceResult> RunTrace(const std::string& tracefile,
     result.correct = true;
   }
 
+  heap_factory.Reset();
+
   if (result.correct) {
-    DEFINE_OR_RETURN(
-        double, mega_ops,
-        TimeTrace(reader, heap_factory, absl::GetFlag(FLAGS_perftest_iters)));
+    DEFINE_OR_RETURN(double, mega_ops,
+                     TimeTrace(reader, absl::GetFlag(FLAGS_perftest_iters)));
     DEFINE_OR_RETURN(double, utilization,
                      MeasureUtilization(reader, heap_factory));
 

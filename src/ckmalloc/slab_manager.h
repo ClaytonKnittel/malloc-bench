@@ -15,8 +15,8 @@
 #include "src/ckmalloc/size_class.h"
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/slab_map.h"
+#include "src/ckmalloc/sys_alloc.h"
 #include "src/ckmalloc/util.h"
-#include "src/heap_interface.h"
 
 namespace ckmalloc {
 
@@ -27,7 +27,7 @@ class SlabManagerImpl {
   friend class TraceReplayer;
 
  public:
-  explicit SlabManagerImpl(bench::Heap* heap, SlabMap* slab_map);
+  explicit SlabManagerImpl(void* heap, SlabMap* slab_map);
 
   // Allocates `n_pages` contiguous pages and initializes a slab metadata for
   // that region.
@@ -113,11 +113,10 @@ class SlabManagerImpl {
   // `HeapEndPageId()`.
   bool ExtendHeap(PageId heap_end, uint32_t n_pages);
 
-  // The heap that this SlabManager allocates slabs from.
-  bench::Heap* heap_;
-
   // The start of the current heap being allocated from.
-  void* const heap_start_;
+  void* heap_start_;
+  // The end of already-allocated memory from the heap.
+  void* heap_end_;
 
   // The slab manager needs to access the slab map when coalescing to know if
   // the adjacent slabs are free or allocated, and if they are free how large
@@ -134,9 +133,9 @@ class SlabManagerImpl {
 };
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
-SlabManagerImpl<MetadataAlloc, SlabMap>::SlabManagerImpl(bench::Heap* heap,
+SlabManagerImpl<MetadataAlloc, SlabMap>::SlabManagerImpl(void* heap,
                                                          SlabMap* slab_map)
-    : heap_(heap), heap_start_(heap_->Start()), slab_map_(slab_map) {}
+    : heap_start_(heap), heap_end_(heap), slab_map_(slab_map) {}
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
 template <typename S, typename... Args>
@@ -336,12 +335,12 @@ Block* SlabManagerImpl<MetadataAlloc, SlabMap>::FirstBlockInBlockedSlab(
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
 size_t SlabManagerImpl<MetadataAlloc, SlabMap>::HeapSize() const {
-  return PtrDistance(heap_->End(), heap_start_);
+  return PtrDistance(heap_end_, heap_start_);
 }
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
 PageId SlabManagerImpl<MetadataAlloc, SlabMap>::HeapEndPageId() {
-  return PageId::FromPtr(heap_->End());
+  return PageId::FromPtr(heap_end_);
 }
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
@@ -512,11 +511,18 @@ template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
 bool SlabManagerImpl<MetadataAlloc, SlabMap>::ExtendHeap(PageId heap_end,
                                                          uint32_t n_pages) {
   CK_ASSERT_EQ(heap_end, HeapEndPageId());
-  void* slab_start = heap_->sbrk(n_pages * kPageSize);
-  if (slab_start == nullptr) {
+
+  const size_t increment = n_pages * kPageSize;
+  void* const heap_max = PtrAdd(heap_start_, kHeapSize);
+  if (PtrAdd(heap_end_, increment) > heap_max) {
     return false;
   }
+
+  SysAlloc::Instance()->Sbrk(heap_start_, increment, heap_end_);
+  void* slab_start = heap_end_;
   CK_ASSERT_EQ(PageId::FromPtr(slab_start), heap_end);
+
+  heap_end_ = PtrAdd(heap_end_, increment);
 
   return slab_map_->AllocatePath(heap_end, heap_end + n_pages - 1);
 }

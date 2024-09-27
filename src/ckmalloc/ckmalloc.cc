@@ -10,8 +10,6 @@
 #include "src/ckmalloc/size_class.h"
 #include "src/ckmalloc/sys_alloc.h"
 #include "src/ckmalloc/util.h"
-#include "src/heap_factory.h"
-#include "src/heap_interface.h"
 
 namespace ckmalloc {
 
@@ -19,9 +17,8 @@ namespace ckmalloc {
 CkMalloc* CkMalloc::instance_ = nullptr;
 
 /* static */
-void CkMalloc::InitializeHeap(bench::HeapFactory& heap_factory) {
+void CkMalloc::InitializeHeap() {
   LocalCache::ClearLocalCaches();
-  TestSysAlloc::NewInstance(&heap_factory);
   Initialize();
 }
 
@@ -88,22 +85,23 @@ size_t CkMalloc::GetSize(void* ptr) {
   return global_state_.MainAllocator()->AllocSize(reinterpret_cast<Void*>(ptr));
 }
 
-CkMalloc::CkMalloc(bench::Heap* metadata_heap, bench::Heap* user_heap)
-    : global_state_(metadata_heap, user_heap) {}
+CkMalloc::CkMalloc(void* metadata_heap, void* metadata_heap_end,
+                   void* user_heap)
+    : global_state_(metadata_heap, metadata_heap_end, user_heap) {}
 
 /* static */
 CkMalloc* CkMalloc::Initialize() {
-  TestSysAlloc* alloc = TestSysAlloc::Instance();
+  SysAlloc* alloc = SysAlloc::Instance();
   CK_ASSERT_NE(alloc, nullptr);
-  bench::Heap* metadata_heap = alloc->Mmap(/*start_hint=*/nullptr, kHeapSize);
-  bench::Heap* user_heap = alloc->Mmap(/*start_hint=*/nullptr, kHeapSize);
+  void* metadata_heap = alloc->Mmap(/*start_hint=*/nullptr, kHeapSize);
+  void* user_heap = alloc->Mmap(/*start_hint=*/nullptr, kHeapSize);
 
   // Allocate a metadata slab and place ourselves at the beginning of it.
-  void* metadata_heap_start = metadata_heap->sbrk(sizeof(CkMalloc));
-  CK_ASSERT_NE(metadata_heap_start, nullptr);
+  alloc->Sbrk(metadata_heap, sizeof(CkMalloc), metadata_heap);
+  void* metadata_heap_end = PtrAdd(metadata_heap, sizeof(CkMalloc));
 
   CkMalloc* instance =
-      new (metadata_heap_start) CkMalloc(metadata_heap, user_heap);
+      new (metadata_heap) CkMalloc(metadata_heap, metadata_heap_end, user_heap);
   instance_ = instance;
   return instance;
 }

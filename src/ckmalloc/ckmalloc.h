@@ -3,8 +3,6 @@
 #include <cstddef>
 
 #include "src/ckmalloc/global_state.h"
-#include "src/heap_factory.h"
-#include "src/heap_interface.h"
 
 namespace ckmalloc {
 
@@ -17,7 +15,7 @@ class CkMalloc {
     return instance_;
   }
 
-  static void InitializeHeap(bench::HeapFactory& heap_factory);
+  static void InitializeHeap();
 
   void* Malloc(size_t size, size_t alignment);
 
@@ -34,7 +32,8 @@ class CkMalloc {
   }
 
  private:
-  explicit CkMalloc(bench::Heap* metadata_heap, bench::Heap* user_heap);
+  explicit CkMalloc(void* metadata_heap, void* metadata_heap_end,
+                    void* user_heap);
 
   // Initializes the allocator by allocating the metadata heap and first user
   // heap.

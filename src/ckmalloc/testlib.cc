@@ -10,6 +10,7 @@
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/util.h"
+#include "src/heap_interface.h"
 
 namespace ckmalloc {
 
@@ -109,6 +110,59 @@ absl::StatusOr<std::unique_ptr<bench::Heap>> TestHeapFactory::MakeHeap(
     size_t size) {
   CK_ASSERT_TRUE(IsAligned(size, kPageSize));
   return std::make_unique<TestHeap>(size / kPageSize);
+}
+
+TestSysAlloc::TestSysAlloc(bench::HeapFactory* heap_factory)
+    : heap_factory_(heap_factory) {}
+
+/* static */
+TestSysAlloc* TestSysAlloc::NewInstance(bench::HeapFactory* heap_factory) {
+  TestSysAlloc* sys_alloc = new TestSysAlloc(heap_factory);
+  instance_ = sys_alloc;
+  return sys_alloc;
+}
+
+void* TestSysAlloc::Mmap(void* start_hint, size_t size) {
+  (void) start_hint;
+  auto result = heap_factory_->NewInstance(size);
+  if (!result.ok()) {
+    std::cerr << "Mmap failed: " << result.status() << std::endl;
+    return nullptr;
+  }
+
+  bench::Heap* heap = result.value();
+  void* heap_start = heap->Start();
+  heap_map_.emplace(heap_start, heap);
+
+  return heap_start;
+}
+
+void TestSysAlloc::Munmap(void* ptr, size_t size) {
+  auto it = heap_map_.find(ptr);
+  CK_ASSERT_TRUE(it == heap_map_.end());
+  bench::Heap* heap = it->second;
+  CK_ASSERT_EQ(size, heap->Size());
+
+  auto result = heap_factory_->DeleteInstance(heap);
+  if (!result.ok()) {
+    std::cerr << "Heap delete failed: " << result << std::endl;
+    CK_ASSERT_TRUE(result.ok());
+  }
+
+  heap_map_.erase(it);
+}
+
+void TestSysAlloc::Sbrk(void* heap_start, size_t increment, void* current_end) {
+  bench::Heap* heap = HeapFromStart(heap_start);
+
+  void* result = heap->sbrk(increment);
+  CK_ASSERT_EQ(result, current_end);
+}
+
+bench::Heap* TestSysAlloc::HeapFromStart(void* heap_start) {
+  auto it = heap_map_.find(heap_start);
+  CK_ASSERT_TRUE(it == heap_map_.end());
+  return it->second;
 }
 
 }  // namespace ckmalloc

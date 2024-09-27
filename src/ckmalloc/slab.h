@@ -9,7 +9,6 @@
 #include "src/ckmalloc/size_class.h"
 #include "src/ckmalloc/slice.h"
 #include "src/ckmalloc/slice_id.h"
-#include "src/heap_interface.h"
 
 namespace ckmalloc {
 
@@ -256,8 +255,6 @@ class Slab {
         struct {
         } page_multiple;
         struct {
-          // The heap backed by this slab.
-          bench::Heap* heap_;
         } mmap;
       };
     } mapped;
@@ -445,8 +442,6 @@ class MmapSlab : public AllocatedSlab {
   const BlockedSlab* ToBlocked() const = delete;
   SingleAllocSlab* ToSingleAlloc() = delete;
   const SingleAllocSlab* ToSingleAlloc() const = delete;
-
-  bench::Heap* Heap();
 };
 
 // The sizes of all subtypes of slab must be equal.
@@ -472,7 +467,7 @@ BlockedSlab* Slab::Init(PageId start_id, uint32_t n_pages);
 template <>
 SingleAllocSlab* Slab::Init(PageId start_id, uint32_t n_pages);
 template <>
-MmapSlab* Slab::Init(PageId start_id, uint32_t n_pages, bench::Heap* heap);
+MmapSlab* Slab::Init(PageId start_id, uint32_t n_pages);
 
 template <typename T>
 requires std::is_integral_v<T>

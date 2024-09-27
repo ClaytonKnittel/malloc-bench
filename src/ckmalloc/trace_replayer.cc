@@ -25,6 +25,7 @@
 #include "src/ckmalloc/global_state.h"
 #include "src/ckmalloc/heap_printer.h"
 #include "src/ckmalloc/local_cache.h"
+#include "src/ckmalloc/testlib.h"
 #include "src/ckmalloc/util.h"
 #include "src/heap_factory.h"
 #include "src/mmap_heap_factory.h"
@@ -69,7 +70,8 @@ class FindMaxAllocations : public TracefileExecutor {
   }
 
   void InitializeHeap(HeapFactory& heap_factory) override {
-    CkMalloc::InitializeHeap(heap_factory);
+    TestSysAlloc::NewInstance(&heap_factory);
+    CkMalloc::InitializeHeap();
   }
 
   absl::StatusOr<void*> Malloc(size_t size,
@@ -190,10 +192,13 @@ class TraceReplayer : public TracefileExecutor {
   }
 
   void InitializeHeap(HeapFactory& heap_factory) override {
-    CkMalloc::InitializeHeap(heap_factory);
-    metadata_heap_ =
-        CkMalloc::Instance()->GlobalState()->MetadataManager()->MetadataHeap();
-    user_heap_ = CkMalloc::Instance()->GlobalState()->SlabManager()->heap_;
+    TestSysAlloc::NewInstance(&heap_factory);
+    CkMalloc::InitializeHeap();
+    TestSysAlloc* sys_alloc = TestSysAlloc::NewInstance(&heap_factory);
+    metadata_heap_ = sys_alloc->HeapFromStart(
+        CkMalloc::Instance()->GlobalState()->MetadataManager()->heap_);
+    user_heap_ = sys_alloc->HeapFromStart(
+        CkMalloc::Instance()->GlobalState()->SlabManager()->heap_start_);
     cur_heap_ = user_heap_;
   }
 

@@ -15,7 +15,6 @@
 #include "src/ckmalloc/small_allocator.h"
 #include "src/ckmalloc/sys_alloc.h"
 #include "src/ckmalloc/util.h"
-#include "src/heap_interface.h"
 
 namespace ckmalloc {
 
@@ -283,19 +282,18 @@ Void* MainAllocatorImpl<MetadataAlloc, SlabMap, SlabManager, SmallAllocator,
   }
 
   uint32_t n_pages = CeilDiv(user_size, kPageSize);
-  bench::Heap* heap = TestSysAlloc::Instance()->Mmap(
+  void* mmap_start = SysAlloc::Instance()->Mmap(
       /*start_hint=*/nullptr, n_pages * kPageSize);
-  if (heap == nullptr) {
+  if (mmap_start == nullptr) {
     MetadataAlloc::SlabFree(static_cast<AllocatedSlab*>(slab));
     return nullptr;
   }
-  heap->sbrk(n_pages * kPageSize);
+  SysAlloc::Instance()->Sbrk(mmap_start, n_pages * kPageSize, mmap_start);
 
-  void* heap_start = heap->Start();
-  PageId start_id = PageId::FromPtr(heap_start);
-  MmapSlab* mmap_slab = slab->Init<MmapSlab>(start_id, n_pages, heap);
+  PageId start_id = PageId::FromPtr(mmap_start);
+  MmapSlab* mmap_slab = slab->Init<MmapSlab>(start_id, n_pages);
 
-  Void* ptr = static_cast<Void*>(heap_start);
+  Void* ptr = static_cast<Void*>(mmap_start);
   if (!slab_map_->AllocatePath(start_id, start_id)) {
     FreeMmap(mmap_slab, ptr);
     MetadataAlloc::SlabFree(mmap_slab);
@@ -312,7 +310,8 @@ template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap,
 void MainAllocatorImpl<MetadataAlloc, SlabMap, SlabManager, SmallAllocator,
                        LargeAllocator>::FreeMmap(MmapSlab* slab, Void* ptr) {
   CK_ASSERT_EQ(slab->StartId().PageStart(), ptr);
-  TestSysAlloc::Instance()->Munmap(slab->Heap());
+  SysAlloc::Instance()->Munmap(slab->StartId().PageStart(),
+                               slab->Pages() * kPageSize);
   slab_map_->DeallocatePath(slab->StartId(), slab->StartId());
   MetadataAlloc::SlabFree(slab);
 }

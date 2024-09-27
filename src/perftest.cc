@@ -5,7 +5,6 @@
 #include "absl/time/time.h"
 
 #include "src/allocator_interface.h"
-#include "src/heap_factory.h"
 #include "src/tracefile_reader.h"
 
 namespace bench {
@@ -14,15 +13,11 @@ using proto::TraceLine;
 
 // Runs at least 1000000 ops, and returns the average MOps/s.
 absl::StatusOr<double> TimeTrace(TracefileReader& reader,
-                                 HeapFactory& heap_factory,
                                  size_t min_desired_ops) {
   size_t num_repetitions = (min_desired_ops - 1) / reader.size() + 1;
   std::vector<void*> ptrs(reader.Tracefile().max_simultaneous_allocs());
 
-  heap_factory.Reset();
-
   absl::Time start = absl::Now();
-  initialize_heap(heap_factory);
   for (size_t t = 0; t < num_repetitions; t++) {
     for (const TraceLine& line : reader) {
       switch (line.op_case()) {

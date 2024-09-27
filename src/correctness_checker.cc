@@ -14,6 +14,7 @@
 #include "src/allocator_interface.h"
 #include "src/heap_factory.h"
 #include "src/rng.h"
+#include "src/test_allocator_interface.h"
 #include "src/tracefile_executor.h"
 #include "src/tracefile_reader.h"
 
@@ -43,7 +44,7 @@ CorrectnessChecker::CorrectnessChecker(TracefileReader&& reader,
 
 void CorrectnessChecker::InitializeHeap(HeapFactory& heap_factory) {
   heap_factory.Reset();
-  initialize_heap(heap_factory);
+  initialize_test_heap(heap_factory);
 }
 
 absl::StatusOr<void*> CorrectnessChecker::Malloc(

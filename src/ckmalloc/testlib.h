@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <memory>
 
+#include "absl/container/flat_hash_map.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
@@ -15,6 +16,7 @@
 #include "src/ckmalloc/page_id.h"
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/slab_map.h"
+#include "src/ckmalloc/sys_alloc.h"
 #include "src/ckmalloc/util.h"
 #include "src/heap_factory.h"
 #include "src/heap_interface.h"
@@ -181,6 +183,26 @@ class TestHeapFactory : public bench::HeapFactory {
 };
 
 using TestHeapIterator = HeapIteratorImpl<TestSlabMap>;
+
+class TestSysAlloc : public SysAlloc {
+ public:
+  explicit TestSysAlloc(bench::HeapFactory* heap_factory);
+
+  static TestSysAlloc* NewInstance(bench::HeapFactory* heap_factory);
+
+  void* Mmap(void* start_hint, size_t size) override;
+
+  void Munmap(void* ptr, size_t size) override;
+
+  void Sbrk(void* heap_start, size_t increment, void* current_end) override;
+
+  bench::Heap* HeapFromStart(void* heap_start);
+
+ private:
+  bench::HeapFactory* heap_factory_;
+
+  absl::flat_hash_map<void*, bench::Heap*> heap_map_;
+};
 
 class CkMallocTest {
  public:

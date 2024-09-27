@@ -39,7 +39,7 @@ HeapPrinter& HeapPrinter::WithHighlightAddr(void* addr, const char* color_fmt) {
 std::string HeapPrinter::Print() {
   std::string result;
 
-  if (heap_ == metadata_manager_->MetadataHeap()) {
+  if (heap_ == metadata_manager_->heap_) {
     // TODO: print the metadata.
     result += absl::StrFormat("Metadata size: %zu bytes (%zu pages)",
                               heap_->Size(), CeilDiv(heap_->Size(), kPageSize));

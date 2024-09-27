@@ -7,6 +7,7 @@
 #include "util/absl_util.h"
 
 #include "src/ckmalloc/slab.h"
+#include "src/ckmalloc/sys_alloc.h"
 #include "src/ckmalloc/testlib.h"
 #include "src/ckmalloc/util.h"
 #include "src/heap_interface.h"
@@ -28,7 +29,8 @@ void* TestMetadataAlloc::Alloc(size_t size, size_t alignment) {
 
 TestMetadataManager::TestMetadataManager(MetadataManagerFixture* test_fixture,
                                          TestHeap* heap, TestSlabMap* slab_map)
-    : test_fixture_(test_fixture), metadata_manager_(heap, slab_map) {}
+    : test_fixture_(test_fixture),
+      metadata_manager_(heap->Start(), heap->End(), slab_map) {}
 
 void* TestMetadataManager::Alloc(size_t size, size_t alignment) {
   void* block = metadata_manager_.Alloc(size, alignment);
@@ -218,7 +220,13 @@ absl::Status MetadataManagerFixture::ValidateHeap() {
 absl::Status MetadataManagerFixture::TraceBlockAllocation(void* block,
                                                           size_t size,
                                                           size_t alignment) {
-  const bench::Heap* heap = metadata_manager_->Underlying().heap_;
+  TestSysAlloc* sys_alloc = dynamic_cast<TestSysAlloc*>(SysAlloc::Instance());
+  if (sys_alloc == nullptr) {
+    return FailedTest("Sys alloc %p down-cast to TestSysAlloc %p",
+                      SysAlloc::Instance(), sys_alloc);
+  }
+  const bench::Heap* heap =
+      sys_alloc->HeapFromStart(metadata_manager_->Underlying().heap_);
   // Check that the pointer is aligned relative to the heap start. The heap
   // will be page-aligned in production, but may not be in tests.
   if ((PtrDistance(block, heap->Start()) & (alignment - 1)) != 0) {
