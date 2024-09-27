@@ -1,3 +1,4 @@
 build --repo_env=CC=clang
 build --features=layering_check
 build --cxxopt=-std=c++20
+build --copt=-fno-exceptions
