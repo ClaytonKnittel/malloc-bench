@@ -142,6 +142,7 @@ cc_library(
 cc_library(
     name = "libc_override",
     srcs = ["libc_override.cc"],
+    copts = ["-fexceptions"],
     deps = [
         ":allocator_interface",
     ],
