@@ -3,6 +3,8 @@
 #include <cstddef>
 
 #include "src/ckmalloc/global_state.h"
+#include "src/ckmalloc/sys_alloc.h"
+#include "src/ckmalloc/util.h"
 
 namespace ckmalloc {
 
@@ -10,9 +12,17 @@ class CkMalloc {
  public:
   // Returns the singleton `CkMalloc` instance.
   static CkMalloc* Instance() {
+    if (CK_EXPECT_FALSE(instance_ == nullptr)) {
+      RealSysAlloc::UseRealSysAlloc();
+      InitializeHeap();
+    }
     CK_ASSERT_NE(instance_, nullptr);
     instance_->global_state_.AssertConsistency();
     return instance_;
+  }
+
+  static void Reset() {
+    instance_ = nullptr;
   }
 
   static void InitializeHeap();

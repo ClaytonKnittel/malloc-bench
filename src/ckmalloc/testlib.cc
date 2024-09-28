@@ -121,11 +121,15 @@ TestSysAlloc::TestSysAlloc(bench::HeapFactory* heap_factory)
 
 /* static */
 TestSysAlloc* TestSysAlloc::NewInstance(bench::HeapFactory* heap_factory) {
-  std::cout << "new instance: " << heap_factory << std::endl;
   TestSysAlloc* sys_alloc = new TestSysAlloc(heap_factory);
   CK_ASSERT_EQ(instance_, nullptr);
   instance_ = sys_alloc;
   return sys_alloc;
+}
+
+/* static */
+void TestSysAlloc::Reset() {
+  instance_ = nullptr;
 }
 
 void* TestSysAlloc::Mmap(void* start_hint, size_t size) {
@@ -166,10 +170,6 @@ void TestSysAlloc::Sbrk(void* heap_start, size_t increment, void* current_end) {
 }
 
 bench::Heap* TestSysAlloc::HeapFromStart(void* heap_start) {
-  for (const auto [start, heap] : heap_map_) {
-    std::cout << start << ": " << heap->Size() << std::endl;
-  }
-  std::cout << "lookup: " << heap_start << std::endl;
   auto it = heap_map_.find(heap_start);
   CK_ASSERT_TRUE(it != heap_map_.end());
   return it->second;

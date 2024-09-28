@@ -190,6 +190,8 @@ class TestSysAlloc : public SysAlloc {
 
   static TestSysAlloc* NewInstance(bench::HeapFactory* heap_factory);
 
+  static void Reset();
+
   void* Mmap(void* start_hint, size_t size) override;
 
   void Munmap(void* ptr, size_t size) override;

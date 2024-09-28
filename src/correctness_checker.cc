@@ -33,7 +33,9 @@ absl::Status CorrectnessChecker::Check(TracefileReader& reader,
 
   CorrectnessChecker checker(std::move(reader), heap_factory);
   checker.verbose_ = verbose;
-  return checker.Run();
+  auto result = checker.Run();
+  reset_test_heap();
+  return result;
 }
 
 CorrectnessChecker::CorrectnessChecker(TracefileReader&& reader,
@@ -44,6 +46,7 @@ CorrectnessChecker::CorrectnessChecker(TracefileReader&& reader,
 
 void CorrectnessChecker::InitializeHeap(HeapFactory& heap_factory) {
   heap_factory.Reset();
+  reset_test_heap();
   initialize_test_heap(heap_factory);
 }
 

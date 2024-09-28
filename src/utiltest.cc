@@ -31,6 +31,7 @@ absl::StatusOr<double> MeasureUtilization(TracefileReader& reader,
       reader.Tracefile().max_simultaneous_allocs());
 
   heap_factory.Reset();
+  reset_test_heap();
   initialize_test_heap(heap_factory);
 
   size_t total_allocated_bytes = 0;
@@ -101,6 +102,8 @@ absl::StatusOr<double> MeasureUtilization(TracefileReader& reader,
     }
     max_heap_size = std::max(heap_size, max_heap_size);
   }
+
+  reset_test_heap();
 
   if (total_allocated_bytes != 0) {
     return absl::InternalError(

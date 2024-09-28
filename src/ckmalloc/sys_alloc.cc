@@ -6,9 +6,16 @@ namespace ckmalloc {
 
 SysAlloc* SysAlloc::instance_ = nullptr;
 
+RealSysAlloc RealSysAlloc::instance_;
+
 /* static */
 SysAlloc* SysAlloc::Instance() {
   return instance_;
+}
+
+/* static */
+void RealSysAlloc::UseRealSysAlloc() {
+  SysAlloc::instance_ = &instance_;
 }
 
 void* RealSysAlloc::Mmap(void* start_hint, size_t size) {
