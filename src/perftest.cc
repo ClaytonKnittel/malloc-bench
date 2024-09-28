@@ -27,13 +27,16 @@ absl::StatusOr<double> TimeTrace(TracefileReader& reader,
     for (const TraceLine& line : reader) {
       switch (line.op_case()) {
         case TraceLine::kMalloc: {
-          void* ptr = malloc(line.malloc().input_size());
+          void* ptr = malloc(line.malloc().input_size(),
+                             line.malloc().has_input_alignment()
+                                 ? line.malloc().input_alignment()
+                                 : 0);
           ptrs[line.malloc().result_id()] = ptr;
           break;
         }
         case TraceLine::kCalloc: {
           void* ptr =
-              calloc(line.calloc().input_nmemb(), line.calloc().input_size());
+              malloc(line.calloc().input_nmemb() * line.calloc().input_size());
           ptrs[line.calloc().result_id()] = ptr;
           break;
         }
@@ -47,7 +50,12 @@ absl::StatusOr<double> TimeTrace(TracefileReader& reader,
         }
         case TraceLine::kFree: {
           free(line.free().has_input_id() ? ptrs[line.free().input_id()]
-                                          : nullptr);
+                                          : nullptr,
+               line.free().has_input_size_hint() ? line.free().input_size_hint()
+                                                 : 0,
+               line.free().has_input_alignment_hint()
+                   ? line.free().input_alignment_hint()
+                   : 0);
           break;
         }
         case TraceLine::OP_NOT_SET: {

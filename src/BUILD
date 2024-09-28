@@ -57,9 +57,9 @@ cc_library(
     hdrs = ["allocator_interface.h"],
     deps = [
         ":heap_factory",
-        "//src/jsmalloc",
         ":heap_interface",
         ":mmap_heap",
+        "//src/jsmalloc",
     ],
 )
 
@@ -119,6 +119,7 @@ cc_library(
 cc_library(
     name = "libc_override",
     srcs = ["libc_override.cc"],
+    copts = ["-fexceptions"],
     deps = [
         ":allocator_interface",
     ],
@@ -193,6 +194,7 @@ cc_binary(
         "@cc-util//util:absl_util",
         "@protobuf",
         "@protobuf//src/google/protobuf/io",
+        "@re2",
     ],
 )
 
