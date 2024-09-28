@@ -217,6 +217,7 @@ cc_binary(
         "@cc-util//util:absl_util",
         "@protobuf",
         "@protobuf//src/google/protobuf/io",
+        "@re2",
     ],
 )
 
