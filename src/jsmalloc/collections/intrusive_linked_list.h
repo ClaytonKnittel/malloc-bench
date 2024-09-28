@@ -121,17 +121,21 @@ class IntrusiveLinkedList {
   }
 
   Item* front() {
-    if (empty()) {
-      return nullptr;
-    }
-    return Accessor::GetItem(head_.next_);
+    Item* item =  Accessor::GetItem(head_.next_);
+    return empty() ? nullptr : item;
   }
 
   Item* back() {
-    if (empty()) {
-      return nullptr;
+    Item* item =  Accessor::GetItem(head_.prev_);
+    return empty() ? nullptr : item;
+  }
+
+  size_t DebugSize() {
+    size_t size = 0;
+    for (auto it = this->begin(); it != this->end(); ++it) {
+      size++;
     }
-    return Accessor::GetItem(head_.prev_);
+    return size;
   }
 
  private:

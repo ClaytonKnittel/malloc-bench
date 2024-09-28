@@ -31,7 +31,8 @@ void LargeBlockAllocator::Free(void* ptr) {
   if (ptr == nullptr) {
     return;
   }
-  allocator_.Free(BlockHeader::FromDataPtr(ptr));
+
+  allocator_.Free(LargeBlock::FromDataPtr(ptr)->Header());
 }
 
 }  // namespace blocks

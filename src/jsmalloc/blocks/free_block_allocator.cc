@@ -2,52 +2,62 @@
 
 #include "src/jsmalloc/blocks/block.h"
 #include "src/jsmalloc/blocks/free_block.h"
+#include "src/jsmalloc/blocks/freelists/learned_size_free_list.h"
+#include "src/jsmalloc/blocks/freelists/small_size_free_list.h"
 #include "src/jsmalloc/blocks/sentinel_block_allocator.h"
 #include "src/jsmalloc/util/assert.h"
-#include "src/jsmalloc/util/math.h"
+
+#include "absl/base/prefetch.h"
 
 namespace jsmalloc {
 namespace blocks {
 
-FreeBlockAllocator::FreeBlockAllocator(SentinelBlockHeap& heap) : heap_(heap) {
-  empty_exact_size_lists_.SetRange(0, kExactSizeBins);
-};
+size_t hits = 0;
+size_t total = 0;
+
+FreeBlockAllocator::FreeBlockAllocator(SentinelBlockHeap& heap) : heap_(heap){};
 
 FreeBlock* FreeBlockAllocator::FindBestFit(size_t size) {
   DCHECK_EQ(size % 16, 0);
-
-  if (size <= kMaxSizeForExactBins) {
-    size_t idx = empty_exact_size_lists_.FindFirstUnsetBitFrom(
-        math::div_ceil(size, kBytesPerExactSizeBin));
-    if (idx < kExactSizeBins) {
-      return exact_size_lists_[idx].front();
+  if (size <= SmallSizeFreeList::kMaxSize) {
+    FreeBlock* block = small_size_free_list_.FindBestFit(size);
+    if (block != nullptr) {
+      return block;
+    }
+  } else {
+    FreeBlock* block = learned_size_free_list_.FindBestFit(size);
+    if (block != nullptr) {
+      return block;
     }
   }
-
-  return free_blocks_.LowerBound(
-      [size](const FreeBlock& block) { return block.BlockSize() >= size; });
+  return rbtree_free_list_.FindBestFit(size);
 }
 
 void FreeBlockAllocator::Remove(FreeBlock* block) {
-  if (block->BlockSize() <= kMaxSizeForExactBins) {
-    size_t idx = math::div_ceil(block->BlockSize(), kBytesPerExactSizeBin);
-
-    FreeBlock::List::unlink(*block);
-    empty_exact_size_lists_.Set(idx, exact_size_lists_[idx].empty());
-  } else {
-    free_blocks_.Remove(block);
+  switch (block->GetStorageLocation()) {
+    case FreeBlock::StorageLocation::kRbTree:
+      rbtree_free_list_.Remove(block);
+      break;
+    case FreeBlock::StorageLocation::kSmallSizeFreeList:
+      small_size_free_list_.Remove(block);
+      break;
+    case FreeBlock::StorageLocation::kLearnedSizeList:
+      learned_size_free_list_.MaybeRemove(block);
+      break;
+    case FreeBlock::StorageLocation::kUntracked:
+      break;
   }
 }
 
 void FreeBlockAllocator::Insert(FreeBlock* block) {
-  if (block->BlockSize() <= kMaxSizeForExactBins) {
-    size_t idx = math::div_ceil(block->BlockSize(), kBytesPerExactSizeBin);
-
-    exact_size_lists_[idx].insert_front(*block);
-    empty_exact_size_lists_.Set(idx, false);
-  } else {
-    free_blocks_.Insert(block);
+  if (block->BlockSize() <= SmallSizeFreeList::kMaxSize) {
+    small_size_free_list_.Insert(block);
+    return;
   }
+  if (learned_size_free_list_.MaybeInsert(block)) {
+    return;
+  }
+  rbtree_free_list_.Insert(block);
 }
 
 FreeBlock* FreeBlockAllocator::Allocate(size_t size) {

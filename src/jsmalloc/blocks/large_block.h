@@ -26,13 +26,20 @@ class LargeBlock {
   /** Pointer to the data stored by this block. */
   void* Data();
 
+  static constexpr LargeBlock* FromDataPtr(void* data) {
+    return twiddle::AddPtrOffset<LargeBlock>(
+        data, -static_cast<int32_t>(offsetof(LargeBlock, data_)));
+  }
+
+  BlockHeader* Header() { 
+    return &header_;
+  }
+
  private:
   explicit LargeBlock(size_t block_size, bool prev_block_is_free);
 
   BlockHeader header_;
-  [[maybe_unused]] uint8_t alignment_[8];
-  DataPreamble data_preamble_;
-  uint8_t data_[];
+  alignas(16) uint8_t data_[];
 };
 
 }  // namespace blocks

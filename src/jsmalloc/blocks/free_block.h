@@ -23,6 +23,13 @@ class FreeBlockList;
  */
 class FreeBlock {
  public:
+  enum class StorageLocation {
+    kUntracked = 0,
+    kRbTree = 1,
+    kSmallSizeFreeList = 2,
+    kLearnedSizeList = 3,
+  };
+
   /** Creates a new free block. */
   static FreeBlock* New(SentinelBlockHeap& heap, size_t size);
 
@@ -63,6 +70,10 @@ class FreeBlock {
   /** Consumes the next block. */
   void ConsumeNextBlock();
 
+  void SetStorageLocation(StorageLocation loc);
+
+  StorageLocation GetStorageLocation() const;
+
   class TreeComparator {
    public:
     bool operator()(const FreeBlock& lhs, const FreeBlock& rhs) const {
@@ -102,6 +113,7 @@ class FreeBlock {
   FreeBlock(size_t size, bool prev_block_is_free);
 
   BlockHeader header_;
+  StorageLocation location_ = StorageLocation::kUntracked;
   RbNode free_tree_node_;
   List::Node list_node_;
 };

@@ -1,9 +1,13 @@
 #pragma once
 
+#include <cstddef>
+
 #include "src/jsmalloc/blocks/block.h"
 #include "src/jsmalloc/blocks/free_block.h"
+#include "src/jsmalloc/blocks/freelists/rbtree_free_list.h"
+#include "src/jsmalloc/blocks/freelists/learned_size_free_list.h"
+#include "src/jsmalloc/blocks/freelists/small_size_free_list.h"
 #include "src/jsmalloc/blocks/sentinel_block_allocator.h"
-#include "src/jsmalloc/util/bitset.h"
 
 namespace jsmalloc {
 namespace blocks {
@@ -30,19 +34,14 @@ class FreeBlockAllocator {
   void Free(BlockHeader* block);
 
  private:
-  static constexpr size_t kMaxSizeForExactBins = 8112;
-  static constexpr size_t kBytesPerExactSizeBin = 16;
-  static constexpr size_t kExactSizeBins =
-      kMaxSizeForExactBins / kBytesPerExactSizeBin + 1;
-
   FreeBlock* FindBestFit(size_t size);
   void Remove(FreeBlock* block);
   void Insert(FreeBlock* block);
 
   SentinelBlockHeap& heap_;
-  FreeBlock::Tree free_blocks_;
-  BitSet<kExactSizeBins> empty_exact_size_lists_;
-  FreeBlock::List exact_size_lists_[kExactSizeBins];
+  RbTreeFreeList rbtree_free_list_;
+  SmallSizeFreeList small_size_free_list_;
+  LearnedSizeFreeList learned_size_free_list_;
 };
 
 }  // namespace blocks

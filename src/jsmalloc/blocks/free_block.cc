@@ -98,5 +98,13 @@ FreeBlock::FreeBlock(size_t size, bool prev_block_is_free)
   footer->block = this;
 }
 
+void FreeBlock::SetStorageLocation(FreeBlock::StorageLocation loc) {
+  location_ = loc;
+}
+
+FreeBlock::StorageLocation FreeBlock::GetStorageLocation() const {
+  return location_;
+}
+
 }  // namespace blocks
 }  // namespace jsmalloc

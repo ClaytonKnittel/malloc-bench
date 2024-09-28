@@ -58,6 +58,7 @@ cc_library(
     deps = [
         ":block",
         ":free_block",
+        "//src/jsmalloc/util:twiddle",
         ":free_block_allocator",
         ":sentinel_block_allocator",
         "//src/jsmalloc:allocator",
@@ -187,9 +188,13 @@ cc_library(
         ":sentinel_block_allocator",
         "//src/jsmalloc:allocator",
         "//src/jsmalloc/collections:intrusive_linked_list",
+        "//src/jsmalloc/blocks/freelists:small_size_free_list",
+        "//src/jsmalloc/blocks/freelists:learned_size_free_list",
+        "//src/jsmalloc/blocks/freelists:rbtree_free_list",
         "//src/jsmalloc/util:assert",
         "//src/jsmalloc/util:bitset",
         "//src/jsmalloc/util:math",
+        "@abseil-cpp//absl/base:prefetch",
     ],
 )
 

@@ -138,15 +138,7 @@ void free(void* ptr) {
     heap_globals->small_block_allocator_.Free(ptr);
     return;
   }
-
-  blocks::BlockHeader* hdr = blocks::BlockHeader::FromDataPtr(ptr);
-  if (hdr->Kind() == blocks::BlockKind::kLarge) {
-    heap_globals->large_block_allocator_.Free(ptr);
-  } else {
-    std::cerr << "unexpected block type: " << static_cast<int>(hdr->Kind())
-              << std::endl;
-    std::terminate();
-  }
+  heap_globals->large_block_allocator_.Free(ptr);
 }
 
 }  // namespace jsmalloc

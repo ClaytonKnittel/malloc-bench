@@ -50,7 +50,9 @@ class BlockHeader {
   BlockHeader(uint32_t size, BlockKind kind, bool prev_block_is_free);
 
   /** The total size of the block. */
-  uint32_t BlockSize() const;
+  uint32_t BlockSize() const {
+    return block_size_ << 4;
+  };
 
   /** The kind of the block. */
   BlockKind Kind() const;
@@ -70,13 +72,15 @@ class BlockHeader {
   /** Sets `PrevBlockIsFree` for the next block on the heap. */
   void SignalFreeToNextBlock(bool free);
 
+  BlockHeader* NextBlock();
+
  private:
   void SetBlockSize(uint32_t size);
   void SetPrevBlockIsFree(bool value);
 
-  BlockKind kind_ : 3;
+  BlockKind kind_          : 3;
   bool prev_block_is_free_ : 1;
-  uint32_t block_size_ : 28;
+  uint32_t block_size_     : 28;
 
 #ifdef ENABLE_MAGIC_CHECKS
   static constexpr uint32_t kMagicValue = 0xdeadbeef;
