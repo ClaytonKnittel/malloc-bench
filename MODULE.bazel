@@ -1,9 +1,4 @@
-###############################################################################
-# Bazel now uses Bzlmod by default to manage external dependencies.
-# Please consider migrating your external dependencies from WORKSPACE to MODULE.bazel.
-#
-# For more details, please check https://github.com/bazelbuild/bazel/issues/18958
-###############################################################################
+"Correctness and performance benchmarking suite for malloc implementations"
 
 # Hedron's Compile Commands Extractor for Bazel
 # https://github.com/hedronvision/bazel-compile-commands-extractor
@@ -26,3 +21,4 @@ bazel_dep(name = "buildifier_prebuilt", version = "6.4.0", dev_dependency = True
 bazel_dep(name = "abseil-cpp", version = "20240116.2")
 bazel_dep(name = "googletest", version = "1.14.0.bcr.1")
 bazel_dep(name = "protobuf", version = "28.2")
+bazel_dep(name = "re2", version = "2024-07-02")
