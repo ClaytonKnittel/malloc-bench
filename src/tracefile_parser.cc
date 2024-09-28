@@ -24,9 +24,10 @@ ABSL_FLAG(std::string, trace, "", "File path of the trace to clean.");
 
 ABSL_FLAG(bool, binary, false, "Output binary proto");
 
-ABSL_FLAG(uint64_t, stop_after, std::numeric_limits<uint64_t>::max(),
-          "Parses only this many operations before closing the tracefile and "
-          "freeing all currently-allocated regions.");
+ABSL_FLAG(uint64_t, max_ops, std::numeric_limits<uint64_t>::max(),
+          "Limits the total number of ops in a trace. A tracefile will stop "
+          "being parsed after enough ops have been parsed, accounting for "
+          "needing to free all allocated memory.");
 
 namespace bench {
 
@@ -123,7 +124,8 @@ class DirtyTracefileReader {
       return id;
     };
 
-    for (uint64_t iter = 0; iter < absl::GetFlag(FLAGS_stop_after); iter++) {
+    for (uint64_t iter = 0;
+         iter + id_map.size() < absl::GetFlag(FLAGS_max_ops); iter++) {
       std::string line_str;
       if (std::getline(file, line_str).eof()) {
         break;
