@@ -112,7 +112,6 @@ cc_test(
     shard_count = 44,
     deps = [
         ":heap_factory",
-        ":mmap_heap_factory",
         ":tracefile_executor",
         ":tracefile_reader",
         "//src/ckmalloc:common",

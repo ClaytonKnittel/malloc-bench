@@ -17,12 +17,14 @@ using util::IsOk;
 
 class SlabManagerTest : public testing::Test {
  public:
-  static constexpr size_t kNumPages = 64;
-
   SlabManagerTest()
-      : heap_(std::make_shared<TestHeap>(kNumPages)),
+      : heap_factory_(std::make_shared<TestHeapFactory>(kHeapSize)),
+        heap_(static_cast<TestHeap*>(heap_factory_->Instances().begin()->get()),
+              Noop<TestHeap>),
         slab_map_(std::make_shared<TestSlabMap>()),
-        test_fixture_(heap_, slab_map_) {}
+        test_fixture_(heap_, slab_map_) {
+    TestSysAlloc::NewInstance(heap_factory_.get());
+  }
 
   TestSlabManager& SlabManager() {
     return test_fixture_.SlabManager();
@@ -41,6 +43,7 @@ class SlabManagerTest : public testing::Test {
   }
 
  private:
+  std::shared_ptr<TestHeapFactory> heap_factory_;
   std::shared_ptr<TestHeap> heap_;
   std::shared_ptr<TestSlabMap> slab_map_;
   SlabManagerFixture test_fixture_;
@@ -102,7 +105,7 @@ TEST_F(SlabManagerTest, SingleLargeSlab) {
 
 TEST_F(SlabManagerTest, SlabTooLargeDoesNotAllocate) {
   ASSERT_OK_AND_DEFINE(AllocatedSlab*, slab,
-                       Fixture().AllocateSlab(kNumPages + 1));
+                       Fixture().AllocateSlab(kHeapSize / kPageSize + 1));
   EXPECT_EQ(slab, nullptr);
   EXPECT_EQ(Fixture().SlabHeap().Size(), 0);
   EXPECT_THAT(ValidateHeap(), IsOk());

@@ -24,16 +24,8 @@ using util::IsOk;
 
 class MainAllocatorTest : public ::testing::Test {
  public:
-  static constexpr size_t kNumPages = 64;
-
-  template <typename T>
-  static void Noop(T* val) {
-    (void) val;
-  }
-
   MainAllocatorTest()
-      : heap_factory_(std::make_shared<TestHeapFactory>(kNumPages * kPageSize,
-                                                        kNumPages * kPageSize)),
+      : heap_factory_(std::make_shared<TestHeapFactory>(kHeapSize, kHeapSize)),
         metadata_heap_(
             static_cast<TestHeap*>(heap_factory_->Instances().begin()->get()),
             Noop<TestHeap>),

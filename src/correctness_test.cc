@@ -17,7 +17,6 @@
 #include "src/ckmalloc/small_allocator_test_fixture.h"
 #include "src/ckmalloc/testlib.h"
 #include "src/heap_factory.h"
-#include "src/mmap_heap_factory.h"
 #include "src/tracefile_executor.h"
 #include "src/tracefile_reader.h"
 
@@ -39,7 +38,8 @@ class TestCkMalloc : public TracefileExecutor {
         fixture_(fixture),
         validate_every_n_(validate_every_n) {}
 
-  void InitializeHeap(HeapFactory& heap_factory) override;
+  void InitializeHeap(HeapFactory& heap_factory) override {}
+
   absl::StatusOr<void*> Malloc(size_t size,
                                std::optional<size_t> alignment) override;
   absl::StatusOr<void*> Calloc(size_t nmemb, size_t size) override;
@@ -55,12 +55,15 @@ class TestCkMalloc : public TracefileExecutor {
 
 class TestCorrectness : public ::testing::Test {
  public:
-  static constexpr size_t kNumPages =
-      1 << (ckmalloc::kHeapSizeShift - ckmalloc::kPageShift);
-
   TestCorrectness()
-      : metadata_heap_(std::make_shared<ckmalloc::TestHeap>(kNumPages)),
-        user_heap_(std::make_shared<ckmalloc::TestHeap>(kNumPages)),
+      : heap_factory_(std::make_shared<ckmalloc::TestHeapFactory>(
+            ckmalloc::kHeapSize, ckmalloc::kHeapSize)),
+        metadata_heap_(static_cast<ckmalloc::TestHeap*>(
+                           heap_factory_->Instances().begin()->get()),
+                       ckmalloc::Noop<ckmalloc::TestHeap>),
+        user_heap_(static_cast<ckmalloc::TestHeap*>(
+                       (++heap_factory_->Instances().begin())->get()),
+                   ckmalloc::Noop<ckmalloc::TestHeap>),
         slab_map_(std::make_shared<ckmalloc::TestSlabMap>()),
         slab_manager_fixture_(std::make_shared<ckmalloc::SlabManagerFixture>(
             user_heap_, slab_map_)),
@@ -78,7 +81,9 @@ class TestCorrectness : public ::testing::Test {
             std::make_shared<ckmalloc::MainAllocatorFixture>(
                 user_heap_, slab_map_, slab_manager_fixture_,
                 metadata_manager_fixture_, small_allocator_fixture_,
-                large_allocator_fixture_)) {}
+                large_allocator_fixture_)) {
+    ckmalloc::TestSysAlloc::NewInstance(heap_factory_.get());
+  }
 
   ckmalloc::TestMetadataManager& MetadataManager() {
     return metadata_manager_fixture_->MetadataManager();
@@ -90,9 +95,9 @@ class TestCorrectness : public ::testing::Test {
 
   absl::Status RunTrace(const std::string& trace,
                         uint32_t validate_every_n = 1) {
-    MMapHeapFactory heap_factory;
     DEFINE_OR_RETURN(TracefileReader, reader, TracefileReader::Open(trace));
-    TestCkMalloc test(std::move(reader), heap_factory, this, validate_every_n);
+    TestCkMalloc test(std::move(reader), *heap_factory_, this,
+                      validate_every_n);
     return test.Run();
   }
 
@@ -114,6 +119,7 @@ class TestCorrectness : public ::testing::Test {
   }
 
  private:
+  std::shared_ptr<ckmalloc::TestHeapFactory> heap_factory_;
   std::shared_ptr<ckmalloc::TestHeap> metadata_heap_;
   std::shared_ptr<ckmalloc::TestHeap> user_heap_;
   std::shared_ptr<ckmalloc::TestSlabMap> slab_map_;
@@ -124,11 +130,6 @@ class TestCorrectness : public ::testing::Test {
   std::shared_ptr<ckmalloc::LargeAllocatorFixture> large_allocator_fixture_;
   std::shared_ptr<ckmalloc::MainAllocatorFixture> main_allocator_fixture_;
 };
-
-void TestCkMalloc::InitializeHeap(HeapFactory& heap_factory) {
-  heap_factory.Reset();
-  ckmalloc::TestSysAlloc::NewInstance(&heap_factory);
-}
 
 absl::StatusOr<void*> TestCkMalloc::Malloc(size_t size,
                                            std::optional<size_t> alignment) {

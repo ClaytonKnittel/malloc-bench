@@ -58,8 +58,6 @@ class MainAllocatorFixture : public CkMallocTest {
  public:
   static constexpr const char* kPrefix = "[MainAllocatorFixture]";
 
-  static constexpr size_t kNumPages = 64;
-
   MainAllocatorFixture(
       std::shared_ptr<TestHeap> heap,
       const std::shared_ptr<TestSlabMap>& slab_map,

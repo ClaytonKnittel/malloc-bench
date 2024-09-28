@@ -113,11 +113,17 @@ absl::StatusOr<std::unique_ptr<bench::Heap>> TestHeapFactory::MakeHeap(
 }
 
 TestSysAlloc::TestSysAlloc(bench::HeapFactory* heap_factory)
-    : heap_factory_(heap_factory) {}
+    : heap_factory_(heap_factory) {
+  for (const auto& heap : heap_factory_->Instances()) {
+    heap_map_.emplace(heap->Start(), heap.get());
+  }
+}
 
 /* static */
 TestSysAlloc* TestSysAlloc::NewInstance(bench::HeapFactory* heap_factory) {
+  std::cout << "new instance: " << heap_factory << std::endl;
   TestSysAlloc* sys_alloc = new TestSysAlloc(heap_factory);
+  CK_ASSERT_EQ(instance_, nullptr);
   instance_ = sys_alloc;
   return sys_alloc;
 }
@@ -139,7 +145,7 @@ void* TestSysAlloc::Mmap(void* start_hint, size_t size) {
 
 void TestSysAlloc::Munmap(void* ptr, size_t size) {
   auto it = heap_map_.find(ptr);
-  CK_ASSERT_TRUE(it == heap_map_.end());
+  CK_ASSERT_TRUE(it != heap_map_.end());
   bench::Heap* heap = it->second;
   CK_ASSERT_EQ(size, heap->Size());
 
@@ -160,8 +166,12 @@ void TestSysAlloc::Sbrk(void* heap_start, size_t increment, void* current_end) {
 }
 
 bench::Heap* TestSysAlloc::HeapFromStart(void* heap_start) {
+  for (const auto [start, heap] : heap_map_) {
+    std::cout << start << ": " << heap->Size() << std::endl;
+  }
+  std::cout << "lookup: " << heap_start << std::endl;
   auto it = heap_map_.find(heap_start);
-  CK_ASSERT_TRUE(it == heap_map_.end());
+  CK_ASSERT_TRUE(it != heap_map_.end());
   return it->second;
 }
 
