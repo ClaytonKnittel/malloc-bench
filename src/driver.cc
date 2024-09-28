@@ -2,6 +2,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdlib>
+#include <filesystem>
 #include <iomanip>
 #include <ios>
 #include <iostream>
@@ -11,6 +12,7 @@
 #include "absl/flags/parse.h"
 #include "absl/status/status.h"
 #include "absl/strings/match.h"
+#include "absl/strings/strip.h"
 #include "util/absl_util.h"
 
 #include "src/correctness_checker.h"
@@ -27,6 +29,10 @@ ABSL_FLAG(bool, skip_correctness, false,
           "If true, correctness checking is skipped.");
 
 ABSL_FLAG(bool, ignore_test, false, "If true, test traces are not run.");
+
+ABSL_FLAG(bool, ignore_hard, true,
+          "If true, \"hard traces\" are skipped (i.e. ones that call memalign, "
+          "or use a lot of memory).");
 
 ABSL_FLAG(size_t, perftest_iters, 1000000,
           "The minimum number of alloc/free operations to perform for each "
@@ -49,6 +55,10 @@ bool ShouldIgnoreForScoring(const std::string& trace) {
          absl::StrContains(trace, "/syn-") ||
          absl::StrContains(trace, "/ngram-") ||
          absl::StrContains(trace, "/server.trace");
+}
+
+bool IsHard(const std::string& trace) {
+  return absl::StrContains(trace, "/gto.trace");
 }
 
 absl::StatusOr<TraceResult> RunTrace(const std::string& tracefile,
@@ -143,7 +153,9 @@ void PrintTestResults(const std::vector<TraceResult>& results) {
   std::cout << "-" << std::setw(max_file_len) << std::setfill('-') << ""
             << std::setfill(' ')
             << "-------------------------------------------" << std::endl;
-  std::cout << "* = ignored for scoring" << std::endl;
+  if (!absl::GetFlag(FLAGS_ignore_test)) {
+    std::cout << "* = ignored for scoring" << std::endl;
+  }
 
   n_correct = std::max(n_correct, 1U);
   std::cout << std::endl << "Summary:" << std::endl;
@@ -154,9 +166,9 @@ void PrintTestResults(const std::vector<TraceResult>& results) {
 
   if (all_correct) {
     constexpr double kMinUtilThresh = 0.55;
-    constexpr double kMaxUtilThresh = 0.75;
-    constexpr double kMinOpsThresh = 50;
-    constexpr double kMaxOpsThresh = 150;
+    constexpr double kMaxUtilThresh = 0.875;
+    constexpr double kMinOpsThresh = 40;
+    constexpr double kMaxOpsThresh = 100;
 
     double util_score = std::clamp((total_util / n_correct - kMinUtilThresh) /
                                        (kMaxUtilThresh - kMinUtilThresh),
@@ -174,85 +186,28 @@ void PrintTestResults(const std::vector<TraceResult>& results) {
   }
 }
 
-absl::Status PrintTrace(const std::string& tracefile) {
-  DEFINE_OR_RETURN(TracefileReader, reader, TracefileReader::Open(tracefile));
-
-  for (TraceLine line : reader) {
-    switch (line.op) {
-      case TraceLine::Op::kMalloc:
-        std::cout << "malloc(" << line.input_size << ") = " << line.result
-                  << std::endl;
-        break;
-      case TraceLine::Op::kCalloc:
-        std::cout << "calloc(" << line.nmemb << ", " << line.input_size
-                  << ") = " << line.result << std::endl;
-        break;
-      case TraceLine::Op::kRealloc:
-        std::cout << "realloc(" << line.input_ptr << ", " << line.input_size
-                  << ") = " << line.result << std::endl;
-        break;
-      case TraceLine::Op::kFree:
-        if (line.input_ptr != nullptr) {
-          std::cout << "free(" << line.input_ptr << ")" << std::endl;
-        }
-        break;
+std::vector<std::string> ListTracefiles() {
+  std::vector<std::string> paths;
+  for (const auto& dir_entry : std::filesystem::directory_iterator("traces")) {
+    const std::string& tracefile = dir_entry.path();
+    if (!tracefile.ends_with(".trace")) {
+      continue;
     }
+    paths.push_back(tracefile);
   }
-
-  return absl::OkStatus();
+  std::sort(paths.begin(), paths.end());
+  return paths;
 }
 
 int RunAllTraces() {
   std::vector<bench::TraceResult> results;
   MMapHeapFactory heap_factory;
 
-  for (const auto& tracefile : {
-           "traces/bdd-aa32.trace",
-           "traces/bdd-aa4.trace",
-           "traces/bdd-ma4.trace",
-           "traces/bdd-nq7.trace",
-           "traces/cbit-abs.trace",
-           "traces/cbit-parity.trace",
-           "traces/cbit-satadd.trace",
-           "traces/cbit-xyz.trace",
-	   "traces/firefox.trace",
-           "traces/four-in-a-row.trace",
-           "traces/grep.trace",
-           "traces/haskell-web-server.trace",
-           "traces/mc_server.trace",
-           "traces/mc_server_large.trace",
-           "traces/mc_server_small.trace",
-           "traces/ngram-fox1.trace",
-           "traces/ngram-gulliver1.trace",
-           "traces/ngram-gulliver2.trace",
-           "traces/ngram-moby1.trace",
-           "traces/ngram-shake1.trace",
-           "traces/onoro.trace",
-           "traces/onoro-cc.trace",
-	   "traces/py-catan-ai.trace",
-	   "traces/py-euler-nayuki.trace",
-           "traces/scp.trace",
-           "traces/server.trace",
-           "traces/simple.trace",
-           "traces/simple_calloc.trace",
-           "traces/simple_realloc.trace",
-           "traces/solitaire.trace",
-           "traces/ssh.trace",
-           "traces/syn-array.trace",
-           "traces/syn-array-short.trace",
-           "traces/syn-mix.trace",
-           "traces/syn-mix-realloc.trace",
-           "traces/syn-mix-short.trace",
-           "traces/syn-string.trace",
-           "traces/syn-string-short.trace",
-           "traces/syn-struct.trace",
-           "traces/syn-struct-short.trace",
-           "traces/test.trace",
-           "traces/test-zero.trace",
-           "traces/vim.trace",
-	   "traces/vlc.trace"
-       }) {
+  for (const auto& tracefile : ListTracefiles()) {
     if (absl::GetFlag(FLAGS_ignore_test) && ShouldIgnoreForScoring(tracefile)) {
+      continue;
+    }
+    if (absl::GetFlag(FLAGS_ignore_hard) && IsHard(tracefile)) {
       continue;
     }
 
@@ -275,7 +230,9 @@ int RunAllTraces() {
 int main(int argc, char* argv[]) {
   absl::ParseCommandLine(argc, argv);
 
-  const std::string& tracefile = absl::GetFlag(FLAGS_trace);
+  // Strip .gz in case the user specifies the compressed trace.
+  const std::string tracefile(
+      absl::StripSuffix(absl::GetFlag(FLAGS_trace), ".gz"));
   if (tracefile.empty()) {
     return bench::RunAllTraces();
   }

@@ -1,5 +1,7 @@
 build --repo_env=CC=clang-18
+build --repo_env=CCX=clang-18
 build --features=layering_check
 build --cxxopt=-std=c++20
+build --copt=-fno-exceptions
 build:profile --copt=-O2 --linkopt=-lprofiler --copt="-DNDEBUG=1" --copt=-g3
 build:opt -c opt --copt="-DNDEBUG=1" --features=thin_lto

@@ -1,13 +1,15 @@
 #include "src/tracefile_executor.h"
 
 #include "absl/status/status.h"
-#include "absl/strings/str_format.h"
 #include "util/absl_util.h"
 
+#include "proto/tracefile.pb.h"
 #include "src/heap_factory.h"
 #include "src/tracefile_reader.h"
 
 namespace bench {
+
+using proto::TraceLine;
 
 TracefileExecutor::TracefileExecutor(TracefileReader&& reader,
                                      HeapFactory& heap_factory)
@@ -19,70 +21,71 @@ absl::Status TracefileExecutor::Run() {
 }
 
 absl::Status TracefileExecutor::ProcessTracefile() {
-  for (TraceLine line : reader_) {
-    switch (line.op) {
-      case TraceLine::Op::kMalloc: {
-        DEFINE_OR_RETURN(void*, ptr, Malloc(line.input_size));
+  // A map from allocation id's to pointers returned from the allocator. Since
+  // id's are assigned contiguously from lowest to highest ID, they can be
+  // stored in a vector.
+  std::vector<void*> id_map(reader_.Tracefile().max_simultaneous_allocs());
 
-        if (line.input_size != 0) {
-          auto [it, inserted] = id_map_.insert({ line.result, ptr });
-          if (!inserted) {
-            return absl::InternalError(absl::StrFormat(
-                "Tracefile allocated duplicate pointer %p.", line.result));
-          }
+  for (const TraceLine& line : reader_) {
+    switch (line.op_case()) {
+      case TraceLine::kMalloc: {
+        const TraceLine::Malloc& malloc = line.malloc();
+        std::optional<size_t> alignment =
+            malloc.has_input_alignment()
+                ? std::optional(malloc.input_alignment())
+                : std::nullopt;
+        DEFINE_OR_RETURN(void*, ptr, Malloc(malloc.input_size(), alignment));
+
+        if (malloc.input_size() != 0 && malloc.has_result_id()) {
+          id_map[malloc.result_id()] = ptr;
         }
         break;
       }
-      case TraceLine::Op::kCalloc: {
-        DEFINE_OR_RETURN(void*, ptr, Calloc(line.nmemb, line.input_size));
+      case TraceLine::kCalloc: {
+        const TraceLine::Calloc& calloc = line.calloc();
+        DEFINE_OR_RETURN(void*, ptr,
+                         Calloc(calloc.input_nmemb(), calloc.input_size()));
 
-        if (line.nmemb != 0 && line.input_size != 0) {
-          auto [it, inserted] = id_map_.insert({ line.result, ptr });
-          if (!inserted) {
-            return absl::InternalError(
-                "Tracefile allocated duplicate pointer.");
-          }
+        if (calloc.input_nmemb() != 0 && calloc.input_size() != 0 &&
+            calloc.has_result_id()) {
+          id_map[calloc.result_id()] = ptr;
         }
         break;
       }
-      case TraceLine::Op::kRealloc: {
-        void* ptr;
-        if (line.input_ptr != nullptr) {
-          auto it = id_map_.find(line.input_ptr);
-          if (it == id_map_.end()) {
-            return absl::InternalError(
-                "Tracefile realloced non-existent pointer.");
-          }
-
-          ASSIGN_OR_RETURN(ptr, Realloc(it->second, line.input_size));
-
-          id_map_.erase(it);
+      case TraceLine::kRealloc: {
+        const TraceLine::Realloc& realloc = line.realloc();
+        void* input_ptr;
+        if (realloc.has_input_id()) {
+          input_ptr = id_map[realloc.input_id()];
         } else {
-          ASSIGN_OR_RETURN(ptr, Realloc(nullptr, line.input_size));
+          input_ptr = nullptr;
         }
+        DEFINE_OR_RETURN(void*, result_ptr,
+                         Realloc(input_ptr, realloc.input_size()));
 
-        auto [it, inserted] = id_map_.insert({ line.result, ptr });
-        if (!inserted) {
-          return absl::InternalError("Tracefile allocated duplicate pointer.");
-        }
+        id_map[realloc.result_id()] = result_ptr;
         break;
       }
-      case TraceLine::Op::kFree: {
-        if (line.input_ptr == nullptr) {
-          RETURN_IF_ERROR(Free(nullptr));
+      case TraceLine::kFree: {
+        const TraceLine::Free& free = line.free();
+        if (!free.has_input_id()) {
+          RETURN_IF_ERROR(Free(nullptr, std::nullopt, std::nullopt));
           break;
         }
 
-        auto it = id_map_.find(line.input_ptr);
-        if (it == id_map_.end()) {
-          return absl::InternalError(absl::StrFormat(
-              "Tracefile freed non-existent pointer %p.", line.input_ptr));
-        }
-
-        RETURN_IF_ERROR(Free(it->second));
-
-        id_map_.erase(it);
+        void* ptr = id_map[free.input_id()];
+        std::optional<size_t> size_hint =
+            free.has_input_size_hint() ? std::optional(free.input_size_hint())
+                                       : std::nullopt;
+        std::optional<size_t> alignment_hint =
+            free.has_input_alignment_hint()
+                ? std::optional(free.input_alignment_hint())
+                : std::nullopt;
+        RETURN_IF_ERROR(Free(ptr, size_hint, alignment_hint));
         break;
+      }
+      case TraceLine::OP_NOT_SET: {
+        return absl::FailedPreconditionError("Op not set in tracefile");
       }
     }
   }
