@@ -51,9 +51,10 @@ const std::regex kFreeRegex(
     R"(--(\d+)-- (?:free|_ZdlPv|_ZdaPv|_ZdlPvm|_ZdaPvm|_ZdlPvSt11align_val_t)\(([0-9A-Fa-fx]+)\))");
 const std::regex kMallocRegex(
     R"(--(\d+)-- (?:malloc|_Znwm|_Znam|_ZnwmRKSt9nothrow_t)\((\d+)\) = ([0-9A-Fa-fx]+))");
+const std::regex kMemalignAllocRegex(
+    R"(--(\d+)-- (?:memalign)\(al (\d+), size (\d+)\) = ([0-9A-Fa-fx]+))");
 const std::regex kAlignedAllocRegex(
-    R"(--(\d+)-- (?:_ZnwmSt11align_val_t)\(size (\d+), al (\d+)\) = ([0-9A-Fa-fx]+))"
-);
+    R"(--(\d+)-- (?:_ZnwmSt11align_val_t)\(size (\d+), al (\d+)\) = ([0-9A-Fa-fx]+))");
 const std::regex kCallocRegex(
     R"(--(\d+)-- calloc\((\d+),(\d+)\) = ([0-9A-Fa-fx]+))");
 const std::regex kReallocRegex(
@@ -121,14 +122,10 @@ class DirtyTracefileReader {
         break;
       }
 
-      if (!line_str.starts_with("--")) {
-        continue;
-      }
-
       TraceLine line;
       std::smatch match;
       int32_t pid;
-      if (std::regex_match(line_str, match, kFreeRegex)) {
+      if (std::regex_search(line_str, match, kFreeRegex)) {
         ASSIGN_OR_RETURN(pid, ParsePid(match[1].str()));
 
         void* input_ptr;
@@ -139,7 +136,7 @@ class DirtyTracefileReader {
           DEFINE_OR_RETURN(uint64_t, id, find_and_erase_id(input_ptr));
           free->set_input_id(id);
         }
-      } else if (std::regex_match(line_str, match, kMallocRegex)) {
+      } else if (std::regex_search(line_str, match, kMallocRegex)) {
         ASSIGN_OR_RETURN(pid, ParsePid(match[1].str()));
 
         uint64_t input_size;
@@ -151,7 +148,22 @@ class DirtyTracefileReader {
         proto::TraceLine_Malloc* malloc = line.mutable_malloc();
         malloc->set_input_size(input_size);
         malloc->set_result_id(id);
-      } else if (std::regex_match(line_str, match, kAlignedAllocRegex)) {
+      } else if (std::regex_search(line_str, match, kMemalignAllocRegex)) {
+        ASSIGN_OR_RETURN(pid, ParsePid(match[1].str()));
+
+        uint64_t input_alignment;
+        ASSIGN_OR_RETURN(input_alignment, ParseSize(match[2].str()));
+        uint64_t input_size;
+        ASSIGN_OR_RETURN(input_size, ParseSize(match[3].str()));
+        void* result_ptr;
+        ASSIGN_OR_RETURN(result_ptr, ParsePtr(match[4].str()));
+
+        DEFINE_OR_RETURN(uint64_t, id, get_next_id(result_ptr));
+        proto::TraceLine_Malloc* malloc = line.mutable_malloc();
+        malloc->set_input_size(input_size);
+        malloc->set_input_alignment(input_alignment);
+        malloc->set_result_id(id);
+      } else if (std::regex_search(line_str, match, kAlignedAllocRegex)) {
         ASSIGN_OR_RETURN(pid, ParsePid(match[1].str()));
 
         uint64_t input_size;
@@ -166,7 +178,7 @@ class DirtyTracefileReader {
         malloc->set_input_size(input_size);
         malloc->set_input_alignment(input_alignment);
         malloc->set_result_id(id);
-      } else if (std::regex_match(line_str, match, kCallocRegex)) {
+      } else if (std::regex_search(line_str, match, kCallocRegex)) {
         ASSIGN_OR_RETURN(pid, ParsePid(match[1].str()));
 
         uint64_t nmemb;
@@ -181,7 +193,7 @@ class DirtyTracefileReader {
         calloc->set_input_nmemb(nmemb);
         calloc->set_input_size(input_size);
         calloc->set_result_id(id);
-      } else if (std::regex_match(line_str, match, kReallocRegex)) {
+      } else if (std::regex_search(line_str, match, kReallocRegex)) {
         ASSIGN_OR_RETURN(pid, ParsePid(match[1].str()));
 
         void* input_ptr;
@@ -200,7 +212,8 @@ class DirtyTracefileReader {
         realloc->set_input_size(input_size);
         realloc->set_result_id(id);
       } else {
-        return absl::FailedPreconditionError(absl::StrFormat("Unrecognized operation: %v", line_str));
+        std::cerr << "Skipping line " << line_str << std::endl;
+        continue;
       }
 
       if (!required_pid.has_value()) {
