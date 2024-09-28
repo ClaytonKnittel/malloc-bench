@@ -146,7 +146,9 @@ void PrintTestResults(const std::vector<TraceResult>& results) {
   std::cout << "-" << std::setw(max_file_len) << std::setfill('-') << ""
             << std::setfill(' ')
             << "-------------------------------------------" << std::endl;
-  std::cout << "* = ignored for scoring" << std::endl;
+  if (!absl::GetFlag(FLAGS_ignore_test)) {
+    std::cout << "* = ignored for scoring" << std::endl;
+  }
 
   n_correct = std::max(n_correct, 1U);
   std::cout << std::endl << "Summary:" << std::endl;
