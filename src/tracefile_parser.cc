@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <ostream>
 #include <unistd.h>
 
@@ -22,6 +23,10 @@
 ABSL_FLAG(std::string, trace, "", "File path of the trace to clean.");
 
 ABSL_FLAG(bool, binary, false, "Output binary proto");
+
+ABSL_FLAG(uint64_t, stop_after, std::numeric_limits<uint64_t>::max(),
+          "Parses only this many operations before closing the tracefile and "
+          "freeing all currently-allocated regions.");
 
 namespace bench {
 
@@ -118,7 +123,7 @@ class DirtyTracefileReader {
       return id;
     };
 
-    while (true) {
+    for (uint64_t iter = 0; iter < absl::GetFlag(FLAGS_stop_after); iter++) {
       std::string line_str;
       if (std::getline(file, line_str).eof()) {
         break;
