@@ -11,14 +11,6 @@
 namespace jsmalloc {
 namespace blocks {
 
-class LargeBlockHelper {
-  static_assert(offsetof(LargeBlock, data_) % 16 == 0);
-
-  static size_t LargeBlockSizeForDataSize(size_t data_size) {
-    return offsetof(LargeBlock, data_) + math::round_16b(data_size);
-  }
-};
-
 LargeBlock::LargeBlock(size_t block_size, bool prev_block_is_free)
     : header_(block_size, BlockKind::kLarge, prev_block_is_free) {}
 
@@ -31,7 +23,7 @@ size_t LargeBlock::DataSize() const {
 }
 
 void* LargeBlock::Data() {
-  return static_cast<void*>(data_);
+  return twiddle::AddPtrOffset<void>(this, data_offset_);
 }
 
 size_t LargeBlock::BlockSize(size_t data_size) {
@@ -40,9 +32,28 @@ size_t LargeBlock::BlockSize(size_t data_size) {
   return block_size;
 }
 
-LargeBlock* LargeBlock::Init(FreeBlock* block) {
-  return new (block)
+int32_t* DataPrefix(void* data_ptr) {
+  return twiddle::AddPtrOffset<int32_t>(
+      data_ptr, -static_cast<int32_t>(sizeof(uint32_t)));
+  ;
+}
+
+LargeBlock* LargeBlock::FromDataPtr(void* ptr) {
+  return twiddle::AddPtrOffset<LargeBlock>(ptr, -(*DataPrefix(ptr)));
+  ;
+}
+
+LargeBlock* LargeBlock::Init(FreeBlock* block, size_t alignment) {
+  auto* large_block = new (block)
       LargeBlock(block->BlockSize(), block->Header()->PrevBlockIsFree());
+
+  void* ptr = twiddle::Align(large_block->data_, alignment);
+  int32_t data_offset = twiddle::PtrValue(ptr) - twiddle::PtrValue(large_block);
+
+  *DataPrefix(ptr) = data_offset;
+  large_block->data_offset_ = data_offset;
+
+  return large_block;
 }
 
 }  // namespace blocks

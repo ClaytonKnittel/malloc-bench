@@ -1,16 +1,18 @@
 #include "src/jsmalloc/jsmalloc.h"
 
+#include <bit>
 #include <cassert>
 #include <cstddef>
 
 #include "src/heap_factory.h"
 #include "src/heap_interface.h"
 #include "src/jsmalloc/allocator.h"
-#include "src/jsmalloc/blocks/block.h"
 #include "src/jsmalloc/blocks/free_block_allocator.h"
 #include "src/jsmalloc/blocks/large_block_allocator.h"
 #include "src/jsmalloc/blocks/sentinel_block_allocator.h"
 #include "src/jsmalloc/blocks/small_block_allocator.h"
+#include "src/jsmalloc/util/assert.h"
+#include "src/jsmalloc/util/twiddle.h"
 
 namespace jsmalloc {
 
@@ -87,14 +89,22 @@ void initialize_heap(bench::HeapFactory& heap_factory) {
   heap_globals->Init();
 }
 
-void* malloc(size_t size) {
+void* malloc(size_t size, size_t alignment) {
   if (size == 0) {
     return nullptr;
   }
-  if (size <= blocks::SmallBlockAllocator::kMaxDataSize) {
-    return heap_globals->small_block_allocator_.Allocate(size);
+
+  alignment = alignment == 0 ? 1 : alignment;
+  DCHECK_EQ(std::popcount(alignment), 1);
+
+
+  size_t required_size = size + alignment - 1;
+  if (required_size <= blocks::SmallBlockAllocator::kMaxDataSize) {
+    void* ptr = heap_globals->small_block_allocator_.Allocate(required_size);
+    return twiddle::Align(ptr, alignment);
   }
-  return heap_globals->large_block_allocator_.Allocate(size);
+
+  return heap_globals->large_block_allocator_.Allocate(size, alignment);
 }
 
 void* calloc(size_t nmemb, size_t size) {
@@ -129,7 +139,7 @@ void* realloc(void* ptr, size_t size) {
   return default_realloc(ptr, size);
 }
 
-void free(void* ptr) {
+void free(void* ptr, size_t size, size_t alignment) {
   if (ptr == nullptr) {
     return;
   }

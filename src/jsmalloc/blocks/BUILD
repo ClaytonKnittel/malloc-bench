@@ -98,6 +98,7 @@ cc_library(
         "//src/jsmalloc/collections:rbtree",
         "//src/jsmalloc/util:assert",
         "//src/jsmalloc/util:math",
+        "//src/jsmalloc/util:twiddle",
     ],
 )
 

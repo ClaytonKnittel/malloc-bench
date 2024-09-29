@@ -19,7 +19,7 @@ inline void initialize_heap(HeapFactory& heap_factory) {
 }
 
 inline void* malloc(size_t size, size_t alignment = 0) {
-  return jsmalloc::malloc(size);
+  return jsmalloc::malloc(size, alignment);
 }
 
 inline void* calloc(size_t nmemb, size_t size) {
@@ -31,7 +31,7 @@ inline void* realloc(void* ptr, size_t size) {
 }
 
 inline void free(void* ptr, size_t size = 0, size_t alignment = 0) {
-  return jsmalloc::free(ptr);
+  return jsmalloc::free(ptr, size, alignment);
 }
 
 }  // namespace bench

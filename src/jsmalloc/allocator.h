@@ -41,7 +41,7 @@ class HeapAdaptor : public MemRegion {
     return heap_->End();
   }
 
-  bool Contains(void* ptr) {
+  bool Contains(void* ptr) const {
     return twiddle::PtrValue(ptr) >= twiddle::PtrValue(heap_->Start()) &&
            twiddle::PtrValue(ptr) < twiddle::PtrValue(heap_->End());
   }

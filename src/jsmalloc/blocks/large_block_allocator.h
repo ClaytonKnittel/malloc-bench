@@ -15,7 +15,7 @@ class LargeBlockAllocator {
   explicit LargeBlockAllocator(FreeBlockAllocator& allocator);
 
   /** Allocates a chunk of user data from a `LargeBlock`. */
-  void* Allocate(size_t size);
+  void* Allocate(size_t size, size_t alignment = 1);
 
   /** Frees a chunk of user data from its `LargeBlock`. */
   void Free(void* ptr);
