@@ -60,6 +60,10 @@ class FindMaxAllocations : public TracefileExecutor {
   FindMaxAllocations(TracefileReader&& reader, HeapFactory& heap_factory)
       : TracefileExecutor(std::move(reader), heap_factory) {}
 
+  ~FindMaxAllocations() {
+    TestSysAlloc::Reset();
+  }
+
   absl::StatusOr<uint64_t> MaxAllocations() {
     if (!iters_to_max_.has_value()) {
       RETURN_IF_ERROR(TracefileExecutor::Run());
@@ -192,9 +196,8 @@ class TraceReplayer : public TracefileExecutor {
   }
 
   void InitializeHeap(HeapFactory& heap_factory) override {
-    TestSysAlloc::NewInstance(&heap_factory);
-    CkMalloc::InitializeHeap();
     TestSysAlloc* sys_alloc = TestSysAlloc::NewInstance(&heap_factory);
+    CkMalloc::InitializeHeap();
     metadata_heap_ = sys_alloc->HeapFromStart(
         CkMalloc::Instance()->GlobalState()->MetadataManager()->heap_);
     user_heap_ = sys_alloc->HeapFromStart(
@@ -509,6 +512,11 @@ absl::Status Run(const std::string& tracefile) {
   LocalCache::Instance<GlobalMetadataAlloc>()->Flush(
       *CkMalloc::Instance()->GlobalState()->MainAllocator());
   RETURN_IF_ERROR(replayer.SetDone());
+
+  if (absl::GetFlag(FLAGS_test_run)) {
+    return absl::OkStatus();
+  }
+
   while (true) {
     RETURN_IF_ERROR(replayer.AwaitInput());
   }

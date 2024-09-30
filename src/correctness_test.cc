@@ -85,6 +85,10 @@ class TestCorrectness : public ::testing::Test {
     ckmalloc::TestSysAlloc::NewInstance(heap_factory_.get());
   }
 
+  ~TestCorrectness() override {
+    ckmalloc::TestSysAlloc::Reset();
+  }
+
   ckmalloc::TestMetadataManager& MetadataManager() {
     return metadata_manager_fixture_->MetadataManager();
   }

@@ -49,6 +49,10 @@ class MainAllocatorTest : public ::testing::Test {
     TestSysAlloc::NewInstance(heap_factory_.get());
   }
 
+  ~MainAllocatorTest() override {
+    TestSysAlloc::Reset();
+  }
+
   TestHeapFactory& HeapFactory() {
     return *heap_factory_;
   }

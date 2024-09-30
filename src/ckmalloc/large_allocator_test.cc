@@ -41,6 +41,10 @@ class LargeAllocatorTest : public ::testing::Test {
     TestSysAlloc::NewInstance(heap_factory_.get());
   }
 
+  ~LargeAllocatorTest() override {
+    TestSysAlloc::Reset();
+  }
+
   static bool PrevFree(const Block* block) {
     return block->PrevFree();
   }

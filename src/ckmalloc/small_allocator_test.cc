@@ -32,6 +32,10 @@ class SmallAllocatorTest : public ::testing::Test {
     TestSysAlloc::NewInstance(heap_factory_.get());
   }
 
+  ~SmallAllocatorTest() override {
+    TestSysAlloc::Reset();
+  }
+
   TestHeap& Heap() {
     return *heap_;
   }

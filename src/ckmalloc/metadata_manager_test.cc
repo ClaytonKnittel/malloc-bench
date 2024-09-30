@@ -33,6 +33,10 @@ class MetadataManagerTest : public testing::Test {
     TestSysAlloc::NewInstance(heap_factory_.get());
   }
 
+  ~MetadataManagerTest() override {
+    TestSysAlloc::Reset();
+  }
+
   TestHeap& Heap() {
     return *heap_;
   }

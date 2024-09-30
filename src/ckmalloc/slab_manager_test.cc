@@ -26,6 +26,10 @@ class SlabManagerTest : public testing::Test {
     TestSysAlloc::NewInstance(heap_factory_.get());
   }
 
+  ~SlabManagerTest() override {
+    TestSysAlloc::Reset();
+  }
+
   TestSlabManager& SlabManager() {
     return test_fixture_.SlabManager();
   }
