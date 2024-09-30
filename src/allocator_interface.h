@@ -5,17 +5,10 @@
 #include <cstring>
 
 #include "src/ckmalloc/ckmalloc.h"
-#include "src/heap_factory.h"
 
 namespace bench {
 
-// Called before any allocations are made.
-inline void initialize_heap(HeapFactory& heap_factory) {
-  ckmalloc::CkMalloc::InitializeHeap(heap_factory);
-}
-
 inline void* malloc(size_t size, size_t alignment = 0) {
-  (void) alignment;
   return ckmalloc::CkMalloc::Instance()->Malloc(size, alignment);
 }
 
@@ -28,8 +21,6 @@ inline void* realloc(void* ptr, size_t size) {
 }
 
 inline void free(void* ptr, size_t size = 0, size_t alignment = 0) {
-  (void) size;
-  (void) alignment;
   ckmalloc::CkMalloc::Instance()->Free(ptr, size, alignment);
 }
 

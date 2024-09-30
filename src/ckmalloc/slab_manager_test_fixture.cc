@@ -19,7 +19,7 @@ namespace ckmalloc {
 
 TestSlabManager::TestSlabManager(SlabManagerFixture* test_fixture,
                                  TestHeap* heap, TestSlabMap* slab_map)
-    : test_fixture_(test_fixture), slab_manager_(heap, slab_map) {}
+    : test_fixture_(test_fixture), slab_manager_(heap->Start(), slab_map) {}
 
 bool TestSlabManager::Resize(AllocatedSlab* slab, uint32_t new_size) {
   if (!slab_manager_.Resize(slab, new_size)) {

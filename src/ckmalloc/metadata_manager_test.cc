@@ -23,13 +23,19 @@ using util::IsOkAndHolds;
 
 class MetadataManagerTest : public testing::Test {
  public:
-  static constexpr size_t kNumPages = 64;
-
   MetadataManagerTest()
-      : heap_(std::make_shared<TestHeap>(kNumPages)),
+      : heap_factory_(std::make_shared<TestHeapFactory>(kHeapSize)),
+        heap_(static_cast<TestHeap*>(heap_factory_->Instances().begin()->get()),
+              Noop<TestHeap>),
         slab_map_(std::make_shared<TestSlabMap>()),
         metadata_manager_fixture_(
-            std::make_shared<MetadataManagerFixture>(heap_, slab_map_)) {}
+            std::make_shared<MetadataManagerFixture>(heap_, slab_map_)) {
+    TestSysAlloc::NewInstance(heap_factory_.get());
+  }
+
+  ~MetadataManagerTest() override {
+    TestSysAlloc::Reset();
+  }
 
   TestHeap& Heap() {
     return *heap_;
@@ -53,6 +59,7 @@ class MetadataManagerTest : public testing::Test {
   }
 
  private:
+  std::shared_ptr<TestHeapFactory> heap_factory_;
   std::shared_ptr<TestHeap> heap_;
   std::shared_ptr<TestSlabMap> slab_map_;
   std::shared_ptr<MetadataManagerFixture> metadata_manager_fixture_;

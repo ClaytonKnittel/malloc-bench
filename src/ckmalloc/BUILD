@@ -11,8 +11,6 @@ cc_library(
         ":size_class",
         ":sys_alloc",
         ":util",
-        "//src:heap_factory",
-        "//src:heap_interface",
     ],
 )
 
@@ -81,7 +79,6 @@ cc_library(
         ":slab_manager",
         ":slab_map",
         ":small_allocator",
-        "//src:heap_interface",
     ],
 )
 
@@ -236,7 +233,6 @@ cc_test(
         ":metadata_manager_test_fixture",
         ":slab_manager_test_fixture",
         ":small_allocator_test_fixture",
-        ":sys_alloc",
         ":testlib",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/strings:str_format",
@@ -279,8 +275,8 @@ cc_library(
         ":common",
         ":slab",
         ":slab_map",
+        ":sys_alloc",
         ":util",
-        "//src:heap_interface",
     ],
 )
 
@@ -309,6 +305,7 @@ cc_library(
     deps = [
         ":metadata_manager",
         ":slab",
+        ":sys_alloc",
         ":testlib",
         ":util",
         "//src:heap_interface",
@@ -391,7 +388,6 @@ cc_library(
         ":slice",
         ":slice_id",
         ":util",
-        "//src:heap_interface",
     ],
 )
 
@@ -429,8 +425,8 @@ cc_library(
         ":page_id",
         ":slab",
         ":slab_map",
+        ":sys_alloc",
         ":util",
-        "//src:heap_interface",
         "@cc-util//util:std_util",
     ],
 )
@@ -580,9 +576,6 @@ cc_library(
     hdrs = ["sys_alloc.h"],
     visibility = ["//visibility:public"],
     deps = [
-        "//src:heap_factory",
-        "//src:heap_interface",
-        "//src:mmap_heap_factory",
     ],
 )
 
@@ -598,9 +591,11 @@ cc_library(
         ":page_id",
         ":slab",
         ":slab_map",
+        ":sys_alloc",
         ":util",
         "//src:heap_factory",
         "//src:heap_interface",
+        "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
@@ -620,6 +615,7 @@ cc_binary(
         ":global_state",
         ":heap_printer",
         ":local_cache",
+        ":testlib",
         ":util",
         "//proto:tracefile_cc_proto",
         "//src:heap_factory",

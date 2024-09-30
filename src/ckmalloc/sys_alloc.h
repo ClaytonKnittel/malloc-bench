@@ -1,28 +1,35 @@
 #pragma once
 
-#include <memory>
-
-#include "src/heap_factory.h"
-#include "src/heap_interface.h"
+#include <cstddef>
 
 namespace ckmalloc {
 
-class TestSysAlloc {
+class SysAlloc {
  public:
-  explicit TestSysAlloc(bench::HeapFactory* heap_factory);
+  static SysAlloc* Instance();
 
-  static TestSysAlloc* NewInstance(bench::HeapFactory* heap_factory);
+  virtual void* Mmap(void* start_hint, size_t size) = 0;
 
-  static TestSysAlloc* Instance();
+  virtual void Munmap(void* ptr, size_t size) = 0;
 
-  bench::Heap* Mmap(void* start_hint, size_t size);
+  virtual void Sbrk(void* heap_start, size_t increment, void* current_end) = 0;
 
-  void Munmap(bench::Heap* heap);
+ protected:
+  static SysAlloc* instance_;
+};
+
+class RealSysAlloc : public SysAlloc {
+ public:
+  static void UseRealSysAlloc();
+
+  void* Mmap(void* start_hint, size_t size) override;
+
+  void Munmap(void* ptr, size_t size) override;
+
+  void Sbrk(void* heap_start, size_t increment, void* current_end) override;
 
  private:
-  static std::unique_ptr<TestSysAlloc> instance_;
-
-  bench::HeapFactory* heap_factory_;
+  static RealSysAlloc instance_;
 };
 
 }  // namespace ckmalloc

@@ -19,16 +19,22 @@ using util::IsOk;
 
 class SmallAllocatorTest : public ::testing::Test {
  public:
-  static constexpr size_t kNumPages = 64;
-
   SmallAllocatorTest()
-      : heap_(std::make_shared<TestHeap>(kNumPages)),
+      : heap_factory_(std::make_shared<TestHeapFactory>(kHeapSize)),
+        heap_(static_cast<TestHeap*>(heap_factory_->Instances().begin()->get()),
+              Noop<TestHeap>),
         slab_map_(std::make_shared<TestSlabMap>()),
         slab_manager_fixture_(
             std::make_shared<SlabManagerFixture>(heap_, slab_map_)),
         freelist_(std::make_shared<Freelist>()),
         small_allocator_fixture_(std::make_shared<SmallAllocatorFixture>(
-            heap_, slab_map_, slab_manager_fixture_, freelist_)) {}
+            heap_, slab_map_, slab_manager_fixture_, freelist_)) {
+    TestSysAlloc::NewInstance(heap_factory_.get());
+  }
+
+  ~SmallAllocatorTest() override {
+    TestSysAlloc::Reset();
+  }
 
   TestHeap& Heap() {
     return *heap_;
@@ -64,6 +70,7 @@ class SmallAllocatorTest : public ::testing::Test {
   }
 
  private:
+  std::shared_ptr<TestHeapFactory> heap_factory_;
   std::shared_ptr<TestHeap> heap_;
   std::shared_ptr<TestSlabMap> slab_map_;
   std::shared_ptr<SlabManagerFixture> slab_manager_fixture_;

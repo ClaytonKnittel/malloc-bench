@@ -2,7 +2,6 @@
 
 #include "absl/status/statusor.h"
 
-#include "src/mmap_heap_factory.h"
 #include "src/perftest.h"
 #include "src/tracefile_reader.h"
 
@@ -24,7 +23,6 @@ int main() {
            "traces/vim.trace",
            "traces/vlc.trace",
        }) {
-    bench::MMapHeapFactory heap_factory;
     absl::StatusOr<bench::TracefileReader> reader =
         bench::TracefileReader::Open(tracefile);
     if (!reader.ok()) {
@@ -32,8 +30,8 @@ int main() {
       return -1;
     }
 
-    auto result = bench::TimeTrace(reader.value(), heap_factory,
-                                   /*min_desired_ops=*/500000000);
+    auto result =
+        bench::TimeTrace(reader.value(), /*min_desired_ops=*/500000000);
     if (result.ok()) {
       std::cout << tracefile << ": " << result.value() << " mega ops / s"
                 << std::endl;

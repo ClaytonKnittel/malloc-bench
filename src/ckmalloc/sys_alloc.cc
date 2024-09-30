@@ -1,43 +1,33 @@
 #include "src/ckmalloc/sys_alloc.h"
 
-#include <memory>
-
-#include "src/heap_interface.h"
+#include <sys/mman.h>
 
 namespace ckmalloc {
 
-std::unique_ptr<TestSysAlloc> TestSysAlloc::instance_;
+SysAlloc* SysAlloc::instance_ = nullptr;
 
-TestSysAlloc::TestSysAlloc(bench::HeapFactory* heap_factory)
-    : heap_factory_(heap_factory) {}
+RealSysAlloc RealSysAlloc::instance_;
 
 /* static */
-TestSysAlloc* TestSysAlloc::NewInstance(bench::HeapFactory* heap_factory) {
-  instance_ = std::make_unique<TestSysAlloc>(heap_factory);
-  return instance_.get();
+SysAlloc* SysAlloc::Instance() {
+  return instance_;
 }
 
 /* static */
-TestSysAlloc* TestSysAlloc::Instance() {
-  return instance_.get();
+void RealSysAlloc::UseRealSysAlloc() {
+  SysAlloc::instance_ = &instance_;
 }
 
-bench::Heap* TestSysAlloc::Mmap(void* start_hint, size_t size) {
-  (void) start_hint;
-  auto result = heap_factory_->NewInstance(size);
-  if (!result.ok()) {
-    std::cerr << "Mmap failed: " << result.status() << std::endl;
-    return nullptr;
-  }
-
-  return result.value();
+void* RealSysAlloc::Mmap(void* start_hint, size_t size) {
+  return ::mmap(start_hint, size, PROT_READ | PROT_WRITE,
+                MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
 }
 
-void TestSysAlloc::Munmap(bench::Heap* heap) {
-  auto result = heap_factory_->DeleteInstance(heap);
-  if (!result.ok()) {
-    std::cerr << "Heap delete failed: " << result << std::endl;
-  }
+void RealSysAlloc::Munmap(void* ptr, size_t size) {
+  ::munmap(ptr, size);
+}
+
+void RealSysAlloc::Sbrk(void* heap_start, size_t increment, void* current_end) {
 }
 
 }  // namespace ckmalloc

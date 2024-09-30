@@ -26,7 +26,6 @@ cc_binary(
         "//traces",
     ],
     deps = [
-        ":mmap_heap_factory",
         ":perftest",
         ":tracefile_reader",
         "@abseil-cpp//absl/status:statusor",
@@ -42,7 +41,6 @@ cc_library(
     ],
     deps = [
         ":allocator_interface",
-        ":heap_factory",
         ":tracefile_reader",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/time",
@@ -59,6 +57,7 @@ cc_library(
     deps = [
         ":allocator_interface",
         ":heap_factory",
+        ":test_allocator_interface",
         ":tracefile_reader",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/status:statusor",
@@ -69,8 +68,17 @@ cc_library(
     name = "allocator_interface",
     hdrs = ["allocator_interface.h"],
     deps = [
+        "//src/ckmalloc",
+    ],
+)
+
+cc_library(
+    name = "test_allocator_interface",
+    hdrs = ["test_allocator_interface.h"],
+    deps = [
         ":heap_factory",
         "//src/ckmalloc",
+        "//src/ckmalloc:testlib",
     ],
 )
 
@@ -82,6 +90,7 @@ cc_library(
         ":allocator_interface",
         ":heap_factory",
         ":rng",
+        ":test_allocator_interface",
         ":tracefile_executor",
         ":tracefile_reader",
         "@abseil-cpp//absl/algorithm:container",
@@ -103,7 +112,6 @@ cc_test(
     shard_count = 44,
     deps = [
         ":heap_factory",
-        ":mmap_heap_factory",
         ":tracefile_executor",
         ":tracefile_reader",
         "//src/ckmalloc:common",
@@ -113,7 +121,6 @@ cc_test(
         "//src/ckmalloc:metadata_manager_test_fixture",
         "//src/ckmalloc:slab_manager_test_fixture",
         "//src/ckmalloc:small_allocator_test_fixture",
-        "//src/ckmalloc:sys_alloc",
         "//src/ckmalloc:testlib",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
