@@ -433,13 +433,21 @@ SlabManagerImpl<MetadataAlloc, SlabMap>::AllocEndWithSbrk(uint32_t n_pages) {
       RemoveFreeSlab(last_free_slab);
       FreeRegion(last_free_slab, start_id,
                  last_free_slab->Pages() + remaining_pages);
+    } else {
+      // Otherwise we should create a new free slab and place it at the end of
+      // the heap.
+      Slab* slab = MetadataAlloc::SlabAlloc();
+      // TODO: handle failed allocation.
+      CK_ASSERT_NE(slab, nullptr);
+
+      FreeRegion(slab, new_memory_id, remaining_pages);
     }
-    // TODO: Otherwise we should create a new free slab and place it at the end
-    // of the heap.
 
     CK_ASSERT_EQ(HeapSize(), kHeapSize);
     void* new_heap_start =
         SysAlloc::Instance()->Mmap(/*start_hint=*/heap_end_, kHeapSize);
+    heap_start_ = new_heap_start;
+    heap_end_ = new_heap_start;
   }
 
   if (!ExtendHeap(new_memory_id, required_pages)) {
