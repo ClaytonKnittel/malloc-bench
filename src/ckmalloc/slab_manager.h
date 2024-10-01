@@ -47,6 +47,8 @@ class SlabManagerImpl {
   Block* FirstBlockInBlockedSlab(const BlockedSlab* slab) const;
 
  private:
+  size_t HeapSize() const;
+
   // Returns the `PageId` of the end of the heap (i.e. one page past the last
   // allocated slab).
   PageId HeapEndPageId();
@@ -418,10 +420,12 @@ SlabManagerImpl<MetadataAlloc, SlabMap>::AllocEndWithSbrk(uint32_t n_pages) {
     start_id = new_memory_id;
   }
 
-  uint32_t remaining_pages = (heap_->MaxSize() - heap_->Size()) / kPageSize;
+  uint32_t remaining_pages = (kHeapSize - HeapSize()) / kPageSize;
   if (remaining_pages < required_pages) {
     // We need to allocate a new heap.
 
+    // If the last slab is free, we should extend it to cover the remainder of
+    // the heap.
     if (last_free_slab != nullptr) {
       bool result = ExtendHeap(new_memory_id, remaining_pages);
       CK_ASSERT_TRUE(result);
@@ -430,10 +434,12 @@ SlabManagerImpl<MetadataAlloc, SlabMap>::AllocEndWithSbrk(uint32_t n_pages) {
       FreeRegion(last_free_slab, start_id,
                  last_free_slab->Pages() + remaining_pages);
     }
+    // TODO: Otherwise we should create a new free slab and place it at the end
+    // of the heap.
 
-    CK_ASSERT_EQ(HeapSize(), heap_->MaxSize());
-    // TODO: use new heap now
-    TestSysAlloc::Instance()->Mmap(/*start_hint=*/heap_->End(), kHeapSize);
+    CK_ASSERT_EQ(HeapSize(), kHeapSize);
+    void* new_heap_start =
+        SysAlloc::Instance()->Mmap(/*start_hint=*/heap_end_, kHeapSize);
   }
 
   if (!ExtendHeap(new_memory_id, required_pages)) {
