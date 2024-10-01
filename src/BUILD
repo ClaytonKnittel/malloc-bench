@@ -119,17 +119,11 @@ cc_library(
     name = "libc_override",
     srcs = ["libc_override.cc"],
     copts = ["-fexceptions"],
+    linkstatic = 0,
     deps = [
         ":allocator_interface",
     ],
-)
-
-cc_shared_library(
-    name = "liballoc",
-    shared_lib_name = "liballoc.so",
-    deps = [
-        ":libc_override",
-    ],
+    alwayslink = 1,
 )
 
 cc_library(
