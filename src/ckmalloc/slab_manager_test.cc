@@ -107,14 +107,6 @@ TEST_F(SlabManagerTest, SingleLargeSlab) {
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
-TEST_F(SlabManagerTest, SlabTooLargeDoesNotAllocate) {
-  ASSERT_OK_AND_DEFINE(AllocatedSlab*, slab,
-                       Fixture().AllocateSlab(kHeapSize / kPageSize + 1));
-  EXPECT_EQ(slab, nullptr);
-  EXPECT_EQ(Fixture().SlabHeap().Size(), 0);
-  EXPECT_THAT(ValidateHeap(), IsOk());
-}
-
 TEST_F(SlabManagerTest, FreeOnce) {
   ASSERT_OK_AND_DEFINE(AllocatedSlab*, slab, Fixture().AllocateSlab(1));
   ASSERT_THAT(Fixture().FreeSlab(slab), IsOk());

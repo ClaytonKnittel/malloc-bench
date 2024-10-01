@@ -138,6 +138,7 @@ SlabManagerImpl<MetadataAlloc, SlabMap>::Alloc(uint32_t n_pages, Args... args) {
   static_assert(kHasMetadata<S>,
                 "You may only directly allocate non-metadata slabs.");
   using AllocResult = std::pair<PageId, Slab*>;
+  CK_ASSERT_LE(n_pages, kPagesPerHeap);
 
   DEFINE_OR_RETURN_OPT(AllocResult, result, Alloc(n_pages));
   auto [page_id, slab] = std::move(result);
@@ -168,6 +169,7 @@ bool SlabManagerImpl<MetadataAlloc, SlabMap>::Resize(AllocatedSlab* slab,
                                                      uint32_t new_size) {
   CK_ASSERT_NE(new_size, 0);
   CK_ASSERT_FALSE(slab->HasSizeClass());
+  CK_ASSERT_LE(new_size, kPagesPerHeap);
 
   uint32_t n_pages = slab->Pages();
   if (new_size == n_pages) {
@@ -409,11 +411,12 @@ SlabManagerImpl<MetadataAlloc, SlabMap>::AllocEndWithSbrk(uint32_t n_pages) {
   PageId new_memory_id = HeapEndPageId();
   if (HeapSize() != 0 && (slab = LastSlab())->Type() == SlabType::kFree) {
     last_free_slab = slab->ToFree();
+    CK_ASSERT_GT(required_pages, last_free_slab->Pages());
     required_pages -= last_free_slab->Pages();
     start_id = last_free_slab->StartId();
 
     // We will be taking `slab`, so remove it from its freelist.
-    // RemoveFreeSlab(free_slab);
+    RemoveFreeSlab(last_free_slab);
   } else {
     last_free_slab = nullptr;
     slab = nullptr;
@@ -446,6 +449,8 @@ SlabManagerImpl<MetadataAlloc, SlabMap>::AllocEndWithSbrk(uint32_t n_pages) {
     CK_ASSERT_EQ(HeapSize(), kHeapSize);
     void* new_heap_start =
         SysAlloc::Instance()->Mmap(/*start_hint=*/heap_end_, kHeapSize);
+    // TODO: handle OOM.
+    CK_ASSERT_EQ(new_heap_start, nullptr);
     heap_start_ = new_heap_start;
     heap_end_ = new_heap_start;
   }
