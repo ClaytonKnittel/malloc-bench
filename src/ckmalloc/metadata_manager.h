@@ -5,8 +5,8 @@
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/slab_map.h"
+#include "src/ckmalloc/sys_alloc.h"
 #include "src/ckmalloc/util.h"
-#include "src/heap_interface.h"
 
 namespace ckmalloc {
 
@@ -23,8 +23,8 @@ class MetadataManagerImpl {
   // have not allocated any slabs on initialization yet. If some metadata has
   // already been allocated, this number can be changed to reflect the number of
   // already-allocated bytes from the first page.
-  explicit MetadataManagerImpl(bench::Heap* heap, SlabMap* slab_map)
-      : heap_(heap), slab_map_(slab_map), heap_end_(heap->End()) {}
+  explicit MetadataManagerImpl(void* heap, void* heap_end, SlabMap* slab_map)
+      : heap_(heap), slab_map_(slab_map), heap_end_(heap_end) {}
 
   // Allocates `size` bytes aligned to `alignment` and returns a pointer to the
   // beginning of that region. This memory cannot be released back to the
@@ -41,10 +41,7 @@ class MetadataManagerImpl {
   void FreeSlabMeta(MappedSlab* slab);
 
  private:
-  bench::Heap* MetadataHeap();
-  const bench::Heap* MetadataHeap() const;
-
-  bench::Heap* const heap_;
+  void* const heap_;
 
   SlabMap* const slab_map_;
 
@@ -71,11 +68,7 @@ void* MetadataManagerImpl<MetadataAlloc, SlabMap>::Alloc(size_t size,
   void* alloc_end = PtrAdd(alloc_start, size);
 
   size_t total_size = alignment_offset + size;
-  void* cur_end = MetadataHeap()->sbrk(total_size);
-  if (cur_end == nullptr) {
-    return nullptr;
-  }
-  CK_ASSERT_EQ(cur_end, heap_end_);
+  SysAlloc::Instance()->Sbrk(heap_, total_size, heap_end_);
 
   heap_end_ = alloc_end;
   return alloc_start;
@@ -98,17 +91,6 @@ void MetadataManagerImpl<MetadataAlloc, SlabMap>::FreeSlabMeta(
     MappedSlab* slab) {
   slab->Init<UnmappedSlab>(last_free_slab_);
   last_free_slab_ = static_cast<Slab*>(slab)->ToUnmapped();
-}
-
-template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
-bench::Heap* MetadataManagerImpl<MetadataAlloc, SlabMap>::MetadataHeap() {
-  return heap_;
-}
-
-template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
-const bench::Heap* MetadataManagerImpl<MetadataAlloc, SlabMap>::MetadataHeap()
-    const {
-  return heap_;
 }
 
 using MetadataManager = MetadataManagerImpl<GlobalMetadataAlloc, SlabMap>;

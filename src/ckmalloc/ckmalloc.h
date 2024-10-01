@@ -3,8 +3,8 @@
 #include <cstddef>
 
 #include "src/ckmalloc/global_state.h"
-#include "src/heap_factory.h"
-#include "src/heap_interface.h"
+#include "src/ckmalloc/sys_alloc.h"
+#include "src/ckmalloc/util.h"
 
 namespace ckmalloc {
 
@@ -12,12 +12,20 @@ class CkMalloc {
  public:
   // Returns the singleton `CkMalloc` instance.
   static CkMalloc* Instance() {
+    if (CK_EXPECT_FALSE(instance_ == nullptr)) {
+      RealSysAlloc::UseRealSysAlloc();
+      InitializeHeap();
+    }
     CK_ASSERT_NE(instance_, nullptr);
     instance_->global_state_.AssertConsistency();
     return instance_;
   }
 
-  static void InitializeHeap(bench::HeapFactory& heap_factory);
+  static void Reset() {
+    instance_ = nullptr;
+  }
+
+  static void InitializeHeap();
 
   void* Malloc(size_t size, size_t alignment);
 
@@ -34,7 +42,8 @@ class CkMalloc {
   }
 
  private:
-  explicit CkMalloc(bench::Heap* metadata_heap, bench::Heap* user_heap);
+  explicit CkMalloc(void* metadata_heap, void* metadata_heap_end,
+                    void* user_heap);
 
   // Initializes the allocator by allocating the metadata heap and first user
   // heap.

@@ -28,16 +28,22 @@ using util::IsOk;
 
 class LargeAllocatorTest : public ::testing::Test {
  public:
-  static constexpr size_t kNumPages = 64;
-
   LargeAllocatorTest()
-      : heap_(std::make_shared<TestHeap>(kNumPages)),
+      : heap_factory_(std::make_shared<TestHeapFactory>(kHeapSize)),
+        heap_(static_cast<TestHeap*>(heap_factory_->Instances().begin()->get()),
+              Noop<TestHeap>),
         slab_map_(std::make_shared<TestSlabMap>()),
         slab_manager_fixture_(
             std::make_shared<SlabManagerFixture>(heap_, slab_map_)),
         freelist_(std::make_shared<class Freelist>()),
         large_allocator_fixture_(std::make_shared<LargeAllocatorFixture>(
-            heap_, slab_map_, slab_manager_fixture_, freelist_)) {}
+            heap_, slab_map_, slab_manager_fixture_, freelist_)) {
+    TestSysAlloc::NewInstance(heap_factory_.get());
+  }
+
+  ~LargeAllocatorTest() override {
+    TestSysAlloc::Reset();
+  }
 
   static bool PrevFree(const Block* block) {
     return block->PrevFree();
@@ -212,6 +218,7 @@ class LargeAllocatorTest : public ::testing::Test {
                          Block::kFirstBlockInSlabOffset + total_bytes_);
   }
 
+  std::shared_ptr<TestHeapFactory> heap_factory_;
   std::shared_ptr<TestHeap> heap_;
   std::shared_ptr<TestSlabMap> slab_map_;
   std::shared_ptr<SlabManagerFixture> slab_manager_fixture_;

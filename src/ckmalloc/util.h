@@ -54,6 +54,11 @@
 namespace ckmalloc {
 
 template <typename T>
+static void Noop(T* val) {
+  (void) val;
+}
+
+template <typename T>
 std::optional<T> OptionalOr(std::optional<T>&& primary,
                             std::optional<T>&& secondary) {
   return primary.has_value() ? std::move(primary) : std::move(secondary);
