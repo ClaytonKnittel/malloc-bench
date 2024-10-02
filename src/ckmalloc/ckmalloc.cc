@@ -85,23 +85,21 @@ size_t CkMalloc::GetSize(void* ptr) {
   return global_state_.MainAllocator()->AllocSize(reinterpret_cast<Void*>(ptr));
 }
 
-CkMalloc::CkMalloc(void* metadata_heap, void* metadata_heap_end,
-                   void* user_heap)
-    : global_state_(metadata_heap, metadata_heap_end, user_heap) {}
+CkMalloc::CkMalloc(void* metadata_heap, void* metadata_heap_end)
+    : global_state_(metadata_heap, metadata_heap_end) {}
 
 /* static */
 CkMalloc* CkMalloc::Initialize() {
   SysAlloc* alloc = SysAlloc::Instance();
   CK_ASSERT_NE(alloc, nullptr);
   void* metadata_heap = alloc->Mmap(/*start_hint=*/nullptr, kHeapSize);
-  void* user_heap = alloc->Mmap(/*start_hint=*/nullptr, kHeapSize);
 
   // Allocate a metadata slab and place ourselves at the beginning of it.
   alloc->Sbrk(metadata_heap, sizeof(CkMalloc), metadata_heap);
   void* metadata_heap_end = PtrAdd(metadata_heap, sizeof(CkMalloc));
 
   CkMalloc* instance =
-      new (metadata_heap) CkMalloc(metadata_heap, metadata_heap_end, user_heap);
+      new (metadata_heap) CkMalloc(metadata_heap, metadata_heap_end);
   instance_ = instance;
   return instance;
 }

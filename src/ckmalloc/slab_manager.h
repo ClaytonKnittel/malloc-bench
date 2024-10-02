@@ -26,7 +26,7 @@ class SlabManagerImpl {
   friend class TraceReplayer;
 
  public:
-  explicit SlabManagerImpl(void* heap, SlabMap* slab_map);
+  explicit SlabManagerImpl(SlabMap* slab_map);
 
   // Allocates `n_pages` contiguous pages and initializes a slab metadata for
   // that region.
@@ -108,9 +108,9 @@ class SlabManagerImpl {
   bool ExtendHeap(PageId heap_end, uint32_t n_pages);
 
   // The start of the current heap being allocated from.
-  void* heap_start_;
+  void* heap_start_ = nullptr;
   // The end of already-allocated memory from the heap.
-  void* heap_end_;
+  void* heap_end_ = nullptr;
 
   // The slab manager needs to access the slab map when coalescing to know if
   // the adjacent slabs are free or allocated, and if they are free how large
@@ -127,9 +127,8 @@ class SlabManagerImpl {
 };
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
-SlabManagerImpl<MetadataAlloc, SlabMap>::SlabManagerImpl(void* heap,
-                                                         SlabMap* slab_map)
-    : heap_start_(heap), heap_end_(heap), slab_map_(slab_map) {}
+SlabManagerImpl<MetadataAlloc, SlabMap>::SlabManagerImpl(SlabMap* slab_map)
+    : slab_map_(slab_map) {}
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
 template <typename S, typename... Args>
@@ -400,11 +399,23 @@ SlabManagerImpl<MetadataAlloc, SlabMap>::DoAllocWithoutSbrk(uint32_t n_pages) {
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
 std::optional<std::pair<PageId, Slab*>>
 SlabManagerImpl<MetadataAlloc, SlabMap>::AllocEndWithSbrk(uint32_t n_pages) {
-  // If we have allocated anything, check if the last slab is free. If so, we
-  // can use it and only allocate the difference past the end of the heap.
   Slab* slab;
   uint32_t required_pages = n_pages;
 
+  // This will only happen once on initialization.
+  if (CK_EXPECT_FALSE(heap_start_ == nullptr)) {
+    void* new_heap_start =
+        SysAlloc::Instance()->Mmap(/*start_hint=*/heap_end_, kHeapSize);
+    if (new_heap_start == nullptr) {
+      return std::nullopt;
+    }
+
+    heap_start_ = new_heap_start;
+    heap_end_ = new_heap_start;
+  }
+
+  // If we have allocated anything, check if the last slab is free. If so, we
+  // can use it and only allocate the difference past the end of the heap.
   PageId start_id;
   FreeSlab* last_free_slab;
   // The `PageId` of where newly allocated memory willl start.
@@ -453,6 +464,8 @@ SlabManagerImpl<MetadataAlloc, SlabMap>::AllocEndWithSbrk(uint32_t n_pages) {
     CK_ASSERT_EQ(new_heap_start, nullptr);
     heap_start_ = new_heap_start;
     heap_end_ = new_heap_start;
+    new_memory_id = PageId::FromPtr(new_heap_start);
+    start_id = new_memory_id;
   }
 
   if (!ExtendHeap(new_memory_id, required_pages)) {
