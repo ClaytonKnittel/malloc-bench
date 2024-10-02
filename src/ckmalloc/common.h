@@ -28,8 +28,11 @@ static constexpr uint32_t kPageShift = 12;
 // The size of slabs in bytes.
 static constexpr size_t kPageSize = 1 << kPageShift;
 
-// The size of each mmapped heap allocaation.
-// static constexpr size_t kHeapSize = 512 * (1 << 20);
+// The size of each user heap allocation.
+static constexpr size_t kMetadataHeapSize = 512 * (1 << 20);
+
+// The size of each user heap allocation.
+static constexpr size_t kUserHeapSize = 512 * (1 << 20);
 
 // The largest user-request size which will be allocated in small slabs. Any
 // size larger will go in large blocks.

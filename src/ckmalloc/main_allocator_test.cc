@@ -28,16 +28,19 @@ using util::IsOk;
 
 class MainAllocatorTest : public ::testing::Test {
  public:
+  static constexpr size_t kMetadataHeapSize = 8192 * kPageSize;
+  static constexpr size_t kUserHeapSize = 64 * kPageSize;
+
   MainAllocatorTest()
-      : heap_factory_(std::make_shared<TestHeapFactory>(kHeapSize)),
+      : heap_factory_(std::make_shared<TestHeapFactory>(kMetadataHeapSize)),
         metadata_heap_(
             static_cast<TestHeap*>(heap_factory_->Instances().begin()->get()),
             Noop<TestHeap>),
         slab_map_(std::make_shared<TestSlabMap>()),
-        slab_manager_fixture_(
-            std::make_shared<SlabManagerFixture>(heap_factory_, slab_map_)),
+        slab_manager_fixture_(std::make_shared<SlabManagerFixture>(
+            heap_factory_, slab_map_, kUserHeapSize)),
         metadata_manager_fixture_(std::make_shared<MetadataManagerFixture>(
-            metadata_heap_, slab_map_)),
+            metadata_heap_, slab_map_, kMetadataHeapSize)),
         freelist_(std::make_shared<class Freelist>()),
         small_allocator_fixture_(std::make_shared<SmallAllocatorFixture>(
             slab_map_, slab_manager_fixture_, freelist_)),

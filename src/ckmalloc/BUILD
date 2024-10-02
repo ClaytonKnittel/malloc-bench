@@ -73,6 +73,7 @@ cc_library(
     srcs = ["global_state.cc"],
     hdrs = ["global_state.h"],
     deps = [
+        ":common",
         ":freelist",
         ":main_allocator",
         ":metadata_manager",

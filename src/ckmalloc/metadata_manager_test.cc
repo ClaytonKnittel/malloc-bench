@@ -23,13 +23,15 @@ using util::IsOkAndHolds;
 
 class MetadataManagerTest : public testing::Test {
  public:
+  static constexpr size_t kHeapSize = 64 * kPageSize;
+
   MetadataManagerTest()
       : heap_factory_(std::make_shared<TestHeapFactory>(kHeapSize)),
         heap_(static_cast<TestHeap*>(heap_factory_->Instances().begin()->get()),
               Noop<TestHeap>),
         slab_map_(std::make_shared<TestSlabMap>()),
-        metadata_manager_fixture_(
-            std::make_shared<MetadataManagerFixture>(heap_, slab_map_)) {
+        metadata_manager_fixture_(std::make_shared<MetadataManagerFixture>(
+            heap_, slab_map_, kHeapSize)) {
     TestSysAlloc::NewInstance(heap_factory_.get());
   }
 
@@ -106,6 +108,12 @@ TEST_F(MetadataManagerTest, AllocateLarge) {
 TEST_F(MetadataManagerTest, AllocateExtraLarge) {
   ASSERT_OK_AND_DEFINE(void*, value, Fixture().Alloc(11 * kPageSize));
   EXPECT_EQ(value, Heap().Start());
+  EXPECT_THAT(ValidateHeap(), IsOk());
+}
+
+TEST_F(MetadataManagerTest, AllocateTooLarge) {
+  ASSERT_OK_AND_DEFINE(void*, value, Fixture().Alloc(kHeapSize + 1));
+  EXPECT_EQ(value, nullptr);
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 

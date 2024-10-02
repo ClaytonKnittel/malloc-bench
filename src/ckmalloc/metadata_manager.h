@@ -18,16 +18,17 @@ class MetadataManagerImpl {
   friend class TraceReplayer;
 
  public:
-  // The size of each mmapped heap allocaation.
-  static constexpr size_t kHeapSize = 512 * (1 << 20);
-
   // alloc_offset is by default kPageSize. Initializing this to kPageSize tricks
   // the manager into thinking the last allocated slab is full, even though we
   // have not allocated any slabs on initialization yet. If some metadata has
   // already been allocated, this number can be changed to reflect the number of
   // already-allocated bytes from the first page.
-  explicit MetadataManagerImpl(void* heap, void* heap_end, SlabMap* slab_map)
-      : heap_(heap), slab_map_(slab_map), heap_end_(heap_end) {}
+  explicit MetadataManagerImpl(void* heap, void* heap_end, SlabMap* slab_map,
+                               size_t heap_size)
+      : heap_(heap),
+        slab_map_(slab_map),
+        heap_end_(heap_end),
+        max_heap_size_(heap_size) {}
 
   // Allocates `size` bytes aligned to `alignment` and returns a pointer to the
   // beginning of that region. This memory cannot be released back to the
@@ -45,6 +46,7 @@ class MetadataManagerImpl {
 
  private:
   void* const heap_;
+  const size_t max_heap_size_;
 
   SlabMap* const slab_map_;
 
@@ -69,6 +71,11 @@ void* MetadataManagerImpl<MetadataAlloc, SlabMap>::Alloc(size_t size,
   size_t alignment_offset = (~current_end + 1) & (alignment - 1);
   void* alloc_start = PtrAdd(heap_end_, alignment_offset);
   void* alloc_end = PtrAdd(alloc_start, size);
+
+  if (PtrDistance(alloc_end, heap_) > max_heap_size_) {
+    // TODO: allocate more heaps.
+    return nullptr;
+  }
 
   size_t total_size = alignment_offset + size;
   SysAlloc::Instance()->Sbrk(heap_, total_size, heap_end_);
