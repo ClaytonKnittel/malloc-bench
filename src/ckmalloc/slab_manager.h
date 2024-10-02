@@ -404,8 +404,8 @@ SlabManagerImpl<MetadataAlloc, SlabMap>::AllocEndWithSbrk(uint32_t n_pages) {
 
   // This will only happen once on initialization.
   if (CK_EXPECT_FALSE(heap_start_ == nullptr)) {
-    void* new_heap_start =
-        SysAlloc::Instance()->Mmap(/*start_hint=*/heap_end_, kHeapSize);
+    void* new_heap_start = SysAlloc::Instance()->Mmap(
+        /*start_hint=*/heap_end_, kHeapSize, HeapType::kUserHeap);
     if (new_heap_start == nullptr) {
       return std::nullopt;
     }
@@ -458,8 +458,8 @@ SlabManagerImpl<MetadataAlloc, SlabMap>::AllocEndWithSbrk(uint32_t n_pages) {
     }
 
     CK_ASSERT_EQ(HeapSize(), kHeapSize);
-    void* new_heap_start =
-        SysAlloc::Instance()->Mmap(/*start_hint=*/heap_end_, kHeapSize);
+    void* new_heap_start = SysAlloc::Instance()->Mmap(
+        /*start_hint=*/heap_end_, kHeapSize, HeapType::kUserHeap);
     // TODO: handle OOM.
     CK_ASSERT_EQ(new_heap_start, nullptr);
     heap_start_ = new_heap_start;

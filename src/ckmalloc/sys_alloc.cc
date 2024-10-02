@@ -18,7 +18,8 @@ void RealSysAlloc::UseRealSysAlloc() {
   SysAlloc::instance_ = &instance_;
 }
 
-void* RealSysAlloc::Mmap(void* start_hint, size_t size) {
+void* RealSysAlloc::Mmap(void* start_hint, size_t size, HeapType type) {
+  (void) type;
   return ::mmap(start_hint, size, PROT_READ | PROT_WRITE,
                 MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
 }

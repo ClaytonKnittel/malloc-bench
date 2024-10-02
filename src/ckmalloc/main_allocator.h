@@ -283,7 +283,7 @@ Void* MainAllocatorImpl<MetadataAlloc, SlabMap, SlabManager, SmallAllocator,
 
   uint32_t n_pages = CeilDiv(user_size, kPageSize);
   void* mmap_start = SysAlloc::Instance()->Mmap(
-      /*start_hint=*/nullptr, n_pages * kPageSize);
+      /*start_hint=*/nullptr, n_pages * kPageSize, HeapType::kMmapAllocHeap);
   if (mmap_start == nullptr) {
     MetadataAlloc::SlabFree(static_cast<AllocatedSlab*>(slab));
     return nullptr;

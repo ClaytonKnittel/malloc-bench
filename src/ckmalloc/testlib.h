@@ -161,6 +161,12 @@ class TestHeap : private AlignedAlloc, public bench::Heap {
         bench::Heap(RegionStart(), n_pages * kPageSize) {}
 };
 
+template <typename Sink>
+void AbslStringify(Sink& sink, const TestHeap& heap) {
+  absl::Format(&sink, "%p-%p (size 0x%zx, max size 0x%zx)", heap.Start(),
+               heap.End(), heap.Size(), heap.MaxSize());
+}
+
 class TestHeapFactory : public bench::HeapFactory {
  public:
   TestHeapFactory() = default;
@@ -186,13 +192,22 @@ using TestHeapIterator = HeapIteratorImpl<TestSlabMap>;
 
 class TestSysAlloc : public SysAlloc {
  public:
+  using MapT = absl::flat_hash_map<void*, std::pair<HeapType, TestHeap*>>;
+  using value_type = MapT::value_type;
+  using reference = MapT::reference;
+  using const_reference = MapT::const_reference;
+  using iterator = MapT::iterator;
+  using const_iterator = MapT::const_iterator;
+
   explicit TestSysAlloc(bench::HeapFactory* heap_factory);
+
+  static TestSysAlloc* Instance();
 
   static TestSysAlloc* NewInstance(bench::HeapFactory* heap_factory);
 
   static void Reset();
 
-  void* Mmap(void* start_hint, size_t size) override;
+  void* Mmap(void* start_hint, size_t size, HeapType type) override;
 
   void Munmap(void* ptr, size_t size) override;
 
@@ -200,10 +215,13 @@ class TestSysAlloc : public SysAlloc {
 
   bench::Heap* HeapFromStart(void* heap_start);
 
+  const_iterator begin() const;
+  const_iterator end() const;
+
  private:
   bench::HeapFactory* heap_factory_;
 
-  absl::flat_hash_map<void*, bench::Heap*> heap_map_;
+  MapT heap_map_;
 };
 
 class CkMallocTest {

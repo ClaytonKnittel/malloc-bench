@@ -92,7 +92,8 @@ CkMalloc::CkMalloc(void* metadata_heap, void* metadata_heap_end)
 CkMalloc* CkMalloc::Initialize() {
   SysAlloc* alloc = SysAlloc::Instance();
   CK_ASSERT_NE(alloc, nullptr);
-  void* metadata_heap = alloc->Mmap(/*start_hint=*/nullptr, kHeapSize);
+  void* metadata_heap =
+      alloc->Mmap(/*start_hint=*/nullptr, kHeapSize, HeapType::kMetadataHeap);
 
   // Allocate a metadata slab and place ourselves at the beginning of it.
   alloc->Sbrk(metadata_heap, sizeof(CkMalloc), metadata_heap);
