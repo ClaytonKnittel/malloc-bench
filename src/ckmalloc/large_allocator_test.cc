@@ -26,18 +26,17 @@ using testing::ElementsAre;
 using testing::UnorderedElementsAre;
 using util::IsOk;
 
+// TODO: Refactor this test entirely.
 class LargeAllocatorTest : public ::testing::Test {
  public:
   LargeAllocatorTest()
       : heap_factory_(std::make_shared<TestHeapFactory>(kHeapSize)),
-        heap_(static_cast<TestHeap*>(heap_factory_->Instances().begin()->get()),
-              Noop<TestHeap>),
         slab_map_(std::make_shared<TestSlabMap>()),
         slab_manager_fixture_(
-            std::make_shared<SlabManagerFixture>(heap_, slab_map_)),
+            std::make_shared<SlabManagerFixture>(heap_factory_, slab_map_)),
         freelist_(std::make_shared<class Freelist>()),
         large_allocator_fixture_(std::make_shared<LargeAllocatorFixture>(
-            heap_, slab_map_, slab_manager_fixture_, freelist_)) {
+            slab_map_, slab_manager_fixture_, freelist_)) {
     TestSysAlloc::NewInstance(heap_factory_.get());
   }
 
@@ -58,7 +57,9 @@ class LargeAllocatorTest : public ::testing::Test {
   }
 
   TestHeap& Heap() {
-    return slab_manager_fixture_->SlabHeap();
+    auto heaps = slab_manager_fixture_->Heaps();
+    CK_ASSERT_EQ(std::ranges::distance(heaps.begin(), heaps.end()), 1);
+    return *heaps.begin()->second.second;
   }
 
   TestSlabMap& SlabMap() {
@@ -176,7 +177,7 @@ class LargeAllocatorTest : public ::testing::Test {
     auto result =
         SlabManager().Alloc<BlockedSlab>(CeilDiv(total_bytes_, kPageSize));
     CK_ASSERT_TRUE(result.has_value());
-    CK_ASSERT_EQ(result.value().first, PageId::FromPtr(heap_->Start()));
+    CK_ASSERT_EQ(result.value().first, PageId::FromPtr(Heap().Start()));
     BlockedSlab* slab = result.value().second;
 
     uint64_t offset = Block::kFirstBlockInSlabOffset;
@@ -219,7 +220,6 @@ class LargeAllocatorTest : public ::testing::Test {
   }
 
   std::shared_ptr<TestHeapFactory> heap_factory_;
-  std::shared_ptr<TestHeap> heap_;
   std::shared_ptr<TestSlabMap> slab_map_;
   std::shared_ptr<SlabManagerFixture> slab_manager_fixture_;
   std::shared_ptr<class Freelist> freelist_;
