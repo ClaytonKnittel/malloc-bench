@@ -56,17 +56,17 @@ class TestCkMalloc : public TracefileExecutor {
 class TestCorrectness : public ::testing::Test {
  public:
   TestCorrectness()
-      : heap_factory_(
-            std::make_shared<ckmalloc::TestHeapFactory>(ckmalloc::kHeapSize)),
+      : heap_factory_(std::make_shared<ckmalloc::TestHeapFactory>(
+            ckmalloc::kMetadataHeapSize)),
         metadata_heap_(static_cast<ckmalloc::TestHeap*>(
                            heap_factory_->Instances().begin()->get()),
                        ckmalloc::Noop<ckmalloc::TestHeap>),
         slab_map_(std::make_shared<ckmalloc::TestSlabMap>()),
         slab_manager_fixture_(std::make_shared<ckmalloc::SlabManagerFixture>(
-            heap_factory_, slab_map_)),
+            heap_factory_, slab_map_, ckmalloc::kUserHeapSize)),
         metadata_manager_fixture_(
-            std::make_shared<ckmalloc::MetadataManagerFixture>(metadata_heap_,
-                                                               slab_map_)),
+            std::make_shared<ckmalloc::MetadataManagerFixture>(
+                metadata_heap_, slab_map_, ckmalloc::kMetadataHeapSize)),
         freelist_(std::make_shared<ckmalloc::Freelist>()),
         small_allocator_fixture_(
             std::make_shared<ckmalloc::SmallAllocatorFixture>(
