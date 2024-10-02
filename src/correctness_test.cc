@@ -56,32 +56,28 @@ class TestCkMalloc : public TracefileExecutor {
 class TestCorrectness : public ::testing::Test {
  public:
   TestCorrectness()
-      : heap_factory_(std::make_shared<ckmalloc::TestHeapFactory>(
-            ckmalloc::kHeapSize, ckmalloc::kHeapSize)),
+      : heap_factory_(
+            std::make_shared<ckmalloc::TestHeapFactory>(ckmalloc::kHeapSize)),
         metadata_heap_(static_cast<ckmalloc::TestHeap*>(
                            heap_factory_->Instances().begin()->get()),
                        ckmalloc::Noop<ckmalloc::TestHeap>),
-        user_heap_(static_cast<ckmalloc::TestHeap*>(
-                       (++heap_factory_->Instances().begin())->get()),
-                   ckmalloc::Noop<ckmalloc::TestHeap>),
         slab_map_(std::make_shared<ckmalloc::TestSlabMap>()),
         slab_manager_fixture_(std::make_shared<ckmalloc::SlabManagerFixture>(
-            user_heap_, slab_map_)),
+            heap_factory_, slab_map_)),
         metadata_manager_fixture_(
             std::make_shared<ckmalloc::MetadataManagerFixture>(metadata_heap_,
                                                                slab_map_)),
         freelist_(std::make_shared<ckmalloc::Freelist>()),
         small_allocator_fixture_(
             std::make_shared<ckmalloc::SmallAllocatorFixture>(
-                user_heap_, slab_map_, slab_manager_fixture_, freelist_)),
+                slab_map_, slab_manager_fixture_, freelist_)),
         large_allocator_fixture_(
             std::make_shared<ckmalloc::LargeAllocatorFixture>(
-                user_heap_, slab_map_, slab_manager_fixture_, freelist_)),
+                slab_map_, slab_manager_fixture_, freelist_)),
         main_allocator_fixture_(
             std::make_shared<ckmalloc::MainAllocatorFixture>(
-                user_heap_, slab_map_, slab_manager_fixture_,
-                metadata_manager_fixture_, small_allocator_fixture_,
-                large_allocator_fixture_)) {
+                slab_map_, slab_manager_fixture_, metadata_manager_fixture_,
+                small_allocator_fixture_, large_allocator_fixture_)) {
     ckmalloc::TestSysAlloc::NewInstance(heap_factory_.get());
   }
 
@@ -125,7 +121,6 @@ class TestCorrectness : public ::testing::Test {
  private:
   std::shared_ptr<ckmalloc::TestHeapFactory> heap_factory_;
   std::shared_ptr<ckmalloc::TestHeap> metadata_heap_;
-  std::shared_ptr<ckmalloc::TestHeap> user_heap_;
   std::shared_ptr<ckmalloc::TestSlabMap> slab_map_;
   std::shared_ptr<ckmalloc::SlabManagerFixture> slab_manager_fixture_;
   std::shared_ptr<ckmalloc::MetadataManagerFixture> metadata_manager_fixture_;

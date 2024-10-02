@@ -44,9 +44,8 @@ class MainAllocatorTest : public ::testing::Test {
         large_allocator_fixture_(std::make_shared<LargeAllocatorFixture>(
             slab_map_, slab_manager_fixture_, freelist_)),
         main_allocator_fixture_(std::make_shared<MainAllocatorFixture>(
-            heap_factory_, slab_map_, slab_manager_fixture_,
-            metadata_manager_fixture_, small_allocator_fixture_,
-            large_allocator_fixture_)) {
+            slab_map_, slab_manager_fixture_, metadata_manager_fixture_,
+            small_allocator_fixture_, large_allocator_fixture_)) {
     TestSysAlloc::NewInstance(heap_factory_.get());
   }
 
