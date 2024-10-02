@@ -169,7 +169,6 @@ TEST_F(SmallAllocatorTest, FreeOne) {
 
   EXPECT_THAT(ValidateHeap(), IsOk());
   EXPECT_THAT(ValidateEmpty(), IsOk());
-  EXPECT_EQ(TotalHeapsSize(), kPageSize);
 }
 
 TEST_F(SmallAllocatorTest, FreeFullSlab) {
@@ -189,7 +188,6 @@ TEST_F(SmallAllocatorTest, FreeFullSlab) {
   }
 
   EXPECT_THAT(ValidateEmpty(), IsOk());
-  EXPECT_EQ(TotalHeapsSize(), kPageSize);
 }
 
 TEST_F(SmallAllocatorTest, AllocFreeAllocOne) {
@@ -252,7 +250,7 @@ TEST_F(SmallAllocatorTest, ManyAllocs) {
     ASSERT_THAT(ValidateHeap(), IsOk());
   }
 
-  EXPECT_EQ(TotalHeapsSize(), SizeClass::kNumSizeClasses * kPageSize);
+  EXPECT_THAT(ValidateEmpty(), IsOk());
 }
 
 }  // namespace ckmalloc

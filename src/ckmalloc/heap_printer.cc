@@ -23,7 +23,7 @@
 
 namespace ckmalloc {
 
-HeapPrinter::HeapPrinter(const bench::Heap* heap, const SlabMap* slab_map,
+HeapPrinter::HeapPrinter(const bench::Heap* heap, SlabMap* slab_map,
                          const SlabManager* slab_manager,
                          const MetadataManager* metadata_manager)
     : heap_(heap),
@@ -47,7 +47,7 @@ std::string HeapPrinter::Print() {
   }
 
   for (auto slab_it = HeapIterator::HeapBegin(heap_, slab_map_);
-       slab_it != HeapIterator::HeapEnd(heap_, slab_map_); ++slab_it) {
+       slab_it != HeapIterator(); ++slab_it) {
     MappedSlab* slab = *slab_it;
     CK_ASSERT_NE(slab, nullptr);
 

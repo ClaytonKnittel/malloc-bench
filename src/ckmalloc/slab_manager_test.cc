@@ -204,7 +204,7 @@ TEST_F(SlabManagerTest, ReAllocateFreed) {
   ASSERT_THAT(Fixture().FreeSlab(slab1), IsOk());
   ASSERT_THAT(Fixture().AllocateSlab(1).status(), IsOk());
   EXPECT_THAT(ValidateHeap(), IsOk());
-  EXPECT_EQ(TotalHeapsSize(), 2 * kPageSize);
+  EXPECT_EQ(TotalHeapsSize(), kPageSize);
 }
 
 TEST_F(SlabManagerTest, ExtendHeapWithFreeAtEnd) {

@@ -160,7 +160,7 @@ void TestSysAlloc::Munmap(void* ptr, size_t size) {
   auto it = heap_map_.find(ptr);
   CK_ASSERT_TRUE(it != heap_map_.end());
   bench::Heap* heap = it->second.second;
-  CK_ASSERT_EQ(size, heap->Size());
+  CK_ASSERT_EQ(size, heap->MaxSize());
 
   auto result = heap_factory_->DeleteInstance(heap);
   if (!result.ok()) {

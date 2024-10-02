@@ -503,6 +503,22 @@ template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
 void SlabManagerImpl<MetadataAlloc, SlabMap>::FreeRegion(Slab* slab,
                                                          PageId start_id,
                                                          uint32_t n_pages) {
+  // If we have freed the last slab in the heap, we can free the whole heap.
+  if ((start_id == PageId::FromPtr(heap_start_) &&
+       n_pages * kPageSize == HeapSize()) ||
+      n_pages == kPagesPerHeap) {
+    SysAlloc::Instance()->Munmap(start_id.PageStart(), kHeapSize);
+    slab_map_->DeallocatePath(start_id, start_id + n_pages - 1);
+
+    if (start_id == PageId::FromPtr(heap_start_)) {
+      heap_start_ = nullptr;
+      heap_end_ = nullptr;
+    }
+
+    MetadataAlloc::SlabFree(static_cast<MappedSlab*>(slab));
+    return;
+  }
+
   PageId end_id = start_id + n_pages - 1;
 
   FreeSlab* free_slab = slab->Init<FreeSlab>(start_id, n_pages);

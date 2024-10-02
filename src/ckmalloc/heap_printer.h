@@ -16,7 +16,7 @@ namespace ckmalloc {
 
 class HeapPrinter {
  public:
-  HeapPrinter(const bench::Heap* heap, const SlabMap* slab_map,
+  HeapPrinter(const bench::Heap* heap, SlabMap* slab_map,
               const SlabManager* slab_manager,
               const MetadataManager* metadata_manager);
 
@@ -42,7 +42,7 @@ class HeapPrinter {
   PageId HeapStartId() const;
 
   const bench::Heap* const heap_;
-  const SlabMap* const slab_map_;
+  SlabMap* const slab_map_;
   const SlabManager* const slab_manager_;
   const MetadataManager* const metadata_manager_;
 

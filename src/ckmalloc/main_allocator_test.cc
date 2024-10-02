@@ -107,11 +107,14 @@ class MainAllocatorTest : public ::testing::Test {
     RETURN_IF_ERROR(large_allocator_fixture_->ValidateEmpty());
     RETURN_IF_ERROR(main_allocator_fixture_->ValidateEmpty());
 
-    if (heap_factory_->Instances().size() != 2) {
+    size_t non_metadata_heaps = absl::c_count_if(
+        *TestSysAlloc::Instance(),
+        [](auto it) { return it.second.first != HeapType::kMetadataHeap; });
+    if (non_metadata_heaps != 0) {
       return absl::FailedPreconditionError(absl::StrFormat(
-          "Expected empty heap, but found %zu heap instances "
+          "Expected empty heap, but found %zu non-metadata heap instances "
           "(only the metadata and main heap should be remaining)",
-          heap_factory_->Instances().size()));
+          non_metadata_heaps));
     }
     return absl::OkStatus();
   }
@@ -254,7 +257,6 @@ TEST_F(MainAllocatorTest, FreePagesizeMultiple) {
   Void* ptr = MainAllocator().Alloc(kPageSize);
   MainAllocator().Free(ptr);
 
-  EXPECT_EQ(TotalHeapsSize(), kPageSize);
   EXPECT_THAT(ValidateHeap(), IsOk());
   EXPECT_THAT(ValidateEmpty(), IsOk());
 }
