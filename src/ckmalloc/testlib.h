@@ -62,6 +62,7 @@ class TestGlobalMetadataAlloc {
 };
 
 using TestSlabMap = SlabMapImpl<TestGlobalMetadataAlloc>;
+using TestHeapIterator = HeapIteratorImpl<TestSlabMap>;
 
 template <typename Sink>
 void AbslStringify(Sink& sink, SlabType slab_type) {
@@ -161,6 +162,26 @@ class TestHeap : private AlignedAlloc, public bench::Heap {
         bench::Heap(RegionStart(), n_pages * kPageSize) {}
 };
 
+class IterableTestHeap {
+ public:
+  using iterator = TestHeapIterator;
+
+  IterableTestHeap(TestHeap* heap, TestSlabMap* slab_map)
+      : heap_(heap), slab_map_(slab_map) {}
+
+  TestHeapIterator begin() const {
+    return TestHeapIterator::HeapBegin(heap_, slab_map_);
+  }
+
+  static TestHeapIterator end() {
+    return TestHeapIterator();
+  }
+
+ private:
+  TestHeap* heap_;
+  TestSlabMap* slab_map_;
+};
+
 template <typename Sink>
 void AbslStringify(Sink& sink, const TestHeap& heap) {
   absl::Format(&sink, "%p-%p (size 0x%zx, max size 0x%zx)", heap.Start(),
@@ -187,8 +208,6 @@ class TestHeapFactory : public bench::HeapFactory {
  protected:
   absl::StatusOr<std::unique_ptr<bench::Heap>> MakeHeap(size_t size) override;
 };
-
-using TestHeapIterator = HeapIteratorImpl<TestSlabMap>;
 
 class TestSysAlloc : public SysAlloc {
  public:

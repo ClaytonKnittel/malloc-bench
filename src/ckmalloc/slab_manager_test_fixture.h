@@ -57,13 +57,13 @@ class SlabManagerFixture : public CkMallocTest {
                    -> bool { return it.second.first == HeapType::kUserHeap; });
   }
 
-  // TestHeapIterator HeapBegin() {
-  //   return TestHeapIterator::HeapBegin(&SlabHeap(), &SlabMap());
-  // }
-
-  // TestHeapIterator HeapEnd() {
-  //   return TestHeapIterator::HeapEnd(&SlabHeap(), &SlabMap());
-  // }
+  auto SlabsInHeap() {
+    return Heaps() |
+           std::ranges::views::transform([this](auto it) -> IterableTestHeap {
+             return IterableTestHeap(it.second.second, &SlabMap());
+           }) |
+           std::ranges::views::join;
+  }
 
   // Only used for initializing `TestSlabManager` via the default constructor,
   // which needs the heap and slab_map to have been defined already.
