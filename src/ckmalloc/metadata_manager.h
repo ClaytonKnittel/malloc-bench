@@ -18,6 +18,9 @@ class MetadataManagerImpl {
   friend class TraceReplayer;
 
  public:
+  // The size of each mmapped heap allocaation.
+  static constexpr size_t kHeapSize = 512 * (1 << 20);
+
   // alloc_offset is by default kPageSize. Initializing this to kPageSize tricks
   // the manager into thinking the last allocated slab is full, even though we
   // have not allocated any slabs on initialization yet. If some metadata has

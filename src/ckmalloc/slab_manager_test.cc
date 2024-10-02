@@ -17,15 +17,20 @@
 namespace ckmalloc {
 
 using testing::_;
+using testing::AllOf;
 using testing::ElementsAre;
+using testing::Pointee;
+using testing::Property;
 using util::IsOk;
 
 class SlabManagerTest : public testing::Test {
  public:
+  static constexpr size_t kHeapSize = 64 * kPageSize;
+
   SlabManagerTest()
       : heap_factory_(std::make_shared<TestHeapFactory>(kHeapSize)),
         slab_map_(std::make_shared<TestSlabMap>()),
-        test_fixture_(heap_factory_, slab_map_) {
+        test_fixture_(heap_factory_, slab_map_, kHeapSize) {
     TestSysAlloc::NewInstance(heap_factory_.get());
   }
 
@@ -238,6 +243,46 @@ TEST_F(SlabManagerTest, BestFit) {
   // We should have found the perfect fit, which used to be slab 5.
   EXPECT_EQ(slab8->StartId(), slab5_start);
   EXPECT_EQ(TotalHeapsSize(), 24 * kPageSize);
+}
+
+TEST_F(SlabManagerTest, SlabFillsWholeHeap) {
+  ASSERT_OK_AND_DEFINE(AllocatedSlab*, slab,
+                       Fixture().AllocateSlab(kHeapSize / kPageSize));
+  ASSERT_THAT(HeapsVec(), ElementsAre(_));
+
+  const TestHeap& slab_heap = *Heaps().begin()->second.second;
+  EXPECT_EQ(slab->StartId(), PageId::FromPtr(slab_heap.Start()));
+  EXPECT_THAT(ValidateHeap(), IsOk());
+}
+
+TEST_F(SlabManagerTest, TwoHeaps) {
+  EXPECT_THAT(Fixture().AllocateSlab(kHeapSize / kPageSize).status(), IsOk());
+  EXPECT_THAT(Fixture().AllocateSlab(2).status(), IsOk());
+  ASSERT_THAT(HeapsVec(), ElementsAre(_, _));
+  EXPECT_THAT(ValidateHeap(), IsOk());
+}
+
+TEST_F(SlabManagerTest, FreeTwoHeaps) {
+  ASSERT_OK_AND_DEFINE(AllocatedSlab*, slab1,
+                       Fixture().AllocateSlab(kHeapSize / kPageSize));
+  ASSERT_OK_AND_DEFINE(AllocatedSlab*, slab2, Fixture().AllocateSlab(2));
+  EXPECT_THAT(Fixture().FreeSlab(slab1), IsOk());
+  EXPECT_THAT(Fixture().FreeSlab(slab2), IsOk());
+
+  EXPECT_THAT(ValidateHeap(), IsOk());
+  EXPECT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(SlabManagerTest, ExtendHeapWithExtraRoom) {
+  ASSERT_OK_AND_DEFINE(AllocatedSlab*, slab1,
+                       Fixture().AllocateSlab(kHeapSize / kPageSize - 5));
+  EXPECT_THAT(Fixture().AllocateSlab(6).status(), IsOk());
+  ASSERT_THAT(HeapsVec(), ElementsAre(_, _));
+
+  EXPECT_THAT(ValidateHeap(), IsOk());
+  EXPECT_THAT(Fixture().SlabMap().FindSlab(slab1->EndId() + 1),
+              Pointee(AllOf(Property(&Slab::Type, SlabType::kFree),
+                            Property(&AllocatedSlab::Pages, 5))));
 }
 
 }  // namespace ckmalloc

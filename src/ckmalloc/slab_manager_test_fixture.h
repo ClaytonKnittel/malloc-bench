@@ -22,8 +22,8 @@ class TestSlabManager {
  public:
   using SlabManagerT = SlabManagerImpl<TestGlobalMetadataAlloc, TestSlabMap>;
 
-  TestSlabManager(class SlabManagerFixture* test_fixture,
-                  TestSlabMap* slab_map);
+  TestSlabManager(class SlabManagerFixture* test_fixture, TestSlabMap* slab_map,
+                  size_t heap_size);
 
   SlabManagerT& Underlying() {
     return slab_manager_;
@@ -77,10 +77,12 @@ class SlabManagerFixture : public CkMallocTest {
   // Only used for initializing `TestSlabManager` via the default constructor,
   // which needs the heap and slab_map to have been defined already.
   explicit SlabManagerFixture(std::shared_ptr<TestHeapFactory> heap_factory,
-                              std::shared_ptr<TestSlabMap> slab_map)
+                              std::shared_ptr<TestSlabMap> slab_map,
+                              size_t heap_size)
       : heap_factory_(std::move(heap_factory)),
         slab_map_(std::move(slab_map)),
-        slab_manager_(std::make_shared<TestSlabManager>(this, slab_map_.get())),
+        slab_manager_(std::make_shared<TestSlabManager>(this, slab_map_.get(),
+                                                        heap_size)),
         rng_(1027, 3) {}
 
   const char* TestPrefix() const override {

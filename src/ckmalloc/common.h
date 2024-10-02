@@ -29,14 +29,7 @@ static constexpr uint32_t kPageShift = 12;
 static constexpr size_t kPageSize = 1 << kPageShift;
 
 // The size of each mmapped heap allocaation.
-static constexpr size_t kHeapSize = 512 * (1 << 20);
-
-// The number of pages in each heap.
-static constexpr size_t kPagesPerHeap = kHeapSize / kPageSize;
-
-static constexpr uint32_t kHeapSizeShift = 29;
-// NOLINTNEXTLINE(google-readability-casting)
-static_assert(kHeapSize == (size_t(1) << kHeapSizeShift));
+// static constexpr size_t kHeapSize = 512 * (1 << 20);
 
 // The largest user-request size which will be allocated in small slabs. Any
 // size larger will go in large blocks.
