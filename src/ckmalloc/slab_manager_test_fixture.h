@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <numeric>
 #include <ranges>
 
 #include "absl/container/flat_hash_map.h"
@@ -63,6 +64,14 @@ class SlabManagerFixture : public CkMallocTest {
              return IterableTestHeap(it.second.second, &SlabMap());
            }) |
            std::ranges::views::join;
+  }
+
+  static size_t TotalHeapsSize() {
+    auto heaps =
+        Heaps() | std::ranges::views::transform([](const auto& it) -> size_t {
+          return it.second.second->Size();
+        });
+    return std::accumulate(heaps.begin(), heaps.end(), static_cast<size_t>(0));
   }
 
   // Only used for initializing `TestSlabManager` via the default constructor,

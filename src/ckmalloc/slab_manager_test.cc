@@ -1,6 +1,5 @@
 #include <cstddef>
 #include <memory>
-#include <numeric>
 #include <ranges>
 
 #include "gmock/gmock.h"
@@ -45,11 +44,7 @@ class SlabManagerTest : public testing::Test {
   }
 
   static size_t TotalHeapsSize() {
-    auto heaps =
-        Heaps() | std::ranges::views::transform([](const auto& it) -> size_t {
-          return it.second.second->Size();
-        });
-    return std::accumulate(heaps.begin(), heaps.end(), static_cast<size_t>(0));
+    return SlabManagerFixture::TotalHeapsSize();
   }
 
   TestSlabManager& SlabManager() {
