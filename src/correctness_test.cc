@@ -271,6 +271,12 @@ TEST_F(TestCorrectness, Grep) {
   ASSERT_THAT(ValidateEmpty(), IsOk());
 }
 
+TEST_F(TestCorrectness, Gto) {
+  ASSERT_THAT(RunTrace("traces/gto.trace", /*validate_every_n=*/65536),
+              util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
 TEST_F(TestCorrectness, HaskellWebServer) {
   ASSERT_THAT(RunTrace("traces/haskell-web-server.trace",
                        /*validate_every_n=*/16384),
