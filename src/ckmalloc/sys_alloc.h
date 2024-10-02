@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <ostream>
 
 namespace ckmalloc {
 
@@ -9,6 +10,8 @@ enum class HeapType {
   kUserHeap,
   kMmapAllocHeap,
 };
+
+std::ostream& operator<<(std::ostream& ostr, HeapType heap_type);
 
 class SysAlloc {
  public:

@@ -233,6 +233,7 @@ cc_test(
         ":metadata_manager_test_fixture",
         ":slab_manager_test_fixture",
         ":small_allocator_test_fixture",
+        ":sys_alloc",
         ":testlib",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/strings:str_format",

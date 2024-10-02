@@ -15,35 +15,36 @@
 #include "src/ckmalloc/metadata_manager_test_fixture.h"
 #include "src/ckmalloc/slab_manager_test_fixture.h"
 #include "src/ckmalloc/small_allocator_test_fixture.h"
+#include "src/ckmalloc/sys_alloc.h"
 #include "src/ckmalloc/testlib.h"
 
 namespace ckmalloc {
 
 using testing::ElementsAre;
+using testing::Field;
+using testing::Pointee;
+using testing::UnorderedElementsAre;
 using util::IsOk;
 
 class MainAllocatorTest : public ::testing::Test {
  public:
   MainAllocatorTest()
-      : heap_factory_(std::make_shared<TestHeapFactory>(kHeapSize, kHeapSize)),
+      : heap_factory_(std::make_shared<TestHeapFactory>(kHeapSize)),
         metadata_heap_(
             static_cast<TestHeap*>(heap_factory_->Instances().begin()->get()),
             Noop<TestHeap>),
-        main_heap_(static_cast<TestHeap*>(
-                       (++heap_factory_->Instances().begin())->get()),
-                   Noop<TestHeap>),
         slab_map_(std::make_shared<TestSlabMap>()),
         slab_manager_fixture_(
-            std::make_shared<SlabManagerFixture>(main_heap_, slab_map_)),
+            std::make_shared<SlabManagerFixture>(heap_factory_, slab_map_)),
         metadata_manager_fixture_(std::make_shared<MetadataManagerFixture>(
             metadata_heap_, slab_map_)),
         freelist_(std::make_shared<class Freelist>()),
         small_allocator_fixture_(std::make_shared<SmallAllocatorFixture>(
-            main_heap_, slab_map_, slab_manager_fixture_, freelist_)),
+            slab_map_, slab_manager_fixture_, freelist_)),
         large_allocator_fixture_(std::make_shared<LargeAllocatorFixture>(
-            main_heap_, slab_map_, slab_manager_fixture_, freelist_)),
+            slab_map_, slab_manager_fixture_, freelist_)),
         main_allocator_fixture_(std::make_shared<MainAllocatorFixture>(
-            main_heap_, slab_map_, slab_manager_fixture_,
+            heap_factory_, slab_map_, slab_manager_fixture_,
             metadata_manager_fixture_, small_allocator_fixture_,
             large_allocator_fixture_)) {
     TestSysAlloc::NewInstance(heap_factory_.get());
@@ -55,10 +56,6 @@ class MainAllocatorTest : public ::testing::Test {
 
   TestHeapFactory& HeapFactory() {
     return *heap_factory_;
-  }
-
-  TestHeap& Heap() {
-    return *main_heap_;
   }
 
   TestSlabManager& SlabManager() {
@@ -75,6 +72,17 @@ class MainAllocatorTest : public ::testing::Test {
 
   MainAllocatorFixture& Fixture() {
     return *main_allocator_fixture_;
+  }
+
+  static size_t TotalHeapsSize() {
+    return SlabManagerFixture::TotalHeapsSize();
+  }
+
+  template <HeapType... Heaps>
+  static auto MatchHeapTypes() {
+    return Pointee(UnorderedElementsAre(
+        Field(&TestSysAlloc::value_type::second,
+              Field(&std::pair<HeapType, TestHeap*>::first, Heaps))...));
   }
 
   std::vector<const TrackedBlock*> FreelistList() const {
@@ -112,7 +120,6 @@ class MainAllocatorTest : public ::testing::Test {
  private:
   std::shared_ptr<TestHeapFactory> heap_factory_;
   std::shared_ptr<TestHeap> metadata_heap_;
-  std::shared_ptr<TestHeap> main_heap_;
   std::shared_ptr<TestSlabMap> slab_map_;
   std::shared_ptr<SlabManagerFixture> slab_manager_fixture_;
   std::shared_ptr<MetadataManagerFixture> metadata_manager_fixture_;
@@ -123,13 +130,13 @@ class MainAllocatorTest : public ::testing::Test {
 };
 
 TEST_F(MainAllocatorTest, Empty) {
-  EXPECT_EQ(Heap().Size(), 0);
+  EXPECT_EQ(TotalHeapsSize(), 0);
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
 TEST_F(MainAllocatorTest, AllocSmall) {
   MainAllocator().Alloc(50);
-  EXPECT_NE(Heap().Size(), 0);
+  EXPECT_NE(TotalHeapsSize(), 0);
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
@@ -138,7 +145,7 @@ TEST_F(MainAllocatorTest, AllocManySmall) {
     MainAllocator().Alloc(size);
   }
 
-  EXPECT_NE(Heap().Size(), 0);
+  EXPECT_NE(TotalHeapsSize(), 0);
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
@@ -160,14 +167,14 @@ TEST_F(MainAllocatorTest, FreeTwoSmall) {
 
 TEST_F(MainAllocatorTest, AllocLarge) {
   MainAllocator().Alloc(500);
-  EXPECT_NE(Heap().Size(), 0);
+  EXPECT_NE(TotalHeapsSize(), 0);
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
 TEST_F(MainAllocatorTest, AllocVeryLarge) {
   MainAllocator().Alloc(472);
   MainAllocator().Alloc(kPageSize + 1);
-  EXPECT_EQ(Heap().Size(), 3 * kPageSize);
+  EXPECT_EQ(TotalHeapsSize(), 3 * kPageSize);
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
@@ -176,7 +183,7 @@ TEST_F(MainAllocatorTest, AllocManyLarge) {
     MainAllocator().Alloc(size);
   }
 
-  EXPECT_NE(Heap().Size(), 0);
+  EXPECT_NE(TotalHeapsSize(), 0);
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
@@ -228,19 +235,19 @@ TEST_F(MainAllocatorTest, ReallocMove) {
 
 TEST_F(MainAllocatorTest, AllocPagesizeMultiple) {
   MainAllocator().Alloc(kPageSize);
-  EXPECT_EQ(Heap().Size(), kPageSize);
+  EXPECT_EQ(TotalHeapsSize(), kPageSize);
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
 TEST_F(MainAllocatorTest, AllocSmallerThanPagesize) {
   MainAllocator().Alloc(kPageSize - 15);
-  EXPECT_EQ(Heap().Size(), kPageSize);
+  EXPECT_EQ(TotalHeapsSize(), kPageSize);
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
 TEST_F(MainAllocatorTest, AllocLargePagesizeMultiple) {
   MainAllocator().Alloc(14 * kPageSize);
-  EXPECT_EQ(Heap().Size(), 14 * kPageSize);
+  EXPECT_EQ(TotalHeapsSize(), 14 * kPageSize);
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
@@ -248,7 +255,7 @@ TEST_F(MainAllocatorTest, FreePagesizeMultiple) {
   Void* ptr = MainAllocator().Alloc(kPageSize);
   MainAllocator().Free(ptr);
 
-  EXPECT_EQ(Heap().Size(), kPageSize);
+  EXPECT_EQ(TotalHeapsSize(), kPageSize);
   EXPECT_THAT(ValidateHeap(), IsOk());
   EXPECT_THAT(ValidateEmpty(), IsOk());
 }
@@ -258,14 +265,14 @@ TEST_F(MainAllocatorTest, ReallocPagesizeMultiple) {
   Void* ptr2 = MainAllocator().Realloc(ptr1, 2 * kPageSize);
 
   EXPECT_EQ(ptr1, ptr2);
-  EXPECT_EQ(Heap().Size(), 4 * kPageSize);
+  EXPECT_EQ(TotalHeapsSize(), 4 * kPageSize);
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
 TEST_F(MainAllocatorTest, AllocHuge) {
   MainAllocator().Alloc(kMinMmapSize);
 
-  EXPECT_EQ(Heap().Size(), 0);
+  EXPECT_EQ(TotalHeapsSize(), 0);
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
@@ -273,7 +280,7 @@ TEST_F(MainAllocatorTest, FreeHuge) {
   Void* ptr = MainAllocator().Alloc(kMinMmapSize);
   MainAllocator().Free(ptr);
 
-  EXPECT_EQ(Heap().Size(), 0);
+  EXPECT_EQ(TotalHeapsSize(), 0);
   EXPECT_THAT(ValidateHeap(), IsOk());
   EXPECT_THAT(ValidateEmpty(), IsOk());
 }
@@ -282,18 +289,24 @@ TEST_F(MainAllocatorTest, ReallocHugeToSmall) {
   Void* ptr1 = MainAllocator().Alloc(kMinMmapSize);
   MainAllocator().Realloc(ptr1, 64);
 
-  EXPECT_EQ(Heap().Size(), kPageSize);
+  EXPECT_EQ(TotalHeapsSize(), kPageSize);
   EXPECT_THAT(ValidateHeap(), IsOk());
-  EXPECT_EQ(HeapFactory().Instances().size(), 2);
+
+  const auto matcher =
+      MatchHeapTypes<HeapType::kMetadataHeap, HeapType::kUserHeap>();
+  EXPECT_THAT(TestSysAlloc::Instance(), matcher);
 }
 
 TEST_F(MainAllocatorTest, ReallocHugeToLarge) {
   Void* ptr1 = MainAllocator().Alloc(kMinMmapSize);
   MainAllocator().Realloc(ptr1, 1024);
 
-  EXPECT_EQ(Heap().Size(), kPageSize);
+  EXPECT_EQ(TotalHeapsSize(), kPageSize);
   EXPECT_THAT(ValidateHeap(), IsOk());
-  EXPECT_EQ(HeapFactory().Instances().size(), 2);
+
+  const auto matcher =
+      MatchHeapTypes<HeapType::kMetadataHeap, HeapType::kUserHeap>();
+  EXPECT_THAT(TestSysAlloc::Instance(), matcher);
 }
 
 TEST_F(MainAllocatorTest, ReallocHugeToHuge) {
@@ -301,9 +314,12 @@ TEST_F(MainAllocatorTest, ReallocHugeToHuge) {
   Void* ptr2 = MainAllocator().Realloc(ptr1, kMinMmapSize + 1);
 
   EXPECT_NE(ptr1, ptr2);
-  EXPECT_EQ(Heap().Size(), 0);
+  EXPECT_EQ(TotalHeapsSize(), 0);
   EXPECT_THAT(ValidateHeap(), IsOk());
-  EXPECT_EQ(HeapFactory().Instances().size(), 3);
+
+  const auto matcher =
+      MatchHeapTypes<HeapType::kMetadataHeap, HeapType::kMmapAllocHeap>();
+  EXPECT_THAT(TestSysAlloc::Instance(), matcher);
 }
 
 TEST_F(MainAllocatorTest, ReallocHugeToEqualHuge) {
@@ -311,9 +327,12 @@ TEST_F(MainAllocatorTest, ReallocHugeToEqualHuge) {
   Void* ptr2 = MainAllocator().Realloc(ptr1, kMinMmapSize + kPageSize - 1);
 
   EXPECT_EQ(ptr1, ptr2);
-  EXPECT_EQ(Heap().Size(), 0);
+  EXPECT_EQ(TotalHeapsSize(), 0);
   EXPECT_THAT(ValidateHeap(), IsOk());
-  EXPECT_EQ(HeapFactory().Instances().size(), 3);
+
+  const auto matcher =
+      MatchHeapTypes<HeapType::kMetadataHeap, HeapType::kMmapAllocHeap>();
+  EXPECT_THAT(TestSysAlloc::Instance(), matcher);
 }
 
 }  // namespace ckmalloc

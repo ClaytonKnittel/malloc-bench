@@ -89,6 +89,7 @@ void AbslStringify(Sink& sink, SlabType slab_type) {
     }
     case SlabType::kMmap: {
       sink.Append("kMmap");
+      break;
     }
   }
 }
@@ -152,6 +153,24 @@ void AbslStringify(Sink& sink, const Block& block) {
   } else {
     absl::Format(&sink, "Block %p: [allocated, size=%" PRIu64 ", prev_free=%s]",
                  &block, block.Size(), (block.PrevFree() ? "true" : "false"));
+  }
+}
+
+template <typename Sink>
+void AbslStringify(Sink& sink, HeapType heap_type) {
+  switch (heap_type) {
+    case HeapType::kMetadataHeap: {
+      sink.Append("kMetadataHeap");
+      break;
+    }
+    case HeapType::kUserHeap: {
+      sink.Append("kUserHeap");
+      break;
+    }
+    case HeapType::kMmapAllocHeap: {
+      sink.Append("kMmapAllocHeap");
+      break;
+    }
   }
 }
 

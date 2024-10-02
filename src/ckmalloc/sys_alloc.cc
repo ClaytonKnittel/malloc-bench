@@ -1,5 +1,6 @@
 #include "src/ckmalloc/sys_alloc.h"
 
+#include <ostream>
 #include <sys/mman.h>
 
 namespace ckmalloc {
@@ -7,6 +8,17 @@ namespace ckmalloc {
 SysAlloc* SysAlloc::instance_ = nullptr;
 
 RealSysAlloc RealSysAlloc::instance_;
+
+std::ostream& operator<<(std::ostream& ostr, HeapType heap_type) {
+  switch (heap_type) {
+    case HeapType::kMetadataHeap:
+      return ostr << "kMetadataHeap";
+    case HeapType::kUserHeap:
+      return ostr << "kUserHeap";
+    case HeapType::kMmapAllocHeap:
+      return ostr << "kMmapAllocHeap";
+  }
+}
 
 /* static */
 SysAlloc* SysAlloc::Instance() {
