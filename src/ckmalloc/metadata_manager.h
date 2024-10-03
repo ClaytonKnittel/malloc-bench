@@ -26,9 +26,9 @@ class MetadataManagerImpl {
   explicit MetadataManagerImpl(void* heap, void* heap_end, SlabMap* slab_map,
                                size_t heap_size)
       : heap_(heap),
+        max_heap_size_(heap_size),
         slab_map_(slab_map),
-        heap_end_(heap_end),
-        max_heap_size_(heap_size) {}
+        heap_end_(heap_end) {}
 
   // Allocates `size` bytes aligned to `alignment` and returns a pointer to the
   // beginning of that region. This memory cannot be released back to the
