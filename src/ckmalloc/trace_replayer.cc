@@ -17,6 +17,7 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/str_split.h"
+#include "absl/strings/string_view.h"
 #include "util/absl_util.h"
 #include "util/csi.h"
 #include "util/print_colors.h"
@@ -26,6 +27,7 @@
 #include "src/ckmalloc/global_state.h"
 #include "src/ckmalloc/heap_printer.h"
 #include "src/ckmalloc/local_cache.h"
+#include "src/ckmalloc/sys_alloc.h"
 #include "src/ckmalloc/testlib.h"
 #include "src/ckmalloc/util.h"
 #include "src/heap_factory.h"
@@ -375,6 +377,20 @@ class TraceReplayer : public TracefileExecutor {
     tcsetattr(STDIN_FILENO, TCSANOW, &t);
   }
 
+  static absl::string_view ShortHeapType(HeapType heap_type) {
+    switch (heap_type) {
+      case HeapType::kMetadataHeap: {
+        return "m";
+      }
+      case HeapType::kUserHeap: {
+        return "u";
+      }
+      case HeapType::kMmapAllocHeap: {
+        return "mm";
+      }
+    }
+  }
+
   absl::Status Display() {
     DEFINE_OR_RETURN(uint16_t, term_height, TermHeight());
     if (absl::GetFlag(FLAGS_test_run)) {
@@ -394,7 +410,11 @@ class TraceReplayer : public TracefileExecutor {
       if (idx != 0) {
         std::cout << ", ";
       }
-      std::cout << idx << " (" << heap_type << " (" << heap_start << "))";
+      std::cout << idx << " (" << ShortHeapType(heap_type);
+      if (heap_start == cur_heap_start_) {
+        std::cout << " (" << heap_start << ")";
+      }
+      std::cout << ")";
       idx++;
     }
     std::cout << "]" << std::endl;
