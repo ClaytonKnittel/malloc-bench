@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <memory>
 
+#include "absl/container/flat_hash_map.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
@@ -11,9 +12,11 @@
 
 #include "src/ckmalloc/block.h"
 #include "src/ckmalloc/common.h"
+#include "src/ckmalloc/heap_iterator.h"
 #include "src/ckmalloc/page_id.h"
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/slab_map.h"
+#include "src/ckmalloc/sys_alloc.h"
 #include "src/ckmalloc/util.h"
 #include "src/heap_factory.h"
 #include "src/heap_interface.h"
@@ -45,6 +48,8 @@ class TestGlobalMetadataAlloc {
   static void SlabFree(MappedSlab* slab);
   static void* Alloc(size_t size, size_t alignment);
 
+  static uint64_t TotalAllocs();
+
   // Test-only function to delete memory allocted by `Alloc`.
   static void ClearAllAllocs();
 
@@ -53,9 +58,11 @@ class TestGlobalMetadataAlloc {
 
  private:
   static TestMetadataAllocInterface* allocator_;
+  static uint64_t n_allocs_;
 };
 
 using TestSlabMap = SlabMapImpl<TestGlobalMetadataAlloc>;
+using TestHeapIterator = HeapIteratorImpl<TestSlabMap>;
 
 template <typename Sink>
 void AbslStringify(Sink& sink, SlabType slab_type) {
@@ -80,6 +87,10 @@ void AbslStringify(Sink& sink, SlabType slab_type) {
       sink.Append("kSingleAlloc");
       break;
     }
+    case SlabType::kMmap: {
+      sink.Append("kMmap");
+      break;
+    }
   }
 }
 
@@ -92,7 +103,8 @@ void AbslStringify(Sink& sink, const Slab& slab) {
     }
     case SlabType::kFree:
     case SlabType::kSmall:
-    case SlabType::kSingleAlloc: {
+    case SlabType::kSingleAlloc:
+    case SlabType::kMmap: {
       const MappedSlab& mapped_slab = *slab.ToMapped();
       absl::Format(&sink, "Slab: [type=%v, pages=%" PRIu32 ", start_id=%v]",
                    mapped_slab.Type(), mapped_slab.Pages(),
@@ -144,12 +156,56 @@ void AbslStringify(Sink& sink, const Block& block) {
   }
 }
 
+template <typename Sink>
+void AbslStringify(Sink& sink, HeapType heap_type) {
+  switch (heap_type) {
+    case HeapType::kMetadataHeap: {
+      sink.Append("kMetadataHeap");
+      break;
+    }
+    case HeapType::kUserHeap: {
+      sink.Append("kUserHeap");
+      break;
+    }
+    case HeapType::kMmapAllocHeap: {
+      sink.Append("kMmapAllocHeap");
+      break;
+    }
+  }
+}
+
 class TestHeap : private AlignedAlloc, public bench::Heap {
  public:
   explicit TestHeap(size_t n_pages)
       : AlignedAlloc(n_pages * kPageSize, kPageSize),
         bench::Heap(RegionStart(), n_pages * kPageSize) {}
 };
+
+class IterableTestHeap {
+ public:
+  using iterator = TestHeapIterator;
+
+  IterableTestHeap(TestHeap* heap, TestSlabMap* slab_map)
+      : heap_(heap), slab_map_(slab_map) {}
+
+  TestHeapIterator begin() const {
+    return TestHeapIterator::HeapBegin(heap_, slab_map_);
+  }
+
+  static TestHeapIterator end() {
+    return TestHeapIterator();
+  }
+
+ private:
+  TestHeap* heap_;
+  TestSlabMap* slab_map_;
+};
+
+template <typename Sink>
+void AbslStringify(Sink& sink, const TestHeap& heap) {
+  absl::Format(&sink, "%p-%p (size 0x%zx, max size 0x%zx)", heap.Start(),
+               heap.End(), heap.Size(), heap.MaxSize());
+}
 
 class TestHeapFactory : public bench::HeapFactory {
  public:
@@ -170,6 +226,46 @@ class TestHeapFactory : public bench::HeapFactory {
 
  protected:
   absl::StatusOr<std::unique_ptr<bench::Heap>> MakeHeap(size_t size) override;
+};
+
+class TestSysAlloc : public SysAlloc {
+ public:
+  using MapT = absl::flat_hash_map<void*, std::pair<HeapType, TestHeap*>>;
+  using value_type = MapT::value_type;
+  using reference = MapT::reference;
+  using const_reference = MapT::const_reference;
+  using iterator = MapT::iterator;
+  using const_iterator = MapT::const_iterator;
+
+  explicit TestSysAlloc(bench::HeapFactory* heap_factory);
+
+  static TestSysAlloc* Instance();
+
+  static TestSysAlloc* NewInstance(bench::HeapFactory* heap_factory);
+
+  static void Reset();
+
+  void* Mmap(void* start_hint, size_t size, HeapType type) override;
+
+  void Munmap(void* ptr, size_t size) override;
+
+  void Sbrk(void* heap_start, size_t increment, void* current_end) override;
+
+  bench::Heap* HeapFromStart(void* heap_start);
+
+  size_t Size() const;
+
+  const_iterator begin() const;
+  const_iterator end() const;
+
+  auto Find(void* heap_start) const {
+    return heap_map_.find(heap_start);
+  }
+
+ private:
+  bench::HeapFactory* heap_factory_;
+
+  MapT heap_map_;
 };
 
 class CkMallocTest {

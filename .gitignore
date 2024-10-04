@@ -1,4 +1,4 @@
 *.swp
 /bazel-*
-/agg.py
-/allocs.txt
+/traces/*.trace
+/prof.out

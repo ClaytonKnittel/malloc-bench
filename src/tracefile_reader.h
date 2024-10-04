@@ -17,6 +17,11 @@ class TracefileReader {
   using const_iterator = google::protobuf::internal::RepeatedPtrIterator<
       const TraceLine>::iterator;
 
+  TracefileReader(const TracefileReader&) = delete;
+  TracefileReader(TracefileReader&&) = default;
+  TracefileReader& operator=(const TracefileReader&) = delete;
+  TracefileReader& operator=(TracefileReader&&) = default;
+
   static absl::StatusOr<TracefileReader> Open(const std::string& filename);
 
   size_t size() const;
@@ -31,7 +36,7 @@ class TracefileReader {
  private:
   explicit TracefileReader(class Tracefile&& tracefile);
 
-  const class Tracefile tracefile_;
+  class Tracefile tracefile_;
 };
 
 }  // namespace bench

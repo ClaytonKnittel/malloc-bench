@@ -54,6 +54,11 @@
 namespace ckmalloc {
 
 template <typename T>
+static void Noop(T* val) {
+  (void) val;
+}
+
+template <typename T>
 std::optional<T> OptionalOr(std::optional<T>&& primary,
                             std::optional<T>&& secondary) {
   return primary.has_value() ? std::move(primary) : std::move(secondary);
@@ -99,8 +104,8 @@ constexpr T CeilDiv(T val, T quotient) {
 // Returns a - b by integer value.
 template <typename T, typename U>
 constexpr size_t PtrDistance(const T* a, const U* b) {
-  return reinterpret_cast<const uint8_t*>(a) -
-         reinterpret_cast<const uint8_t*>(b);
+  return static_cast<size_t>(reinterpret_cast<const uint8_t*>(a) -
+                             reinterpret_cast<const uint8_t*>(b));
 }
 
 // Returns ptr + int, returning void*

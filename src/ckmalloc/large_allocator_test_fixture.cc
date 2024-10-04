@@ -17,8 +17,7 @@ absl::Status LargeAllocatorFixture::ValidateHeap() {
   absl::flat_hash_set<const Block*> free_blocks;
   const auto tracked_block =
       [this, &free_blocks](const FreeBlock& block) -> absl::Status {
-    MappedSlab* mapped_slab =
-        slab_map_->FindSlab(slab_manager_->PageIdFromPtr(&block));
+    MappedSlab* mapped_slab = slab_map_->FindSlab(PageId::FromPtr(&block));
     if (mapped_slab == nullptr || mapped_slab->Type() != SlabType::kBlocked) {
       return FailedTest(
           "Encountered block not within large slab in freelist: block %p of "
@@ -27,8 +26,7 @@ absl::Status LargeAllocatorFixture::ValidateHeap() {
     }
     BlockedSlab* slab = mapped_slab->ToBlocked();
 
-    void* end_addr =
-        PtrAdd(slab_manager_->PageStartFromId(slab->EndId()), kPageSize);
+    void* end_addr = PtrAdd(slab->EndId().PageStart(), kPageSize);
     const Block* next_adjacent = block.NextAdjacentBlock();
     if (next_adjacent < &block || next_adjacent >= end_addr) {
       return FailedTest(
@@ -40,7 +38,7 @@ absl::Status LargeAllocatorFixture::ValidateHeap() {
     size_t block_offset_bytes = PtrDistance(
         static_cast<const AllocatedBlock*>(static_cast<const Block*>(&block))
             ->UserDataPtr(),
-        slab_manager_->PageStartFromId(slab->StartId()));
+        slab->StartId().PageStart());
     if (!IsAligned<uint64_t>(block_offset_bytes, kDefaultAlignment)) {
       return FailedTest(
           "Encountered unaligned block in freelist at offset %zu from heap "
@@ -97,23 +95,15 @@ absl::Status LargeAllocatorFixture::ValidateHeap() {
 
   // Iterate over the heap.
   size_t n_free_blocks = 0;
-  PageId page = PageId::Zero();
-  while (true) {
-    MappedSlab* mapped_slab = SlabMap().FindSlab(page);
-    if (mapped_slab == nullptr) {
-      break;
-    }
-
+  for (MappedSlab* mapped_slab : slab_manager_test_fixture_->SlabsInHeap()) {
     if (mapped_slab->Type() != SlabType::kBlocked) {
-      page += mapped_slab->Pages();
       continue;
     }
 
     BlockedSlab* slab = mapped_slab->ToBlocked();
 
-    void* const slab_start = slab_manager_->PageStartFromId(slab->StartId());
-    void* const slab_end =
-        PtrAdd(slab_manager_->PageStartFromId(slab->EndId()), kPageSize);
+    void* const slab_start = slab->StartId().PageStart();
+    void* const slab_end = PtrAdd(slab->EndId().PageStart(), kPageSize);
     Block* block = slab_manager_->FirstBlockInBlockedSlab(slab);
     Block* prev_block = nullptr;
     uint64_t allocated_bytes = 0;
@@ -224,8 +214,6 @@ absl::Status LargeAllocatorFixture::ValidateHeap() {
           "%" PRIu64 " allocated bytes",
           *slab, allocated_bytes);
     }
-
-    page += mapped_slab->Pages();
   }
 
   if (n_free_blocks != free_blocks.size()) {

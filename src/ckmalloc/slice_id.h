@@ -29,7 +29,7 @@ class SliceId {
     return SliceId(size_class.OffsetToIdx(offset_bytes));
   }
 
-  static constexpr SliceId FromIdx(uint16_t idx) {
+  static constexpr SliceId FromIdx(T idx) {
     return SliceId(idx);
   }
 

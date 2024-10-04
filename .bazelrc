@@ -1,12 +1,15 @@
-# build:clang --linkopt=-fuse-ld=lld
 build --action_env=CC=clang-18
-build --action_env=CXX=clang++-18
 build --features=layering_check
+build --features=external_include_paths
 build --cxxopt=-std=c++20
+build --copt=-fno-exceptions
 
 build:opt -c opt
 build:opt --copt="-DNDEBUG=1"
 build:opt --features=thin_lto
+
+build:test --copt=-O1
+build:test --copt=-g3
 
 build:profile --copt=-O2
 build:profile --linkopt=-lprofiler

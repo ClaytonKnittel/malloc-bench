@@ -5,9 +5,8 @@
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/slab_map.h"
+#include "src/ckmalloc/sys_alloc.h"
 #include "src/ckmalloc/util.h"
-#include "src/heap_factory.h"
-#include "src/heap_interface.h"
 
 namespace ckmalloc {
 
@@ -16,6 +15,7 @@ class MetadataManagerImpl {
   friend class HeapPrinter;
   friend class MetadataManagerFixture;
   friend class GlobalState;
+  friend class TraceReplayer;
 
  public:
   // alloc_offset is by default kPageSize. Initializing this to kPageSize tricks
@@ -23,9 +23,12 @@ class MetadataManagerImpl {
   // have not allocated any slabs on initialization yet. If some metadata has
   // already been allocated, this number can be changed to reflect the number of
   // already-allocated bytes from the first page.
-  explicit MetadataManagerImpl(bench::HeapFactory* heap_factory,
-                               SlabMap* slab_map, size_t heap_idx)
-      : heap_factory_(heap_factory), heap_idx_(heap_idx), slab_map_(slab_map) {}
+  explicit MetadataManagerImpl(void* heap, void* heap_end, SlabMap* slab_map,
+                               size_t heap_size)
+      : heap_(heap),
+        max_heap_size_(heap_size),
+        slab_map_(slab_map),
+        heap_end_(heap_end) {}
 
   // Allocates `size` bytes aligned to `alignment` and returns a pointer to the
   // beginning of that region. This memory cannot be released back to the
@@ -42,22 +45,14 @@ class MetadataManagerImpl {
   void FreeSlabMeta(MappedSlab* slab);
 
  private:
-  bench::Heap* MetadataHeap();
-  const bench::Heap* MetadataHeap() const;
-
-  // The most recently allocated metadata slab.
-  void* page_start_ = nullptr;
-
-  // The offset in bytes that the next piece of metadata should be allocated
-  // from `last_`.
-  uint32_t alloc_offset_ = kPageSize;
-
-  bench::HeapFactory* const heap_factory_;
-
-  // The index of the metadata heap in the heap factory.
-  const size_t heap_idx_;
+  void* const heap_;
+  const size_t max_heap_size_;
 
   SlabMap* const slab_map_;
+
+  // The end of the already-allocated region of metadata. Metadata heaps are
+  // alloc-only, except for slab metadata.
+  void* heap_end_;
 
   // The head of a singly-linked list of free slabs.
   UnmappedSlab* last_free_slab_ = nullptr;
@@ -72,33 +67,20 @@ void* MetadataManagerImpl<MetadataAlloc, SlabMap>::Alloc(size_t size,
   // Size must already be aligned to `alignment`.
   CK_ASSERT_EQ((size & (alignment - 1)), 0);
 
-  auto current_end = static_cast<uintptr_t>(alloc_offset_);
-  uintptr_t aligned_end = AlignUp(current_end, alignment);
+  uintptr_t current_end = reinterpret_cast<uintptr_t>(heap_end_);
+  size_t alignment_offset = (~current_end + 1) & (alignment - 1);
+  void* alloc_start = PtrAdd(heap_end_, alignment_offset);
+  void* alloc_end = PtrAdd(alloc_start, size);
 
-  if (aligned_end + size > kPageSize) {
-    uint32_t n_pages = (size + kPageSize - 1) / kPageSize;
-
-    void* alloc = MetadataHeap()->sbrk(n_pages * kPageSize);
-    if (alloc == nullptr) {
-      return nullptr;
-    }
-
-    // Decide whether to switch to allocating from this new slab, or stick with
-    // the old one. We choose the one with more remaining space.
-    size_t remaining_space = n_pages * kPageSize - size;
-    if (remaining_space > kPageSize - alloc_offset_) {
-      // TODO: shard up the rest of the space in the heap we throw away and give
-      // it to the slab freelist?
-      page_start_ = PtrAdd(alloc, (n_pages - 1) * kPageSize);
-      alloc_offset_ = kPageSize - remaining_space;
-    }
-
-    return alloc;
+  if (PtrDistance(alloc_end, heap_) > max_heap_size_) {
+    // TODO: allocate more heaps.
+    return nullptr;
   }
 
-  void* alloc_start = static_cast<uint8_t*>(page_start_) + aligned_end;
-  alloc_offset_ = aligned_end + size;
-  CK_ASSERT_LE(alloc_offset_, kPageSize);
+  size_t total_size = alignment_offset + size;
+  SysAlloc::Instance()->Sbrk(heap_, total_size, heap_end_);
+
+  heap_end_ = alloc_end;
   return alloc_start;
 }
 
@@ -119,17 +101,6 @@ void MetadataManagerImpl<MetadataAlloc, SlabMap>::FreeSlabMeta(
     MappedSlab* slab) {
   slab->Init<UnmappedSlab>(last_free_slab_);
   last_free_slab_ = static_cast<Slab*>(slab)->ToUnmapped();
-}
-
-template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
-bench::Heap* MetadataManagerImpl<MetadataAlloc, SlabMap>::MetadataHeap() {
-  return heap_factory_->Instance(heap_idx_);
-}
-
-template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
-const bench::Heap* MetadataManagerImpl<MetadataAlloc, SlabMap>::MetadataHeap()
-    const {
-  return heap_factory_->Instance(heap_idx_);
 }
 
 using MetadataManager = MetadataManagerImpl<GlobalMetadataAlloc, SlabMap>;

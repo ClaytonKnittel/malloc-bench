@@ -11,7 +11,6 @@
 #include "src/ckmalloc/slab_manager_test_fixture.h"
 #include "src/ckmalloc/small_allocator_test_fixture.h"
 #include "src/ckmalloc/testlib.h"
-#include "src/heap_interface.h"
 
 namespace ckmalloc {
 
@@ -20,23 +19,21 @@ using util::IsOk;
 
 class SmallAllocatorTest : public ::testing::Test {
  public:
-  static constexpr size_t kNumPages = 64;
+  static constexpr size_t kHeapSize = 64 * kPageSize;
 
   SmallAllocatorTest()
-      : heap_factory_(std::make_shared<TestHeapFactory>(kNumPages * kPageSize)),
+      : heap_factory_(std::make_shared<TestHeapFactory>()),
         slab_map_(std::make_shared<TestSlabMap>()),
         slab_manager_fixture_(std::make_shared<SlabManagerFixture>(
-            heap_factory_, slab_map_, /*heap_idx=*/0)),
+            heap_factory_, slab_map_, kHeapSize)),
         freelist_(std::make_shared<Freelist>()),
         small_allocator_fixture_(std::make_shared<SmallAllocatorFixture>(
-            heap_factory_, slab_map_, slab_manager_fixture_, freelist_)) {}
-
-  TestHeapFactory& HeapFactory() {
-    return slab_manager_fixture_->HeapFactory();
+            slab_map_, slab_manager_fixture_, freelist_)) {
+    TestSysAlloc::NewInstance(heap_factory_.get());
   }
 
-  bench::Heap& Heap() {
-    return *HeapFactory().Instance(0);
+  ~SmallAllocatorTest() override {
+    TestSysAlloc::Reset();
   }
 
   TestSlabMap& SlabMap() {
@@ -51,9 +48,12 @@ class SmallAllocatorTest : public ::testing::Test {
     return small_allocator_fixture_->SmallAllocator();
   }
 
+  static size_t TotalHeapsSize() {
+    return SlabManagerFixture::TotalHeapsSize();
+  }
+
   void FreeSmall(Void* ptr) {
-    SmallSlab* slab =
-        SlabMap().FindSlab(SlabManager().PageIdFromPtr(ptr))->ToSmall();
+    SmallSlab* slab = SlabMap().FindSlab(PageId::FromPtr(ptr))->ToSmall();
     SmallAllocator().FreeSmall(slab, ptr);
   }
 
@@ -85,12 +85,12 @@ TEST_F(SmallAllocatorTest, SingleSlab) {
   void* ptr = SmallAllocator().AllocSmall(16);
   ASSERT_NE(ptr, nullptr);
 
-  Slab* slab = SlabMap().FindSlab(SlabManager().PageIdFromPtr(ptr));
+  Slab* slab = SlabMap().FindSlab(PageId::FromPtr(ptr));
   ASSERT_NE(slab, nullptr);
   EXPECT_EQ(slab->Type(), SlabType::kSmall);
 
   EXPECT_THAT(ValidateHeap(), IsOk());
-  EXPECT_EQ(Heap().Size(), kPageSize);
+  EXPECT_EQ(TotalHeapsSize(), kPageSize);
 }
 
 TEST_F(SmallAllocatorTest, Misaligned8) {
@@ -104,7 +104,7 @@ TEST_F(SmallAllocatorTest, Misaligned8) {
   ASSERT_NE(SmallAllocator().AllocSmall(8), nullptr);
 
   EXPECT_THAT(ValidateHeap(), IsOk());
-  EXPECT_EQ(Heap().Size(), kPageSize);
+  EXPECT_EQ(TotalHeapsSize(), kPageSize);
 }
 
 TEST_F(SmallAllocatorTest, Misaligned16) {
@@ -118,7 +118,7 @@ TEST_F(SmallAllocatorTest, Misaligned16) {
   ASSERT_NE(SmallAllocator().AllocSmall(16), nullptr);
 
   EXPECT_THAT(ValidateHeap(), IsOk());
-  EXPECT_EQ(Heap().Size(), kPageSize);
+  EXPECT_EQ(TotalHeapsSize(), kPageSize);
 }
 
 TEST_F(SmallAllocatorTest, Misaligned64) {
@@ -128,7 +128,7 @@ TEST_F(SmallAllocatorTest, Misaligned64) {
   ASSERT_NE(SmallAllocator().AllocSmall(64), nullptr);
 
   EXPECT_THAT(ValidateHeap(), IsOk());
-  EXPECT_EQ(Heap().Size(), kPageSize);
+  EXPECT_EQ(TotalHeapsSize(), kPageSize);
 }
 
 TEST_F(SmallAllocatorTest, FilledSlabs) {
@@ -140,7 +140,7 @@ TEST_F(SmallAllocatorTest, FilledSlabs) {
   }
 
   EXPECT_THAT(ValidateHeap(), IsOk());
-  EXPECT_EQ(Heap().Size(), kPageSize);
+  EXPECT_EQ(TotalHeapsSize(), kPageSize);
 }
 
 TEST_F(SmallAllocatorTest, TwoSlabs) {
@@ -152,7 +152,7 @@ TEST_F(SmallAllocatorTest, TwoSlabs) {
   }
 
   EXPECT_THAT(ValidateHeap(), IsOk());
-  EXPECT_EQ(Heap().Size(), 2 * kPageSize);
+  EXPECT_EQ(TotalHeapsSize(), 2 * kPageSize);
 }
 
 TEST_F(SmallAllocatorTest, TwoSizes) {
@@ -160,7 +160,7 @@ TEST_F(SmallAllocatorTest, TwoSizes) {
   EXPECT_NE(SmallAllocator().AllocSmall(64), nullptr);
 
   EXPECT_THAT(ValidateHeap(), IsOk());
-  EXPECT_EQ(Heap().Size(), 2 * kPageSize);
+  EXPECT_EQ(TotalHeapsSize(), 2 * kPageSize);
 }
 
 TEST_F(SmallAllocatorTest, FreeOne) {
@@ -171,7 +171,6 @@ TEST_F(SmallAllocatorTest, FreeOne) {
 
   EXPECT_THAT(ValidateHeap(), IsOk());
   EXPECT_THAT(ValidateEmpty(), IsOk());
-  EXPECT_EQ(Heap().Size(), kPageSize);
 }
 
 TEST_F(SmallAllocatorTest, FreeFullSlab) {
@@ -191,7 +190,6 @@ TEST_F(SmallAllocatorTest, FreeFullSlab) {
   }
 
   EXPECT_THAT(ValidateEmpty(), IsOk());
-  EXPECT_EQ(Heap().Size(), kPageSize);
 }
 
 TEST_F(SmallAllocatorTest, AllocFreeAllocOne) {
@@ -203,7 +201,7 @@ TEST_F(SmallAllocatorTest, AllocFreeAllocOne) {
   EXPECT_EQ(SmallAllocator().AllocSmall(95), ptr);
 
   EXPECT_THAT(ValidateHeap(), IsOk());
-  EXPECT_EQ(Heap().Size(), kPageSize);
+  EXPECT_EQ(TotalHeapsSize(), kPageSize);
 }
 
 TEST_F(SmallAllocatorTest, AllocFreeAllocFull) {
@@ -233,7 +231,7 @@ TEST_F(SmallAllocatorTest, AllocFreeAllocFull) {
   }
 
   EXPECT_THAT(ptrs2, UnorderedElementsAreArray(frees));
-  EXPECT_EQ(Heap().Size(), kPageSize);
+  EXPECT_EQ(TotalHeapsSize(), kPageSize);
 }
 
 TEST_F(SmallAllocatorTest, ManyAllocs) {
@@ -254,7 +252,7 @@ TEST_F(SmallAllocatorTest, ManyAllocs) {
     ASSERT_THAT(ValidateHeap(), IsOk());
   }
 
-  EXPECT_EQ(Heap().Size(), SizeClass::kNumSizeClasses * kPageSize);
+  EXPECT_THAT(ValidateEmpty(), IsOk());
 }
 
 }  // namespace ckmalloc

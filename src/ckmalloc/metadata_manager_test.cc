@@ -1,6 +1,5 @@
 #include <algorithm>
 #include <cstddef>
-#include <cstdint>
 #include <memory>
 #include <random>
 
@@ -24,20 +23,24 @@ using util::IsOkAndHolds;
 
 class MetadataManagerTest : public testing::Test {
  public:
-  static constexpr size_t kNumPages = 64;
+  static constexpr size_t kHeapSize = 64 * kPageSize;
 
   MetadataManagerTest()
-      : heap_factory_(std::make_shared<TestHeapFactory>(kNumPages * kPageSize)),
+      : heap_factory_(std::make_shared<TestHeapFactory>(kHeapSize)),
+        heap_(static_cast<TestHeap*>(heap_factory_->Instances().begin()->get()),
+              Noop<TestHeap>),
         slab_map_(std::make_shared<TestSlabMap>()),
         metadata_manager_fixture_(std::make_shared<MetadataManagerFixture>(
-            heap_factory_, slab_map_, /*heap_idx=*/0)) {}
-
-  TestHeapFactory& HeapFactory() {
-    return *heap_factory_;
+            heap_, slab_map_, kHeapSize)) {
+    TestSysAlloc::NewInstance(heap_factory_.get());
   }
 
-  const bench::Heap& Heap() {
-    return *HeapFactory().Instance(0);
+  ~MetadataManagerTest() override {
+    TestSysAlloc::Reset();
+  }
+
+  TestHeap& Heap() {
+    return *heap_;
   }
 
   TestMetadataManager& MetadataManager() {
@@ -59,6 +62,7 @@ class MetadataManagerTest : public testing::Test {
 
  private:
   std::shared_ptr<TestHeapFactory> heap_factory_;
+  std::shared_ptr<TestHeap> heap_;
   std::shared_ptr<TestSlabMap> slab_map_;
   std::shared_ptr<MetadataManagerFixture> metadata_manager_fixture_;
 };
@@ -107,64 +111,18 @@ TEST_F(MetadataManagerTest, AllocateExtraLarge) {
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
-TEST_F(MetadataManagerTest, AllocateAndStay) {
+TEST_F(MetadataManagerTest, AllocateTooLarge) {
+  ASSERT_OK_AND_DEFINE(void*, value, Fixture().Alloc(kHeapSize + 1));
+  EXPECT_EQ(value, nullptr);
+  EXPECT_THAT(ValidateHeap(), IsOk());
+}
+
+TEST_F(MetadataManagerTest, AllocateTwoAdjacent) {
   ASSERT_THAT(Fixture().Alloc(kPageSize / 2).status(), IsOk());
   ASSERT_OK_AND_DEFINE(void*, v2, Fixture().Alloc(3 * kPageSize / 4));
   // v2 should be allocated in a new page by itself.
-  EXPECT_EQ(v2, PtrAdd(Heap().Start(), kPageSize));
+  EXPECT_EQ(v2, PtrAdd(Heap().Start(), kPageSize / 2));
   EXPECT_THAT(ValidateHeap(), IsOk());
-
-  // Since the remainder in the first slab was higher, it should continue to be
-  // allocated from.
-  ASSERT_OK_AND_DEFINE(void*, v3, Fixture().Alloc(kPageSize / 2));
-  EXPECT_THAT(ValidateHeap(), IsOk());
-  EXPECT_EQ(v3, static_cast<uint8_t*>(Heap().Start()) + kPageSize / 2);
-  EXPECT_EQ(Heap().Size(), 2 * kPageSize);
-}
-
-TEST_F(MetadataManagerTest, AllocateAndSwitch) {
-  ASSERT_THAT(Fixture().Alloc(3 * kPageSize / 4).status(), IsOk());
-  ASSERT_OK_AND_DEFINE(void*, v2, Fixture().Alloc(kPageSize / 2));
-  // v2 should be allocated in a new page by itself.
-  EXPECT_EQ(v2, PtrAdd(Heap().Start(), kPageSize));
-  EXPECT_THAT(ValidateHeap(), IsOk());
-
-  // Since the remainder in the second slab was higher, it should continue to be
-  // allocated from.
-  ASSERT_OK_AND_DEFINE(void*, v3, Fixture().Alloc(kPageSize / 2));
-  EXPECT_THAT(ValidateHeap(), IsOk());
-  EXPECT_EQ(v3, static_cast<uint8_t*>(Heap().Start()) + 3 * kPageSize / 2);
-  EXPECT_EQ(Heap().Size(), 2 * kPageSize);
-}
-
-TEST_F(MetadataManagerTest, AllocateLargeAndStay) {
-  ASSERT_THAT(Fixture().Alloc(32).status(), IsOk());
-  ASSERT_OK_AND_DEFINE(void*, v2, Fixture().Alloc(kPageSize + 64));
-  // v2 should be allocated in a new slab by itself since it is so large.
-  EXPECT_EQ(v2, PtrAdd(Heap().Start(), kPageSize));
-  EXPECT_THAT(ValidateHeap(), IsOk());
-
-  // Since the remainder in the first slab was higher, it should continue to be
-  // allocated from.
-  ASSERT_OK_AND_DEFINE(void*, v3, Fixture().Alloc(kPageSize - 32));
-  EXPECT_THAT(ValidateHeap(), IsOk());
-  EXPECT_EQ(v3, static_cast<uint8_t*>(Heap().Start()) + 32);
-  EXPECT_EQ(Heap().Size(), 3 * kPageSize);
-}
-
-TEST_F(MetadataManagerTest, AllocateLargeAndSwitch) {
-  ASSERT_THAT(Fixture().Alloc(64).status(), IsOk());
-  ASSERT_OK_AND_DEFINE(void*, v2, Fixture().Alloc(kPageSize + 32));
-  // v2 should be allocated in a new slab by itself since it is so large.
-  EXPECT_EQ(v2, PtrAdd(Heap().Start(), kPageSize));
-  EXPECT_THAT(ValidateHeap(), IsOk());
-
-  // Since the remainder in the second slab was higher, it should continue to be
-  // allocated from.
-  ASSERT_OK_AND_DEFINE(void*, v3, Fixture().Alloc(kPageSize - 32));
-  EXPECT_THAT(ValidateHeap(), IsOk());
-  EXPECT_EQ(v3, static_cast<uint8_t*>(Heap().Start()) + 2 * kPageSize + 32);
-  EXPECT_EQ(Heap().Size(), 3 * kPageSize);
 }
 
 TEST_F(MetadataManagerTest, AllocateSlabMeta) {

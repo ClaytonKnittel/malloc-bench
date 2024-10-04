@@ -17,13 +17,11 @@
 #include "src/ckmalloc/small_allocator_test_fixture.h"
 #include "src/ckmalloc/testlib.h"
 #include "src/heap_factory.h"
-#include "src/mmap_heap_factory.h"
 #include "src/tracefile_executor.h"
 #include "src/tracefile_reader.h"
 
 namespace bench {
 
-using ckmalloc::kPageSize;
 using util::IsOk;
 
 // #define PRINT
@@ -40,11 +38,14 @@ class TestCkMalloc : public TracefileExecutor {
         fixture_(fixture),
         validate_every_n_(validate_every_n) {}
 
-  void InitializeHeap(HeapFactory& heap_factory) override;
-  absl::StatusOr<void*> Malloc(size_t size) override;
+  void InitializeHeap(HeapFactory& heap_factory) override {}
+
+  absl::StatusOr<void*> Malloc(size_t size,
+                               std::optional<size_t> alignment) override;
   absl::StatusOr<void*> Calloc(size_t nmemb, size_t size) override;
   absl::StatusOr<void*> Realloc(void* ptr, size_t size) override;
-  absl::Status Free(void* ptr) override;
+  absl::Status Free(void* ptr, std::optional<size_t> size_hint,
+                    std::optional<size_t> alignment_hint) override;
 
  private:
   class TestCorrectness* fixture_;
@@ -54,29 +55,35 @@ class TestCkMalloc : public TracefileExecutor {
 
 class TestCorrectness : public ::testing::Test {
  public:
-  static constexpr size_t kNumPages =
-      1 << (ckmalloc::kHeapSizeShift - ckmalloc::kPageShift);
-
   TestCorrectness()
       : heap_factory_(std::make_shared<ckmalloc::TestHeapFactory>(
-            kNumPages * kPageSize, kNumPages * kPageSize)),
+            ckmalloc::kMetadataHeapSize)),
+        metadata_heap_(static_cast<ckmalloc::TestHeap*>(
+                           heap_factory_->Instances().begin()->get()),
+                       ckmalloc::Noop<ckmalloc::TestHeap>),
         slab_map_(std::make_shared<ckmalloc::TestSlabMap>()),
         slab_manager_fixture_(std::make_shared<ckmalloc::SlabManagerFixture>(
-            heap_factory_, slab_map_, /*heap_idx=*/1)),
+            heap_factory_, slab_map_, ckmalloc::kUserHeapSize)),
         metadata_manager_fixture_(
             std::make_shared<ckmalloc::MetadataManagerFixture>(
-                heap_factory_, slab_map_, /*heap_idx=*/0)),
+                metadata_heap_, slab_map_, ckmalloc::kMetadataHeapSize)),
         freelist_(std::make_shared<ckmalloc::Freelist>()),
         small_allocator_fixture_(
             std::make_shared<ckmalloc::SmallAllocatorFixture>(
-                heap_factory_, slab_map_, slab_manager_fixture_, freelist_)),
+                slab_map_, slab_manager_fixture_, freelist_)),
         large_allocator_fixture_(
             std::make_shared<ckmalloc::LargeAllocatorFixture>(
-                heap_factory_, slab_map_, slab_manager_fixture_, freelist_)),
+                slab_map_, slab_manager_fixture_, freelist_)),
         main_allocator_fixture_(
             std::make_shared<ckmalloc::MainAllocatorFixture>(
-                heap_factory_, slab_map_, slab_manager_fixture_,
-                small_allocator_fixture_, large_allocator_fixture_)) {}
+                slab_map_, slab_manager_fixture_, metadata_manager_fixture_,
+                small_allocator_fixture_, large_allocator_fixture_)) {
+    ckmalloc::TestSysAlloc::NewInstance(heap_factory_.get());
+  }
+
+  ~TestCorrectness() override {
+    ckmalloc::TestSysAlloc::Reset();
+  }
 
   ckmalloc::TestMetadataManager& MetadataManager() {
     return metadata_manager_fixture_->MetadataManager();
@@ -88,9 +95,9 @@ class TestCorrectness : public ::testing::Test {
 
   absl::Status RunTrace(const std::string& trace,
                         uint32_t validate_every_n = 1) {
-    MMapHeapFactory heap_factory;
     DEFINE_OR_RETURN(TracefileReader, reader, TracefileReader::Open(trace));
-    TestCkMalloc test(std::move(reader), heap_factory, this, validate_every_n);
+    TestCkMalloc test(std::move(reader), *heap_factory_, this,
+                      validate_every_n);
     return test.Run();
   }
 
@@ -113,6 +120,7 @@ class TestCorrectness : public ::testing::Test {
 
  private:
   std::shared_ptr<ckmalloc::TestHeapFactory> heap_factory_;
+  std::shared_ptr<ckmalloc::TestHeap> metadata_heap_;
   std::shared_ptr<ckmalloc::TestSlabMap> slab_map_;
   std::shared_ptr<ckmalloc::SlabManagerFixture> slab_manager_fixture_;
   std::shared_ptr<ckmalloc::MetadataManagerFixture> metadata_manager_fixture_;
@@ -122,11 +130,9 @@ class TestCorrectness : public ::testing::Test {
   std::shared_ptr<ckmalloc::MainAllocatorFixture> main_allocator_fixture_;
 };
 
-void TestCkMalloc::InitializeHeap(HeapFactory& heap_factory) {
-  heap_factory.Reset();
-}
-
-absl::StatusOr<void*> TestCkMalloc::Malloc(size_t size) {
+absl::StatusOr<void*> TestCkMalloc::Malloc(size_t size,
+                                           std::optional<size_t> alignment) {
+  (void) alignment;
   if (size == 0) {
     return nullptr;
   }
@@ -149,12 +155,12 @@ absl::StatusOr<void*> TestCkMalloc::Malloc(size_t size) {
 }
 
 absl::StatusOr<void*> TestCkMalloc::Calloc(size_t nmemb, size_t size) {
-  return Malloc(nmemb * size);
+  return Malloc(nmemb * size, /*alignment=*/0);
 }
 
 absl::StatusOr<void*> TestCkMalloc::Realloc(void* ptr, size_t size) {
   if (ptr == nullptr) {
-    return Malloc(size);
+    return Malloc(size, /*alignment=*/0);
   }
 
   CK_ASSERT_NE(size, 0);
@@ -177,7 +183,10 @@ absl::StatusOr<void*> TestCkMalloc::Realloc(void* ptr, size_t size) {
   return result;
 }
 
-absl::Status TestCkMalloc::Free(void* ptr) {
+absl::Status TestCkMalloc::Free(void* ptr, std::optional<size_t> size_hint,
+                                std::optional<size_t> alignment_hint) {
+  (void) size_hint;
+  (void) alignment_hint;
   if (ptr == nullptr) {
     return absl::OkStatus();
   }
@@ -258,6 +267,12 @@ TEST_F(TestCorrectness, FourInARow) {
 
 TEST_F(TestCorrectness, Grep) {
   ASSERT_THAT(RunTrace("traces/grep.trace", /*validate_every_n=*/1024),
+              util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(TestCorrectness, Gto) {
+  ASSERT_THAT(RunTrace("traces/gto.trace", /*validate_every_n=*/65536),
               util::IsOk());
   ASSERT_THAT(ValidateEmpty(), IsOk());
 }

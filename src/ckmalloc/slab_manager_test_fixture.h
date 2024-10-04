@@ -1,6 +1,8 @@
 #pragma once
 
 #include <memory>
+#include <numeric>
+#include <ranges>
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/status/status.h"
@@ -10,8 +12,8 @@
 #include "src/ckmalloc/page_id.h"
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/slab_manager.h"
+#include "src/ckmalloc/sys_alloc.h"
 #include "src/ckmalloc/testlib.h"
-#include "src/heap_interface.h"
 #include "src/rng.h"
 
 namespace ckmalloc {
@@ -20,16 +22,12 @@ class TestSlabManager {
  public:
   using SlabManagerT = SlabManagerImpl<TestGlobalMetadataAlloc, TestSlabMap>;
 
-  TestSlabManager(class SlabManagerFixture* test_fixture, TestHeapFactory* heap,
-                  TestSlabMap* slab_map, size_t heap_idx);
+  TestSlabManager(class SlabManagerFixture* test_fixture, TestSlabMap* slab_map,
+                  size_t heap_size);
 
   SlabManagerT& Underlying() {
     return slab_manager_;
   }
-
-  void* PageStartFromId(PageId page_id) const;
-
-  PageId PageIdFromPtr(const void* ptr) const;
 
   template <typename S, typename... Args>
   std::optional<std::pair<PageId, S*>> Alloc(uint32_t n_pages, Args...);
@@ -53,82 +51,42 @@ class SlabManagerFixture : public CkMallocTest {
  public:
   static constexpr const char* kPrefix = "[SlabManagerFixture]";
 
-  class HeapIterator {
-    friend class SlabManagerFixture;
-
-   public:
-    bool operator==(HeapIterator other) const {
-      return current_ == other.current_;
-    }
-    bool operator!=(HeapIterator other) const {
-      return !(*this == other);
-    }
-
-    Slab* operator*() {
-      Slab* slab = fixture_->SlabMap().FindSlab(current_);
-      // Since the slab map may have stale entries, we need to check that the
-      // slab we found still applies to this page.
-      return slab != nullptr && slab->Type() != SlabType::kUnmapped &&
-                     current_ >= slab->ToMapped()->StartId() &&
-                     current_ <= slab->ToMapped()->EndId()
-                 ? slab
-                 : nullptr;
-    }
-    Slab* operator->() {
-      return fixture_->SlabMap().FindSlab(current_);
-    }
-
-    HeapIterator operator++() {
-      Slab* current = **this;
-      // If current is `nullptr`, then this is a metadata slab.
-      current_ += current != nullptr ? current->ToMapped()->Pages() : 1;
-      return *this;
-    }
-    HeapIterator operator++(int) {
-      HeapIterator copy = *this;
-      ++*this;
-      return copy;
-    }
-
-   private:
-    explicit HeapIterator(SlabManagerFixture* fixture)
-        : HeapIterator(fixture, PageId::Zero()) {}
-
-    HeapIterator(SlabManagerFixture* fixture, PageId page_id)
-        : fixture_(fixture), current_(page_id) {}
-
-    SlabManagerFixture* const fixture_;
-    PageId current_;
-  };
-
-  HeapIterator HeapBegin() {
-    return HeapIterator(this);
+  static auto Heaps() {
+    return *TestSysAlloc::Instance() |
+           std::ranges::views::filter(
+               [](const std::pair<void*, std::pair<HeapType, TestHeap*>>& it)
+                   -> bool { return it.second.first == HeapType::kUserHeap; });
   }
 
-  HeapIterator HeapEnd() {
-    return HeapIterator(this, HeapEndId());
+  auto SlabsInHeap() {
+    return Heaps() |
+           std::ranges::views::transform([this](auto it) -> IterableTestHeap {
+             return IterableTestHeap(it.second.second, &SlabMap());
+           }) |
+           std::ranges::views::join;
+  }
+
+  static size_t TotalHeapsSize() {
+    auto heaps =
+        Heaps() | std::ranges::views::transform([](const auto& it) -> size_t {
+          return it.second.second->Size();
+        });
+    return std::accumulate(heaps.begin(), heaps.end(), static_cast<size_t>(0));
   }
 
   // Only used for initializing `TestSlabManager` via the default constructor,
   // which needs the heap and slab_map to have been defined already.
-  SlabManagerFixture(std::shared_ptr<TestHeapFactory> heap_factory,
-                     std::shared_ptr<TestSlabMap> slab_map, size_t heap_idx)
+  explicit SlabManagerFixture(std::shared_ptr<TestHeapFactory> heap_factory,
+                              std::shared_ptr<TestSlabMap> slab_map,
+                              size_t heap_size)
       : heap_factory_(std::move(heap_factory)),
         slab_map_(std::move(slab_map)),
-        slab_manager_(std::make_shared<TestSlabManager>(
-            this, heap_factory_.get(), slab_map_.get(), heap_idx)),
+        slab_manager_(std::make_shared<TestSlabManager>(this, slab_map_.get(),
+                                                        heap_size)),
         rng_(1027, 3) {}
 
   const char* TestPrefix() const override {
     return kPrefix;
-  }
-
-  TestHeapFactory& HeapFactory() {
-    return *heap_factory_;
-  }
-
-  bench::Heap& SlabHeap() {
-    return *heap_factory_->Instance(slab_manager_->Underlying().heap_idx_);
   }
 
   TestSlabMap& SlabMap() {
@@ -143,12 +101,6 @@ class SlabManagerFixture : public CkMallocTest {
     return *slab_manager_;
   }
 
-  PageId HeapEndId() const {
-    return PageId(
-        heap_factory_->Instance(slab_manager_->Underlying().heap_idx_)->Size() /
-        kPageSize);
-  }
-
   absl::Status ValidateHeap() override;
 
   // Checks that the heap is empty, returning a non-ok status if it isn't.
@@ -159,7 +111,7 @@ class SlabManagerFixture : public CkMallocTest {
   absl::Status FreeSlab(AllocatedSlab* slab);
 
  private:
-  void FillMagic(AllocatedSlab* slab, uint64_t magic);
+  static void FillMagic(AllocatedSlab* slab, uint64_t magic);
 
   absl::Status CheckMagic(AllocatedSlab* slab, uint64_t magic);
 

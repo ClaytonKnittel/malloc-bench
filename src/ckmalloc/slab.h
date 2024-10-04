@@ -25,6 +25,21 @@ struct HasMetadataHelper<class SingleAllocSlab> : public std::true_type {};
 template <typename S>
 inline constexpr bool kHasMetadata = HasMetadataHelper<S>::value;
 
+template <typename>
+struct HasOneAllocationHelper : public std::false_type {};
+
+template <>
+struct HasOneAllocationHelper<class FreeSlab> : public std::true_type {};
+template <>
+struct HasOneAllocationHelper<class SingleAllocSlab> : public std::true_type {};
+template <>
+struct HasOneAllocationHelper<class MmapSlab> : public std::true_type {};
+
+template <typename S>
+inline constexpr bool kHasOneAllocation = HasOneAllocationHelper<S>::value;
+
+inline constexpr bool HasOneAllocation(SlabType type);
+
 template <typename S>
 concept HasSizeClassT = requires(S s) {
   { s.SizeClass() } -> std::convertible_to<SizeClass>;
@@ -48,9 +63,32 @@ enum class SlabType : uint8_t {
   // This slab is managing a single allocation of a page-size multiple (or
   // nearly page-size multiple) block.
   kSingleAlloc,
-};
+
+  // This slab is managing an entire mmapped region which contains a single
+  // allocated block.
+  kMmap,
+};  // namespace ckmalloc
 
 std::ostream& operator<<(std::ostream& ostr, SlabType slab_type);
+
+inline constexpr bool HasOneAllocation(SlabType type) {
+  CK_ASSERT_NE(type, SlabType::kUnmapped);
+
+  switch (type) {
+    case SlabType::kSmall:
+    case SlabType::kBlocked: {
+      return false;
+    }
+    case SlabType::kFree:
+    case SlabType::kSingleAlloc:
+    case SlabType::kMmap: {
+      return true;
+    }
+    case SlabType::kUnmapped: {
+      CK_UNREACHABLE();
+    }
+  }
+}
 
 template <typename T>
 requires std::is_integral_v<T>
@@ -132,6 +170,7 @@ class SmallSlabMetadata {
 
 // Slab metadata class, which is stored separately from the slab it describes,
 // in a metadata slab.
+// TODO: Maybe make multiple of cache line size?
 class Slab {
   friend class SlabManagerTest;
   friend constexpr size_t TinySizeClassOffset();
@@ -175,6 +214,9 @@ class Slab {
   class SingleAllocSlab* ToSingleAlloc();
   const class SingleAllocSlab* ToSingleAlloc() const;
 
+  class MmapSlab* ToMmap();
+  const class MmapSlab* ToMmap() const;
+
  protected:
   Slab() {}
 
@@ -212,6 +254,8 @@ class Slab {
         } large;
         struct {
         } page_multiple;
+        struct {
+        } mmap;
       };
     } mapped;
   };
@@ -233,6 +277,8 @@ class UnmappedSlab : public Slab {
   const class LargeSlab* ToLarge() const = delete;
   class SingleAllocSlab* ToSingleAlloc() = delete;
   const class SingleAllocSlab* ToSingleAlloc() const = delete;
+  class MmapSlab* ToMmap() = delete;
+  const class MmapSlab* ToMmap() const = delete;
 
   // Returns the next unmapped slab in the freelist.
   UnmappedSlab* NextUnmappedSlab();
@@ -279,6 +325,8 @@ class FreeSlab : public MappedSlab {
   const class BlockedSlab* ToBlocked() const = delete;
   class SingleAllocSlab* ToSingleAlloc() = delete;
   const class SingleAllocSlab* ToSingleAlloc() const = delete;
+  class MmapSlab* ToMmap() = delete;
+  const class MmapSlab* ToMmap() const = delete;
 };
 
 class AllocatedSlab : public MappedSlab {
@@ -298,6 +346,8 @@ class SmallSlab : public AllocatedSlab {
   const class LargeSlab* ToLarge() const = delete;
   class SingleAllocSlab* ToSingleAlloc() = delete;
   const class SingleAllocSlab* ToSingleAlloc() const = delete;
+  class MmapSlab* ToMmap() = delete;
+  const class MmapSlab* ToMmap() const = delete;
 
   // Small slabs range only one page.
   PageId EndId() const = delete;
@@ -341,9 +391,11 @@ class LargeSlab : public AllocatedSlab {
  public:
   class SmallSlab* ToSmall() = delete;
   const class SmallSlab* ToSmall() const = delete;
+  class MmapSlab* ToMmap() = delete;
+  const class MmapSlab* ToMmap() const = delete;
 };
 
-class BlockedSlab : public AllocatedSlab {
+class BlockedSlab : public LargeSlab {
  public:
   class SingleAllocSlab* ToSingleAlloc() = delete;
   const class SingleAllocSlab* ToSingleAlloc() const = delete;
@@ -368,7 +420,7 @@ class BlockedSlab : public AllocatedSlab {
   uint64_t AllocatedBytes() const;
 };
 
-class SingleAllocSlab : public AllocatedSlab {
+class SingleAllocSlab : public LargeSlab {
  public:
   BlockedSlab* ToBlocked() = delete;
   const BlockedSlab* ToBlocked() const = delete;
@@ -380,6 +432,16 @@ class SingleAllocSlab : public AllocatedSlab {
   // Returns true if this size is suitable to be allocated within a
   // page-multiple slab.
   static bool SizeSuitableForSingleAlloc(size_t user_size);
+};
+
+// Mmap slabs are slabs holding a single allocation in its own mmapped region of
+// memory.
+class MmapSlab : public AllocatedSlab {
+ public:
+  BlockedSlab* ToBlocked() = delete;
+  const BlockedSlab* ToBlocked() const = delete;
+  SingleAllocSlab* ToSingleAlloc() = delete;
+  const SingleAllocSlab* ToSingleAlloc() const = delete;
 };
 
 // The sizes of all subtypes of slab must be equal.
@@ -404,6 +466,8 @@ template <>
 BlockedSlab* Slab::Init(PageId start_id, uint32_t n_pages);
 template <>
 SingleAllocSlab* Slab::Init(PageId start_id, uint32_t n_pages);
+template <>
+MmapSlab* Slab::Init(PageId start_id, uint32_t n_pages);
 
 template <typename T>
 requires std::is_integral_v<T>

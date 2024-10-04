@@ -93,51 +93,51 @@ class SizeClass {
     switch (Ordinal()) {
       // NOLINTNEXTLINE(bugprone-branch-clone)
       case 0:
-        return offset_bytes / SliceSize();
+        return static_cast<uint32_t>(offset_bytes / SliceSize());
       case 1:
-        return offset_bytes / SliceSize();
+        return static_cast<uint32_t>(offset_bytes / SliceSize());
       case 2:
-        return offset_bytes / SliceSize();
+        return static_cast<uint32_t>(offset_bytes / SliceSize());
       case 3:
-        return offset_bytes / SliceSize();
+        return static_cast<uint32_t>(offset_bytes / SliceSize());
       case 4:
-        return offset_bytes / SliceSize();
+        return static_cast<uint32_t>(offset_bytes / SliceSize());
       case 5:
-        return offset_bytes / SliceSize();
+        return static_cast<uint32_t>(offset_bytes / SliceSize());
       case 6:
-        return offset_bytes / SliceSize();
+        return static_cast<uint32_t>(offset_bytes / SliceSize());
       case 7:
-        return offset_bytes / SliceSize();
+        return static_cast<uint32_t>(offset_bytes / SliceSize());
       case 8:
-        return offset_bytes / SliceSize();
+        return static_cast<uint32_t>(offset_bytes / SliceSize());
       case 9:
-        return offset_bytes / SliceSize();
+        return static_cast<uint32_t>(offset_bytes / SliceSize());
       case 10:
-        return offset_bytes / SliceSize();
+        return static_cast<uint32_t>(offset_bytes / SliceSize());
       case 11:
-        return offset_bytes / SliceSize();
+        return static_cast<uint32_t>(offset_bytes / SliceSize());
       case 12:
-        return offset_bytes / SliceSize();
+        return static_cast<uint32_t>(offset_bytes / SliceSize());
       case 13:
-        return offset_bytes / SliceSize();
+        return static_cast<uint32_t>(offset_bytes / SliceSize());
       case 14:
-        return offset_bytes / SliceSize();
+        return static_cast<uint32_t>(offset_bytes / SliceSize());
       case 15:
-        return offset_bytes / SliceSize();
+        return static_cast<uint32_t>(offset_bytes / SliceSize());
       case 16:
-        return offset_bytes / SliceSize();
+        return static_cast<uint32_t>(offset_bytes / SliceSize());
       case 17:
-        return offset_bytes / SliceSize();
+        return static_cast<uint32_t>(offset_bytes / SliceSize());
       case 18:
-        return offset_bytes / SliceSize();
+        return static_cast<uint32_t>(offset_bytes / SliceSize());
       case 19:
-        return offset_bytes / SliceSize();
+        return static_cast<uint32_t>(offset_bytes / SliceSize());
       case 20:
-        return offset_bytes / SliceSize();
+        return static_cast<uint32_t>(offset_bytes / SliceSize());
       case 21:
-        return offset_bytes / SliceSize();
+        return static_cast<uint32_t>(offset_bytes / SliceSize());
       default:
-        __builtin_unreachable();
+        CK_UNREACHABLE();
     }
   }
 

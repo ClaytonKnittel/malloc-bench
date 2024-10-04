@@ -5,6 +5,7 @@
 
 #include "src/allocator_interface.h"
 #include "src/heap_factory.h"
+#include "src/test_allocator_interface.h"
 #include "src/tracefile_reader.h"
 
 ABSL_FLAG(bool, effective_util, false,
@@ -30,7 +31,8 @@ absl::StatusOr<double> MeasureUtilization(TracefileReader& reader,
       reader.Tracefile().max_simultaneous_allocs());
 
   heap_factory.Reset();
-  initialize_heap(heap_factory);
+  reset_test_heap();
+  initialize_test_heap(heap_factory);
 
   size_t total_allocated_bytes = 0;
   size_t max_allocated_bytes = 0;
@@ -39,7 +41,9 @@ absl::StatusOr<double> MeasureUtilization(TracefileReader& reader,
     switch (line.op_case()) {
       case TraceLine::kMalloc: {
         uint64_t size = line.malloc().input_size();
-        void* ptr = malloc(size);
+        void* ptr = malloc(size, line.malloc().has_input_alignment()
+                                     ? line.malloc().input_alignment()
+                                     : 0);
         ptrs[line.malloc().result_id()] = { ptr, size };
         total_allocated_bytes += RoundUp(size);
         break;
@@ -75,7 +79,12 @@ absl::StatusOr<double> MeasureUtilization(TracefileReader& reader,
           break;
         }
 
-        free(ptrs[line.free().input_id()].first);
+        free(ptrs[line.free().input_id()].first,
+             line.free().has_input_size_hint() ? line.free().input_size_hint()
+                                               : 0,
+             line.free().has_input_alignment_hint()
+                 ? line.free().input_alignment_hint()
+                 : 0);
         total_allocated_bytes -= RoundUp(ptrs[line.free().input_id()].second);
         ptrs[line.free().input_id()].first = nullptr;
         break;
@@ -93,6 +102,8 @@ absl::StatusOr<double> MeasureUtilization(TracefileReader& reader,
     }
     max_heap_size = std::max(heap_size, max_heap_size);
   }
+
+  reset_test_heap();
 
   if (total_allocated_bytes != 0) {
     return absl::InternalError(

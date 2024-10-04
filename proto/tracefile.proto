@@ -1,4 +1,4 @@
-syntax = "proto2";
+syntax = "proto3";
 
 package bench.proto;
 
@@ -6,6 +6,8 @@ message TraceLine {
   message Malloc {
     optional uint64 result_id = 1;
     optional uint64 input_size = 2;
+    // Optional, if given, this is an aligned alloc.
+    optional uint64 input_alignment = 3;
   }
 
   message Calloc {
@@ -23,6 +25,7 @@ message TraceLine {
   message Free {
     optional uint64 input_id = 1;
     optional uint64 input_size_hint = 2;
+    optional uint64 input_alignment_hint = 3;
   }
 
   oneof op {

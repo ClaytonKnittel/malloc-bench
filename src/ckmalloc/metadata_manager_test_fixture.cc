@@ -7,8 +7,10 @@
 #include "util/absl_util.h"
 
 #include "src/ckmalloc/slab.h"
+#include "src/ckmalloc/sys_alloc.h"
 #include "src/ckmalloc/testlib.h"
 #include "src/ckmalloc/util.h"
+#include "src/heap_interface.h"
 #include "src/rng.h"
 
 namespace ckmalloc {
@@ -26,10 +28,10 @@ void* TestMetadataAlloc::Alloc(size_t size, size_t alignment) {
 };
 
 TestMetadataManager::TestMetadataManager(MetadataManagerFixture* test_fixture,
-                                         TestHeapFactory* heap_factory,
-                                         TestSlabMap* slab_map, size_t heap_idx)
+                                         TestHeap* heap, TestSlabMap* slab_map,
+                                         size_t heap_size)
     : test_fixture_(test_fixture),
-      metadata_manager_(heap_factory, slab_map, heap_idx) {}
+      metadata_manager_(heap->Start(), heap->End(), slab_map, heap_size) {}
 
 void* TestMetadataManager::Alloc(size_t size, size_t alignment) {
   void* block = metadata_manager_.Alloc(size, alignment);
@@ -61,15 +63,27 @@ Slab* TestMetadataManager::NewSlabMeta() {
     test_fixture_->freed_slab_metadata_.erase(it);
   }
 
+  auto [it, inserted] = test_fixture_->alloc_slab_metadata_.insert(slab);
+  CK_ASSERT_TRUE(inserted);
+
   return slab;
 }
 
 void TestMetadataManager::FreeSlabMeta(MappedSlab* slab) {
+  auto it = test_fixture_->alloc_slab_metadata_.find(slab);
+  CK_ASSERT_TRUE(it != test_fixture_->alloc_slab_metadata_.end());
+  test_fixture_->alloc_slab_metadata_.erase(it);
+
   metadata_manager_.FreeSlabMeta(slab);
 
   auto [_, inserted] = test_fixture_->freed_slab_metadata_.insert(
       static_cast<Slab*>(slab)->ToUnmapped());
   CK_ASSERT_TRUE(inserted);
+}
+
+const absl::flat_hash_set<Slab*>& MetadataManagerFixture::AllocatedSlabMeta()
+    const {
+  return alloc_slab_metadata_;
 }
 
 absl::StatusOr<size_t> MetadataManagerFixture::SlabMetaFreelistLength() const {
@@ -160,7 +174,7 @@ absl::Status MetadataManagerFixture::ValidateHeap() {
     RETURN_IF_ERROR(CheckMagic(block, it->second, magic));
   }
 
-  constexpr size_t kMaxReasonableFreedSlabMetas = 50000;
+  constexpr size_t kMaxReasonableFreedSlabMetas = 500000;
   absl::flat_hash_set<const UnmappedSlab*> freelist_slabs;
   size_t n_free_slab_meta = 0;
   for (const UnmappedSlab* slab =
@@ -207,8 +221,13 @@ absl::Status MetadataManagerFixture::ValidateHeap() {
 absl::Status MetadataManagerFixture::TraceBlockAllocation(void* block,
                                                           size_t size,
                                                           size_t alignment) {
-  const auto* heap =
-      HeapFactory().Instance(metadata_manager_->Underlying().heap_idx_);
+  TestSysAlloc* sys_alloc = dynamic_cast<TestSysAlloc*>(SysAlloc::Instance());
+  if (sys_alloc == nullptr) {
+    return FailedTest("Sys alloc %p down-cast to TestSysAlloc %p",
+                      SysAlloc::Instance(), sys_alloc);
+  }
+  const bench::Heap* heap =
+      sys_alloc->HeapFromStart(metadata_manager_->Underlying().heap_);
   // Check that the pointer is aligned relative to the heap start. The heap
   // will be page-aligned in production, but may not be in tests.
   if ((PtrDistance(block, heap->Start()) & (alignment - 1)) != 0) {

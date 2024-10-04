@@ -30,6 +30,10 @@ ABSL_FLAG(bool, skip_correctness, false,
 
 ABSL_FLAG(bool, ignore_test, false, "If true, test traces are not run.");
 
+ABSL_FLAG(bool, ignore_hard, true,
+          "If true, \"hard traces\" are skipped (i.e. ones that call memalign, "
+          "or use a lot of memory).");
+
 ABSL_FLAG(size_t, perftest_iters, 1000000,
           "The minimum number of alloc/free operations to perform for each "
           "tracefile when measuring allocator throughput.");
@@ -51,6 +55,10 @@ bool ShouldIgnoreForScoring(const std::string& trace) {
          absl::StrContains(trace, "/syn-") ||
          absl::StrContains(trace, "/ngram-") ||
          absl::StrContains(trace, "/server.trace");
+}
+
+bool IsHard(const std::string& trace) {
+  return absl::StrContains(trace, "/gto.trace");
 }
 
 absl::StatusOr<TraceResult> RunTrace(const std::string& tracefile,
@@ -80,10 +88,11 @@ absl::StatusOr<TraceResult> RunTrace(const std::string& tracefile,
     result.correct = true;
   }
 
+  heap_factory.Reset();
+
   if (result.correct) {
-    DEFINE_OR_RETURN(
-        double, mega_ops,
-        TimeTrace(reader, heap_factory, absl::GetFlag(FLAGS_perftest_iters)));
+    DEFINE_OR_RETURN(double, mega_ops,
+                     TimeTrace(reader, absl::GetFlag(FLAGS_perftest_iters)));
     DEFINE_OR_RETURN(double, utilization,
                      MeasureUtilization(reader, heap_factory));
 
@@ -145,7 +154,9 @@ void PrintTestResults(const std::vector<TraceResult>& results) {
   std::cout << "-" << std::setw(max_file_len) << std::setfill('-') << ""
             << std::setfill(' ')
             << "-------------------------------------------" << std::endl;
-  std::cout << "* = ignored for scoring" << std::endl;
+  if (!absl::GetFlag(FLAGS_ignore_test)) {
+    std::cout << "* = ignored for scoring" << std::endl;
+  }
 
   n_correct = std::max(n_correct, 1U);
   std::cout << std::endl << "Summary:" << std::endl;
@@ -195,6 +206,9 @@ int RunAllTraces() {
 
   for (const auto& tracefile : ListTracefiles()) {
     if (absl::GetFlag(FLAGS_ignore_test) && ShouldIgnoreForScoring(tracefile)) {
+      continue;
+    }
+    if (absl::GetFlag(FLAGS_ignore_hard) && IsHard(tracefile)) {
       continue;
     }
 

@@ -10,6 +10,7 @@
 
 #include "src/ckmalloc/block.h"
 #include "src/ckmalloc/common.h"
+#include "src/ckmalloc/heap_iterator.h"
 #include "src/ckmalloc/metadata_manager.h"
 #include "src/ckmalloc/page_id.h"
 #include "src/ckmalloc/size_class.h"
@@ -17,12 +18,13 @@
 #include "src/ckmalloc/slab_manager.h"
 #include "src/ckmalloc/slab_map.h"
 #include "src/ckmalloc/slice_id.h"
+#include "src/ckmalloc/testlib.h"
 #include "src/ckmalloc/util.h"
 #include "src/heap_interface.h"
 
 namespace ckmalloc {
 
-HeapPrinter::HeapPrinter(const bench::Heap* heap, const SlabMap* slab_map,
+HeapPrinter::HeapPrinter(const bench::Heap* heap, SlabMap* slab_map,
                          const SlabManager* slab_manager,
                          const MetadataManager* metadata_manager)
     : heap_(heap),
@@ -38,17 +40,17 @@ HeapPrinter& HeapPrinter::WithHighlightAddr(void* addr, const char* color_fmt) {
 std::string HeapPrinter::Print() {
   std::string result;
 
-  if (heap_ == metadata_manager_->MetadataHeap()) {
-    for (PageId page_id = PageId::Zero();
-         page_id < PageId(heap_->Size() / kPageSize); ++page_id) {
-      result += absl::StrFormat("Metadata slab: %v\n", page_id);
-    }
+  if (heap_ ==
+      TestSysAlloc::Instance()->HeapFromStart(metadata_manager_->heap_)) {
+    // TODO: print the metadata.
+    result += absl::StrFormat("Metadata size: %zu bytes (%zu pages)",
+                              heap_->Size(), CeilDiv(heap_->Size(), kPageSize));
     return result;
   }
 
-  for (PageId page_id = PageId::Zero();
-       page_id < PageId(heap_->Size() / kPageSize);) {
-    MappedSlab* slab = slab_map_->FindSlab(page_id);
+  for (auto slab_it = HeapIterator::HeapBegin(heap_, slab_map_);
+       slab_it != HeapIterator(); ++slab_it) {
+    MappedSlab* slab = *slab_it;
     CK_ASSERT_NE(slab, nullptr);
 
     switch (slab->Type()) {
@@ -71,11 +73,13 @@ std::string HeapPrinter::Print() {
         result += PrintSingleAlloc(slab->ToSingleAlloc());
         break;
       }
+      case SlabType::kMmap: {
+        result += PrintMmap(slab->ToMmap());
+        break;
+      }
     }
 
     result += "\n";
-
-    page_id += slab->Pages();
   }
 
   return result;
@@ -86,13 +90,12 @@ std::string HeapPrinter::PrintMetadata(PageId page_id) {
   return absl::StrFormat("Page %v: metadata", page_id);
 }
 
-/* static */
 std::string HeapPrinter::PrintFree(const FreeSlab* slab) {
-  std::string result =
-      absl::StrFormat("Pages %v%v: free", slab->StartId(),
-                      slab->StartId() == slab->EndId()
-                          ? ""
-                          : absl::StrFormat(" - %v", slab->EndId()));
+  std::string result = absl::StrFormat(
+      "Pages %v%v: free", slab->StartId() - HeapStartId(),
+      slab->StartId() == slab->EndId()
+          ? ""
+          : absl::StrFormat(" - %v", slab->EndId() - HeapStartId()));
 
   std::vector<std::string> rows(2 * slab->Pages(),
                                 std::string(kMaxRowLength, '.'));
@@ -105,14 +108,15 @@ std::string HeapPrinter::PrintFree(const FreeSlab* slab) {
 
 std::string HeapPrinter::PrintSmall(const SmallSlab* slab) {
   std::string result = absl::StrFormat(
-      "Page %v: small %v %v%% full", slab->StartId(), slab->SizeClass(),
+      "Page %v: small %v %v%% full", slab->StartId() - HeapStartId(),
+      slab->SizeClass(),
       100.F * slab->AllocatedSlices() /
           static_cast<float>(slab->SizeClass().MaxSlicesPerSlab()));
 
   // Track which slices in the small slab are free. Start off with all marked as
   // allocated, then go through and mark each free slab in the freelist as free.
   std::vector<bool> free_slots(slab->SizeClass().MaxSlicesPerSlab(), false);
-  void* const slab_start = slab_manager_->PageStartFromId(slab->StartId());
+  void* const slab_start = slab->StartId().PageStart();
   slab->IterateSlices(slab_start, [&free_slots](uint32_t slice_idx) {
     free_slots[slice_idx] = true;
   });
@@ -202,13 +206,13 @@ std::string HeapPrinter::PrintSmall(const SmallSlab* slab) {
 }
 
 std::string HeapPrinter::PrintBlocked(const BlockedSlab* slab) {
-  std::string result =
-      absl::StrFormat("Pages %v%v: large %v%% full", slab->StartId(),
-                      slab->StartId() == slab->EndId()
-                          ? ""
-                          : absl::StrFormat(" - %v", slab->EndId()),
-                      100.F * slab->AllocatedBytes() /
-                          static_cast<float>(slab->Pages() * kPageSize));
+  std::string result = absl::StrFormat(
+      "Pages %v%v: large %v%% full", slab->StartId() - HeapStartId(),
+      slab->StartId() == slab->EndId()
+          ? ""
+          : absl::StrFormat(" - %v", slab->EndId() - HeapStartId()),
+      100.F * slab->AllocatedBytes() /
+          static_cast<float>(slab->Pages() * kPageSize));
 
   std::vector<std::string> rows(2 * slab->Pages());
 
@@ -267,13 +271,13 @@ std::string HeapPrinter::PrintBlocked(const BlockedSlab* slab) {
 }
 
 std::string HeapPrinter::PrintSingleAlloc(const SingleAllocSlab* slab) {
-  std::string result =
-      absl::StrFormat("Pages %v%v: single-alloc", slab->StartId(),
-                      slab->StartId() == slab->EndId()
-                          ? ""
-                          : absl::StrFormat(" - %v", slab->EndId()));
+  std::string result = absl::StrFormat(
+      "Pages %v%v: single-alloc", slab->StartId() - HeapStartId(),
+      slab->StartId() == slab->EndId()
+          ? ""
+          : absl::StrFormat(" - %v", slab->EndId() - HeapStartId()));
 
-  void* alloc = slab_manager_->PageStartFromId(slab->StartId());
+  void* alloc = slab->StartId().PageStart();
   auto it = highlight_addrs_.find(alloc);
 
   for (const auto& row :
@@ -289,6 +293,20 @@ std::string HeapPrinter::PrintSingleAlloc(const SingleAllocSlab* slab) {
   }
 
   return result;
+}
+
+std::string HeapPrinter::PrintMmap(const MmapSlab* slab) {
+  std::string result = absl::StrFormat(
+      "Pages %v%v: mmapped", slab->StartId() - HeapStartId(),
+      slab->StartId() == slab->EndId()
+          ? ""
+          : absl::StrFormat(" - %v", slab->EndId() - HeapStartId()));
+
+  return result;
+}
+
+PageId HeapPrinter::HeapStartId() const {
+  return PageId::FromPtr(heap_->Start());
 }
 
 }  // namespace ckmalloc

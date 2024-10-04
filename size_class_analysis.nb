@@ -1,0 +1,1357 @@
+(* Content-type: application/vnd.wolfram.mathematica *)
+
+(*** Wolfram Notebook File ***)
+(* http://www.wolfram.com/nb *)
+
+(* CreatedBy='Mathematica 12.3' *)
+
+(*CacheID: 234*)
+(* Internal cache information:
+NotebookFileLineBreakTest
+NotebookFileLineBreakTest
+NotebookDataPosition[       158,          7]
+NotebookDataLength[     60969,       1347]
+NotebookOptionsPosition[     60260,       1326]
+NotebookOutlinePosition[     60652,       1342]
+CellTagsIndexPosition[     60609,       1339]
+WindowFrame->Normal*)
+
+(* Beginning of Notebook Content *)
+Notebook[{
+
+Cell[CellGroupData[{
+Cell[BoxData[
+ RowBox[{"ListPlot", "[", 
+  RowBox[{
+   RowBox[{
+    RowBox[{"Callout", "[", 
+     RowBox[{"#", ",", "#"}], "]"}], "&"}], "/@", 
+   RowBox[{"(", 
+    RowBox[{
+     RowBox[{
+      RowBox[{"{", 
+       RowBox[{
+        RowBox[{"#", "[", 
+         RowBox[{"[", "1", "]"}], "]"}], ",", 
+        RowBox[{"Log2", "[", 
+         RowBox[{"#", "[", 
+          RowBox[{"[", "2", "]"}], "]"}], "]"}]}], "}"}], "&"}], "/@", 
+     RowBox[{"{", 
+      RowBox[{
+       RowBox[{"{", 
+        RowBox[{"8", ",", "569450"}], "}"}], ",", 
+       RowBox[{"{", 
+        RowBox[{"16", ",", "884680"}], "}"}], ",", 
+       RowBox[{"{", 
+        RowBox[{"32", ",", "2006191"}], "}"}], ",", 
+       RowBox[{"{", 
+        RowBox[{"48", ",", "605195"}], "}"}], ",", 
+       RowBox[{"{", 
+        RowBox[{"64", ",", "399429"}], "}"}], ",", 
+       RowBox[{"{", 
+        RowBox[{"80", ",", "218237"}], "}"}], ",", 
+       RowBox[{"{", 
+        RowBox[{"96", ",", "176408"}], "}"}], ",", 
+       RowBox[{"{", 
+        RowBox[{"112", ",", "134652"}], "}"}], ",", 
+       RowBox[{"{", 
+        RowBox[{"128", ",", "139622"}], "}"}], ",", 
+       RowBox[{"{", 
+        RowBox[{"144", ",", "62300"}], "}"}], ",", 
+       RowBox[{"{", 
+        RowBox[{"160", ",", "63658"}], "}"}], ",", 
+       RowBox[{"{", 
+        RowBox[{"176", ",", "55235"}], "}"}], ",", 
+       RowBox[{"{", 
+        RowBox[{"192", ",", "55954"}], "}"}], ",", 
+       RowBox[{"{", 
+        RowBox[{"208", ",", "20408"}], "}"}], ",", 
+       RowBox[{"{", 
+        RowBox[{"224", ",", "15249"}], "}"}], ",", 
+       RowBox[{"{", 
+        RowBox[{"240", ",", "20919"}], "}"}], ",", 
+       RowBox[{"{", 
+        RowBox[{"256", ",", "65133"}], "}"}], ",", 
+       RowBox[{"{", 
+        RowBox[{"272", ",", "45155"}], "}"}], ",", 
+       RowBox[{"{", 
+        RowBox[{"288", ",", "23740"}], "}"}], ",", 
+       RowBox[{"{", 
+        RowBox[{"304", ",", "16503"}], "}"}], ",", 
+       RowBox[{"{", 
+        RowBox[{"320", ",", "16656"}], "}"}], ",", 
+       RowBox[{"{", 
+        RowBox[{"336", ",", "6163"}], "}"}], ",", 
+       RowBox[{"{", 
+        RowBox[{"352", ",", "26964"}], "}"}], ",", 
+       RowBox[{"{", 
+        RowBox[{"368", ",", "8181"}], "}"}], ",", 
+       RowBox[{"{", 
+        RowBox[{"384", ",", "4599"}], "}"}], ",", 
+       RowBox[{"{", 
+        RowBox[{"400", ",", "8897"}], "}"}], ",", 
+       RowBox[{"{", 
+        RowBox[{"416", ",", "14815"}], "}"}], ",", 
+       RowBox[{"{", 
+        RowBox[{"432", ",", "4499"}], "}"}], ",", 
+       RowBox[{"{", 
+        RowBox[{"448", ",", "15035"}], "}"}], ",", 
+       RowBox[{"{", 
+        RowBox[{"464", ",", "1201"}], "}"}], ",", 
+       RowBox[{"{", 
+        RowBox[{"480", ",", "6117"}], "}"}], ",", 
+       RowBox[{"{", 
+        RowBox[{"496", ",", "2260"}], "}"}], ",", 
+       RowBox[{"{", 
+        RowBox[{"512", ",", "12996"}], "}"}]}], "}"}]}], ")"}]}], 
+  "]"}]], "Input",
+ CellChangeTimes->{{3.935898461073695*^9, 3.935898496164358*^9}, {
+  3.935898535087401*^9, 3.935898581181426*^9}, {3.935898792760054*^9, 
+  3.935898801945702*^9}},
+ CellLabel->"In[13]:=",ExpressionUUID->"9c00398c-96dd-472e-a236-1d88ff1cd965"],
+
+Cell[BoxData[
+ GraphicsBox[{{}, {
+    {RGBColor[0.368417, 0.506779, 0.709798], PointSize[0.012833333333333334`],
+      AbsoluteThickness[1.6], PointBox[CompressedData["
+1:eJxTTMoPSmViYGBQBGIQDQEKDqvTGNta5IwdIHwDh/6mGUFWB2F8B4ddB+Qa
+5r83gfI9HB4bvZjNYAqTD3BYXVoU2jXbCMoPcVi+caKkzx5DKD/CQXVe6IOt
+uTB+jINyt/vJz5wwfoJDR2D8ljBxGD/JIYt3YeWMW/pQfopDfuI9kbZXMH6a
+w6OypqfrG2H8DIepjuZNtt0wfpbDv7Nupy0X6UD5OQ5cadHVP05pQ/l5Drn9
+y4PqtsDkCxxsz3PPLPwN01/o8HBX2Mqbb/Sg/CKHtZlZB98L6kL5xQ73NeOq
+I1hh+kscWOSutmvywPilDgudDIRP6GpC+WUOUxwCZvzPh+kvd3DJdHjF+B8m
+X+FQsubv9r5QDSi/0kFSoELyt40WlF/lsD9heveSrTD3VzuoTfBdGegKU1/j
+4HfT/kv7AZh8rcPTDkHbo6UqUH6dwynp2Yn2GjD76h3ivKY7HvJQg/IbHGYx
+bZB7GKLtAABrbIYb
+      "]]}, {
+     TagBox[
+      {Opacity[0.], PointBox[{{8., 19.119209647504857`}}]},
+      Annotation[#, {{Callout}, Charting`Private`Tag$16972, {1}}]& ], 
+     TagBox[
+      {Opacity[0.], PointBox[{{16., 19.754796182855497`}}]},
+      Annotation[#, {{Callout}, Charting`Private`Tag$16972, {2}}]& ], 
+     TagBox[
+      {Opacity[0.], PointBox[{{32., 20.936027534015672`}}]},
+      Annotation[#, {{Callout}, Charting`Private`Tag$16972, {3}}]& ], 
+     TagBox[
+      {Opacity[0.], PointBox[{{48., 19.20704054278293}}]},
+      Annotation[#, {{Callout}, Charting`Private`Tag$16972, {4}}]& ], 
+     TagBox[
+      {Opacity[0.], PointBox[{{64., 18.607579555935143`}}]},
+      Annotation[#, {{Callout}, Charting`Private`Tag$16972, {5}}]& ], 
+     TagBox[
+      {Opacity[0.], PointBox[{{80., 17.735536192006887`}}]},
+      Annotation[#, {{Callout}, Charting`Private`Tag$16972, {6}}]& ], 
+     TagBox[
+      {Opacity[0.], PointBox[{{96., 17.42855646219518}}]},
+      Annotation[#, {{Callout}, Charting`Private`Tag$16972, {7}}]& ], 
+     TagBox[
+      {Opacity[0.], PointBox[{{112., 17.038876132933307`}}]},
+      Annotation[#, {{Callout}, Charting`Private`Tag$16972, {8}}]& ], 
+     TagBox[
+      {Opacity[0.], PointBox[{{128., 17.091166756888498`}}]},
+      Annotation[#, {{Callout}, Charting`Private`Tag$16972, {9}}]& ], 
+     TagBox[
+      {Opacity[0.], PointBox[{{144., 15.926944542798726`}}]},
+      Annotation[#, {{Callout}, Charting`Private`Tag$16972, {10}}]& ], 
+     TagBox[
+      {Opacity[0.], PointBox[{{160., 15.958054210802144`}}]},
+      Annotation[#, {{Callout}, Charting`Private`Tag$16972, {11}}]& ], 
+     TagBox[
+      {Opacity[0.], PointBox[{{176., 15.753295108962849`}}]},
+      Annotation[#, {{Callout}, Charting`Private`Tag$16972, {12}}]& ], 
+     TagBox[
+      {Opacity[0.], PointBox[{{192., 15.771953648800983`}}]},
+      Annotation[#, {{Callout}, Charting`Private`Tag$16972, {13}}]& ], 
+     TagBox[
+      {Opacity[0.], PointBox[{{208., 14.316847183602473`}}]},
+      Annotation[#, {{Callout}, Charting`Private`Tag$16972, {14}}]& ], 
+     TagBox[
+      {Opacity[0.], PointBox[{{224., 13.8964270161696}}]},
+      Annotation[#, {{Callout}, Charting`Private`Tag$16972, {15}}]& ], 
+     TagBox[
+      {Opacity[0.], PointBox[{{240., 14.352526267007955`}}]},
+      Annotation[#, {{Callout}, Charting`Private`Tag$16972, {16}}]& ], 
+     TagBox[
+      {Opacity[0.], PointBox[{{256., 15.991101057712166`}}]},
+      Annotation[#, {{Callout}, Charting`Private`Tag$16972, {17}}]& ], 
+     TagBox[
+      {Opacity[0.], PointBox[{{272., 15.462598125302465`}}]},
+      Annotation[#, {{Callout}, Charting`Private`Tag$16972, {18}}]& ], 
+     TagBox[
+      {Opacity[0.], PointBox[{{288., 14.53503231452927}}]},
+      Annotation[#, {{Callout}, Charting`Private`Tag$16972, {19}}]& ], 
+     TagBox[
+      {Opacity[0.], PointBox[{{304., 14.010440688366485`}}]},
+      Annotation[#, {{Callout}, Charting`Private`Tag$16972, {20}}]& ], 
+     TagBox[
+      {Opacity[0.], PointBox[{{320., 14.023754353299417`}}]},
+      Annotation[#, {{Callout}, Charting`Private`Tag$16972, {21}}]& ], 
+     TagBox[
+      {Opacity[0.], PointBox[{{336., 12.58941707576861}}]},
+      Annotation[#, {{Callout}, Charting`Private`Tag$16972, {22}}]& ], 
+     TagBox[
+      {Opacity[0.], PointBox[{{352., 14.718746909901064`}}]},
+      Annotation[#, {{Callout}, Charting`Private`Tag$16972, {23}}]& ], 
+     TagBox[
+      {Opacity[0.], PointBox[{{368., 12.99806148563642}}]},
+      Annotation[#, {{Callout}, Charting`Private`Tag$16972, {24}}]& ], 
+     TagBox[
+      {Opacity[0.], PointBox[{{384., 12.167104482379933`}}]},
+      Annotation[#, {{Callout}, Charting`Private`Tag$16972, {25}}]& ], 
+     TagBox[
+      {Opacity[0.], PointBox[{{400., 13.119103237062562`}}]},
+      Annotation[#, {{Callout}, Charting`Private`Tag$16972, {26}}]& ], 
+     TagBox[
+      {Opacity[0.], PointBox[{{416., 13.854771005848646`}}]},
+      Annotation[#, {{Callout}, Charting`Private`Tag$16972, {27}}]& ], 
+     TagBox[
+      {Opacity[0.], PointBox[{{432., 12.135388651579046`}}]},
+      Annotation[#, {{Callout}, Charting`Private`Tag$16972, {28}}]& ], 
+     TagBox[
+      {Opacity[0.], PointBox[{{448., 13.876037247461365`}}]},
+      Annotation[#, {{Callout}, Charting`Private`Tag$16972, {29}}]& ], 
+     TagBox[
+      {Opacity[0.], PointBox[{{464., 10.230020435705635`}}]},
+      Annotation[#, {{Callout}, Charting`Private`Tag$16972, {30}}]& ], 
+     TagBox[
+      {Opacity[0.], PointBox[{{480., 12.578608560737752`}}]},
+      Annotation[#, {{Callout}, Charting`Private`Tag$16972, {31}}]& ], 
+     TagBox[
+      {Opacity[0.], PointBox[{{496., 11.14210705730255}}]},
+      Annotation[#, {{Callout}, Charting`Private`Tag$16972, {32}}]& ], 
+     TagBox[
+      {Opacity[0.], PointBox[{{512., 13.665780028329483`}}]},
+      Annotation[#, {{Callout}, Charting`Private`Tag$16972, {
+        33}}]& ]}}, {{{{}, {
+       {Opacity[0], 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6]}, 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6], 
+         TagBox[
+          TooltipBox[PointBox[{512., 13.665780028329483`}],
+           StyleBox[
+            PaneBox[
+             FrameBox[
+              RowBox[{"{", 
+                RowBox[{"512", ",", 
+                  FractionBox[
+                   RowBox[{"Log", "[", "12996", "]"}], 
+                   RowBox[{"Log", "[", "2", "]"}]]}], "}"}], LabelStyle -> {},
+               Background -> None, ContentPadding -> False, LabelStyle -> {}, 
+              Frame -> True, RoundingRadius -> 4, Background -> 
+              GrayLevel[1, 0.65], FrameStyle -> None, FrameMargins -> 2, 
+              BaselinePosition -> Automatic, StripOnInput -> False], 
+             FrameMargins -> 0], {}, StripOnInput -> False]],
+          Annotation[#, 
+           Style[
+            Pane[
+             
+             Framed[{512, Log[2]^(-1) Log[12996]}, LabelStyle -> {}, 
+              Background -> None, ContentPadding -> False, {
+              LabelStyle -> {}, Frame -> True, RoundingRadius -> 4, 
+               Background -> GrayLevel[1, 0.65], FrameStyle -> None, 
+               FrameMargins -> 2, BaselinePosition -> Automatic}], 
+             FrameMargins -> 0], {}], "Tooltip"]& ]}}, 
+       {Opacity[0], 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6]}, 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6], 
+         TagBox[
+          TooltipBox[PointBox[{496., 11.14210705730255}],
+           StyleBox[
+            PaneBox[
+             FrameBox[
+              RowBox[{"{", 
+                RowBox[{"496", ",", 
+                  FractionBox[
+                   RowBox[{"Log", "[", "2260", "]"}], 
+                   RowBox[{"Log", "[", "2", "]"}]]}], "}"}], LabelStyle -> {},
+               Background -> None, ContentPadding -> False, LabelStyle -> {}, 
+              Frame -> True, RoundingRadius -> 4, Background -> 
+              GrayLevel[1, 0.65], FrameStyle -> None, FrameMargins -> 2, 
+              BaselinePosition -> Automatic, StripOnInput -> False], 
+             FrameMargins -> 0], {}, StripOnInput -> False]],
+          Annotation[#, 
+           Style[
+            Pane[
+             
+             Framed[{496, Log[2]^(-1) Log[2260]}, LabelStyle -> {}, 
+              Background -> None, ContentPadding -> False, {
+              LabelStyle -> {}, Frame -> True, RoundingRadius -> 4, 
+               Background -> GrayLevel[1, 0.65], FrameStyle -> None, 
+               FrameMargins -> 2, BaselinePosition -> Automatic}], 
+             FrameMargins -> 0], {}], "Tooltip"]& ]}}, 
+       {Opacity[0], 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6]}, 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6], 
+         TagBox[
+          TooltipBox[PointBox[{480., 12.578608560737752`}],
+           StyleBox[
+            PaneBox[
+             FrameBox[
+              RowBox[{"{", 
+                RowBox[{"480", ",", 
+                  FractionBox[
+                   RowBox[{"Log", "[", "6117", "]"}], 
+                   RowBox[{"Log", "[", "2", "]"}]]}], "}"}], LabelStyle -> {},
+               Background -> None, ContentPadding -> False, LabelStyle -> {}, 
+              Frame -> True, RoundingRadius -> 4, Background -> 
+              GrayLevel[1, 0.65], FrameStyle -> None, FrameMargins -> 2, 
+              BaselinePosition -> Automatic, StripOnInput -> False], 
+             FrameMargins -> 0], {}, StripOnInput -> False]],
+          Annotation[#, 
+           Style[
+            Pane[
+             
+             Framed[{480, Log[2]^(-1) Log[6117]}, LabelStyle -> {}, 
+              Background -> None, ContentPadding -> False, {
+              LabelStyle -> {}, Frame -> True, RoundingRadius -> 4, 
+               Background -> GrayLevel[1, 0.65], FrameStyle -> None, 
+               FrameMargins -> 2, BaselinePosition -> Automatic}], 
+             FrameMargins -> 0], {}], "Tooltip"]& ]}}, 
+       {Opacity[0], 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6]}, 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6], 
+         TagBox[
+          TooltipBox[PointBox[{464., 10.230020435705635`}],
+           StyleBox[
+            PaneBox[
+             FrameBox[
+              RowBox[{"{", 
+                RowBox[{"464", ",", 
+                  FractionBox[
+                   RowBox[{"Log", "[", "1201", "]"}], 
+                   RowBox[{"Log", "[", "2", "]"}]]}], "}"}], LabelStyle -> {},
+               Background -> None, ContentPadding -> False, LabelStyle -> {}, 
+              Frame -> True, RoundingRadius -> 4, Background -> 
+              GrayLevel[1, 0.65], FrameStyle -> None, FrameMargins -> 2, 
+              BaselinePosition -> Automatic, StripOnInput -> False], 
+             FrameMargins -> 0], {}, StripOnInput -> False]],
+          Annotation[#, 
+           Style[
+            Pane[
+             
+             Framed[{464, Log[2]^(-1) Log[1201]}, LabelStyle -> {}, 
+              Background -> None, ContentPadding -> False, {
+              LabelStyle -> {}, Frame -> True, RoundingRadius -> 4, 
+               Background -> GrayLevel[1, 0.65], FrameStyle -> None, 
+               FrameMargins -> 2, BaselinePosition -> Automatic}], 
+             FrameMargins -> 0], {}], "Tooltip"]& ]}}, 
+       {Opacity[0], 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6]}, 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6], 
+         TagBox[
+          TooltipBox[PointBox[{448., 13.876037247461365`}],
+           StyleBox[
+            PaneBox[
+             FrameBox[
+              RowBox[{"{", 
+                RowBox[{"448", ",", 
+                  FractionBox[
+                   RowBox[{"Log", "[", "15035", "]"}], 
+                   RowBox[{"Log", "[", "2", "]"}]]}], "}"}], LabelStyle -> {},
+               Background -> None, ContentPadding -> False, LabelStyle -> {}, 
+              Frame -> True, RoundingRadius -> 4, Background -> 
+              GrayLevel[1, 0.65], FrameStyle -> None, FrameMargins -> 2, 
+              BaselinePosition -> Automatic, StripOnInput -> False], 
+             FrameMargins -> 0], {}, StripOnInput -> False]],
+          Annotation[#, 
+           Style[
+            Pane[
+             
+             Framed[{448, Log[2]^(-1) Log[15035]}, LabelStyle -> {}, 
+              Background -> None, ContentPadding -> False, {
+              LabelStyle -> {}, Frame -> True, RoundingRadius -> 4, 
+               Background -> GrayLevel[1, 0.65], FrameStyle -> None, 
+               FrameMargins -> 2, BaselinePosition -> Automatic}], 
+             FrameMargins -> 0], {}], "Tooltip"]& ]}}, 
+       {Opacity[0], 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6]}, 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6], 
+         TagBox[
+          TooltipBox[PointBox[{432., 12.135388651579046`}],
+           StyleBox[
+            PaneBox[
+             FrameBox[
+              RowBox[{"{", 
+                RowBox[{"432", ",", 
+                  FractionBox[
+                   RowBox[{"Log", "[", "4499", "]"}], 
+                   RowBox[{"Log", "[", "2", "]"}]]}], "}"}], LabelStyle -> {},
+               Background -> None, ContentPadding -> False, LabelStyle -> {}, 
+              Frame -> True, RoundingRadius -> 4, Background -> 
+              GrayLevel[1, 0.65], FrameStyle -> None, FrameMargins -> 2, 
+              BaselinePosition -> Automatic, StripOnInput -> False], 
+             FrameMargins -> 0], {}, StripOnInput -> False]],
+          Annotation[#, 
+           Style[
+            Pane[
+             
+             Framed[{432, Log[2]^(-1) Log[4499]}, LabelStyle -> {}, 
+              Background -> None, ContentPadding -> False, {
+              LabelStyle -> {}, Frame -> True, RoundingRadius -> 4, 
+               Background -> GrayLevel[1, 0.65], FrameStyle -> None, 
+               FrameMargins -> 2, BaselinePosition -> Automatic}], 
+             FrameMargins -> 0], {}], "Tooltip"]& ]}}, 
+       {Opacity[0], 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6]}, 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6], 
+         TagBox[
+          TooltipBox[PointBox[{416., 13.854771005848646`}],
+           StyleBox[
+            PaneBox[
+             FrameBox[
+              RowBox[{"{", 
+                RowBox[{"416", ",", 
+                  FractionBox[
+                   RowBox[{"Log", "[", "14815", "]"}], 
+                   RowBox[{"Log", "[", "2", "]"}]]}], "}"}], LabelStyle -> {},
+               Background -> None, ContentPadding -> False, LabelStyle -> {}, 
+              Frame -> True, RoundingRadius -> 4, Background -> 
+              GrayLevel[1, 0.65], FrameStyle -> None, FrameMargins -> 2, 
+              BaselinePosition -> Automatic, StripOnInput -> False], 
+             FrameMargins -> 0], {}, StripOnInput -> False]],
+          Annotation[#, 
+           Style[
+            Pane[
+             
+             Framed[{416, Log[2]^(-1) Log[14815]}, LabelStyle -> {}, 
+              Background -> None, ContentPadding -> False, {
+              LabelStyle -> {}, Frame -> True, RoundingRadius -> 4, 
+               Background -> GrayLevel[1, 0.65], FrameStyle -> None, 
+               FrameMargins -> 2, BaselinePosition -> Automatic}], 
+             FrameMargins -> 0], {}], "Tooltip"]& ]}}, 
+       {Opacity[0], 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6]}, 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6], 
+         TagBox[
+          TooltipBox[PointBox[{400., 13.119103237062562`}],
+           StyleBox[
+            PaneBox[
+             FrameBox[
+              RowBox[{"{", 
+                RowBox[{"400", ",", 
+                  FractionBox[
+                   RowBox[{"Log", "[", "8897", "]"}], 
+                   RowBox[{"Log", "[", "2", "]"}]]}], "}"}], LabelStyle -> {},
+               Background -> None, ContentPadding -> False, LabelStyle -> {}, 
+              Frame -> True, RoundingRadius -> 4, Background -> 
+              GrayLevel[1, 0.65], FrameStyle -> None, FrameMargins -> 2, 
+              BaselinePosition -> Automatic, StripOnInput -> False], 
+             FrameMargins -> 0], {}, StripOnInput -> False]],
+          Annotation[#, 
+           Style[
+            Pane[
+             
+             Framed[{400, Log[2]^(-1) Log[8897]}, LabelStyle -> {}, 
+              Background -> None, ContentPadding -> False, {
+              LabelStyle -> {}, Frame -> True, RoundingRadius -> 4, 
+               Background -> GrayLevel[1, 0.65], FrameStyle -> None, 
+               FrameMargins -> 2, BaselinePosition -> Automatic}], 
+             FrameMargins -> 0], {}], "Tooltip"]& ]}}, 
+       {Opacity[0], 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6]}, 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6], 
+         TagBox[
+          TooltipBox[PointBox[{384., 12.167104482379933`}],
+           StyleBox[
+            PaneBox[
+             FrameBox[
+              RowBox[{"{", 
+                RowBox[{"384", ",", 
+                  FractionBox[
+                   RowBox[{"Log", "[", "4599", "]"}], 
+                   RowBox[{"Log", "[", "2", "]"}]]}], "}"}], LabelStyle -> {},
+               Background -> None, ContentPadding -> False, LabelStyle -> {}, 
+              Frame -> True, RoundingRadius -> 4, Background -> 
+              GrayLevel[1, 0.65], FrameStyle -> None, FrameMargins -> 2, 
+              BaselinePosition -> Automatic, StripOnInput -> False], 
+             FrameMargins -> 0], {}, StripOnInput -> False]],
+          Annotation[#, 
+           Style[
+            Pane[
+             
+             Framed[{384, Log[2]^(-1) Log[4599]}, LabelStyle -> {}, 
+              Background -> None, ContentPadding -> False, {
+              LabelStyle -> {}, Frame -> True, RoundingRadius -> 4, 
+               Background -> GrayLevel[1, 0.65], FrameStyle -> None, 
+               FrameMargins -> 2, BaselinePosition -> Automatic}], 
+             FrameMargins -> 0], {}], "Tooltip"]& ]}}, 
+       {Opacity[0], 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6]}, 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6], 
+         TagBox[
+          TooltipBox[PointBox[{368., 12.99806148563642}],
+           StyleBox[
+            PaneBox[
+             FrameBox[
+              RowBox[{"{", 
+                RowBox[{"368", ",", 
+                  FractionBox[
+                   RowBox[{"Log", "[", "8181", "]"}], 
+                   RowBox[{"Log", "[", "2", "]"}]]}], "}"}], LabelStyle -> {},
+               Background -> None, ContentPadding -> False, LabelStyle -> {}, 
+              Frame -> True, RoundingRadius -> 4, Background -> 
+              GrayLevel[1, 0.65], FrameStyle -> None, FrameMargins -> 2, 
+              BaselinePosition -> Automatic, StripOnInput -> False], 
+             FrameMargins -> 0], {}, StripOnInput -> False]],
+          Annotation[#, 
+           Style[
+            Pane[
+             
+             Framed[{368, Log[2]^(-1) Log[8181]}, LabelStyle -> {}, 
+              Background -> None, ContentPadding -> False, {
+              LabelStyle -> {}, Frame -> True, RoundingRadius -> 4, 
+               Background -> GrayLevel[1, 0.65], FrameStyle -> None, 
+               FrameMargins -> 2, BaselinePosition -> Automatic}], 
+             FrameMargins -> 0], {}], "Tooltip"]& ]}}, 
+       {Opacity[0], 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6]}, 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6], 
+         TagBox[
+          TooltipBox[PointBox[{352., 14.718746909901064`}],
+           StyleBox[
+            PaneBox[
+             FrameBox[
+              RowBox[{"{", 
+                RowBox[{"352", ",", 
+                  FractionBox[
+                   RowBox[{"Log", "[", "26964", "]"}], 
+                   RowBox[{"Log", "[", "2", "]"}]]}], "}"}], LabelStyle -> {},
+               Background -> None, ContentPadding -> False, LabelStyle -> {}, 
+              Frame -> True, RoundingRadius -> 4, Background -> 
+              GrayLevel[1, 0.65], FrameStyle -> None, FrameMargins -> 2, 
+              BaselinePosition -> Automatic, StripOnInput -> False], 
+             FrameMargins -> 0], {}, StripOnInput -> False]],
+          Annotation[#, 
+           Style[
+            Pane[
+             
+             Framed[{352, Log[2]^(-1) Log[26964]}, LabelStyle -> {}, 
+              Background -> None, ContentPadding -> False, {
+              LabelStyle -> {}, Frame -> True, RoundingRadius -> 4, 
+               Background -> GrayLevel[1, 0.65], FrameStyle -> None, 
+               FrameMargins -> 2, BaselinePosition -> Automatic}], 
+             FrameMargins -> 0], {}], "Tooltip"]& ]}}, 
+       {Opacity[0], 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6]}, 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6], 
+         TagBox[
+          TooltipBox[PointBox[{336., 12.58941707576861}],
+           StyleBox[
+            PaneBox[
+             FrameBox[
+              RowBox[{"{", 
+                RowBox[{"336", ",", 
+                  FractionBox[
+                   RowBox[{"Log", "[", "6163", "]"}], 
+                   RowBox[{"Log", "[", "2", "]"}]]}], "}"}], LabelStyle -> {},
+               Background -> None, ContentPadding -> False, LabelStyle -> {}, 
+              Frame -> True, RoundingRadius -> 4, Background -> 
+              GrayLevel[1, 0.65], FrameStyle -> None, FrameMargins -> 2, 
+              BaselinePosition -> Automatic, StripOnInput -> False], 
+             FrameMargins -> 0], {}, StripOnInput -> False]],
+          Annotation[#, 
+           Style[
+            Pane[
+             
+             Framed[{336, Log[2]^(-1) Log[6163]}, LabelStyle -> {}, 
+              Background -> None, ContentPadding -> False, {
+              LabelStyle -> {}, Frame -> True, RoundingRadius -> 4, 
+               Background -> GrayLevel[1, 0.65], FrameStyle -> None, 
+               FrameMargins -> 2, BaselinePosition -> Automatic}], 
+             FrameMargins -> 0], {}], "Tooltip"]& ]}}, 
+       {Opacity[0], 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6]}, 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6], 
+         TagBox[
+          TooltipBox[PointBox[{320., 14.023754353299417`}],
+           StyleBox[
+            PaneBox[
+             FrameBox[
+              RowBox[{"{", 
+                RowBox[{"320", ",", 
+                  FractionBox[
+                   RowBox[{"Log", "[", "16656", "]"}], 
+                   RowBox[{"Log", "[", "2", "]"}]]}], "}"}], LabelStyle -> {},
+               Background -> None, ContentPadding -> False, LabelStyle -> {}, 
+              Frame -> True, RoundingRadius -> 4, Background -> 
+              GrayLevel[1, 0.65], FrameStyle -> None, FrameMargins -> 2, 
+              BaselinePosition -> Automatic, StripOnInput -> False], 
+             FrameMargins -> 0], {}, StripOnInput -> False]],
+          Annotation[#, 
+           Style[
+            Pane[
+             
+             Framed[{320, Log[2]^(-1) Log[16656]}, LabelStyle -> {}, 
+              Background -> None, ContentPadding -> False, {
+              LabelStyle -> {}, Frame -> True, RoundingRadius -> 4, 
+               Background -> GrayLevel[1, 0.65], FrameStyle -> None, 
+               FrameMargins -> 2, BaselinePosition -> Automatic}], 
+             FrameMargins -> 0], {}], "Tooltip"]& ]}}, 
+       {Opacity[0], 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6]}, 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6], 
+         TagBox[
+          TooltipBox[PointBox[{304., 14.010440688366485`}],
+           StyleBox[
+            PaneBox[
+             FrameBox[
+              RowBox[{"{", 
+                RowBox[{"304", ",", 
+                  FractionBox[
+                   RowBox[{"Log", "[", "16503", "]"}], 
+                   RowBox[{"Log", "[", "2", "]"}]]}], "}"}], LabelStyle -> {},
+               Background -> None, ContentPadding -> False, LabelStyle -> {}, 
+              Frame -> True, RoundingRadius -> 4, Background -> 
+              GrayLevel[1, 0.65], FrameStyle -> None, FrameMargins -> 2, 
+              BaselinePosition -> Automatic, StripOnInput -> False], 
+             FrameMargins -> 0], {}, StripOnInput -> False]],
+          Annotation[#, 
+           Style[
+            Pane[
+             
+             Framed[{304, Log[2]^(-1) Log[16503]}, LabelStyle -> {}, 
+              Background -> None, ContentPadding -> False, {
+              LabelStyle -> {}, Frame -> True, RoundingRadius -> 4, 
+               Background -> GrayLevel[1, 0.65], FrameStyle -> None, 
+               FrameMargins -> 2, BaselinePosition -> Automatic}], 
+             FrameMargins -> 0], {}], "Tooltip"]& ]}}, 
+       {Opacity[0], 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6]}, 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6], 
+         TagBox[
+          TooltipBox[PointBox[{288., 14.53503231452927}],
+           StyleBox[
+            PaneBox[
+             FrameBox[
+              RowBox[{"{", 
+                RowBox[{"288", ",", 
+                  FractionBox[
+                   RowBox[{"Log", "[", "23740", "]"}], 
+                   RowBox[{"Log", "[", "2", "]"}]]}], "}"}], LabelStyle -> {},
+               Background -> None, ContentPadding -> False, LabelStyle -> {}, 
+              Frame -> True, RoundingRadius -> 4, Background -> 
+              GrayLevel[1, 0.65], FrameStyle -> None, FrameMargins -> 2, 
+              BaselinePosition -> Automatic, StripOnInput -> False], 
+             FrameMargins -> 0], {}, StripOnInput -> False]],
+          Annotation[#, 
+           Style[
+            Pane[
+             
+             Framed[{288, Log[2]^(-1) Log[23740]}, LabelStyle -> {}, 
+              Background -> None, ContentPadding -> False, {
+              LabelStyle -> {}, Frame -> True, RoundingRadius -> 4, 
+               Background -> GrayLevel[1, 0.65], FrameStyle -> None, 
+               FrameMargins -> 2, BaselinePosition -> Automatic}], 
+             FrameMargins -> 0], {}], "Tooltip"]& ]}}, 
+       {Opacity[0], 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6]}, 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6], 
+         TagBox[
+          TooltipBox[PointBox[{272., 15.462598125302465`}],
+           StyleBox[
+            PaneBox[
+             FrameBox[
+              RowBox[{"{", 
+                RowBox[{"272", ",", 
+                  FractionBox[
+                   RowBox[{"Log", "[", "45155", "]"}], 
+                   RowBox[{"Log", "[", "2", "]"}]]}], "}"}], LabelStyle -> {},
+               Background -> None, ContentPadding -> False, LabelStyle -> {}, 
+              Frame -> True, RoundingRadius -> 4, Background -> 
+              GrayLevel[1, 0.65], FrameStyle -> None, FrameMargins -> 2, 
+              BaselinePosition -> Automatic, StripOnInput -> False], 
+             FrameMargins -> 0], {}, StripOnInput -> False]],
+          Annotation[#, 
+           Style[
+            Pane[
+             
+             Framed[{272, Log[2]^(-1) Log[45155]}, LabelStyle -> {}, 
+              Background -> None, ContentPadding -> False, {
+              LabelStyle -> {}, Frame -> True, RoundingRadius -> 4, 
+               Background -> GrayLevel[1, 0.65], FrameStyle -> None, 
+               FrameMargins -> 2, BaselinePosition -> Automatic}], 
+             FrameMargins -> 0], {}], "Tooltip"]& ]}}, 
+       {Opacity[0], 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6]}, 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6], 
+         TagBox[
+          TooltipBox[PointBox[{256., 15.991101057712166`}],
+           StyleBox[
+            PaneBox[
+             FrameBox[
+              RowBox[{"{", 
+                RowBox[{"256", ",", 
+                  FractionBox[
+                   RowBox[{"Log", "[", "65133", "]"}], 
+                   RowBox[{"Log", "[", "2", "]"}]]}], "}"}], LabelStyle -> {},
+               Background -> None, ContentPadding -> False, LabelStyle -> {}, 
+              Frame -> True, RoundingRadius -> 4, Background -> 
+              GrayLevel[1, 0.65], FrameStyle -> None, FrameMargins -> 2, 
+              BaselinePosition -> Automatic, StripOnInput -> False], 
+             FrameMargins -> 0], {}, StripOnInput -> False]],
+          Annotation[#, 
+           Style[
+            Pane[
+             
+             Framed[{256, Log[2]^(-1) Log[65133]}, LabelStyle -> {}, 
+              Background -> None, ContentPadding -> False, {
+              LabelStyle -> {}, Frame -> True, RoundingRadius -> 4, 
+               Background -> GrayLevel[1, 0.65], FrameStyle -> None, 
+               FrameMargins -> 2, BaselinePosition -> Automatic}], 
+             FrameMargins -> 0], {}], "Tooltip"]& ]}}, 
+       {Opacity[0], 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6]}, 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6], 
+         TagBox[
+          TooltipBox[PointBox[{240., 14.352526267007955`}],
+           StyleBox[
+            PaneBox[
+             FrameBox[
+              RowBox[{"{", 
+                RowBox[{"240", ",", 
+                  FractionBox[
+                   RowBox[{"Log", "[", "20919", "]"}], 
+                   RowBox[{"Log", "[", "2", "]"}]]}], "}"}], LabelStyle -> {},
+               Background -> None, ContentPadding -> False, LabelStyle -> {}, 
+              Frame -> True, RoundingRadius -> 4, Background -> 
+              GrayLevel[1, 0.65], FrameStyle -> None, FrameMargins -> 2, 
+              BaselinePosition -> Automatic, StripOnInput -> False], 
+             FrameMargins -> 0], {}, StripOnInput -> False]],
+          Annotation[#, 
+           Style[
+            Pane[
+             
+             Framed[{240, Log[2]^(-1) Log[20919]}, LabelStyle -> {}, 
+              Background -> None, ContentPadding -> False, {
+              LabelStyle -> {}, Frame -> True, RoundingRadius -> 4, 
+               Background -> GrayLevel[1, 0.65], FrameStyle -> None, 
+               FrameMargins -> 2, BaselinePosition -> Automatic}], 
+             FrameMargins -> 0], {}], "Tooltip"]& ]}}, 
+       {Opacity[0], 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6]}, 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6], 
+         TagBox[
+          TooltipBox[PointBox[{224., 13.8964270161696}],
+           StyleBox[
+            PaneBox[
+             FrameBox[
+              RowBox[{"{", 
+                RowBox[{"224", ",", 
+                  FractionBox[
+                   RowBox[{"Log", "[", "15249", "]"}], 
+                   RowBox[{"Log", "[", "2", "]"}]]}], "}"}], LabelStyle -> {},
+               Background -> None, ContentPadding -> False, LabelStyle -> {}, 
+              Frame -> True, RoundingRadius -> 4, Background -> 
+              GrayLevel[1, 0.65], FrameStyle -> None, FrameMargins -> 2, 
+              BaselinePosition -> Automatic, StripOnInput -> False], 
+             FrameMargins -> 0], {}, StripOnInput -> False]],
+          Annotation[#, 
+           Style[
+            Pane[
+             
+             Framed[{224, Log[2]^(-1) Log[15249]}, LabelStyle -> {}, 
+              Background -> None, ContentPadding -> False, {
+              LabelStyle -> {}, Frame -> True, RoundingRadius -> 4, 
+               Background -> GrayLevel[1, 0.65], FrameStyle -> None, 
+               FrameMargins -> 2, BaselinePosition -> Automatic}], 
+             FrameMargins -> 0], {}], "Tooltip"]& ]}}, 
+       {Opacity[0], 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6]}, 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6], 
+         TagBox[
+          TooltipBox[PointBox[{208., 14.316847183602473`}],
+           StyleBox[
+            PaneBox[
+             FrameBox[
+              RowBox[{"{", 
+                RowBox[{"208", ",", 
+                  FractionBox[
+                   RowBox[{"Log", "[", "20408", "]"}], 
+                   RowBox[{"Log", "[", "2", "]"}]]}], "}"}], LabelStyle -> {},
+               Background -> None, ContentPadding -> False, LabelStyle -> {}, 
+              Frame -> True, RoundingRadius -> 4, Background -> 
+              GrayLevel[1, 0.65], FrameStyle -> None, FrameMargins -> 2, 
+              BaselinePosition -> Automatic, StripOnInput -> False], 
+             FrameMargins -> 0], {}, StripOnInput -> False]],
+          Annotation[#, 
+           Style[
+            Pane[
+             
+             Framed[{208, Log[2]^(-1) Log[20408]}, LabelStyle -> {}, 
+              Background -> None, ContentPadding -> False, {
+              LabelStyle -> {}, Frame -> True, RoundingRadius -> 4, 
+               Background -> GrayLevel[1, 0.65], FrameStyle -> None, 
+               FrameMargins -> 2, BaselinePosition -> Automatic}], 
+             FrameMargins -> 0], {}], "Tooltip"]& ]}}, 
+       {Opacity[0], 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6]}, 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6], 
+         TagBox[
+          TooltipBox[PointBox[{192., 15.771953648800983`}],
+           StyleBox[
+            PaneBox[
+             FrameBox[
+              RowBox[{"{", 
+                RowBox[{"192", ",", 
+                  FractionBox[
+                   RowBox[{"Log", "[", "55954", "]"}], 
+                   RowBox[{"Log", "[", "2", "]"}]]}], "}"}], LabelStyle -> {},
+               Background -> None, ContentPadding -> False, LabelStyle -> {}, 
+              Frame -> True, RoundingRadius -> 4, Background -> 
+              GrayLevel[1, 0.65], FrameStyle -> None, FrameMargins -> 2, 
+              BaselinePosition -> Automatic, StripOnInput -> False], 
+             FrameMargins -> 0], {}, StripOnInput -> False]],
+          Annotation[#, 
+           Style[
+            Pane[
+             
+             Framed[{192, Log[2]^(-1) Log[55954]}, LabelStyle -> {}, 
+              Background -> None, ContentPadding -> False, {
+              LabelStyle -> {}, Frame -> True, RoundingRadius -> 4, 
+               Background -> GrayLevel[1, 0.65], FrameStyle -> None, 
+               FrameMargins -> 2, BaselinePosition -> Automatic}], 
+             FrameMargins -> 0], {}], "Tooltip"]& ]}}, 
+       {Opacity[0], 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6]}, 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6], 
+         TagBox[
+          TooltipBox[PointBox[{176., 15.753295108962849`}],
+           StyleBox[
+            PaneBox[
+             FrameBox[
+              RowBox[{"{", 
+                RowBox[{"176", ",", 
+                  FractionBox[
+                   RowBox[{"Log", "[", "55235", "]"}], 
+                   RowBox[{"Log", "[", "2", "]"}]]}], "}"}], LabelStyle -> {},
+               Background -> None, ContentPadding -> False, LabelStyle -> {}, 
+              Frame -> True, RoundingRadius -> 4, Background -> 
+              GrayLevel[1, 0.65], FrameStyle -> None, FrameMargins -> 2, 
+              BaselinePosition -> Automatic, StripOnInput -> False], 
+             FrameMargins -> 0], {}, StripOnInput -> False]],
+          Annotation[#, 
+           Style[
+            Pane[
+             
+             Framed[{176, Log[2]^(-1) Log[55235]}, LabelStyle -> {}, 
+              Background -> None, ContentPadding -> False, {
+              LabelStyle -> {}, Frame -> True, RoundingRadius -> 4, 
+               Background -> GrayLevel[1, 0.65], FrameStyle -> None, 
+               FrameMargins -> 2, BaselinePosition -> Automatic}], 
+             FrameMargins -> 0], {}], "Tooltip"]& ]}}, 
+       {Opacity[0], 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6]}, 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6], 
+         TagBox[
+          TooltipBox[PointBox[{160., 15.958054210802144`}],
+           StyleBox[
+            PaneBox[
+             FrameBox[
+              RowBox[{"{", 
+                RowBox[{"160", ",", 
+                  FractionBox[
+                   RowBox[{"Log", "[", "63658", "]"}], 
+                   RowBox[{"Log", "[", "2", "]"}]]}], "}"}], LabelStyle -> {},
+               Background -> None, ContentPadding -> False, LabelStyle -> {}, 
+              Frame -> True, RoundingRadius -> 4, Background -> 
+              GrayLevel[1, 0.65], FrameStyle -> None, FrameMargins -> 2, 
+              BaselinePosition -> Automatic, StripOnInput -> False], 
+             FrameMargins -> 0], {}, StripOnInput -> False]],
+          Annotation[#, 
+           Style[
+            Pane[
+             
+             Framed[{160, Log[2]^(-1) Log[63658]}, LabelStyle -> {}, 
+              Background -> None, ContentPadding -> False, {
+              LabelStyle -> {}, Frame -> True, RoundingRadius -> 4, 
+               Background -> GrayLevel[1, 0.65], FrameStyle -> None, 
+               FrameMargins -> 2, BaselinePosition -> Automatic}], 
+             FrameMargins -> 0], {}], "Tooltip"]& ]}}, 
+       {Opacity[0], 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6]}, 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6], 
+         TagBox[
+          TooltipBox[PointBox[{144., 15.926944542798726`}],
+           StyleBox[
+            PaneBox[
+             FrameBox[
+              RowBox[{"{", 
+                RowBox[{"144", ",", 
+                  FractionBox[
+                   RowBox[{"Log", "[", "62300", "]"}], 
+                   RowBox[{"Log", "[", "2", "]"}]]}], "}"}], LabelStyle -> {},
+               Background -> None, ContentPadding -> False, LabelStyle -> {}, 
+              Frame -> True, RoundingRadius -> 4, Background -> 
+              GrayLevel[1, 0.65], FrameStyle -> None, FrameMargins -> 2, 
+              BaselinePosition -> Automatic, StripOnInput -> False], 
+             FrameMargins -> 0], {}, StripOnInput -> False]],
+          Annotation[#, 
+           Style[
+            Pane[
+             
+             Framed[{144, Log[2]^(-1) Log[62300]}, LabelStyle -> {}, 
+              Background -> None, ContentPadding -> False, {
+              LabelStyle -> {}, Frame -> True, RoundingRadius -> 4, 
+               Background -> GrayLevel[1, 0.65], FrameStyle -> None, 
+               FrameMargins -> 2, BaselinePosition -> Automatic}], 
+             FrameMargins -> 0], {}], "Tooltip"]& ]}}, 
+       {Opacity[0], 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6]}, 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6], 
+         TagBox[
+          TooltipBox[PointBox[{128., 17.091166756888498`}],
+           StyleBox[
+            PaneBox[
+             FrameBox[
+              RowBox[{"{", 
+                RowBox[{"128", ",", 
+                  FractionBox[
+                   RowBox[{"Log", "[", "139622", "]"}], 
+                   RowBox[{"Log", "[", "2", "]"}]]}], "}"}], LabelStyle -> {},
+               Background -> None, ContentPadding -> False, LabelStyle -> {}, 
+              Frame -> True, RoundingRadius -> 4, Background -> 
+              GrayLevel[1, 0.65], FrameStyle -> None, FrameMargins -> 2, 
+              BaselinePosition -> Automatic, StripOnInput -> False], 
+             FrameMargins -> 0], {}, StripOnInput -> False]],
+          Annotation[#, 
+           Style[
+            Pane[
+             
+             Framed[{128, Log[2]^(-1) Log[139622]}, LabelStyle -> {}, 
+              Background -> None, ContentPadding -> False, {
+              LabelStyle -> {}, Frame -> True, RoundingRadius -> 4, 
+               Background -> GrayLevel[1, 0.65], FrameStyle -> None, 
+               FrameMargins -> 2, BaselinePosition -> Automatic}], 
+             FrameMargins -> 0], {}], "Tooltip"]& ]}}, 
+       {Opacity[0], 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6]}, 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6], 
+         TagBox[
+          TooltipBox[PointBox[{112., 17.038876132933307`}],
+           StyleBox[
+            PaneBox[
+             FrameBox[
+              RowBox[{"{", 
+                RowBox[{"112", ",", 
+                  FractionBox[
+                   RowBox[{"Log", "[", "134652", "]"}], 
+                   RowBox[{"Log", "[", "2", "]"}]]}], "}"}], LabelStyle -> {},
+               Background -> None, ContentPadding -> False, LabelStyle -> {}, 
+              Frame -> True, RoundingRadius -> 4, Background -> 
+              GrayLevel[1, 0.65], FrameStyle -> None, FrameMargins -> 2, 
+              BaselinePosition -> Automatic, StripOnInput -> False], 
+             FrameMargins -> 0], {}, StripOnInput -> False]],
+          Annotation[#, 
+           Style[
+            Pane[
+             
+             Framed[{112, Log[2]^(-1) Log[134652]}, LabelStyle -> {}, 
+              Background -> None, ContentPadding -> False, {
+              LabelStyle -> {}, Frame -> True, RoundingRadius -> 4, 
+               Background -> GrayLevel[1, 0.65], FrameStyle -> None, 
+               FrameMargins -> 2, BaselinePosition -> Automatic}], 
+             FrameMargins -> 0], {}], "Tooltip"]& ]}}, 
+       {Opacity[0], 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6]}, 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6], 
+         TagBox[
+          TooltipBox[PointBox[{96., 17.42855646219518}],
+           StyleBox[
+            PaneBox[
+             FrameBox[
+              RowBox[{"{", 
+                RowBox[{"96", ",", 
+                  FractionBox[
+                   RowBox[{"Log", "[", "176408", "]"}], 
+                   RowBox[{"Log", "[", "2", "]"}]]}], "}"}], LabelStyle -> {},
+               Background -> None, ContentPadding -> False, LabelStyle -> {}, 
+              Frame -> True, RoundingRadius -> 4, Background -> 
+              GrayLevel[1, 0.65], FrameStyle -> None, FrameMargins -> 2, 
+              BaselinePosition -> Automatic, StripOnInput -> False], 
+             FrameMargins -> 0], {}, StripOnInput -> False]],
+          Annotation[#, 
+           Style[
+            Pane[
+             
+             Framed[{96, Log[2]^(-1) Log[176408]}, LabelStyle -> {}, 
+              Background -> None, ContentPadding -> False, {
+              LabelStyle -> {}, Frame -> True, RoundingRadius -> 4, 
+               Background -> GrayLevel[1, 0.65], FrameStyle -> None, 
+               FrameMargins -> 2, BaselinePosition -> Automatic}], 
+             FrameMargins -> 0], {}], "Tooltip"]& ]}}, 
+       {Opacity[0], 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6]}, 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6], 
+         TagBox[
+          TooltipBox[PointBox[{80., 17.735536192006887`}],
+           StyleBox[
+            PaneBox[
+             FrameBox[
+              RowBox[{"{", 
+                RowBox[{"80", ",", 
+                  FractionBox[
+                   RowBox[{"Log", "[", "218237", "]"}], 
+                   RowBox[{"Log", "[", "2", "]"}]]}], "}"}], LabelStyle -> {},
+               Background -> None, ContentPadding -> False, LabelStyle -> {}, 
+              Frame -> True, RoundingRadius -> 4, Background -> 
+              GrayLevel[1, 0.65], FrameStyle -> None, FrameMargins -> 2, 
+              BaselinePosition -> Automatic, StripOnInput -> False], 
+             FrameMargins -> 0], {}, StripOnInput -> False]],
+          Annotation[#, 
+           Style[
+            Pane[
+             
+             Framed[{80, Log[2]^(-1) Log[218237]}, LabelStyle -> {}, 
+              Background -> None, ContentPadding -> False, {
+              LabelStyle -> {}, Frame -> True, RoundingRadius -> 4, 
+               Background -> GrayLevel[1, 0.65], FrameStyle -> None, 
+               FrameMargins -> 2, BaselinePosition -> Automatic}], 
+             FrameMargins -> 0], {}], "Tooltip"]& ]}}, 
+       {Opacity[0], 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6]}, 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6], 
+         TagBox[
+          TooltipBox[PointBox[{64., 18.607579555935143`}],
+           StyleBox[
+            PaneBox[
+             FrameBox[
+              RowBox[{"{", 
+                RowBox[{"64", ",", 
+                  FractionBox[
+                   RowBox[{"Log", "[", "399429", "]"}], 
+                   RowBox[{"Log", "[", "2", "]"}]]}], "}"}], LabelStyle -> {},
+               Background -> None, ContentPadding -> False, LabelStyle -> {}, 
+              Frame -> True, RoundingRadius -> 4, Background -> 
+              GrayLevel[1, 0.65], FrameStyle -> None, FrameMargins -> 2, 
+              BaselinePosition -> Automatic, StripOnInput -> False], 
+             FrameMargins -> 0], {}, StripOnInput -> False]],
+          Annotation[#, 
+           Style[
+            Pane[
+             
+             Framed[{64, Log[2]^(-1) Log[399429]}, LabelStyle -> {}, 
+              Background -> None, ContentPadding -> False, {
+              LabelStyle -> {}, Frame -> True, RoundingRadius -> 4, 
+               Background -> GrayLevel[1, 0.65], FrameStyle -> None, 
+               FrameMargins -> 2, BaselinePosition -> Automatic}], 
+             FrameMargins -> 0], {}], "Tooltip"]& ]}}, 
+       {Opacity[0], 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6]}, 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6], 
+         TagBox[
+          TooltipBox[PointBox[{48., 19.20704054278293}],
+           StyleBox[
+            PaneBox[
+             FrameBox[
+              RowBox[{"{", 
+                RowBox[{"48", ",", 
+                  FractionBox[
+                   RowBox[{"Log", "[", "605195", "]"}], 
+                   RowBox[{"Log", "[", "2", "]"}]]}], "}"}], LabelStyle -> {},
+               Background -> None, ContentPadding -> False, LabelStyle -> {}, 
+              Frame -> True, RoundingRadius -> 4, Background -> 
+              GrayLevel[1, 0.65], FrameStyle -> None, FrameMargins -> 2, 
+              BaselinePosition -> Automatic, StripOnInput -> False], 
+             FrameMargins -> 0], {}, StripOnInput -> False]],
+          Annotation[#, 
+           Style[
+            Pane[
+             
+             Framed[{48, Log[2]^(-1) Log[605195]}, LabelStyle -> {}, 
+              Background -> None, ContentPadding -> False, {
+              LabelStyle -> {}, Frame -> True, RoundingRadius -> 4, 
+               Background -> GrayLevel[1, 0.65], FrameStyle -> None, 
+               FrameMargins -> 2, BaselinePosition -> Automatic}], 
+             FrameMargins -> 0], {}], "Tooltip"]& ]}}, 
+       {Opacity[0], 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6]}, 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6], 
+         TagBox[
+          TooltipBox[PointBox[{32., 20.936027534015672`}],
+           StyleBox[
+            PaneBox[
+             FrameBox[
+              RowBox[{"{", 
+                RowBox[{"32", ",", 
+                  FractionBox[
+                   RowBox[{"Log", "[", "2006191", "]"}], 
+                   RowBox[{"Log", "[", "2", "]"}]]}], "}"}], LabelStyle -> {},
+               Background -> None, ContentPadding -> False, LabelStyle -> {}, 
+              Frame -> True, RoundingRadius -> 4, Background -> 
+              GrayLevel[1, 0.65], FrameStyle -> None, FrameMargins -> 2, 
+              BaselinePosition -> Automatic, StripOnInput -> False], 
+             FrameMargins -> 0], {}, StripOnInput -> False]],
+          Annotation[#, 
+           Style[
+            Pane[
+             
+             Framed[{32, Log[2]^(-1) Log[2006191]}, LabelStyle -> {}, 
+              Background -> None, ContentPadding -> False, {
+              LabelStyle -> {}, Frame -> True, RoundingRadius -> 4, 
+               Background -> GrayLevel[1, 0.65], FrameStyle -> None, 
+               FrameMargins -> 2, BaselinePosition -> Automatic}], 
+             FrameMargins -> 0], {}], "Tooltip"]& ]}}, 
+       {Opacity[0], 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6]}, 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6], 
+         TagBox[
+          TooltipBox[PointBox[{16., 19.754796182855497`}],
+           StyleBox[
+            PaneBox[
+             FrameBox[
+              RowBox[{"{", 
+                RowBox[{"16", ",", 
+                  FractionBox[
+                   RowBox[{"Log", "[", "884680", "]"}], 
+                   RowBox[{"Log", "[", "2", "]"}]]}], "}"}], LabelStyle -> {},
+               Background -> None, ContentPadding -> False, LabelStyle -> {}, 
+              Frame -> True, RoundingRadius -> 4, Background -> 
+              GrayLevel[1, 0.65], FrameStyle -> None, FrameMargins -> 2, 
+              BaselinePosition -> Automatic, StripOnInput -> False], 
+             FrameMargins -> 0], {}, StripOnInput -> False]],
+          Annotation[#, 
+           Style[
+            Pane[
+             
+             Framed[{16, Log[2]^(-1) Log[884680]}, LabelStyle -> {}, 
+              Background -> None, ContentPadding -> False, {
+              LabelStyle -> {}, Frame -> True, RoundingRadius -> 4, 
+               Background -> GrayLevel[1, 0.65], FrameStyle -> None, 
+               FrameMargins -> 2, BaselinePosition -> Automatic}], 
+             FrameMargins -> 0], {}], "Tooltip"]& ]}}, 
+       {Opacity[0], 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6]}, 
+        {RGBColor[0.368417, 0.506779, 0.709798], PointSize[
+         0.012833333333333334`], AbsoluteThickness[1.6], 
+         TagBox[
+          TooltipBox[PointBox[{8., 19.119209647504857`}],
+           StyleBox[
+            PaneBox[
+             FrameBox[
+              RowBox[{"{", 
+                RowBox[{"8", ",", 
+                  FractionBox[
+                   RowBox[{"Log", "[", "569450", "]"}], 
+                   RowBox[{"Log", "[", "2", "]"}]]}], "}"}], LabelStyle -> {},
+               Background -> None, ContentPadding -> False, LabelStyle -> {}, 
+              Frame -> True, RoundingRadius -> 4, Background -> 
+              GrayLevel[1, 0.65], FrameStyle -> None, FrameMargins -> 2, 
+              BaselinePosition -> Automatic, StripOnInput -> False], 
+             FrameMargins -> 0], {}, StripOnInput -> False]],
+          Annotation[#, 
+           Style[
+            Pane[
+             
+             Framed[{8, Log[2]^(-1) Log[569450]}, LabelStyle -> {}, 
+              Background -> None, ContentPadding -> False, {
+              LabelStyle -> {}, Frame -> True, RoundingRadius -> 4, 
+               Background -> GrayLevel[1, 0.65], FrameStyle -> None, 
+               FrameMargins -> 2, BaselinePosition -> Automatic}], 
+             FrameMargins -> 0], {}], "Tooltip"]& ]}}}}, {}}, {}}},
+  AspectRatio->NCache[GoldenRatio^(-1), 0.6180339887498948],
+  Axes->{True, True},
+  AxesLabel->{None, None},
+  AxesOrigin->{0, 0},
+  DisplayFunction->Identity,
+  Frame->{{False, False}, {False, False}},
+  FrameLabel->{{None, None}, {None, None}},
+  FrameTicks->{{Automatic, Automatic}, {Automatic, Automatic}},
+  GridLines->{None, None},
+  GridLinesStyle->Directive[
+    GrayLevel[0.5, 0.4]],
+  ImagePadding->{{All, All}, {All, All}},
+  ImageSize->{568.9999999999984, Automatic},
+  Method->{
+   "OptimizePlotMarkers" -> True, "OptimizePlotMarkers" -> True, 
+    "CoordinatesToolOptions" -> {"DisplayFunction" -> ({
+        Identity[
+         Part[#, 1]], 
+        Identity[
+         Part[#, 2]]}& ), "CopiedValueFunction" -> ({
+        Identity[
+         Part[#, 1]], 
+        Identity[
+         Part[#, 2]]}& )}},
+  PlotRange->{{0, 512.}, {0, 20.936027534015672`}},
+  PlotRangePadding->{{
+     Scaled[0.02], 
+     Scaled[0.08]}, {
+     Scaled[0.02], 
+     Scaled[0.0970820393249937]}},
+  Ticks->{Automatic, Automatic}]], "Output",
+ CellChangeTimes->{{3.935898477574232*^9, 3.9358984975285263`*^9}, {
+  3.935898536692572*^9, 3.935898582787283*^9}, {3.935898796351266*^9, 
+  3.935898803041811*^9}},
+ CellLabel->"Out[13]=",ExpressionUUID->"3964eb42-02a5-4193-816c-84b4edcafe46"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"Table", "[", 
+   RowBox[{
+    RowBox[{"{", 
+     RowBox[{
+      RowBox[{"Max", "[", 
+       RowBox[{"sz", ",", "8"}], "]"}], ",", 
+      RowBox[{"Floor", "[", 
+       FractionBox["4096", 
+        RowBox[{"Max", "[", 
+         RowBox[{"sz", ",", "8"}], "]"}]], "]"}]}], "}"}], ",", 
+    RowBox[{"{", 
+     RowBox[{"sz", ",", "0", ",", "512", ",", "16"}], "}"}]}], "]"}], "//", 
+  "MatrixForm"}]], "Input",
+ CellChangeTimes->{{3.9358985940154877`*^9, 3.9358986569231567`*^9}},
+ CellLabel->"In[11]:=",ExpressionUUID->"a116d921-946a-49f9-9ca8-85c1610aaa99"],
+
+Cell[BoxData[
+ TagBox[
+  RowBox[{"(", "\[NoBreak]", GridBox[{
+     {"8", "512"},
+     {"16", "256"},
+     {"32", "128"},
+     {"48", "85"},
+     {"64", "64"},
+     {"80", "51"},
+     {"96", "42"},
+     {"112", "36"},
+     {"128", "32"},
+     {"144", "28"},
+     {"160", "25"},
+     {"176", "23"},
+     {"192", "21"},
+     {"208", "19"},
+     {"224", "18"},
+     {"240", "17"},
+     {"256", "16"},
+     {"272", "15"},
+     {"288", "14"},
+     {"304", "13"},
+     {"320", "12"},
+     {"336", "12"},
+     {"352", "11"},
+     {"368", "11"},
+     {"384", "10"},
+     {"400", "10"},
+     {"416", "9"},
+     {"432", "9"},
+     {"448", "9"},
+     {"464", "8"},
+     {"480", "8"},
+     {"496", "8"},
+     {"512", "8"}
+    },
+    GridBoxAlignment->{"Columns" -> {{Center}}, "Rows" -> {{Baseline}}},
+    GridBoxSpacings->{"Columns" -> {
+        Offset[0.27999999999999997`], {
+         Offset[0.7]}, 
+        Offset[0.27999999999999997`]}, "Rows" -> {
+        Offset[0.2], {
+         Offset[0.4]}, 
+        Offset[0.2]}}], "\[NoBreak]", ")"}],
+  Function[BoxForm`e$, 
+   MatrixForm[BoxForm`e$]]]], "Output",
+ CellChangeTimes->{{3.9358986168275414`*^9, 3.935898657286359*^9}},
+ CellLabel->
+  "Out[11]//MatrixForm=",ExpressionUUID->"ec78fb52-70c2-4f3e-93ed-\
+c69af48abfcb"]
+}, Open  ]]
+},
+WindowSize->{2844, 2610},
+WindowMargins->{{Automatic, 115}, {Automatic, 74}},
+FrontEndVersion->"12.3 for Linux x86 (64-bit) (July 9, 2021)",
+StyleDefinitions->"Default.nb",
+ExpressionUUID->"1b1105d1-2a3b-4082-a99e-b92f01d2cbe5"
+]
+(* End of Notebook Content *)
+
+(* Internal cache information *)
+(*CellTagsOutline
+CellTagsIndex->{}
+*)
+(*CellTagsIndex
+CellTagsIndex->{}
+*)
+(*NotebookFileOutline
+Notebook[{
+Cell[CellGroupData[{
+Cell[580, 22, 3141, 88, 508, "Input",ExpressionUUID->"9c00398c-96dd-472e-a236-1d88ff1cd965"],
+Cell[3724, 112, 54632, 1138, 1168, "Output",ExpressionUUID->"3964eb42-02a5-4193-816c-84b4edcafe46"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[58393, 1255, 588, 16, 179, "Input",ExpressionUUID->"a116d921-946a-49f9-9ca8-85c1610aaa99"],
+Cell[58984, 1273, 1260, 50, 1817, "Output",ExpressionUUID->"ec78fb52-70c2-4f3e-93ed-c69af48abfcb"]
+}, Open  ]]
+}
+]
+*)
+
+(* End of internal cache information *)
+

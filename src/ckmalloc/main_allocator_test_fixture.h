@@ -10,6 +10,7 @@
 #include "src/ckmalloc/freelist.h"
 #include "src/ckmalloc/large_allocator_test_fixture.h"
 #include "src/ckmalloc/main_allocator.h"
+#include "src/ckmalloc/metadata_manager_test_fixture.h"
 #include "src/ckmalloc/slab_manager_test_fixture.h"
 #include "src/ckmalloc/small_allocator_test_fixture.h"
 #include "src/ckmalloc/testlib.h"
@@ -20,8 +21,8 @@ namespace ckmalloc {
 class TestMainAllocator {
  public:
   using MainAllocatorT =
-      MainAllocatorImpl<TestSlabMap, TestSlabManager, TestSmallAllocator,
-                        TestLargeAllocator>;
+      MainAllocatorImpl<TestGlobalMetadataAlloc, TestSlabMap, TestSlabManager,
+                        TestSmallAllocator, TestLargeAllocator>;
 
   TestMainAllocator(class MainAllocatorFixture* test_fixture,
                     TestSlabMap* slab_map, TestSlabManager* slab_manager,
@@ -57,17 +58,16 @@ class MainAllocatorFixture : public CkMallocTest {
  public:
   static constexpr const char* kPrefix = "[MainAllocatorFixture]";
 
-  static constexpr size_t kNumPages = 64;
-
   MainAllocatorFixture(
-      std::shared_ptr<TestHeapFactory> heap_factory,
       const std::shared_ptr<TestSlabMap>& slab_map,
       std::shared_ptr<SlabManagerFixture> slab_manager_test_fixture,
+      std::shared_ptr<MetadataManagerFixture> metadata_manager_test_fixture,
       std::shared_ptr<SmallAllocatorFixture> small_allocator_test_fixture,
       std::shared_ptr<LargeAllocatorFixture> large_allocator_test_fixture)
-      : heap_factory_(std::move(heap_factory)),
-        slab_map_(slab_map),
+      : slab_map_(slab_map),
         slab_manager_test_fixture_(std::move(slab_manager_test_fixture)),
+        metadata_manager_test_fixture_(
+            std::move(metadata_manager_test_fixture)),
         small_allocator_test_fixture_(std::move(small_allocator_test_fixture)),
         large_allocator_test_fixture_(std::move(large_allocator_test_fixture)),
         main_allocator_(std::make_shared<TestMainAllocator>(
@@ -79,10 +79,6 @@ class MainAllocatorFixture : public CkMallocTest {
 
   const char* TestPrefix() const override {
     return kPrefix;
-  }
-
-  TestHeapFactory& HeapFactory() {
-    return *heap_factory_;
   }
 
   TestSlabMap& SlabMap() {
@@ -118,9 +114,9 @@ class MainAllocatorFixture : public CkMallocTest {
 
   absl::Status CheckMagic(void* allocation, size_t size, uint64_t magic);
 
-  std::shared_ptr<TestHeapFactory> heap_factory_;
   std::shared_ptr<TestSlabMap> slab_map_;
   std::shared_ptr<SlabManagerFixture> slab_manager_test_fixture_;
+  std::shared_ptr<MetadataManagerFixture> metadata_manager_test_fixture_;
   std::shared_ptr<SmallAllocatorFixture> small_allocator_test_fixture_;
   std::shared_ptr<LargeAllocatorFixture> large_allocator_test_fixture_;
   std::shared_ptr<TestMainAllocator> main_allocator_;
@@ -130,6 +126,9 @@ class MainAllocatorFixture : public CkMallocTest {
   // A map from allocation pointers to a pair of their size and magic number,
   // respectively.
   absl::btree_map<Void*, std::pair<size_t, uint64_t>> allocations_;
+
+  // A set of all known-to-be-allocated mmap-block heaps.
+  absl::flat_hash_set<Void*> mmap_blocks_;
 };
 
 }  // namespace ckmalloc
