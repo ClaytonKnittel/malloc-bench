@@ -184,6 +184,10 @@ bench::Heap* TestSysAlloc::HeapFromStart(void* heap_start) {
   return it->second.second;
 }
 
+size_t TestSysAlloc::Size() const {
+  return heap_map_.size();
+}
+
 TestSysAlloc::const_iterator TestSysAlloc::begin() const {
   return heap_map_.begin();
 }

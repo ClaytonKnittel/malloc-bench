@@ -110,6 +110,7 @@ cc_library(
         ":slab_manager",
         ":slab_map",
         ":slice_id",
+        ":testlib",
         ":util",
         "//src:heap_interface",
         "@abseil-cpp//absl/container:flat_hash_map",

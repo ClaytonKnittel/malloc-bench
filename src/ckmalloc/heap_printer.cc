@@ -18,6 +18,7 @@
 #include "src/ckmalloc/slab_manager.h"
 #include "src/ckmalloc/slab_map.h"
 #include "src/ckmalloc/slice_id.h"
+#include "src/ckmalloc/testlib.h"
 #include "src/ckmalloc/util.h"
 #include "src/heap_interface.h"
 
@@ -39,7 +40,8 @@ HeapPrinter& HeapPrinter::WithHighlightAddr(void* addr, const char* color_fmt) {
 std::string HeapPrinter::Print() {
   std::string result;
 
-  if (heap_ == metadata_manager_->heap_) {
+  if (heap_ ==
+      TestSysAlloc::Instance()->HeapFromStart(metadata_manager_->heap_)) {
     // TODO: print the metadata.
     result += absl::StrFormat("Metadata size: %zu bytes (%zu pages)",
                               heap_->Size(), CeilDiv(heap_->Size(), kPageSize));

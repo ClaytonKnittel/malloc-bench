@@ -253,8 +253,14 @@ class TestSysAlloc : public SysAlloc {
 
   bench::Heap* HeapFromStart(void* heap_start);
 
+  size_t Size() const;
+
   const_iterator begin() const;
   const_iterator end() const;
+
+  auto Find(void* heap_start) const {
+    return heap_map_.find(heap_start);
+  }
 
  private:
   bench::HeapFactory* heap_factory_;
