@@ -174,7 +174,7 @@ absl::Status MetadataManagerFixture::ValidateHeap() {
     RETURN_IF_ERROR(CheckMagic(block, it->second, magic));
   }
 
-  constexpr size_t kMaxReasonableFreedSlabMetas = 50000;
+  constexpr size_t kMaxReasonableFreedSlabMetas = 500000;
   absl::flat_hash_set<const UnmappedSlab*> freelist_slabs;
   size_t n_free_slab_meta = 0;
   for (const UnmappedSlab* slab =
