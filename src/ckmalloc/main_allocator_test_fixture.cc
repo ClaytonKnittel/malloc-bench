@@ -197,10 +197,7 @@ absl::Status MainAllocatorFixture::ValidateHeap() {
   // considered allocated by the metadata allocator, and that no slabs are
   // missing.
   uint64_t num_slabs = 0;
-  for (auto slab_it = TestHeapIterator::HeapBegin(heap_.get(), slab_map_.get());
-       slab_it != TestHeapIterator::HeapEnd(heap_.get(), slab_map_.get());
-       ++slab_it) {
-    MappedSlab* mapped_slab = *slab_it;
+  for (MappedSlab* mapped_slab : slab_manager_test_fixture_->SlabsInHeap()) {
     if (!metadata_manager_test_fixture_->AllocatedSlabMeta().contains(
             mapped_slab)) {
       return FailedTest(

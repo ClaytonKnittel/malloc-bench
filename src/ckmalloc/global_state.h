@@ -13,7 +13,7 @@ class GlobalState {
   friend class CkMalloc;
 
  public:
-  GlobalState(void* metadata_heap, void* metadata_heap_end, void* user_heap);
+  GlobalState(void* metadata_heap, void* metadata_heap_end);
 
   SlabMap* SlabMap() {
     return &slab_map_;

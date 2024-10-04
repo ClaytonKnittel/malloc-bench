@@ -95,15 +95,8 @@ absl::Status LargeAllocatorFixture::ValidateHeap() {
 
   // Iterate over the heap.
   size_t n_free_blocks = 0;
-  PageId page = PageId::FromPtr(heap_->Start());
-  while (true) {
-    MappedSlab* mapped_slab = SlabMap().FindSlab(page);
-    if (mapped_slab == nullptr) {
-      break;
-    }
-
+  for (MappedSlab* mapped_slab : slab_manager_test_fixture_->SlabsInHeap()) {
     if (mapped_slab->Type() != SlabType::kBlocked) {
-      page += mapped_slab->Pages();
       continue;
     }
 
@@ -221,8 +214,6 @@ absl::Status LargeAllocatorFixture::ValidateHeap() {
           "%" PRIu64 " allocated bytes",
           *slab, allocated_bytes);
     }
-
-    page += mapped_slab->Pages();
   }
 
   if (n_free_blocks != free_blocks.size()) {

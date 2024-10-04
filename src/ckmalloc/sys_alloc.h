@@ -1,14 +1,23 @@
 #pragma once
 
 #include <cstddef>
+#include <ostream>
 
 namespace ckmalloc {
+
+enum class HeapType {
+  kMetadataHeap,
+  kUserHeap,
+  kMmapAllocHeap,
+};
+
+std::ostream& operator<<(std::ostream& ostr, HeapType heap_type);
 
 class SysAlloc {
  public:
   static SysAlloc* Instance();
 
-  virtual void* Mmap(void* start_hint, size_t size) = 0;
+  virtual void* Mmap(void* start_hint, size_t size, HeapType type) = 0;
 
   virtual void Munmap(void* ptr, size_t size) = 0;
 
@@ -22,7 +31,7 @@ class RealSysAlloc : public SysAlloc {
  public:
   static void UseRealSysAlloc();
 
-  void* Mmap(void* start_hint, size_t size) override;
+  void* Mmap(void* start_hint, size_t size, HeapType type) override;
 
   void Munmap(void* ptr, size_t size) override;
 

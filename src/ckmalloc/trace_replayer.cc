@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <ios>
+#include <iterator>
 #include <limits>
 #include <optional>
 #include <string>
@@ -16,6 +17,7 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/str_split.h"
+#include "absl/strings/string_view.h"
 #include "util/absl_util.h"
 #include "util/csi.h"
 #include "util/print_colors.h"
@@ -25,6 +27,7 @@
 #include "src/ckmalloc/global_state.h"
 #include "src/ckmalloc/heap_printer.h"
 #include "src/ckmalloc/local_cache.h"
+#include "src/ckmalloc/sys_alloc.h"
 #include "src/ckmalloc/testlib.h"
 #include "src/ckmalloc/util.h"
 #include "src/heap_factory.h"
@@ -196,13 +199,10 @@ class TraceReplayer : public TracefileExecutor {
   }
 
   void InitializeHeap(HeapFactory& heap_factory) override {
-    TestSysAlloc* sys_alloc = TestSysAlloc::NewInstance(&heap_factory);
+    TestSysAlloc::NewInstance(&heap_factory);
     CkMalloc::InitializeHeap();
-    metadata_heap_ = sys_alloc->HeapFromStart(
-        CkMalloc::Instance()->GlobalState()->MetadataManager()->heap_);
-    user_heap_ = sys_alloc->HeapFromStart(
-        CkMalloc::Instance()->GlobalState()->SlabManager()->heap_start_);
-    cur_heap_ = user_heap_;
+    cur_heap_start_ =
+        CkMalloc::Instance()->GlobalState()->MetadataManager()->heap_;
   }
 
   absl::StatusOr<void*> Malloc(size_t size,
@@ -330,13 +330,23 @@ class TraceReplayer : public TracefileExecutor {
           break;
         }
         case '0':
-        case '1': {
+        case '1':
+        case '2':
+        case '3':
+        case '4':
+        case '5':
+        case '6':
+        case '7':
+        case '8':
+        case '9': {
           size_t idx = static_cast<size_t>(c) - static_cast<size_t>('0');
-          if (idx == 0) {
-            cur_heap_ = metadata_heap_;
-          } else {
-            cur_heap_ = user_heap_;
+          if (idx >= TestSysAlloc::Instance()->Size()) {
+            break;
           }
+
+          auto it = TestSysAlloc::Instance()->begin();
+          std::advance(it, idx);
+          cur_heap_start_ = it->first;
           RETURN_IF_ERROR(RefreshPrintedHeap());
           break;
         }
@@ -367,6 +377,20 @@ class TraceReplayer : public TracefileExecutor {
     tcsetattr(STDIN_FILENO, TCSANOW, &t);
   }
 
+  static absl::string_view ShortHeapType(HeapType heap_type) {
+    switch (heap_type) {
+      case HeapType::kMetadataHeap: {
+        return "m";
+      }
+      case HeapType::kUserHeap: {
+        return "u";
+      }
+      case HeapType::kMmapAllocHeap: {
+        return "mm";
+      }
+    }
+  }
+
   absl::Status Display() {
     DEFINE_OR_RETURN(uint16_t, term_height, TermHeight());
     if (absl::GetFlag(FLAGS_test_run)) {
@@ -379,8 +403,21 @@ class TraceReplayer : public TracefileExecutor {
 
     std::cout
         << "Next: [n/m(50)/c(1024)/r(10000)], scroll down: [j/d], scroll up: "
-           "[k/u], heap index: [0/1/...], quit: [q]"
-        << std::endl;
+           "[k/u], quit: [q], heap index: [";
+    size_t idx = 0;
+    for (const auto& [heap_start, val] : *TestSysAlloc::Instance()) {
+      const auto [heap_type, heap] = val;
+      if (idx != 0) {
+        std::cout << ", ";
+      }
+      std::cout << idx << " (" << ShortHeapType(heap_type);
+      if (heap_start == cur_heap_start_) {
+        std::cout << " (" << heap_start << ")";
+      }
+      std::cout << ")";
+      idx++;
+    }
+    std::cout << "]" << std::endl;
 
     std::cout << "Next op: " << std::left << std::setw(28);
     switch (next_op_.op) {
@@ -447,7 +484,13 @@ class TraceReplayer : public TracefileExecutor {
 
     DEFINE_OR_RETURN(uint16_t, term_height, TermHeight());
 
-    HeapPrinter p(cur_heap_, CkMalloc::Instance()->GlobalState()->SlabMap(),
+    auto it = TestSysAlloc::Instance()->Find(cur_heap_start_);
+    if (it == TestSysAlloc::Instance()->end()) {
+      it = TestSysAlloc::Instance()->begin();
+    }
+    bench::Heap* heap = it->second.second;
+
+    HeapPrinter p(heap, CkMalloc::Instance()->GlobalState()->SlabMap(),
                   CkMalloc::Instance()->GlobalState()->SlabManager(),
                   CkMalloc::Instance()->GlobalState()->MetadataManager());
 
@@ -473,9 +516,6 @@ class TraceReplayer : public TracefileExecutor {
     return absl::OkStatus();
   }
 
-  bench::Heap* metadata_heap_ = nullptr;
-  bench::Heap* user_heap_ = nullptr;
-
   // The op about to be executed.
   TraceOp next_op_;
   // The op that was just executed. If nullopt, then there was no previous op
@@ -483,7 +523,7 @@ class TraceReplayer : public TracefileExecutor {
   std::optional<TraceOp> prev_op_;
 
   // Which heap we are currently looking at.
-  bench::Heap* cur_heap_;
+  void* cur_heap_start_;
 
   uint64_t iter_ = 0;
   uint64_t skips_ = 0;

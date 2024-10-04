@@ -7,3 +7,4 @@ build:opt -c opt
 build:opt --copt="-DNDEBUG=1"
 build:opt --features=thin_lto
 build:profile --copt=-O2 --linkopt=-lprofiler --copt=-g3 --copt="-DNDEBUG=1"
+build:test --copt=-O1 --copt=-g3

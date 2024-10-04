@@ -18,12 +18,13 @@
 #include "src/ckmalloc/slab_manager.h"
 #include "src/ckmalloc/slab_map.h"
 #include "src/ckmalloc/slice_id.h"
+#include "src/ckmalloc/testlib.h"
 #include "src/ckmalloc/util.h"
 #include "src/heap_interface.h"
 
 namespace ckmalloc {
 
-HeapPrinter::HeapPrinter(const bench::Heap* heap, const SlabMap* slab_map,
+HeapPrinter::HeapPrinter(const bench::Heap* heap, SlabMap* slab_map,
                          const SlabManager* slab_manager,
                          const MetadataManager* metadata_manager)
     : heap_(heap),
@@ -39,7 +40,8 @@ HeapPrinter& HeapPrinter::WithHighlightAddr(void* addr, const char* color_fmt) {
 std::string HeapPrinter::Print() {
   std::string result;
 
-  if (heap_ == metadata_manager_->heap_) {
+  if (heap_ ==
+      TestSysAlloc::Instance()->HeapFromStart(metadata_manager_->heap_)) {
     // TODO: print the metadata.
     result += absl::StrFormat("Metadata size: %zu bytes (%zu pages)",
                               heap_->Size(), CeilDiv(heap_->Size(), kPageSize));
@@ -47,7 +49,7 @@ std::string HeapPrinter::Print() {
   }
 
   for (auto slab_it = HeapIterator::HeapBegin(heap_, slab_map_);
-       slab_it != HeapIterator::HeapEnd(heap_, slab_map_); ++slab_it) {
+       slab_it != HeapIterator(); ++slab_it) {
     MappedSlab* slab = *slab_it;
     CK_ASSERT_NE(slab, nullptr);
 

@@ -16,12 +16,11 @@ absl::Status SmallAllocatorFixture::ValidateHeap() {
   // Iterate over the heap and collect all small slabs.
   std::array<absl::btree_set<SmallSlab*>, SizeClass::kNumSizeClasses> slabs;
   absl::btree_map<PageId, SmallSlab*> id_to_slab;
-  for (auto it = slab_manager_test_fixture_->HeapBegin();
-       it != slab_manager_test_fixture_->HeapEnd(); ++it) {
-    if (*it == nullptr || it->Type() != SlabType::kSmall) {
+  for (MappedSlab* mapped_slab : slab_manager_test_fixture_->SlabsInHeap()) {
+    if (mapped_slab == nullptr || mapped_slab->Type() != SlabType::kSmall) {
       continue;
     }
-    SmallSlab* slab = it->ToSmall();
+    SmallSlab* slab = mapped_slab->ToSmall();
 
     if (slab->Empty()) {
       return FailedTest("Encountered empty slab at page %v in freelist",

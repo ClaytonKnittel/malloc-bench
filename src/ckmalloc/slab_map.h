@@ -89,13 +89,8 @@ class SlabMapImpl {
 
     void ClearChild(size_t idx) {
       CK_ASSERT_LT(idx, kNodeSize);
-      // Only clear the child in debug builds, since we have assertions that
-      // check that children are set in slab map lookup. But really, we should
-      // expect no part of the code to ever try looking up a deallocated page.
-#ifndef NDEBUG
       size_classes_[idx] = SizeClass::Nil();
       slabs_[idx] = nullptr;
-#endif
     }
 
     void AddAllocatedCount(uint32_t count) {
@@ -331,7 +326,6 @@ void SlabMapImpl<MetadataAlloc>::DeallocatePath(PageId start_id,
       Leaf* leaf = node->GetLeaf(middle_idx);
       CK_ASSERT_NE(leaf, nullptr);
 
-      // This loop will not happen in production builds with NDEBUG=1.
       for (uint32_t i = (first_inner_iter ? leaf_idxs.first : 0);
            i <= (last_inner_iter ? leaf_idxs.second : kNodeSize - 1); i++) {
         leaf->ClearChild(i);

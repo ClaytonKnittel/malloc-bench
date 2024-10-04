@@ -9,6 +9,7 @@
 
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/slab.h"
+#include "src/ckmalloc/sys_alloc.h"
 #include "src/ckmalloc/util.h"
 #include "src/heap_interface.h"
 
@@ -115,8 +116,16 @@ absl::StatusOr<std::unique_ptr<bench::Heap>> TestHeapFactory::MakeHeap(
 TestSysAlloc::TestSysAlloc(bench::HeapFactory* heap_factory)
     : heap_factory_(heap_factory) {
   for (const auto& heap : heap_factory_->Instances()) {
-    heap_map_.emplace(heap->Start(), heap.get());
+    // Assume all already-created heaps are metadata heaps.
+    heap_map_.emplace(heap->Start(),
+                      std::make_pair(HeapType::kMetadataHeap,
+                                     static_cast<TestHeap*>(heap.get())));
   }
+}
+
+/* static */
+TestSysAlloc* TestSysAlloc::Instance() {
+  return static_cast<TestSysAlloc*>(instance_);
 }
 
 /* static */
@@ -132,7 +141,7 @@ void TestSysAlloc::Reset() {
   instance_ = nullptr;
 }
 
-void* TestSysAlloc::Mmap(void* start_hint, size_t size) {
+void* TestSysAlloc::Mmap(void* start_hint, size_t size, HeapType type) {
   (void) start_hint;
   auto result = heap_factory_->NewInstance(size);
   if (!result.ok()) {
@@ -140,9 +149,9 @@ void* TestSysAlloc::Mmap(void* start_hint, size_t size) {
     return nullptr;
   }
 
-  bench::Heap* heap = result.value();
+  TestHeap* heap = static_cast<TestHeap*>(result.value());
   void* heap_start = heap->Start();
-  heap_map_.emplace(heap_start, heap);
+  heap_map_.emplace(heap_start, std::make_pair(type, heap));
 
   return heap_start;
 }
@@ -150,8 +159,8 @@ void* TestSysAlloc::Mmap(void* start_hint, size_t size) {
 void TestSysAlloc::Munmap(void* ptr, size_t size) {
   auto it = heap_map_.find(ptr);
   CK_ASSERT_TRUE(it != heap_map_.end());
-  bench::Heap* heap = it->second;
-  CK_ASSERT_EQ(size, heap->Size());
+  bench::Heap* heap = it->second.second;
+  CK_ASSERT_EQ(size, heap->MaxSize());
 
   auto result = heap_factory_->DeleteInstance(heap);
   if (!result.ok()) {
@@ -172,7 +181,19 @@ void TestSysAlloc::Sbrk(void* heap_start, size_t increment, void* current_end) {
 bench::Heap* TestSysAlloc::HeapFromStart(void* heap_start) {
   auto it = heap_map_.find(heap_start);
   CK_ASSERT_TRUE(it != heap_map_.end());
-  return it->second;
+  return it->second.second;
+}
+
+size_t TestSysAlloc::Size() const {
+  return heap_map_.size();
+}
+
+TestSysAlloc::const_iterator TestSysAlloc::begin() const {
+  return heap_map_.begin();
+}
+
+TestSysAlloc::const_iterator TestSysAlloc::end() const {
+  return heap_map_.end();
 }
 
 }  // namespace ckmalloc

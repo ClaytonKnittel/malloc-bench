@@ -1,5 +1,7 @@
 #include "src/ckmalloc/slab_manager_test_fixture.h"
 
+#include <algorithm>
+
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
@@ -11,6 +13,7 @@
 #include "src/ckmalloc/size_class.h"
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/slab_map.h"
+#include "src/ckmalloc/sys_alloc.h"
 #include "src/ckmalloc/testlib.h"
 #include "src/ckmalloc/util.h"
 #include "src/rng.h"
@@ -18,8 +21,8 @@
 namespace ckmalloc {
 
 TestSlabManager::TestSlabManager(SlabManagerFixture* test_fixture,
-                                 TestHeap* heap, TestSlabMap* slab_map)
-    : test_fixture_(test_fixture), slab_manager_(heap->Start(), slab_map) {}
+                                 TestSlabMap* slab_map, size_t heap_size)
+    : test_fixture_(test_fixture), slab_manager_(slab_map, heap_size) {}
 
 bool TestSlabManager::Resize(AllocatedSlab* slab, uint32_t new_size) {
   if (!slab_manager_.Resize(slab, new_size)) {
@@ -53,146 +56,155 @@ void TestSlabManager::HandleAlloc(AllocatedSlab* slab) {
 }
 
 absl::Status SlabManagerFixture::ValidateHeap() {
-  if (SlabHeap().Size() % kPageSize != 0) {
-    return FailedTest(
-        "Expected heap size to be a multiple of page size, but was %zu",
-        SlabHeap().Size());
-  }
-
   absl::flat_hash_set<MappedSlab*> visited_slabs;
-  PageId page = PageId::FromPtr(heap_->Start());
-  PageId end = HeapEndId();
-  MappedSlab* previous_slab = nullptr;
-  bool previous_was_free = false;
   uint32_t free_slabs = 0;
   uint32_t allocated_slabs = 0;
-  while (page < end) {
-    MappedSlab* slab = SlabMap().FindSlab(page);
-    if (slab == nullptr) {
-      return FailedTest("Unexpected `nullptr` slab map entry at page id %v",
-                        page);
+
+  for (const auto& it : *TestSysAlloc::Instance()) {
+    if (it.second.first != HeapType::kUserHeap) {
+      continue;
     }
-    if (page != slab->StartId()) {
+    TestHeap* heap = it.second.second;
+
+    if (heap->Size() % kPageSize != 0) {
       return FailedTest(
-          "Slab metadata incorrect, start of slab should be page %v, found %v",
-          page, *slab);
-    }
-    if (slab->Pages() > static_cast<uint32_t>(end - page)) {
-      return FailedTest(
-          "%v extends beyond the end of the heap, which is %v pages", *slab,
-          end);
+          "Expected heap %v size to be a multiple of page size, but was %zu",
+          *heap, heap->Size());
     }
 
-    if (visited_slabs.contains(slab)) {
-      return FailedTest("Found double occurrence of slab %v in the heap",
-                        *slab);
-    }
-    visited_slabs.insert(slab);
-
-    switch (slab->Type()) {
-      case SlabType::kUnmapped:
-      case SlabType::kMmap: {
+    PageId page = PageId::FromPtr(heap->Start());
+    PageId end = PageId::FromPtr(heap->End());
+    MappedSlab* previous_slab = nullptr;
+    bool previous_was_free = false;
+    while (page < end) {
+      MappedSlab* slab = SlabMap().FindSlab(page);
+      if (slab == nullptr) {
+        return FailedTest("Unexpected `nullptr` slab map entry at page id %v",
+                          page);
+      }
+      if (page != slab->StartId()) {
         return FailedTest(
-            "Unexpected slab of type %v found in slab map at page id %v",
-            slab->Type(), page);
+            "Slab metadata incorrect, start of slab should be page %v, found "
+            "%v",
+            page, *slab);
       }
-      case SlabType::kFree: {
-        if (previous_was_free) {
-          return FailedTest("Unexpected two adjacent free slabs: %v and %v",
-                            *previous_slab, *slab);
-        }
-        MappedSlab* first_page_slab = SlabMap().FindSlab(slab->StartId());
-        MappedSlab* last_page_slab = SlabMap().FindSlab(slab->EndId());
-        if (first_page_slab != slab || last_page_slab != slab) {
-          return FailedTest(
-              "Start and end pages of free slab do not map to the correct "
-              "metadata: %v, start_id maps to %v, end_id maps to %v",
-              *slab, first_page_slab, last_page_slab);
-        }
-
-        previous_was_free = true;
-        free_slabs++;
-        break;
+      if (slab->Pages() > static_cast<uint32_t>(end - page)) {
+        return FailedTest(
+            "%v extends beyond the end of the heap, which is %v pages", *slab,
+            end);
       }
-      case SlabType::kSmall:
-      case SlabType::kBlocked:
-      case SlabType::kSingleAlloc: {
-        AllocatedSlab* allocated_slab = slab->ToAllocated();
-        auto it = allocated_slabs_.find(allocated_slab);
-        if (it == allocated_slabs_.end()) {
-          return FailedTest("Encountered unallocated slab: %v", *slab);
-        }
 
-        const AllocatedSlab& slab_copy = it->second;
+      if (visited_slabs.contains(slab)) {
+        return FailedTest("Found double occurrence of slab %v in the heap",
+                          *slab);
+      }
+      visited_slabs.insert(slab);
 
-        if (allocated_slab->Type() != slab_copy.Type() ||
-            allocated_slab->StartId() != slab_copy.StartId() ||
-            allocated_slab->Pages() != slab_copy.Pages()) {
+      switch (slab->Type()) {
+        case SlabType::kUnmapped:
+        case SlabType::kMmap: {
           return FailedTest(
-              "Allocated slab metadata was dirtied: found %v, expected %v",
-              *allocated_slab, slab_copy);
+              "Unexpected slab of type %v found in slab map at page id %v",
+              slab->Type(), page);
         }
-
-        // Magic values are only used for allocations done through the slab
-        // manager interface, since any other test which uses this fixture will
-        // want to write to the allocated slabs.
-        auto magic_it = slab_magics_.find(allocated_slab);
-        if (magic_it != slab_magics_.end()) {
-          uint64_t magic = magic_it->second;
-          RETURN_IF_ERROR(CheckMagic(allocated_slab, magic));
-        }
-
-        for (PageId page_id = allocated_slab->StartId();
-             page_id <= allocated_slab->EndId(); ++page_id) {
-          // Skip internal pages for single-alloc slabs.
-          if (HasOneAllocation(slab->Type()) &&
-              (page_id != allocated_slab->StartId() &&
-               page_id != allocated_slab->EndId())) {
-            continue;
+        case SlabType::kFree: {
+          if (previous_was_free) {
+            return FailedTest("Unexpected two adjacent free slabs: %v and %v",
+                              *previous_slab, *slab);
           }
-          MappedSlab* mapped_slab = SlabMap().FindSlab(page_id);
-          if (mapped_slab != allocated_slab) {
+          MappedSlab* first_page_slab = SlabMap().FindSlab(slab->StartId());
+          MappedSlab* last_page_slab = SlabMap().FindSlab(slab->EndId());
+          if (first_page_slab != slab || last_page_slab != slab) {
             return FailedTest(
-                "Internal page %v of %v does not map to the correct slab "
-                "metadata: %v",
-                page_id, *allocated_slab, mapped_slab);
+                "Start and end pages of free slab do not map to the correct "
+                "metadata: %v, start_id maps to %v, end_id maps to %v",
+                *slab, first_page_slab, last_page_slab);
           }
 
-          SizeClass size_class = SlabMap().FindSizeClass(page_id);
-          SizeClass expected_size_class;
-          if (allocated_slab->HasSizeClass()) {
-            switch (slab->Type()) {
-              case SlabType::kSmall: {
-                expected_size_class = slab->ToSmall()->SizeClass();
-                break;
-              }
-              default: {
-                return FailedTest(
-                    "Test precondition failed: slab type %v has size class, "
-                    "but not handled in switch case.",
-                    slab->Type());
-              }
+          previous_was_free = true;
+          free_slabs++;
+          break;
+        }
+        case SlabType::kSmall:
+        case SlabType::kBlocked:
+        case SlabType::kSingleAlloc: {
+          AllocatedSlab* allocated_slab = slab->ToAllocated();
+          auto it = allocated_slabs_.find(allocated_slab);
+          if (it == allocated_slabs_.end()) {
+            return FailedTest("Encountered unallocated slab: %v", *slab);
+          }
+
+          const AllocatedSlab& slab_copy = it->second;
+
+          if (allocated_slab->Type() != slab_copy.Type() ||
+              allocated_slab->StartId() != slab_copy.StartId() ||
+              allocated_slab->Pages() != slab_copy.Pages()) {
+            return FailedTest(
+                "Allocated slab metadata was dirtied: found %v, expected %v",
+                *allocated_slab, slab_copy);
+          }
+
+          // Magic values are only used for allocations done through the slab
+          // manager interface, since any other test which uses this fixture
+          // will want to write to the allocated slabs.
+          auto magic_it = slab_magics_.find(allocated_slab);
+          if (magic_it != slab_magics_.end()) {
+            uint64_t magic = magic_it->second;
+            RETURN_IF_ERROR(CheckMagic(allocated_slab, magic));
+          }
+
+          for (PageId page_id = allocated_slab->StartId();
+               page_id <= allocated_slab->EndId(); ++page_id) {
+            // Skip internal pages for single-alloc slabs.
+            if (HasOneAllocation(slab->Type()) &&
+                (page_id != allocated_slab->StartId() &&
+                 page_id != allocated_slab->EndId())) {
+              continue;
             }
-          } else {
-            expected_size_class = SizeClass::Nil();
+            MappedSlab* mapped_slab = SlabMap().FindSlab(page_id);
+            if (mapped_slab != allocated_slab) {
+              return FailedTest(
+                  "Internal page %v of %v does not map to the correct slab "
+                  "metadata: %v",
+                  page_id, *allocated_slab, mapped_slab);
+            }
+
+            SizeClass size_class = SlabMap().FindSizeClass(page_id);
+            SizeClass expected_size_class;
+            if (allocated_slab->HasSizeClass()) {
+              switch (slab->Type()) {
+                case SlabType::kSmall: {
+                  expected_size_class = slab->ToSmall()->SizeClass();
+                  break;
+                }
+                default: {
+                  return FailedTest(
+                      "Test precondition failed: slab type %v has size class, "
+                      "but not handled in switch case.",
+                      slab->Type());
+                }
+              }
+            } else {
+              expected_size_class = SizeClass::Nil();
+            }
+
+            if (size_class != expected_size_class) {
+              return FailedTest(
+                  "Size class in slab map (%v) does not match the size class "
+                  "of slab %v",
+                  size_class, *slab);
+            }
           }
 
-          if (size_class != expected_size_class) {
-            return FailedTest(
-                "Size class in slab map (%v) does not match the size class "
-                "of slab %v",
-                size_class, *slab);
-          }
+          previous_was_free = false;
+          allocated_slabs++;
+          break;
         }
-
-        previous_was_free = false;
-        allocated_slabs++;
-        break;
       }
-    }
 
-    page += slab->Pages();
-    previous_slab = slab;
+      page += slab->Pages();
+      previous_slab = slab;
+    }
   }
 
   if (allocated_slabs != allocated_slabs_.size()) {
@@ -212,7 +224,7 @@ absl::Status SlabManagerFixture::ValidateHeap() {
       return FailedTest(
           "Unexpected `nullptr` slab map entry in single-page freelist, at "
           "page %v",
-          page);
+          start_id);
     }
     if (slab->Type() != SlabType::kFree) {
       return FailedTest(
@@ -257,7 +269,7 @@ absl::Status SlabManagerFixture::ValidateHeap() {
       return FailedTest(
           "Unexpected `nullptr` slab map entry in multi-page free-tree, at "
           "page %v",
-          page);
+          start_id);
     }
     if (slab->Type() != SlabType::kFree) {
       return FailedTest(
@@ -372,21 +384,10 @@ absl::Status SlabManagerFixture::ValidateHeap() {
 }
 
 absl::Status SlabManagerFixture::ValidateEmpty() {
-  PageId page = PageId::FromPtr(heap_->Start());
-  PageId end = HeapEndId();
-  while (page < end) {
-    MappedSlab* slab = SlabMap().FindSlab(page);
-    if (slab == nullptr) {
-      return FailedTest(
-          "Encountered unexpected `nullptr` slab map entry at page id %v",
-          page);
+  for (const auto& it : *TestSysAlloc::Instance()) {
+    if (it.second.first == HeapType::kUserHeap) {
+      return FailedTest("Expected no user heaps, found %v", *it.second.second);
     }
-
-    if (slab->Type() != SlabType::kFree) {
-      return FailedTest("Unexpected non-free slab found in heap: %v.", *slab);
-    }
-
-    page += slab->Pages();
   }
 
   return absl::OkStatus();
@@ -403,10 +404,19 @@ absl::StatusOr<AllocatedSlab*> SlabManagerFixture::AllocateSlab(
   auto [start_id, slab] = std::move(result.value());
   PageId end_id = start_id + n_pages - 1;
 
-  if (end_id >= HeapEndId()) {
-    return FailedTest(
-        "Allocated slab past end of heap: %v - %v extends beyond page %v",
-        start_id, end_id, HeapEndId() - 1);
+  TestSysAlloc& sys_alloc = *TestSysAlloc::Instance();
+  auto it = std::find_if(
+      sys_alloc.begin(), sys_alloc.end(),
+      [start_id, end_id](
+          const std::pair<void*, std::pair<HeapType, TestHeap*>>& it) -> bool {
+        return it.second.first == HeapType::kUserHeap &&
+               PageId::FromPtr(it.second.second->Start()) <= start_id &&
+               PageId::FromPtr(it.second.second->End()) > end_id;
+      });
+
+  if (it == sys_alloc.end()) {
+    return FailedTest("Allocated slab not contained in any heap: %v - %v",
+                      start_id, end_id);
   }
   for (const auto& [other_slab, _] : allocated_slabs_) {
     // Don't check for collision with ourselves.
@@ -425,7 +435,7 @@ absl::StatusOr<AllocatedSlab*> SlabManagerFixture::AllocateSlab(
   FillMagic(slab, magic);
 
   // Make a copy of this slab's metadata to ensure it does not get dirtied.
-  auto [it, inserted] = slab_magics_.insert({ slab, magic });
+  auto [it2, inserted] = slab_magics_.insert({ slab, magic });
   CK_ASSERT_TRUE(inserted);
 
   return slab;

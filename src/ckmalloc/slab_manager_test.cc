@@ -1,6 +1,8 @@
 #include <cstddef>
 #include <memory>
+#include <ranges>
 
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "util/gtest_util.h"
 
@@ -8,26 +10,46 @@
 #include "src/ckmalloc/page_id.h"
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/slab_manager_test_fixture.h"
+#include "src/ckmalloc/sys_alloc.h"
 #include "src/ckmalloc/testlib.h"
 #include "src/ckmalloc/util.h"
 
 namespace ckmalloc {
 
+using testing::_;
+using testing::AllOf;
+using testing::ElementsAre;
+using testing::Pointee;
+using testing::Property;
 using util::IsOk;
 
 class SlabManagerTest : public testing::Test {
  public:
+  static constexpr size_t kHeapSize = 64 * kPageSize;
+
   SlabManagerTest()
       : heap_factory_(std::make_shared<TestHeapFactory>(kHeapSize)),
-        heap_(static_cast<TestHeap*>(heap_factory_->Instances().begin()->get()),
-              Noop<TestHeap>),
         slab_map_(std::make_shared<TestSlabMap>()),
-        test_fixture_(heap_, slab_map_) {
+        test_fixture_(heap_factory_, slab_map_, kHeapSize) {
     TestSysAlloc::NewInstance(heap_factory_.get());
   }
 
   ~SlabManagerTest() override {
     TestSysAlloc::Reset();
+  }
+
+  static auto Heaps() {
+    return SlabManagerFixture::Heaps();
+  }
+
+  static std::vector<std::pair<void* const, std::pair<HeapType, TestHeap*>>>
+  HeapsVec() {
+    auto heaps = Heaps();
+    return std::vector(heaps.begin(), heaps.end());
+  }
+
+  static size_t TotalHeapsSize() {
+    return SlabManagerFixture::TotalHeapsSize();
   }
 
   TestSlabManager& SlabManager() {
@@ -48,37 +70,46 @@ class SlabManagerTest : public testing::Test {
 
  private:
   std::shared_ptr<TestHeapFactory> heap_factory_;
-  std::shared_ptr<TestHeap> heap_;
   std::shared_ptr<TestSlabMap> slab_map_;
   SlabManagerFixture test_fixture_;
 };
 
 TEST_F(SlabManagerTest, AllPtrsInFirstPageIdZero) {
   ASSERT_THAT(Fixture().AllocateSlab(1), IsOk());
-  PageId start_id = PageId::FromPtr(Fixture().SlabHeap().Start());
+  ASSERT_THAT(HeapsVec(), ElementsAre(_));
+
+  const TestHeap& slab_heap = *Heaps().begin()->second.second;
+  PageId start_id = PageId::FromPtr(slab_heap.Start());
   for (size_t offset = 0; offset < kPageSize; offset++) {
-    EXPECT_EQ(PageId::FromPtr(PtrAdd(Fixture().SlabHeap().Start(), offset)),
-              start_id);
+    EXPECT_EQ(PageId::FromPtr(PtrAdd(slab_heap.Start(), offset)), start_id);
   }
 }
 
 TEST_F(SlabManagerTest, PageIdIncreasesPerPage) {
   constexpr size_t kPages = 16;
   ASSERT_THAT(Fixture().AllocateSlab(kPages), IsOk());
+  ASSERT_THAT(HeapsVec(), ElementsAre(_));
+
+  const TestHeap& slab_heap = *Heaps().begin()->second.second;
   for (size_t page_n = 0; page_n < kPages; page_n++) {
-    void* beginning = PtrAdd(Fixture().SlabHeap().Start(), page_n * kPageSize);
+    void* beginning = PtrAdd(slab_heap.Start(), page_n * kPageSize);
     void* end = PtrAdd(beginning, kPageSize - 1);
-    EXPECT_EQ(PageId::FromPtr(beginning), Fixture().HeapStartId() + page_n);
-    EXPECT_EQ(PageId::FromPtr(end), Fixture().HeapStartId() + page_n);
+    EXPECT_EQ(PageId::FromPtr(beginning),
+              PageId::FromPtr(slab_heap.Start()) + page_n);
+    EXPECT_EQ(PageId::FromPtr(end),
+              PageId::FromPtr(slab_heap.Start()) + page_n);
   }
 }
 
 TEST_F(SlabManagerTest, SlabStartFromId) {
   constexpr size_t kPages = 16;
   ASSERT_THAT(Fixture().AllocateSlab(kPages), IsOk());
+  ASSERT_THAT(HeapsVec(), ElementsAre(_));
+
+  const TestHeap& slab_heap = *Heaps().begin()->second.second;
   for (size_t page_n = 0; page_n < kPages; page_n++) {
-    EXPECT_EQ((Fixture().HeapStartId() + page_n).PageStart(),
-              PtrAdd(Fixture().SlabHeap().Start(), page_n * kPageSize));
+    EXPECT_EQ((PageId::FromPtr(slab_heap.Start()) + page_n).PageStart(),
+              PtrAdd(slab_heap.Start(), page_n * kPageSize));
   }
 }
 
@@ -89,29 +120,30 @@ TEST_F(SlabManagerTest, EmptyHeapValid) {
 
 TEST_F(SlabManagerTest, SinglePageHeapValid) {
   ASSERT_OK_AND_DEFINE(AllocatedSlab*, slab, Fixture().AllocateSlab(1));
-  EXPECT_EQ(slab->StartId(), Fixture().HeapStartId());
+  ASSERT_THAT(HeapsVec(), ElementsAre(_));
+
+  const TestHeap& slab_heap = *Heaps().begin()->second.second;
+  EXPECT_EQ(slab->StartId(), PageId::FromPtr(slab_heap.Start()));
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
 TEST_F(SlabManagerTest, TwoAdjacentAllocatedSlabs) {
   ASSERT_OK_AND_DEFINE(AllocatedSlab*, slab1, Fixture().AllocateSlab(1));
   ASSERT_OK_AND_DEFINE(AllocatedSlab*, slab2, Fixture().AllocateSlab(1));
-  EXPECT_EQ(slab1->StartId(), Fixture().HeapStartId());
-  EXPECT_EQ(slab2->StartId(), Fixture().HeapStartId() + 1);
+  ASSERT_THAT(HeapsVec(), ElementsAre(_));
+
+  const TestHeap& slab_heap = *Heaps().begin()->second.second;
+  EXPECT_EQ(slab1->StartId(), PageId::FromPtr(slab_heap.Start()));
+  EXPECT_EQ(slab2->StartId(), PageId::FromPtr(slab_heap.Start()) + 1);
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
 TEST_F(SlabManagerTest, SingleLargeSlab) {
   ASSERT_OK_AND_DEFINE(AllocatedSlab*, slab, Fixture().AllocateSlab(9));
-  EXPECT_EQ(slab->StartId(), Fixture().HeapStartId());
-  EXPECT_THAT(ValidateHeap(), IsOk());
-}
+  ASSERT_THAT(HeapsVec(), ElementsAre(_));
 
-TEST_F(SlabManagerTest, SlabTooLargeDoesNotAllocate) {
-  ASSERT_OK_AND_DEFINE(AllocatedSlab*, slab,
-                       Fixture().AllocateSlab(kHeapSize / kPageSize + 1));
-  EXPECT_EQ(slab, nullptr);
-  EXPECT_EQ(Fixture().SlabHeap().Size(), 0);
+  const TestHeap& slab_heap = *Heaps().begin()->second.second;
+  EXPECT_EQ(slab->StartId(), PageId::FromPtr(slab_heap.Start()));
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
@@ -177,7 +209,7 @@ TEST_F(SlabManagerTest, ReAllocateFreed) {
   ASSERT_THAT(Fixture().FreeSlab(slab1), IsOk());
   ASSERT_THAT(Fixture().AllocateSlab(1).status(), IsOk());
   EXPECT_THAT(ValidateHeap(), IsOk());
-  EXPECT_EQ(Fixture().SlabHeap().Size(), 2 * kPageSize);
+  EXPECT_EQ(TotalHeapsSize(), kPageSize);
 }
 
 TEST_F(SlabManagerTest, ExtendHeapWithFreeAtEnd) {
@@ -185,7 +217,7 @@ TEST_F(SlabManagerTest, ExtendHeapWithFreeAtEnd) {
   ASSERT_THAT(Fixture().FreeSlab(slab1), IsOk());
   ASSERT_THAT(Fixture().AllocateSlab(3).status(), IsOk());
   EXPECT_THAT(ValidateHeap(), IsOk());
-  EXPECT_EQ(Fixture().SlabHeap().Size(), 3 * kPageSize);
+  EXPECT_EQ(TotalHeapsSize(), 3 * kPageSize);
 }
 
 TEST_F(SlabManagerTest, BestFit) {
@@ -210,7 +242,47 @@ TEST_F(SlabManagerTest, BestFit) {
 
   // We should have found the perfect fit, which used to be slab 5.
   EXPECT_EQ(slab8->StartId(), slab5_start);
-  EXPECT_EQ(Fixture().SlabHeap().Size(), 24 * kPageSize);
+  EXPECT_EQ(TotalHeapsSize(), 24 * kPageSize);
+}
+
+TEST_F(SlabManagerTest, SlabFillsWholeHeap) {
+  ASSERT_OK_AND_DEFINE(AllocatedSlab*, slab,
+                       Fixture().AllocateSlab(kHeapSize / kPageSize));
+  ASSERT_THAT(HeapsVec(), ElementsAre(_));
+
+  const TestHeap& slab_heap = *Heaps().begin()->second.second;
+  EXPECT_EQ(slab->StartId(), PageId::FromPtr(slab_heap.Start()));
+  EXPECT_THAT(ValidateHeap(), IsOk());
+}
+
+TEST_F(SlabManagerTest, TwoHeaps) {
+  EXPECT_THAT(Fixture().AllocateSlab(kHeapSize / kPageSize).status(), IsOk());
+  EXPECT_THAT(Fixture().AllocateSlab(2).status(), IsOk());
+  ASSERT_THAT(HeapsVec(), ElementsAre(_, _));
+  EXPECT_THAT(ValidateHeap(), IsOk());
+}
+
+TEST_F(SlabManagerTest, FreeTwoHeaps) {
+  ASSERT_OK_AND_DEFINE(AllocatedSlab*, slab1,
+                       Fixture().AllocateSlab(kHeapSize / kPageSize));
+  ASSERT_OK_AND_DEFINE(AllocatedSlab*, slab2, Fixture().AllocateSlab(2));
+  EXPECT_THAT(Fixture().FreeSlab(slab1), IsOk());
+  EXPECT_THAT(Fixture().FreeSlab(slab2), IsOk());
+
+  EXPECT_THAT(ValidateHeap(), IsOk());
+  EXPECT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_F(SlabManagerTest, ExtendHeapWithExtraRoom) {
+  ASSERT_OK_AND_DEFINE(AllocatedSlab*, slab1,
+                       Fixture().AllocateSlab(kHeapSize / kPageSize - 5));
+  EXPECT_THAT(Fixture().AllocateSlab(6).status(), IsOk());
+  ASSERT_THAT(HeapsVec(), ElementsAre(_, _));
+
+  EXPECT_THAT(ValidateHeap(), IsOk());
+  EXPECT_THAT(Fixture().SlabMap().FindSlab(slab1->EndId() + 1),
+              Pointee(AllOf(Property(&Slab::Type, SlabType::kFree),
+                            Property(&AllocatedSlab::Pages, 5))));
 }
 
 }  // namespace ckmalloc

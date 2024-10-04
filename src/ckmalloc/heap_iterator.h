@@ -11,38 +11,50 @@ namespace ckmalloc {
 template <SlabMapInterface SlabMap>
 class HeapIteratorImpl {
  public:
-  HeapIteratorImpl(const SlabMap* slab_map, PageId page_id)
-      : slab_map_(slab_map), current_(page_id) {}
+  using value_type = MappedSlab*;
+  using difference_type = ssize_t;
+
+  HeapIteratorImpl(SlabMap* slab_map, PageId page_id)
+      : slab_map_(slab_map),
+        current_slab_(slab_map->FindSlab(page_id)),
+        current_(page_id) {}
+
+  HeapIteratorImpl()
+      : slab_map_(nullptr), current_slab_(nullptr), current_(PageId::Nil()) {}
+
+  void swap(HeapIteratorImpl& other) {
+    std::swap(slab_map_, other.slab_map_);
+    std::swap(current_, other.current_);
+  }
 
   static HeapIteratorImpl HeapBegin(const bench::Heap* heap,
-                                    const SlabMap* slab_map) {
+                                    SlabMap* slab_map) {
     return HeapIteratorImpl(slab_map, PageId::FromPtr(heap->Start()));
   }
-  static HeapIteratorImpl HeapEnd(const bench::Heap* heap,
-                                  const SlabMap* slab_map) {
-    return HeapIteratorImpl(slab_map, PageId::FromPtr(heap->End()));
-  }
 
-  bool operator==(HeapIteratorImpl other) const {
+  bool operator==(const HeapIteratorImpl& other) const {
     return current_ == other.current_;
   }
-  bool operator!=(HeapIteratorImpl other) const {
+  bool operator!=(const HeapIteratorImpl& other) const {
     return !(*this == other);
   }
 
-  MappedSlab* operator*() {
-    MappedSlab* slab = slab_map_->FindSlab(current_);
-    CK_ASSERT_NE(slab, nullptr);
-    CK_ASSERT_NE(slab->Type(), SlabType::kUnmapped);
-    return slab;
+  MappedSlab* operator*() const {
+    CK_ASSERT_NE(current_slab_, nullptr);
+    CK_ASSERT_NE(current_slab_->Type(), SlabType::kUnmapped);
+    return current_slab_;
   }
-  MappedSlab* operator->() {
+  MappedSlab* operator->() const {
     return **this;
   }
 
-  HeapIteratorImpl operator++() {
+  HeapIteratorImpl& operator++() {
     Slab* current = **this;
     current_ += current->ToMapped()->Pages();
+    current_slab_ = slab_map_->FindSlab(current_);
+    if (current_slab_ == nullptr) {
+      current_ = PageId::Nil();
+    }
     return *this;
   }
   HeapIteratorImpl operator++(int) {
@@ -52,7 +64,8 @@ class HeapIteratorImpl {
   }
 
  private:
-  const SlabMap* const slab_map_;
+  SlabMap* slab_map_;
+  MappedSlab* current_slab_;
   PageId current_;
 };
 

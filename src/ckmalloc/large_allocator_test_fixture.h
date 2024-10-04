@@ -19,12 +19,10 @@ class LargeAllocatorFixture : public CkMallocTest {
   static constexpr const char* kPrefix = "[LargeAllocatorFixture]";
 
   LargeAllocatorFixture(
-      std::shared_ptr<TestHeap> heap,
       const std::shared_ptr<TestSlabMap>& slab_map,
       std::shared_ptr<SlabManagerFixture> slab_manager_test_fixture,
       std::shared_ptr<Freelist> freelist)
-      : heap_(std::move(heap)),
-        slab_map_(std::move(slab_map)),
+      : slab_map_(std::move(slab_map)),
         slab_manager_test_fixture_(std::move(slab_manager_test_fixture)),
         slab_manager_(slab_manager_test_fixture_->SlabManagerPtr()),
         freelist_(std::move(freelist)),
@@ -33,10 +31,6 @@ class LargeAllocatorFixture : public CkMallocTest {
 
   const char* TestPrefix() const override {
     return kPrefix;
-  }
-
-  TestHeap& Heap() {
-    return *heap_;
   }
 
   TestSlabMap& SlabMap() {
@@ -86,7 +80,6 @@ class LargeAllocatorFixture : public CkMallocTest {
   static absl::Status ValidateEmpty();
 
  private:
-  std::shared_ptr<TestHeap> heap_;
   std::shared_ptr<TestSlabMap> slab_map_;
   std::shared_ptr<SlabManagerFixture> slab_manager_test_fixture_;
   std::shared_ptr<TestSlabManager> slab_manager_;

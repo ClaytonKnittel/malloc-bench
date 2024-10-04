@@ -42,8 +42,7 @@ class CkMalloc {
   }
 
  private:
-  explicit CkMalloc(void* metadata_heap, void* metadata_heap_end,
-                    void* user_heap);
+  explicit CkMalloc(void* metadata_heap, void* metadata_heap_end);
 
   // Initializes the allocator by allocating the metadata heap and first user
   // heap.

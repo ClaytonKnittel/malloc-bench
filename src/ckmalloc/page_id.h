@@ -36,6 +36,10 @@ class PageId {
   PageId(const PageId& page_id) = default;
   PageId& operator=(const PageId& page_id) = default;
 
+  void swap(PageId& other) {
+    std::swap(page_idx_, other.page_idx_);
+  }
+
   bool operator==(const PageId& page_id) const {
     return page_idx_ == page_id.page_idx_;
   }
