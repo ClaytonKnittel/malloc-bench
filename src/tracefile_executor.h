@@ -13,7 +13,7 @@ namespace bench {
 
 class TracefileExecutor {
  public:
-  TracefileExecutor(TracefileReader&& reader, HeapFactory& heap_factory);
+  TracefileExecutor(TracefileReader& reader, HeapFactory& heap_factory);
 
   absl::Status Run();
 
@@ -28,7 +28,7 @@ class TracefileExecutor {
  private:
   absl::Status ProcessTracefile();
 
-  TracefileReader reader_;
+  TracefileReader& reader_;
 
   HeapFactory* const heap_factory_;
 };
