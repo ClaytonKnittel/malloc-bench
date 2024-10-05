@@ -143,6 +143,9 @@ class SizeClass {
 
   // Given a user size, returns the index into the ordinal map. This is called
   // on every allocation.
+  //
+  // TODO: See if it's better to do CeilDiv(user_size, 8) and have ordinal map
+  // be 2x larger.
   static constexpr size_t OrdinalMapIdx(size_t user_size) {
     if (user_size <= 8) {
       return 0;
