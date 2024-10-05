@@ -38,7 +38,7 @@ TEST_F(SizeClassTest, NilIsDistinct) {
 TEST_F(SizeClassTest, MaxSlicesPerSlab) {
   for (const SizeClass::SizeClassInfo& info : SizeClass::kSizeClassInfo) {
     size_t slice_size = info.max_size;
-    size_t n_slices = kPageSize / info.max_size;
+    size_t n_slices = info.pages * kPageSize / info.max_size;
     EXPECT_EQ(SizeClass::FromSliceSize(slice_size).MaxSlicesPerSlab(),
               n_slices);
   }

@@ -36,7 +36,7 @@ static constexpr size_t kUserHeapSize = 512 * (1 << 20);
 
 // The largest user-request size which will be allocated in small slabs. Any
 // size larger will go in large blocks.
-static constexpr size_t kMaxSmallSize = 512;
+static constexpr size_t kMaxSmallSize = 1024;
 
 // The smallest user-request size which will be allocated in a
 // separately-allocated mmap region.

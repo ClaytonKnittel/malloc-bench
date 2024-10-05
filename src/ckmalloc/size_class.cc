@@ -16,33 +16,39 @@ namespace {
 
 struct SizeClassParams {
   uint16_t max_size;
+  uint8_t pages;
 };
 
-static_assert(SizeClass::kNumSizeClasses == 21);
-static_assert(kMaxSmallSize == 512);
+static_assert(SizeClass::kNumSizeClasses == 26);
+static_assert(kMaxSmallSize == 1024);
 const SizeClassParams kSizeClassParams[SizeClass::kNumSizeClasses] = {
   // clang-format off
-      { /*max_size=*/8 },
-      { /*max_size=*/16 },
-      { /*max_size=*/32 },
-      { /*max_size=*/48 },
-      { /*max_size=*/64 },
-      { /*max_size=*/80 },
-      { /*max_size=*/96 },
-      { /*max_size=*/112 },
-      { /*max_size=*/128 },
-      { /*max_size=*/144 },
-      { /*max_size=*/160 },
-      { /*max_size=*/192 },
-      { /*max_size=*/224 },
-      { /*max_size=*/256 },
-      { /*max_size=*/272 },
-      { /*max_size=*/304 },
-      { /*max_size=*/336 },
-      { /*max_size=*/368 },
-      { /*max_size=*/400 },
-      { /*max_size=*/448 },
-      { /*max_size=*/512 },
+      { /*max_size=*/8, /*pages=*/1 },
+      { /*max_size=*/16, /*pages=*/1 },
+      { /*max_size=*/32, /*pages=*/1 },
+      { /*max_size=*/48, /*pages=*/1 },
+      { /*max_size=*/64, /*pages=*/1 },
+      { /*max_size=*/80, /*pages=*/1 },
+      { /*max_size=*/96, /*pages=*/1 },
+      { /*max_size=*/112, /*pages=*/1 },
+      { /*max_size=*/128, /*pages=*/1 },
+      { /*max_size=*/144, /*pages=*/1 },
+      { /*max_size=*/160, /*pages=*/1 },
+      { /*max_size=*/192, /*pages=*/1 },
+      { /*max_size=*/224, /*pages=*/1 },
+      { /*max_size=*/256, /*pages=*/1 },
+      { /*max_size=*/320, /*pages=*/2 },
+      { /*max_size=*/384, /*pages=*/3 },
+      { /*max_size=*/448, /*pages=*/1 },
+      { /*max_size=*/512, /*pages=*/1 },
+      { /*max_size=*/576, /*pages=*/1 },
+      { /*max_size=*/640, /*pages=*/3 },
+      { /*max_size=*/704, /*pages=*/5 },
+      { /*max_size=*/768, /*pages=*/3 },
+      { /*max_size=*/832, /*pages=*/5 },
+      { /*max_size=*/896, /*pages=*/2 },
+      { /*max_size=*/960, /*pages=*/4 },
+      { /*max_size=*/1024, /*pages=*/1 },
   // clang-format on
 };
 
@@ -54,9 +60,12 @@ const std::array<SizeClass::SizeClassInfo, SizeClass::kNumSizeClasses>
           size_class_info;
       for (size_t ord = 0; ord < SizeClass::kNumSizeClasses; ord++) {
         uint16_t max_size = kSizeClassParams[ord].max_size;
+        uint32_t pages = static_cast<uint32_t>(kSizeClassParams[ord].pages);
         size_class_info[ord] = {
           .max_size = max_size,
-          .slices_per_slab = static_cast<uint16_t>(kPageSize / max_size),
+          .pages = static_cast<uint8_t>(pages),
+          .slices_per_slab =
+              static_cast<uint16_t>(pages * kPageSize / max_size),
         };
       }
       return size_class_info;

@@ -19,7 +19,7 @@ std::ostream& operator<<(std::ostream& ostr, ckmalloc::SizeClass size_class);
 // array of equally-sized slices of memory for individual allocation.
 class SizeClass {
  public:
-  static constexpr size_t kNumSizeClasses = 21;
+  static constexpr size_t kNumSizeClasses = 26;
 
   static constexpr size_t kNumSizeClassLookupIdx =
       kMaxSmallSize / kDefaultAlignment + 1;
@@ -27,6 +27,9 @@ class SizeClass {
   struct SizeClassInfo {
     // The maximum allocation size that fits in allocations for this size class.
     uint16_t max_size;
+
+    // The number of pages that slabs of this size class span.
+    uint8_t pages;
 
     // The number of allocations that fit in a single slab holding allocations
     // of this size class.
@@ -81,6 +84,11 @@ class SizeClass {
     return ordinal_;
   }
 
+  uint32_t Pages() const {
+    CK_ASSERT_NE(*this, Nil());
+    return kSizeClassInfo[Ordinal()].pages;
+  }
+
   // The number of slices that can fit into a small slab of this size class.
   uint32_t MaxSlicesPerSlab() const {
     CK_ASSERT_NE(*this, Nil());
@@ -89,7 +97,8 @@ class SizeClass {
 
   // TODO check if this is the fastest way to do this.
   uint32_t OffsetToIdx(uint64_t offset_bytes) const {
-    static_assert(kNumSizeClasses == 21);
+    static_assert(kNumSizeClasses == 26);
+    CK_ASSERT_LT(offset_bytes, Pages() * kPageSize);
     switch (Ordinal()) {
       // NOLINTNEXTLINE(bugprone-branch-clone)
       case 0:
@@ -135,6 +144,14 @@ class SizeClass {
       case 20:
         return static_cast<uint32_t>(offset_bytes / SliceSize());
       case 21:
+        return static_cast<uint32_t>(offset_bytes / SliceSize());
+      case 22:
+        return static_cast<uint32_t>(offset_bytes / SliceSize());
+      case 23:
+        return static_cast<uint32_t>(offset_bytes / SliceSize());
+      case 24:
+        return static_cast<uint32_t>(offset_bytes / SliceSize());
+      case 25:
         return static_cast<uint32_t>(offset_bytes / SliceSize());
       default:
         CK_UNREACHABLE();
