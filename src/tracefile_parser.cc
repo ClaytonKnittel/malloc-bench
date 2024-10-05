@@ -124,8 +124,8 @@ class DirtyTracefileReader {
       return id;
     };
 
-    for (uint64_t iter = 0;
-         iter + id_map.size() < absl::GetFlag(FLAGS_max_ops); iter++) {
+    for (uint64_t iter = 0; iter + id_map.size() < absl::GetFlag(FLAGS_max_ops);
+         iter++) {
       std::string line_str;
       if (std::getline(file, line_str).eof()) {
         break;
