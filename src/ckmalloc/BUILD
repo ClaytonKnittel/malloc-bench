@@ -165,6 +165,7 @@ cc_library(
         ":common",
         ":freelist",
         ":large_allocator",
+        ":linked_list",
         ":page_id",
         ":slab",
         ":slab_manager_test_fixture",

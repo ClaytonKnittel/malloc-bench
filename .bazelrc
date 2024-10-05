@@ -10,6 +10,7 @@ build:opt --features=thin_lto
 
 build:test --copt=-O1
 build:test --copt=-g3
+build:test --strip=never
 
 build:profile --copt=-O2
 build:profile --linkopt=-lprofiler

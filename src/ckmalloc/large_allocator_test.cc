@@ -150,19 +150,23 @@ TEST_F(LargeAllocatorTest, FreeBlock) {
 
 TEST_F(LargeAllocatorTest, UntrackedBlock) {
   constexpr size_t kBlockSize = 0x40;
-  Block block;
+  struct {
+    UntrackedBlock free_block;
+    uint8_t data[kBlockSize + Block::kMetadataOverhead];
+  } data;
+  Block* block = &data.free_block;
 
-  Freelist().InitFree(&block, kBlockSize);
-  EXPECT_TRUE(block.Free());
-  EXPECT_EQ(block.Size(), kBlockSize);
-  EXPECT_FALSE(PrevFree(&block));
+  Freelist().InitFree(block, kBlockSize);
+  EXPECT_TRUE(block->Free());
+  EXPECT_EQ(block->Size(), kBlockSize);
+  EXPECT_FALSE(PrevFree(block));
 
-  EXPECT_EQ(PtrDistance(block.NextAdjacentBlock(), &block), kBlockSize);
+  EXPECT_EQ(PtrDistance(block->NextAdjacentBlock(), block), kBlockSize);
 
-  EXPECT_TRUE(block.IsUntracked());
+  EXPECT_TRUE(block->IsUntracked());
 
   // This should not cause assertion failure.
-  block.ToUntracked();
+  block->ToUntracked();
 
   // Untracked blocks do not go in the freelist.
   EXPECT_THAT(FreelistList(), ElementsAre());
