@@ -60,8 +60,8 @@ using Op = bench::proto::TraceLine::OpCase;
 
 class FindMaxAllocations : public TracefileExecutor {
  public:
-  FindMaxAllocations(TracefileReader&& reader, HeapFactory& heap_factory)
-      : TracefileExecutor(std::move(reader), heap_factory) {}
+  FindMaxAllocations(TracefileReader& reader, HeapFactory& heap_factory)
+      : TracefileExecutor(reader, heap_factory) {}
 
   ~FindMaxAllocations() {
     TestSysAlloc::Reset();
@@ -170,8 +170,8 @@ struct TraceOp {
 
 class TraceReplayer : public TracefileExecutor {
  public:
-  TraceReplayer(TracefileReader&& reader, HeapFactory& heap_factory)
-      : TracefileExecutor(std::move(reader), heap_factory) {
+  TraceReplayer(TracefileReader& reader, HeapFactory& heap_factory)
+      : TracefileExecutor(reader, heap_factory) {
     if (!absl::GetFlag(FLAGS_test_run)) {
       std::cout << CSI_ALTERNATE_DISPLAY << CSI_HIDE << CSI_CHP(1, 1);
       SetNonCanonicalMode(/*enable=*/true);
@@ -539,14 +539,13 @@ absl::Status Run(const std::string& tracefile) {
   if (absl::GetFlag(FLAGS_to_max)) {
     DEFINE_OR_RETURN(TracefileReader, reader, TracefileReader::Open(tracefile));
     bench::MMapHeapFactory heap_factory;
-    ASSIGN_OR_RETURN(
-        skips,
-        FindMaxAllocations(std::move(reader), heap_factory).MaxAllocations());
+    ASSIGN_OR_RETURN(skips,
+                     FindMaxAllocations(reader, heap_factory).MaxAllocations());
   }
 
   DEFINE_OR_RETURN(TracefileReader, reader, TracefileReader::Open(tracefile));
   bench::MMapHeapFactory heap_factory;
-  TraceReplayer replayer(std::move(reader), heap_factory);
+  TraceReplayer replayer(reader, heap_factory);
   replayer.SetSkips(skips);
   RETURN_IF_ERROR(replayer.Run());
   LocalCache::Instance<GlobalMetadataAlloc>()->Flush(
