@@ -25,7 +25,7 @@ class SliceId {
  public:
   static constexpr SliceId FromOffset(uint64_t offset_bytes,
                                       SizeClass size_class) {
-    CK_ASSERT_LT(offset_bytes, kPageSize);
+    CK_ASSERT_LT(offset_bytes, size_class.Pages() * kPageSize);
     return SliceId(size_class.OffsetToIdx(offset_bytes));
   }
 

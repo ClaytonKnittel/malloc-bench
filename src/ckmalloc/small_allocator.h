@@ -161,8 +161,9 @@ std::optional<AllocatedSlice*>
 SmallAllocatorImpl<SlabMap, SlabManager>::TakeSliceFromNewSlab(
     SizeClass size_class) {
   using AllocRes = std::pair<PageId, SmallSlab*>;
-  DEFINE_OR_RETURN_OPT(AllocRes, result,
-                       slab_manager_->template Alloc<SmallSlab>(1, size_class));
+  DEFINE_OR_RETURN_OPT(
+      AllocRes, result,
+      slab_manager_->template Alloc<SmallSlab>(size_class.Pages(), size_class));
   auto [page_id, slab] = result;
 
   CK_ASSERT_EQ(FreelistHead(size_class), PageId::Nil());
@@ -175,9 +176,9 @@ void SmallAllocatorImpl<SlabMap, SlabManager>::ReturnSlice(
     SmallSlab* slab, AllocatedSlice* slice) {
   void* slab_start = slab->StartId().PageStart();
   CK_ASSERT_GE(slice, slab_start);
-  CK_ASSERT_LE(
-      slice, PtrAdd<AllocatedSlice>(slab_start,
-                                    kPageSize - slab->SizeClass().SliceSize()));
+  CK_ASSERT_LE(slice, PtrAdd<AllocatedSlice>(
+                          slab_start, slab->SizeClass().Pages() * kPageSize -
+                                          slab->SizeClass().SliceSize()));
 
   slab->PushSlice(slab->StartId().PageStart(), slice);
   if (slab->Empty()) {

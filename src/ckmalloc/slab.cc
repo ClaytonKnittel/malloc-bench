@@ -164,12 +164,12 @@ FreeSlab* Slab::Init(PageId start_id, uint32_t n_pages) {
 
 template <>
 SmallSlab* Slab::Init(PageId start_id, uint32_t n_pages, SizeClass size_class) {
-  CK_ASSERT_EQ(n_pages, 1);
+  CK_ASSERT_EQ(n_pages, size_class.Pages());
   type_ = SlabType::kSmall;
   if (size_class.SliceSize() <= kMaxUse16ByteSliceId) {
     mapped = {
       .id_ = start_id,
-      .n_pages_ = 1,
+      .n_pages_ = n_pages,
       .small = {
         .tiny_meta_ = SmallSlabMetadata<uint16_t>(size_class),
         .next_free_ = PageId::Nil(),
@@ -179,7 +179,7 @@ SmallSlab* Slab::Init(PageId start_id, uint32_t n_pages, SizeClass size_class) {
   } else {
     mapped = {
       .id_ = start_id,
-      .n_pages_ = 1,
+      .n_pages_ = n_pages,
       .small = {
         .small_meta_ = SmallSlabMetadata<uint8_t>(size_class),
         .next_free_ = PageId::Nil(),
