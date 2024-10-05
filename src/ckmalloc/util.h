@@ -132,6 +132,17 @@ constexpr U* PtrSub(T* a, Int offset) {
   return result;
 }
 
+template <typename C>
+requires(!std::ranges::view<C>)
+struct RangeToContainer {};
+
+template <typename C, std::ranges::range R>
+requires std::convertible_to<std::ranges::range_value_t<R>,
+                             typename C::value_type>
+C operator|(R&& range, RangeToContainer<C>) {
+  return C{ range.begin(), range.end() };
+}
+
 class AlignedAlloc {
  public:
   explicit AlignedAlloc(size_t size, size_t alignment) {
