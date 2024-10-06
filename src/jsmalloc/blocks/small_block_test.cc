@@ -26,8 +26,9 @@ class SmallBlockTest : public ::testing::Test {
     return SmallBlock::Init(block, data_size, bin_count);
   }
 
-  jsmalloc::testing::TestHeap heap;
-  SentinelBlockHeap sentinel_heap = SentinelBlockHeap(heap);
+  jsmalloc::testing::TestRegionAllocator region_allocator;
+  SentinelBlockHeap sentinel_heap =
+      SentinelBlockHeap(&region_allocator, &region_allocator);
   FreeBlockAllocator free_block_allocator = FreeBlockAllocator(sentinel_heap);
 };
 

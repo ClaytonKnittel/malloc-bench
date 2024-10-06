@@ -3,8 +3,11 @@ cc_library(
     hdrs = ["allocator.h"],
     visibility = ["//visibility:public"],
     deps = [
+        "@cc-util//util:absl_util",
+        "@abseil-cpp//absl/strings:str_format",
         "//src:heap_factory",
         "//src:heap_interface",
+        "//src/jsmalloc/util:file_logger",
         "//src/jsmalloc/util:assert",
     ],
 )
@@ -26,6 +29,7 @@ cc_library(
         "//src/jsmalloc/collections:intrusive_linked_list",
         "//src/jsmalloc/util:assert",
         "//src/jsmalloc/util:math",
+        "//src/jsmalloc/util:file_logger",
         "//src/jsmalloc/util:twiddle",
     ],
 )

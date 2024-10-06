@@ -2,12 +2,13 @@
 
 #include <cstddef>
 #include <cstdint>
+
 #include "src/jsmalloc/util/math.h"
 
 namespace jsmalloc {
 namespace twiddle {
 
-inline uint64_t PtrValue(const void* ptr) {
+inline intptr_t PtrValue(const void* ptr) {
   return reinterpret_cast<const uint8_t*>(ptr) - static_cast<uint8_t*>(nullptr);
 }
 
@@ -28,7 +29,7 @@ static inline constexpr T* OwnerOf(const M* ptr, const M T::*member) {
 }
 
 inline void* Align(void* ptr, size_t alignment) {
-  size_t val = PtrValue(ptr);
+  intptr_t val = PtrValue(ptr);
   return AddPtrOffset<void>(ptr, (math::round_up_pow2(val, alignment) - val));
 }
 

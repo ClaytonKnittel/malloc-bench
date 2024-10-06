@@ -27,10 +27,12 @@ static_assert(sizeof(SentinelBlock) % 16 == 0);
  */
 class SentinelBlockHeap {
  public:
-  explicit SentinelBlockHeap(MemRegion& mem_region) : mem_region_(mem_region){};
+  explicit SentinelBlockHeap(MemRegion* mem_region,
+                             MemRegionAllocator* allocator)
+      : mem_region_(mem_region), allocator_(allocator){};
 
   void Init() {
-    void* ptr = mem_region_.Extend(sizeof(SentinelBlock));
+    void* ptr = allocator_->Extend(mem_region_, sizeof(SentinelBlock));
     if (ptr == nullptr) {
       return;
     }
@@ -38,7 +40,7 @@ class SentinelBlockHeap {
   }
 
   SentinelBlock* sbrk(intptr_t increment) {
-    void* ptr = mem_region_.Extend(increment);
+    void* ptr = allocator_->Extend(mem_region_, increment);
     if (ptr == nullptr) {
       return nullptr;
     }
@@ -52,16 +54,17 @@ class SentinelBlockHeap {
   }
 
   void* Start() {
-    return mem_region_.Start();
+    return mem_region_->Start();
   }
 
   void* End() {
     return twiddle::AddPtrOffset<void>(
-        mem_region_.End(), -static_cast<int32_t>(sizeof(SentinelBlock)));
+        mem_region_->End(), -static_cast<int32_t>(sizeof(SentinelBlock)));
   }
 
  private:
-  MemRegion& mem_region_;
+  MemRegion* mem_region_;
+  MemRegionAllocator* allocator_;
 };
 
 }  // namespace blocks

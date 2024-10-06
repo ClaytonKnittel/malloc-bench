@@ -38,15 +38,16 @@ class FixedSizeFreeBlockAllocator {
   /**
    * Returns an allocator that operates over the provided memory.
    */
-  explicit FixedSizeFreeBlockAllocator(MemRegion& memory_region)
-      : memory_region_(memory_region) {}
+  explicit FixedSizeFreeBlockAllocator(MemRegionAllocator* allocator,
+                                       MemRegion* memory_region)
+      : allocator_(allocator), memory_region_(memory_region) {}
 
   /**
    * Returns a pointer to a free block of length `kSize`.
    */
   void* Allocate() {
     if (free_blocks_.empty()) {
-      return memory_region_.Extend(kSize);
+      return allocator_->Extend(memory_region_, kSize);
     }
     return free_blocks_.pop();
   }
@@ -59,7 +60,8 @@ class FixedSizeFreeBlockAllocator {
   }
 
  private:
-  MemRegion& memory_region_;
+  MemRegionAllocator* allocator_;
+  MemRegion* memory_region_;
   FixedSizeFreeBlock::Stack free_blocks_;
 };
 

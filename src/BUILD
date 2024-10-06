@@ -53,13 +53,15 @@ cc_library(
 
 cc_library(
     name = "allocator_interface",
-    srcs = ["allocator_interface.cc"],
     hdrs = ["allocator_interface.h"],
+    srcs = ["allocator_interface.cc"],
     deps = [
         ":heap_factory",
         ":heap_interface",
         ":mmap_heap",
         "//src/jsmalloc",
+        "//src/jsmalloc:allocator",
+        "//src/jsmalloc/util:file_logger",
     ],
 )
 
@@ -125,11 +127,13 @@ cc_library(
     ],
 )
 
-cc_shared_library(
-    name = "liballoc",
-    shared_lib_name = "liballoc.so",
+cc_binary(
+    name = "liballoc.so",
+    srcs = ["libc_override.cc"],
+    copts = ["-fexceptions"],
+    linkshared = 1,
     deps = [
-        ":libc_override",
+        ":allocator_interface",
     ],
 )
 

@@ -28,8 +28,9 @@ class SmallBlockAllocator {
  public:
   static constexpr size_t kBlockSize = 4096;
 
-  explicit SmallBlockAllocator(MemRegion& mem_region)
-      : allocator_(mem_region) {}
+  explicit SmallBlockAllocator(MemRegionAllocator* allocator,
+                               MemRegion* mem_region)
+      : allocator_(allocator, mem_region) {}
 
   /** Allocates a chunk of user data from a SmallBlock. */
   void* Allocate(size_t size);

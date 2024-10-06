@@ -16,8 +16,8 @@ class LargeBlockTest : public ::testing::Test {
     sentinel_heap.Init();
   }
 
-  jsmalloc::testing::TestHeap heap;
-  SentinelBlockHeap sentinel_heap = SentinelBlockHeap(heap);
+  jsmalloc::testing::TestRegionAllocator allocator;
+  SentinelBlockHeap sentinel_heap = SentinelBlockHeap(&allocator, &allocator);
   FreeBlockAllocator free_block_allocator = FreeBlockAllocator(sentinel_heap);
 };
 
