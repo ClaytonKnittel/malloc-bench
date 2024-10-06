@@ -349,9 +349,6 @@ class SmallSlab : public AllocatedSlab {
   class MmapSlab* ToMmap() = delete;
   const class MmapSlab* ToMmap() const = delete;
 
-  // Small slabs range only one page.
-  PageId EndId() const = delete;
-
   SizeClass SizeClass() const;
 
   // If true, all slices are free in this slab.
