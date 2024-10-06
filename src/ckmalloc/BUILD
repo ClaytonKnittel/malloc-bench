@@ -202,8 +202,8 @@ cc_library(
     srcs = ["local_cache.cc"],
     hdrs = ["local_cache.h"],
     deps = [
-        ":block",
         ":common",
+        ":size_class",
         ":util",
     ],
 )
