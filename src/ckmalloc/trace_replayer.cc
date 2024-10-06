@@ -329,6 +329,14 @@ class TraceReplayer : public TracefileExecutor {
           ScrollBy(-(term_height - kUiLines) / 2, term_height);
           break;
         }
+        case 'b': {
+          ScrollBy(MaxScroll(term_height) - scroll_, term_height);
+          break;
+        }
+        case 't': {
+          ScrollBy(-scroll_, term_height);
+          break;
+        }
         case '0':
         case '1':
         case '2':
@@ -402,8 +410,8 @@ class TraceReplayer : public TracefileExecutor {
     }
 
     std::cout
-        << "Next: [n/m(50)/c(1024)/r(10000)], scroll down: [j/d], scroll up: "
-           "[k/u], quit: [q], heap index: [";
+        << "Next: [n/m(50)/c(1024)/r(10000)], scroll down: [j/d/b], scroll up: "
+           "[k/u/t], quit: [q], heap index: [";
     size_t idx = 0;
     for (const auto& [heap_start, val] : *TestSysAlloc::Instance()) {
       const auto [heap_type, heap] = val;
