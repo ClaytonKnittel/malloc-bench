@@ -11,9 +11,9 @@ namespace bench {
 
 using proto::TraceLine;
 
-TracefileExecutor::TracefileExecutor(TracefileReader&& reader,
+TracefileExecutor::TracefileExecutor(TracefileReader& reader,
                                      HeapFactory& heap_factory)
-    : reader_(std::move(reader)), heap_factory_(&heap_factory) {}
+    : reader_(reader), heap_factory_(&heap_factory) {}
 
 absl::Status TracefileExecutor::Run() {
   InitializeHeap(*heap_factory_);

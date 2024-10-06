@@ -30,14 +30,14 @@ absl::Status CorrectnessChecker::Check(TracefileReader& reader,
                                        bool verbose) {
   absl::btree_map<void*, uint32_t> allocated_blocks;
 
-  CorrectnessChecker checker(std::move(reader), heap_factory);
+  CorrectnessChecker checker(reader, heap_factory);
   checker.verbose_ = verbose;
   return checker.Run();
 }
 
-CorrectnessChecker::CorrectnessChecker(TracefileReader&& reader,
+CorrectnessChecker::CorrectnessChecker(TracefileReader& reader,
                                        HeapFactory& heap_factory)
-    : TracefileExecutor(std::move(reader), heap_factory),
+    : TracefileExecutor(reader, heap_factory),
       heap_factory_(&heap_factory),
       rng_(0, 1) {}
 
