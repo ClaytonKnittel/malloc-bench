@@ -76,14 +76,12 @@ Void* SmallAllocatorImpl<SlabMap, SlabManager>::AllocSmall(size_t user_size) {
   // TODO: Test this in main allocator test.
   uint64_t block_size = Block::BlockSizeForUserSize(user_size);
   if (block_size >= Block::kMinTrackedSize) {
-    TrackedBlock* block = freelist_->FindFreeExact(block_size);
+    TrackedBlock* block = freelist_->FindFree(block_size);
     if (block != nullptr) {
       BlockedSlab* slab =
           slab_map_->FindSlab(PageId::FromPtr(block))->ToBlocked();
-      slab->AddAllocation(Block::BlockSizeForUserSize(user_size));
-      CK_ASSERT_EQ(block->Size(), block_size);
       auto [allocated, free] = freelist_->Split(block, block_size);
-      CK_ASSERT_EQ(free, nullptr);
+      slab->AddAllocation(allocated->Size());
       return allocated->UserDataPtr();
     }
   }
