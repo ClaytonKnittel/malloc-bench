@@ -34,7 +34,7 @@ class TestCkMalloc : public TracefileExecutor {
                         HeapFactory& heap_factory,
                         class TestCorrectness* fixture,
                         uint32_t validate_every_n)
-      : TracefileExecutor(std::move(tracefile_reader), heap_factory),
+      : TracefileExecutor(tracefile_reader, heap_factory),
         fixture_(fixture),
         validate_every_n_(validate_every_n) {}
 

@@ -165,6 +165,7 @@ cc_library(
         ":common",
         ":freelist",
         ":large_allocator",
+        ":linked_list",
         ":page_id",
         ":slab",
         ":slab_manager_test_fixture",
@@ -201,8 +202,8 @@ cc_library(
     srcs = ["local_cache.cc"],
     hdrs = ["local_cache.h"],
     deps = [
-        ":block",
         ":common",
+        ":size_class",
         ":util",
     ],
 )
@@ -379,6 +380,17 @@ cc_library(
     ],
 )
 
+cc_test(
+    name = "size_class_test",
+    srcs = ["size_class_test.cc"],
+    deps = [
+        ":common",
+        ":size_class",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
 cc_library(
     name = "slab",
     srcs = ["slab.cc"],
@@ -547,8 +559,10 @@ cc_test(
         ":slab_manager_test_fixture",
         ":small_allocator_test_fixture",
         ":testlib",
+        ":util",
         "//src:heap_interface",
         "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/strings",
         "@cc-util//util:absl_util",
         "@cc-util//util:gtest_util",
         "@googletest//:gtest",

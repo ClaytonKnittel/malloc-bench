@@ -55,7 +55,7 @@ class LinkedListIterator {
   using value_type = std::remove_reference_t<T>;
   using node_type = std::conditional_t<std::is_const_v<value_type>,
                                        const LinkedListNode, LinkedListNode>;
-  using difference_type = size_t;
+  using difference_type = ssize_t;
   using pointer = value_type*;
   using reference = value_type&;
   using iterator_category = std::forward_iterator_tag;

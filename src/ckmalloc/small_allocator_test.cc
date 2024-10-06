@@ -1,4 +1,8 @@
+#include <ranges>
+#include <vector>
+
 #include "absl/status/status.h"
+#include "absl/strings/str_cat.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "util/absl_util.h"
@@ -11,6 +15,7 @@
 #include "src/ckmalloc/slab_manager_test_fixture.h"
 #include "src/ckmalloc/small_allocator_test_fixture.h"
 #include "src/ckmalloc/testlib.h"
+#include "src/ckmalloc/util.h"
 
 namespace ckmalloc {
 
@@ -131,107 +136,12 @@ TEST_F(SmallAllocatorTest, Misaligned64) {
   EXPECT_EQ(TotalHeapsSize(), kPageSize);
 }
 
-TEST_F(SmallAllocatorTest, FilledSlabs) {
-  constexpr size_t kSliceSize = 128;
-  for (size_t i = 0; i < kPageSize / kSliceSize; i++) {
-    void* ptr = SmallAllocator().AllocSmall(kSliceSize);
-    ASSERT_NE(ptr, nullptr);
-    ASSERT_THAT(ValidateHeap(), IsOk());
-  }
-
-  EXPECT_THAT(ValidateHeap(), IsOk());
-  EXPECT_EQ(TotalHeapsSize(), kPageSize);
-}
-
-TEST_F(SmallAllocatorTest, TwoSlabs) {
-  constexpr size_t kSliceSize = 128;
-  for (size_t i = 0; i < kPageSize / kSliceSize + 1; i++) {
-    void* ptr = SmallAllocator().AllocSmall(kSliceSize);
-    ASSERT_NE(ptr, nullptr);
-    ASSERT_THAT(ValidateHeap(), IsOk());
-  }
-
-  EXPECT_THAT(ValidateHeap(), IsOk());
-  EXPECT_EQ(TotalHeapsSize(), 2 * kPageSize);
-}
-
 TEST_F(SmallAllocatorTest, TwoSizes) {
   EXPECT_NE(SmallAllocator().AllocSmall(32), nullptr);
   EXPECT_NE(SmallAllocator().AllocSmall(64), nullptr);
 
   EXPECT_THAT(ValidateHeap(), IsOk());
   EXPECT_EQ(TotalHeapsSize(), 2 * kPageSize);
-}
-
-TEST_F(SmallAllocatorTest, FreeOne) {
-  Void* ptr = SmallAllocator().AllocSmall(32);
-  ASSERT_NE(ptr, nullptr);
-
-  FreeSmall(ptr);
-
-  EXPECT_THAT(ValidateHeap(), IsOk());
-  EXPECT_THAT(ValidateEmpty(), IsOk());
-}
-
-TEST_F(SmallAllocatorTest, FreeFullSlab) {
-  constexpr size_t kSliceSize = 80;
-  std::vector<Void*> ptrs;
-  ptrs.reserve(kPageSize / kSliceSize);
-  for (size_t i = 0; i < kPageSize / kSliceSize; i++) {
-    Void* ptr = SmallAllocator().AllocSmall(kSliceSize);
-    ASSERT_NE(ptr, nullptr);
-    ptrs.push_back(ptr);
-  }
-
-  for (size_t i = 0; i < kPageSize / kSliceSize; i++) {
-    size_t idx = (11 * i + 23) % (kPageSize / kSliceSize);
-    FreeSmall(ptrs[idx]);
-    ASSERT_THAT(ValidateHeap(), IsOk());
-  }
-
-  EXPECT_THAT(ValidateEmpty(), IsOk());
-}
-
-TEST_F(SmallAllocatorTest, AllocFreeAllocOne) {
-  Void* ptr = SmallAllocator().AllocSmall(95);
-  ASSERT_NE(ptr, nullptr);
-
-  FreeSmall(ptr);
-
-  EXPECT_EQ(SmallAllocator().AllocSmall(95), ptr);
-
-  EXPECT_THAT(ValidateHeap(), IsOk());
-  EXPECT_EQ(TotalHeapsSize(), kPageSize);
-}
-
-TEST_F(SmallAllocatorTest, AllocFreeAllocFull) {
-  constexpr size_t kSliceSize = 128;
-  std::vector<Void*> ptrs;
-  ptrs.reserve(kPageSize / kSliceSize);
-  for (size_t i = 0; i < kPageSize / kSliceSize; i++) {
-    Void* ptr = SmallAllocator().AllocSmall(kSliceSize);
-    ASSERT_NE(ptr, nullptr);
-    ptrs.push_back(ptr);
-  }
-
-  std::vector<Void*> frees;
-  frees.reserve(kPageSize / kSliceSize);
-  for (size_t i = 0; i < kPageSize / kSliceSize; i++) {
-    size_t idx = (11 * i + 23) % (kPageSize / kSliceSize);
-    frees.push_back(ptrs[idx]);
-    FreeSmall(ptrs[idx]);
-  }
-
-  std::vector<void*> ptrs2;
-  ptrs2.reserve(kPageSize / kSliceSize);
-  for (size_t i = 0; i < kPageSize / kSliceSize; i++) {
-    void* ptr = SmallAllocator().AllocSmall(kSliceSize);
-    ASSERT_NE(ptr, nullptr);
-    ptrs2.push_back(ptr);
-  }
-
-  EXPECT_THAT(ptrs2, UnorderedElementsAreArray(frees));
-  EXPECT_EQ(TotalHeapsSize(), kPageSize);
 }
 
 TEST_F(SmallAllocatorTest, ManyAllocs) {
@@ -254,5 +164,118 @@ TEST_F(SmallAllocatorTest, ManyAllocs) {
 
   EXPECT_THAT(ValidateEmpty(), IsOk());
 }
+
+class SizeClassTest : public SmallAllocatorTest,
+                      public ::testing::WithParamInterface<SizeClass> {
+ public:
+  static SizeClass SizeClass() {
+    return GetParam();
+  }
+};
+
+TEST_P(SizeClassTest, FilledSlabs) {
+  for (size_t i = 0; i < SizeClass().MaxSlicesPerSlab(); i++) {
+    void* ptr = SmallAllocator().AllocSmall(SizeClass().SliceSize());
+    ASSERT_NE(ptr, nullptr);
+    ASSERT_THAT(ValidateHeap(), IsOk());
+  }
+
+  EXPECT_THAT(ValidateHeap(), IsOk());
+  EXPECT_EQ(TotalHeapsSize(), SizeClass().Pages() * kPageSize);
+}
+
+TEST_P(SizeClassTest, TwoSlabs) {
+  for (size_t i = 0; i < SizeClass().MaxSlicesPerSlab() + 1; i++) {
+    void* ptr = SmallAllocator().AllocSmall(SizeClass().SliceSize());
+    ASSERT_NE(ptr, nullptr);
+    ASSERT_THAT(ValidateHeap(), IsOk());
+  }
+
+  EXPECT_THAT(ValidateHeap(), IsOk());
+  EXPECT_EQ(TotalHeapsSize(), 2 * SizeClass().Pages() * kPageSize);
+}
+
+TEST_P(SizeClassTest, FreeOne) {
+  Void* ptr = SmallAllocator().AllocSmall(SizeClass().SliceSize());
+  ASSERT_NE(ptr, nullptr);
+
+  FreeSmall(ptr);
+
+  EXPECT_THAT(ValidateHeap(), IsOk());
+  EXPECT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_P(SizeClassTest, FreeFullSlab) {
+  std::vector<Void*> ptrs;
+  ptrs.reserve(SizeClass().MaxSlicesPerSlab());
+  for (size_t i = 0; i < SizeClass().MaxSlicesPerSlab(); i++) {
+    Void* ptr = SmallAllocator().AllocSmall(SizeClass().SliceSize());
+    ASSERT_NE(ptr, nullptr);
+    ptrs.push_back(ptr);
+  }
+
+  for (size_t i = 0; i < SizeClass().MaxSlicesPerSlab(); i++) {
+    size_t idx = (11 * i + 23) % (SizeClass().MaxSlicesPerSlab());
+    FreeSmall(ptrs[idx]);
+    ASSERT_THAT(ValidateHeap(), IsOk());
+  }
+
+  EXPECT_THAT(ValidateEmpty(), IsOk());
+}
+
+TEST_P(SizeClassTest, AllocFreeAllocOne) {
+  Void* ptr = SmallAllocator().AllocSmall(SizeClass().SliceSize());
+  ASSERT_NE(ptr, nullptr);
+
+  FreeSmall(ptr);
+
+  EXPECT_EQ(SmallAllocator().AllocSmall(SizeClass().SliceSize()), ptr);
+
+  EXPECT_THAT(ValidateHeap(), IsOk());
+  EXPECT_EQ(TotalHeapsSize(), SizeClass().Pages() * kPageSize);
+}
+
+TEST_P(SizeClassTest, AllocFreeAllocFull) {
+  std::vector<Void*> ptrs;
+  ptrs.reserve(SizeClass().MaxSlicesPerSlab());
+  for (size_t i = 0; i < SizeClass().MaxSlicesPerSlab(); i++) {
+    Void* ptr = SmallAllocator().AllocSmall(SizeClass().SliceSize());
+    ASSERT_NE(ptr, nullptr);
+    ptrs.push_back(ptr);
+  }
+
+  std::vector<Void*> frees;
+  frees.reserve(SizeClass().MaxSlicesPerSlab() - 1);
+  // Don't free the whole slab to prevent it from being reallocated (potentially
+  // to a different location).
+  for (size_t i = 0; i < SizeClass().MaxSlicesPerSlab() - 1; i++) {
+    size_t idx = (11 * i + 23) % (SizeClass().MaxSlicesPerSlab());
+    frees.push_back(ptrs[idx]);
+    FreeSmall(ptrs[idx]);
+  }
+
+  std::vector<void*> ptrs2;
+  ptrs2.reserve(SizeClass().MaxSlicesPerSlab() - 1);
+  for (size_t i = 0; i < SizeClass().MaxSlicesPerSlab() - 1; i++) {
+    void* ptr = SmallAllocator().AllocSmall(SizeClass().SliceSize());
+    ASSERT_NE(ptr, nullptr);
+    ptrs2.push_back(ptr);
+  }
+
+  EXPECT_THAT(ptrs2, UnorderedElementsAreArray(frees));
+  EXPECT_EQ(TotalHeapsSize(), SizeClass().Pages() * kPageSize);
+}
+
+static const auto kAllSizeClasses =
+    testing::ValuesIn(std::ranges::iota_view{
+                          static_cast<uint32_t>(0),
+                          static_cast<uint32_t>(SizeClass::kNumSizeClasses) } |
+                      std::views::transform(SizeClass::FromOrdinal) |
+                      RangeToContainer<std::vector<SizeClass>>());
+
+INSTANTIATE_TEST_SUITE_P(SizeClassSuite, SizeClassTest, kAllSizeClasses,
+                         [](const testing::TestParamInfo<SizeClass>& info) {
+                           return absl::StrCat(info.param.SliceSize());
+                         });
 
 }  // namespace ckmalloc

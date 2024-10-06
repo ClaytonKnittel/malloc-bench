@@ -108,7 +108,10 @@ std::string HeapPrinter::PrintFree(const FreeSlab* slab) {
 
 std::string HeapPrinter::PrintSmall(const SmallSlab* slab) {
   std::string result = absl::StrFormat(
-      "Page %v: small %v %v%% full", slab->StartId() - HeapStartId(),
+      "Pages %v%v: small %v %v%% full", slab->StartId() - HeapStartId(),
+      slab->StartId() == slab->EndId()
+          ? ""
+          : absl::StrFormat(" - %v", slab->EndId() - HeapStartId()),
       slab->SizeClass(),
       100.F * slab->AllocatedSlices() /
           static_cast<float>(slab->SizeClass().MaxSlicesPerSlab()));

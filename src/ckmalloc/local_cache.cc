@@ -1,8 +1,6 @@
 #include "src/ckmalloc/local_cache.h"
 
-#include "src/ckmalloc/block.h"
 #include "src/ckmalloc/common.h"
-#include "src/ckmalloc/util.h"
 
 namespace ckmalloc {
 
@@ -14,40 +12,26 @@ void LocalCache::ClearLocalCaches() {
   instance_ = nullptr;
 }
 
-Void* LocalCache::TakeAlloc(size_t alloc_size) {
-  size_t idx = SizeIdx(alloc_size);
-  CachedAlloc* top = bins_[idx];
+Void* LocalCache::TakeAlloc(SizeClass size_class) {
+  CachedAlloc* top = bins_[size_class.Ordinal()];
   if (top == nullptr) {
     return nullptr;
   }
 
-  bins_[idx] = top->next;
+  bins_[size_class.Ordinal()] = top->next;
   total_allocs_--;
   return reinterpret_cast<Void*>(top);
 }
 
-void LocalCache::CacheAlloc(Void* ptr, size_t alloc_size) {
-  size_t idx = SizeIdx(alloc_size);
+void LocalCache::CacheAlloc(Void* ptr, SizeClass size_class) {
   CachedAlloc* alloc = reinterpret_cast<CachedAlloc*>(ptr);
-  alloc->next = bins_[idx];
-  bins_[idx] = alloc;
+  alloc->next = bins_[size_class.Ordinal()];
+  bins_[size_class.Ordinal()] = alloc;
   total_allocs_++;
 }
 
 bool LocalCache::ShouldFlush() const {
   return total_allocs_ >= kMaxCacheSize;
-}
-
-/* static */
-size_t LocalCache::SizeIdx(size_t alloc_size) {
-  CK_ASSERT_TRUE(CanHoldSize(alloc_size));
-  CK_ASSERT_TRUE(
-      alloc_size == kMinAlignment ||
-      (alloc_size <= kMaxSmallSize &&
-       IsAligned(alloc_size, kDefaultAlignment)) ||
-      (alloc_size > kMaxSmallSize &&
-       IsAligned(Block::kMetadataOverhead + alloc_size, kDefaultAlignment)));
-  return alloc_size / kDefaultAlignment + (alloc_size > kMaxSmallSize ? 1 : 0);
 }
 
 }  // namespace ckmalloc
