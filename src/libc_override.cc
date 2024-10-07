@@ -140,7 +140,7 @@ void operator delete[](void* p, const std::nothrow_t&) noexcept {
 }
 
 void* operator new(size_t size, std::align_val_t alignment) noexcept(false) {
-  void* res = bench::malloc(static_cast<size_t>(alignment), size);
+  void* res = bench::malloc(size, static_cast<size_t>(alignment));
   if (res == nullptr) {
     throw std::bad_alloc();
   }
@@ -148,7 +148,7 @@ void* operator new(size_t size, std::align_val_t alignment) noexcept(false) {
 }
 void* operator new(size_t size, std::align_val_t alignment,
                    const std::nothrow_t&) noexcept {
-  return bench::malloc(static_cast<size_t>(alignment), size);
+  return bench::malloc(size, static_cast<size_t>(alignment));
 }
 void operator delete(void* p, std::align_val_t alignment) noexcept {
   bench::free(p, /*size=*/0, static_cast<size_t>(alignment));
@@ -162,7 +162,7 @@ void operator delete(void* p, size_t size,
   bench::free(p, size, static_cast<size_t>(alignment));
 }
 void* operator new[](size_t size, std::align_val_t alignment) noexcept(false) {
-  void* res = bench::malloc(static_cast<size_t>(alignment), size);
+  void* res = bench::malloc(size, static_cast<size_t>(alignment));
   if (res == nullptr) {
     throw std::bad_alloc();
   }
@@ -170,7 +170,7 @@ void* operator new[](size_t size, std::align_val_t alignment) noexcept(false) {
 }
 void* operator new[](size_t size, std::align_val_t alignment,
                      const std::nothrow_t&) noexcept {
-  return bench::malloc(static_cast<size_t>(alignment), size);
+  return bench::malloc(size, static_cast<size_t>(alignment));
 }
 void operator delete[](void* p, std::align_val_t alignment) noexcept {
   bench::free(p, /*size=*/0, static_cast<size_t>(alignment));
