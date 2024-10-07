@@ -100,8 +100,17 @@ void* (*__MALLOC_HOOK_VOLATILE __memalign_hook)(size_t, size_t, const void*) =
 
 }  // extern "C"
 
+inline constexpr size_t size_for_cpp_new(size_t size) {
+  // The C++ spec requires new() operators to always
+  // return distinct non-null pointers.
+  //
+  // Generic `malloc` implementations may return NULL for zero-sized
+  // allocations, so to facilitate C++ `new` we request a small size.
+  return size == 0 ? 1 : size;
+}
+
 void* operator new(size_t size) noexcept(false) {
-  void* res = bench::malloc(size);
+  void* res = bench::malloc(size_for_cpp_new(size));
   if (res == nullptr) {
     throw std::bad_alloc();
   }
@@ -111,10 +120,10 @@ void operator delete(void* p) noexcept {
   bench::free(p);
 }
 void operator delete(void* p, size_t size) noexcept {
-  bench::free(p, size);
+  bench::free(p, size_for_cpp_new(size));
 }
 void* operator new[](size_t size) noexcept(false) {
-  void* res = bench::malloc(size);
+  void* res = bench::malloc(size_for_cpp_new(size));
   if (res == nullptr) {
     throw std::bad_alloc();
   }
@@ -124,13 +133,13 @@ void operator delete[](void* p) noexcept {
   bench::free(p);
 }
 void operator delete[](void* p, size_t size) noexcept {
-  bench::free(p, size);
+  bench::free(p, size_for_cpp_new(size));
 }
 void* operator new(size_t size, const std::nothrow_t&) noexcept {
-  return bench::malloc(size);
+  return bench::malloc(size_for_cpp_new(size));
 }
 void* operator new[](size_t size, const std::nothrow_t&) noexcept {
-  return bench::malloc(size);
+  return bench::malloc(size_for_cpp_new(size));
 }
 void operator delete(void* p, const std::nothrow_t&) noexcept {
   bench::free(p);
@@ -140,7 +149,8 @@ void operator delete[](void* p, const std::nothrow_t&) noexcept {
 }
 
 void* operator new(size_t size, std::align_val_t alignment) noexcept(false) {
-  void* res = bench::malloc(size, static_cast<size_t>(alignment));
+  void* res =
+      bench::malloc(size_for_cpp_new(size), static_cast<size_t>(alignment));
   if (res == nullptr) {
     throw std::bad_alloc();
   }
@@ -148,21 +158,22 @@ void* operator new(size_t size, std::align_val_t alignment) noexcept(false) {
 }
 void* operator new(size_t size, std::align_val_t alignment,
                    const std::nothrow_t&) noexcept {
-  return bench::malloc(size, static_cast<size_t>(alignment));
+  return bench::malloc(size_for_cpp_new(size), static_cast<size_t>(alignment));
 }
 void operator delete(void* p, std::align_val_t alignment) noexcept {
-  bench::free(p, /*size=*/0, static_cast<size_t>(alignment));
+  bench::free(p, size_for_cpp_new(0), static_cast<size_t>(alignment));
 }
 void operator delete(void* p, std::align_val_t alignment,
                      const std::nothrow_t&) noexcept {
-  bench::free(p, /*size=*/0, static_cast<size_t>(alignment));
+  bench::free(p, size_for_cpp_new(0), static_cast<size_t>(alignment));
 }
 void operator delete(void* p, size_t size,
                      std::align_val_t alignment) noexcept {
-  bench::free(p, size, static_cast<size_t>(alignment));
+  bench::free(p, size_for_cpp_new(size), static_cast<size_t>(alignment));
 }
 void* operator new[](size_t size, std::align_val_t alignment) noexcept(false) {
-  void* res = bench::malloc(size, static_cast<size_t>(alignment));
+  void* res =
+      bench::malloc(size_for_cpp_new(size), static_cast<size_t>(alignment));
   if (res == nullptr) {
     throw std::bad_alloc();
   }
@@ -170,18 +181,18 @@ void* operator new[](size_t size, std::align_val_t alignment) noexcept(false) {
 }
 void* operator new[](size_t size, std::align_val_t alignment,
                      const std::nothrow_t&) noexcept {
-  return bench::malloc(size, static_cast<size_t>(alignment));
+  return bench::malloc(size_for_cpp_new(size), static_cast<size_t>(alignment));
 }
 void operator delete[](void* p, std::align_val_t alignment) noexcept {
-  bench::free(p, /*size=*/0, static_cast<size_t>(alignment));
+  bench::free(p, size_for_cpp_new(0), static_cast<size_t>(alignment));
 }
 void operator delete[](void* p, std::align_val_t alignment,
                        const std::nothrow_t&) noexcept {
-  bench::free(p, /*size=*/0, static_cast<size_t>(alignment));
+  bench::free(p, size_for_cpp_new(0), static_cast<size_t>(alignment));
 }
 void operator delete[](void* p, size_t size,
                        std::align_val_t alignment) noexcept {
-  bench::free(p, size, static_cast<size_t>(alignment));
+  bench::free(p, size_for_cpp_new(size), static_cast<size_t>(alignment));
 }
 
 extern "C" {
