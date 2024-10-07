@@ -53,8 +53,8 @@ cc_library(
 
 cc_library(
     name = "allocator_interface",
-    hdrs = ["allocator_interface.h"],
     srcs = ["allocator_interface.cc"],
+    hdrs = ["allocator_interface.h"],
     deps = [
         ":heap_factory",
         ":heap_interface",
@@ -115,15 +115,6 @@ cc_library(
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings:str_format",
         "@cc-util//util:absl_util",
-    ],
-)
-
-cc_library(
-    name = "libc_override",
-    srcs = ["libc_override.cc"],
-    copts = ["-fexceptions"],
-    deps = [
-        ":allocator_interface",
     ],
 )
 

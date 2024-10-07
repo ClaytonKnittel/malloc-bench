@@ -32,7 +32,7 @@ class CorrectnessChecker : private TracefileExecutor {
 
   using Map = absl::btree_map<void*, AllocatedBlock>;
 
-  CorrectnessChecker(TracefileReader&& reader, HeapFactory& heap_factory);
+  CorrectnessChecker(TracefileReader& reader, HeapFactory& heap_factory);
 
   void InitializeHeap(HeapFactory& heap_factory) override;
   absl::StatusOr<void*> Malloc(size_t size,
