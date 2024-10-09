@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+<<<<<<< HEAD
 #include <new>
 #include <optional>
 
@@ -12,10 +13,21 @@
 #include "src/heap_factory.h"
 #include "src/rng.h"
 #include "src/tracefile_executor.h"
+=======
+#include <optional>
+
+#include "absl/container/btree_map.h"
+#include "absl/container/flat_hash_map.h"
+#include "absl/status/status.h"
+
+#include "src/rng.h"
+#include "src/singleton_heap.h"
+>>>>>>> d3b973fd6e938786ae4ec0560b204de2d3ba8e58
 #include "src/tracefile_reader.h"
 
 namespace bench {
 
+<<<<<<< HEAD
 class CorrectnessChecker : private TracefileExecutor {
  public:
   static constexpr char kFailedTestPrefix[] = "[Failed]";
@@ -24,6 +36,15 @@ class CorrectnessChecker : private TracefileExecutor {
 
   static absl::Status Check(TracefileReader& reader, HeapFactory& heap_factory,
                             bool verbose = false);
+=======
+class CorrectnessChecker {
+ public:
+  static constexpr const char* kFailedTestPrefix = "[Failed]";
+
+  static bool IsFailedTestStatus(const absl::Status& status);
+
+  static absl::Status Check(const std::string& tracefile, bool verbose = false);
+>>>>>>> d3b973fd6e938786ae4ec0560b204de2d3ba8e58
 
  private:
   struct AllocatedBlock {
@@ -32,6 +53,7 @@ class CorrectnessChecker : private TracefileExecutor {
   };
 
   using Map = absl::btree_map<void*, AllocatedBlock>;
+<<<<<<< HEAD
 
   CorrectnessChecker(TracefileReader&& reader, HeapFactory& heap_factory);
 
@@ -44,6 +66,21 @@ class CorrectnessChecker : private TracefileExecutor {
   absl::StatusOr<void*> Alloc(size_t nmemb, size_t size, bool is_calloc);
 
   absl::Status HandleNewAllocation(void* ptr, size_t size, bool is_calloc);
+=======
+  using IdMap = absl::flat_hash_map<void*, void*>;
+
+  explicit CorrectnessChecker(TracefileReader&& reader);
+
+  absl::Status Run();
+  absl::Status ProcessTracefile();
+
+  absl::Status Malloc(size_t nmemb, size_t size, void* id, bool is_calloc);
+  absl::Status Realloc(void* orig_id, size_t size, void* new_id);
+  absl::Status Free(void* id);
+
+  absl::Status HandleNewAllocation(void* id, void* ptr, size_t size,
+                                   bool is_calloc);
+>>>>>>> d3b973fd6e938786ae4ec0560b204de2d3ba8e58
 
   // Validates that a new block doesn't overlap with any existing block, and
   // that it satisfies alignment requirements.
@@ -56,12 +93,25 @@ class CorrectnessChecker : private TracefileExecutor {
   static absl::Status CheckMagicBytes(void* ptr, size_t size,
                                       uint64_t magic_bytes);
 
+<<<<<<< HEAD
   std::optional<typename Map::const_iterator> FindContainingBlock(
       void* ptr) const;
 
   HeapFactory* const heap_factory_;
 
   Map allocated_blocks_;
+=======
+  std::optional<Map::const_iterator> FindContainingBlock(void* ptr) const;
+
+  TracefileReader reader_;
+
+  SingletonHeap* heap_;
+
+  Map allocated_blocks_;
+  // A map from the pointer value ID from the trace to the actual pointer value
+  // allocated by the allocator.
+  IdMap id_map_;
+>>>>>>> d3b973fd6e938786ae4ec0560b204de2d3ba8e58
 
   util::Rng rng_;
 

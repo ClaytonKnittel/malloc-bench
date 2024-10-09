@@ -27,8 +27,11 @@ class Heap {
     heap.heap_end_ = nullptr;
   }
 
+<<<<<<< HEAD
   virtual ~Heap() = default;
 
+=======
+>>>>>>> d3b973fd6e938786ae4ec0560b204de2d3ba8e58
   // Increments the size of the heap by `increment` bytes. The heap starts off
   // empty and must be increased by calling `sbrk()` before anything can be
   // written to it.
@@ -60,10 +63,13 @@ class Heap {
            static_cast<uint8_t*>(heap_start_);
   }
 
+<<<<<<< HEAD
   size_t MaxSize() const {
     return max_size_;
   }
 
+=======
+>>>>>>> d3b973fd6e938786ae4ec0560b204de2d3ba8e58
  private:
   const size_t max_size_;
   void* heap_start_;

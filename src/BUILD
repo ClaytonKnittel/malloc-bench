@@ -6,8 +6,11 @@ cc_binary(
     ],
     deps = [
         ":correctness_checker",
+<<<<<<< HEAD
         ":heap_factory",
         ":mmap_heap_factory",
+=======
+>>>>>>> d3b973fd6e938786ae4ec0560b204de2d3ba8e58
         ":perftest",
         ":tracefile_reader",
         ":utiltest",
@@ -28,8 +31,14 @@ cc_library(
     ],
     deps = [
         ":allocator_interface",
+<<<<<<< HEAD
         ":heap_factory",
         ":tracefile_reader",
+=======
+        ":singleton_heap",
+        ":tracefile_reader",
+        "@abseil-cpp//absl/container:flat_hash_map",
+>>>>>>> d3b973fd6e938786ae4ec0560b204de2d3ba8e58
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/time",
         "@cc-util//util:absl_util",
@@ -45,6 +54,7 @@ cc_library(
     ],
     deps = [
         ":allocator_interface",
+<<<<<<< HEAD
         ":heap_factory",
         ":tracefile_reader",
         "@abseil-cpp//absl/flags:flag",
@@ -70,16 +80,32 @@ cc_binary(
         "@abseil-cpp//absl/time",
         "@abseil-cpp//absl/container:flat_hash_map",
     ],
+=======
+        ":singleton_heap",
+        ":tracefile_reader",
+        "@abseil-cpp//absl/container:flat_hash_map",
+        "@abseil-cpp//absl/status:statusor",
+        "@cc-util//util:absl_util",
+    ],
+>>>>>>> d3b973fd6e938786ae4ec0560b204de2d3ba8e58
 )
 
 cc_library(
     name = "allocator_interface",
+<<<<<<< HEAD
     srcs = ["allocator_interface.cc"],
     hdrs = ["allocator_interface.h"],
     deps = [
         ":heap_factory",
         ":heap_interface",
         ":mmap_heap",
+=======
+    hdrs = ["allocator_interface.h"],
+    deps = [
+        "//src/pkmalloc:allocated_block",
+        "//src/pkmalloc:free_block",
+        "//src/pkmalloc:free_list",
+>>>>>>> d3b973fd6e938786ae4ec0560b204de2d3ba8e58
     ],
 )
 
@@ -89,6 +115,7 @@ cc_library(
     hdrs = ["correctness_checker.h"],
     deps = [
         ":allocator_interface",
+<<<<<<< HEAD
         ":heap_factory",
         ":rng",
         ":tracefile_executor",
@@ -97,6 +124,14 @@ cc_library(
         "@abseil-cpp//absl/container:btree",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
+=======
+        ":rng",
+        ":singleton_heap",
+        ":tracefile_reader",
+        "@abseil-cpp//absl/container:btree",
+        "@abseil-cpp//absl/container:flat_hash_map",
+        "@abseil-cpp//absl/status",
+>>>>>>> d3b973fd6e938786ae4ec0560b204de2d3ba8e58
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",
         "@cc-util//util:absl_util",
@@ -111,10 +146,14 @@ cc_test(
     ],
     deps = [
         ":correctness_checker",
+<<<<<<< HEAD
         ":mmap_heap_factory",
         ":tracefile_reader",
         "@abseil-cpp//absl/status",
         "@cc-util//util:absl_util",
+=======
+        "@abseil-cpp//absl/status",
+>>>>>>> d3b973fd6e938786ae4ec0560b204de2d3ba8e58
         "@cc-util//util:gtest_util",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
@@ -122,6 +161,7 @@ cc_test(
 )
 
 cc_library(
+<<<<<<< HEAD
     name = "heap_factory",
     srcs = ["heap_factory.cc"],
     hdrs = ["heap_factory.h"],
@@ -163,6 +203,16 @@ cc_library(
         ":mmap_heap",
         "@abseil-cpp//absl/status:statusor",
         "@cc-util//util:absl_util",
+=======
+    name = "singleton_heap",
+    srcs = ["singleton_heap.cc"],
+    hdrs = ["singleton_heap.h"],
+    visibility = ["//src:__subpackages__"],
+    deps = [
+        ":heap_interface",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings:str_format",
+>>>>>>> d3b973fd6e938786ae4ec0560b204de2d3ba8e58
     ],
 )
 
@@ -176,6 +226,7 @@ cc_library(
 )
 
 cc_library(
+<<<<<<< HEAD
     name = "mmap_heap",
     srcs = ["mmap_heap.cc"],
     hdrs = ["mmap_heap.h"],
@@ -188,6 +239,8 @@ cc_library(
 )
 
 cc_library(
+=======
+>>>>>>> d3b973fd6e938786ae4ec0560b204de2d3ba8e58
     name = "sim_heap",
     hdrs = ["sim_heap.h"],
     visibility = ["//src:__subpackages__"],
@@ -196,6 +249,7 @@ cc_library(
     ],
 )
 
+<<<<<<< HEAD
 cc_binary(
     name = "tracefile_parser",
     srcs = ["tracefile_parser.cc"],
@@ -231,12 +285,17 @@ cc_library(
     ],
 )
 
+=======
+>>>>>>> d3b973fd6e938786ae4ec0560b204de2d3ba8e58
 cc_library(
     name = "tracefile_reader",
     srcs = ["tracefile_reader.cc"],
     hdrs = ["tracefile_reader.h"],
     deps = [
+<<<<<<< HEAD
         "//proto:tracefile_cc_proto",
+=======
+>>>>>>> d3b973fd6e938786ae4ec0560b204de2d3ba8e58
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
         "@cc-util//util:absl_util",

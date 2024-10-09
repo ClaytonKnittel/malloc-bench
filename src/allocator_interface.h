@@ -1,5 +1,6 @@
 #pragma once
 
+<<<<<<< HEAD
 #include <cstddef>
 #include <cstdlib>
 #include <cstring>
@@ -74,5 +75,22 @@ inline size_t get_size(void* ptr) {
 inline void free_hint(void* ptr, std::align_val_t size) {
   return ::operator delete(ptr, size);
 }
+=======
+#include <cassert>
+#include <cstddef>
+#include <cstring>
+
+namespace bench {
+
+void* initialize_heap();
+
+void* malloc(size_t size);
+
+void* calloc(size_t nmemb, size_t size);
+
+void* realloc(void* ptr, size_t size);
+
+void free(void* ptr);
+>>>>>>> d3b973fd6e938786ae4ec0560b204de2d3ba8e58
 
 }  // namespace bench

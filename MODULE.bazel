@@ -21,6 +21,13 @@ git_override(
     remote = "https://github.com/ClaytonKnittel/cc-util.git",
 )
 
+bazel_dep(name = "cc-util")
+git_override(
+    module_name = "cc-util",
+    commit = "bbd3f78ed7e1a441f6ae886667bd0316f541173f",
+    remote = "https://github.com/ClaytonKnittel/cc-util.git",
+)
+
 bazel_dep(name = "buildifier_prebuilt", version = "6.4.0", dev_dependency = True)
 
 bazel_dep(name = "abseil-cpp", version = "20240116.2")
