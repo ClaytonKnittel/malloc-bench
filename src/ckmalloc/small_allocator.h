@@ -76,7 +76,7 @@ Void* SmallAllocatorImpl<SlabMap, SlabManager>::AllocSmall(size_t user_size) {
   // TODO: Test this in main allocator test.
   uint64_t block_size = Block::BlockSizeForUserSize(user_size);
   if (block_size >= Block::kMinTrackedSize) {
-    TrackedBlock* block = freelist_->FindFree(block_size);
+    TrackedBlock* block = freelist_->FindFreeLazy(block_size);
     if (block != nullptr) {
       BlockedSlab* slab =
           slab_map_->FindSlab(PageId::FromPtr(block))->ToBlocked();

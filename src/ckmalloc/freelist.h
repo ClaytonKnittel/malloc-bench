@@ -24,6 +24,11 @@ class Freelist {
   // none is found, `nullptr` is returned.
   TrackedBlock* FindFree(uint64_t block_size);
 
+  // Searches the freelists for a block at least as large as `block_size`, but
+  // only checks one potentially non-empty exact-size bin. Does not check the
+  // red-black tree for blocks.
+  TrackedBlock* FindFreeLazy(uint64_t block_size);
+
   // Initializes an uninitialized block to free with given size, inserting it
   // into the given freelist if the size is large enough, and returning `block`
   // down-cast to `FreeBlock`.
