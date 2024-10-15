@@ -10,6 +10,7 @@ int main() {
            "traces/firefox.trace",
            "traces/four-in-a-row.trace",
            "traces/grep.trace",
+           "traces/gto.trace",
            "traces/haskell-web-server.trace",
            "traces/mc_server.trace",
            "traces/mc_server_large.trace",
