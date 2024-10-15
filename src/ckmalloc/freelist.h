@@ -20,13 +20,14 @@ class Freelist {
   friend class LargeAllocatorFixture;
 
  public:
-  // Checks the freelist for a block of exactly this size, returning it if one
-  // exists, or `nullptr` otherwise.
-  TrackedBlock* FindFreeExact(uint64_t block_size);
-
   // Searches the freelists for a block at least as large as `block_size`. If
   // none is found, `nullptr` is returned.
   TrackedBlock* FindFree(uint64_t block_size);
+
+  // Searches the freelists for a block at least as large as `block_size`, but
+  // only checks one potentially non-empty exact-size bin. Does not check the
+  // red-black tree for blocks.
+  TrackedBlock* FindFreeLazy(uint64_t block_size);
 
   // Initializes an uninitialized block to free with given size, inserting it
   // into the given freelist if the size is large enough, and returning `block`

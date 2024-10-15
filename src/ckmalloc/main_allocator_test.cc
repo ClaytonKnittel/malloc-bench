@@ -171,20 +171,20 @@ TEST_F(MainAllocatorTest, FreeTwoSmall) {
 }
 
 TEST_F(MainAllocatorTest, AllocLarge) {
-  MainAllocator().Alloc(500);
+  MainAllocator().Alloc(2000);
   EXPECT_NE(TotalHeapsSize(), 0);
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
 TEST_F(MainAllocatorTest, AllocVeryLarge) {
-  MainAllocator().Alloc(472);
+  MainAllocator().Alloc(2048);
   MainAllocator().Alloc(kPageSize + 1);
   EXPECT_EQ(TotalHeapsSize(), 3 * kPageSize);
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
 TEST_F(MainAllocatorTest, AllocManyLarge) {
-  for (uint64_t size = 400; size < 800; size += 20) {
+  for (uint64_t size = 2048; size < 3048; size += 20) {
     MainAllocator().Alloc(size);
   }
 
@@ -193,7 +193,7 @@ TEST_F(MainAllocatorTest, AllocManyLarge) {
 }
 
 TEST_F(MainAllocatorTest, FreeLarge) {
-  Void* ptr = MainAllocator().Alloc(500);
+  Void* ptr = MainAllocator().Alloc(3000);
   MainAllocator().Free(ptr);
 
   EXPECT_THAT(ValidateHeap(), IsOk());
@@ -202,8 +202,8 @@ TEST_F(MainAllocatorTest, FreeLarge) {
 }
 
 TEST_F(MainAllocatorTest, FreeTwoLarge) {
-  Void* ptr1 = MainAllocator().Alloc(500);
-  MainAllocator().Alloc(1000);
+  Void* ptr1 = MainAllocator().Alloc(1080);
+  MainAllocator().Alloc(1200);
   MainAllocator().Free(ptr1);
 
   EXPECT_THAT(ValidateHeap(), IsOk());
@@ -211,17 +211,18 @@ TEST_F(MainAllocatorTest, FreeTwoLarge) {
 }
 
 TEST_F(MainAllocatorTest, ReallocOnce) {
-  Void* ptr1 = MainAllocator().Alloc(500);
-  Void* ptr2 = MainAllocator().Realloc(ptr1, 1000);
+  Void* ptr1 = MainAllocator().Alloc(2000);
+  Void* ptr2 = MainAllocator().Realloc(ptr1, 3000);
 
   EXPECT_EQ(ptr1, ptr2);
   EXPECT_THAT(ValidateHeap(), IsOk());
+  EXPECT_EQ(TotalHeapsSize(), kPageSize);
   EXPECT_EQ(FreelistSize(), 1);
 }
 
 TEST_F(MainAllocatorTest, ReallocSmaller) {
-  Void* ptr1 = MainAllocator().Alloc(500);
-  Void* ptr2 = MainAllocator().Realloc(ptr1, 260);
+  Void* ptr1 = MainAllocator().Alloc(2000);
+  Void* ptr2 = MainAllocator().Realloc(ptr1, 1050);
 
   EXPECT_EQ(ptr1, ptr2);
   EXPECT_THAT(ValidateHeap(), IsOk());
@@ -229,9 +230,9 @@ TEST_F(MainAllocatorTest, ReallocSmaller) {
 }
 
 TEST_F(MainAllocatorTest, ReallocMove) {
-  Void* ptr1 = MainAllocator().Alloc(500);
-  MainAllocator().Alloc(280);
-  Void* ptr2 = MainAllocator().Realloc(ptr1, 550);
+  Void* ptr1 = MainAllocator().Alloc(2000);
+  MainAllocator().Alloc(2000);
+  Void* ptr2 = MainAllocator().Realloc(ptr1, 2050);
 
   EXPECT_NE(ptr1, ptr2);
   EXPECT_THAT(ValidateHeap(), IsOk());

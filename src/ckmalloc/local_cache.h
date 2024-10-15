@@ -1,16 +1,12 @@
 #pragma once
 
-#include <cstddef>
 #include <cstdint>
 
 #include "src/ckmalloc/common.h"
+#include "src/ckmalloc/size_class.h"
 #include "src/ckmalloc/util.h"
 
 namespace ckmalloc {
-
-inline constexpr size_t ComputeSizeIdx(size_t alloc_size) {
-  return alloc_size / kDefaultAlignment + (alloc_size > kMaxSmallSize ? 1 : 0);
-}
 
 class LocalCache {
   friend class TraceReplayer;
@@ -25,11 +21,11 @@ class LocalCache {
 
   // Takes and returns an allocation of the given size from the cache, if one
   // exists, otherwise returning `nullptr`.
-  Void* TakeAlloc(size_t alloc_size);
+  Void* TakeAlloc(SizeClass size_class);
 
   // Caches an allocation with user-allocatable memory beginning at `ptr` of the
   // given size `alloc_size`.
-  void CacheAlloc(Void* ptr, size_t alloc_size);
+  void CacheAlloc(Void* ptr, SizeClass size_class);
 
   // If true, the cache recommends flushing before the next allocation to avoid
   // excessive memory fragmentation.
@@ -39,7 +35,7 @@ class LocalCache {
   void Flush(MainAllocator& main_allocator);
 
   static bool CanHoldSize(size_t alloc_size) {
-    return alloc_size <= kMaxCachedAllocSize;
+    return alloc_size <= kMaxSmallSize;
   }
 
  private:
@@ -54,13 +50,6 @@ class LocalCache {
   static_assert(sizeof(CachedAlloc) <= kMinAlignment,
                 "CachedAlloc is larger than the smallest possible allocation");
 
-  // Returns the index into the bins list of an allocation of the given size.
-  static size_t SizeIdx(size_t alloc_size);
-
-  static constexpr size_t kMaxCachedAllocSize = 128;
-  static constexpr size_t kNumCacheBins =
-      ComputeSizeIdx(kMaxCachedAllocSize) + 1;
-
   // Once the cache exceeds this size, it is flushed after the next allocation.
   static constexpr uint32_t kMaxCacheSize = 128;
 
@@ -69,7 +58,7 @@ class LocalCache {
   // The bins are singly-linked lists of allocations ready to hand out (i.e. the
   // main allocator views them as allocated) of a particular size.
   // TODO: Try a skiplist here too for clearing?
-  CachedAlloc* bins_[kNumCacheBins] = {};
+  CachedAlloc* bins_[SizeClass::kNumSizeClasses] = {};
 
   // The count of allocs held in the cache.
   uint32_t total_allocs_ = 0;

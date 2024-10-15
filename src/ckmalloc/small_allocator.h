@@ -76,14 +76,12 @@ Void* SmallAllocatorImpl<SlabMap, SlabManager>::AllocSmall(size_t user_size) {
   // TODO: Test this in main allocator test.
   uint64_t block_size = Block::BlockSizeForUserSize(user_size);
   if (block_size >= Block::kMinTrackedSize) {
-    TrackedBlock* block = freelist_->FindFreeExact(block_size);
+    TrackedBlock* block = freelist_->FindFreeLazy(block_size);
     if (block != nullptr) {
       BlockedSlab* slab =
           slab_map_->FindSlab(PageId::FromPtr(block))->ToBlocked();
-      slab->AddAllocation(Block::BlockSizeForUserSize(user_size));
-      CK_ASSERT_EQ(block->Size(), block_size);
       auto [allocated, free] = freelist_->Split(block, block_size);
-      CK_ASSERT_EQ(free, nullptr);
+      slab->AddAllocation(allocated->Size());
       return allocated->UserDataPtr();
     }
   }
@@ -161,8 +159,9 @@ std::optional<AllocatedSlice*>
 SmallAllocatorImpl<SlabMap, SlabManager>::TakeSliceFromNewSlab(
     SizeClass size_class) {
   using AllocRes = std::pair<PageId, SmallSlab*>;
-  DEFINE_OR_RETURN_OPT(AllocRes, result,
-                       slab_manager_->template Alloc<SmallSlab>(1, size_class));
+  DEFINE_OR_RETURN_OPT(
+      AllocRes, result,
+      slab_manager_->template Alloc<SmallSlab>(size_class.Pages(), size_class));
   auto [page_id, slab] = result;
 
   CK_ASSERT_EQ(FreelistHead(size_class), PageId::Nil());
@@ -175,9 +174,9 @@ void SmallAllocatorImpl<SlabMap, SlabManager>::ReturnSlice(
     SmallSlab* slab, AllocatedSlice* slice) {
   void* slab_start = slab->StartId().PageStart();
   CK_ASSERT_GE(slice, slab_start);
-  CK_ASSERT_LE(
-      slice, PtrAdd<AllocatedSlice>(slab_start,
-                                    kPageSize - slab->SizeClass().SliceSize()));
+  CK_ASSERT_LE(slice, PtrAdd<AllocatedSlice>(
+                          slab_start, slab->SizeClass().Pages() * kPageSize -
+                                          slab->SizeClass().SliceSize()));
 
   slab->PushSlice(slab->StartId().PageStart(), slice);
   if (slab->Empty()) {

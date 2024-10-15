@@ -150,19 +150,23 @@ TEST_F(LargeAllocatorTest, FreeBlock) {
 
 TEST_F(LargeAllocatorTest, UntrackedBlock) {
   constexpr size_t kBlockSize = 0x40;
-  Block block;
+  struct {
+    UntrackedBlock free_block;
+    uint8_t data[kBlockSize + Block::kMetadataOverhead];
+  } data;
+  Block* block = &data.free_block;
 
-  Freelist().InitFree(&block, kBlockSize);
-  EXPECT_TRUE(block.Free());
-  EXPECT_EQ(block.Size(), kBlockSize);
-  EXPECT_FALSE(PrevFree(&block));
+  Freelist().InitFree(block, kBlockSize);
+  EXPECT_TRUE(block->Free());
+  EXPECT_EQ(block->Size(), kBlockSize);
+  EXPECT_FALSE(PrevFree(block));
 
-  EXPECT_EQ(PtrDistance(block.NextAdjacentBlock(), &block), kBlockSize);
+  EXPECT_EQ(PtrDistance(block->NextAdjacentBlock(), block), kBlockSize);
 
-  EXPECT_TRUE(block.IsUntracked());
+  EXPECT_TRUE(block->IsUntracked());
 
   // This should not cause assertion failure.
-  block.ToUntracked();
+  block->ToUntracked();
 
   // Untracked blocks do not go in the freelist.
   EXPECT_THAT(FreelistList(), ElementsAre());
@@ -390,23 +394,25 @@ TEST_F(LargeAllocatorTest, FreeWithFreeNextAndPrev) {
 }
 
 TEST_F(LargeAllocatorTest, FreeWithUntrackedNeighbors) {
-  GTEST_SKIP() << "Skipping since untracked blocks will soon not exist.";
-
-  constexpr uint64_t kPrevSize = 0x30;
+  constexpr uint64_t kPrevSize = 0x180;
   constexpr uint64_t kBlockSize = 0x510;
-  constexpr uint64_t kNextSize = 0x80;
 
   AllocatedBlock* b1 = Alloc(kPrevSize);
   AllocatedBlock* b2 = Alloc(kBlockSize);
-  Alloc(kNextSize);
-  Alloc(0x200);
-  EXPECT_THAT(FreelistList(), ElementsAre());
+  AllocatedBlock* b3 = Alloc(0x200);
+  AllocatedBlock* b4 = Realloc(b1, kPrevSize - 0x30);
+  ASSERT_EQ(b1, b4);
+  AllocatedBlock* b5 = Realloc(b2, kBlockSize - 0x80);
+  ASSERT_EQ(b2, b5);
+  EXPECT_THAT(FreelistList(), ElementsAre(b3->NextAdjacentBlock()));
 
   Free(b2);
-  EXPECT_EQ(b1->Size(), kPrevSize + kBlockSize + kNextSize);
+  Block* freed_block = PtrSub<Block>(b2, 0x30);
+  EXPECT_EQ(freed_block->Size(), 0x30 + kBlockSize);
 
-  ASSERT_TRUE(static_cast<Block*>(b1)->Free());
-  EXPECT_THAT(FreelistList(), ElementsAre(b1->ToFree()));
+  ASSERT_TRUE(static_cast<Block*>(freed_block)->Free());
+  EXPECT_THAT(FreelistList(), UnorderedElementsAre(freed_block->ToFree(),
+                                                   b3->NextAdjacentBlock()));
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 

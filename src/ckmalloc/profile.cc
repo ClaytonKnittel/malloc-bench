@@ -57,9 +57,19 @@ int main() {
   absl::c_sort(
       szs, [](const auto& a, const auto& b) { return a.second > b.second; });
 
-  for (uint64_t i = 0; i < 10; i++) {
-    std::cout << szs[i].first << " : " << szs[i].second << std::endl;
+  // for (uint64_t i = 0; i < 10; i++) {
+  //   std::cout << szs[i].first << " : " << szs[i].second << std::endl;
+  // }
+
+  std::cout << "{";
+  for (uint64_t i = 0; i <= 1024; i += 16) {
+    uint64_t sz = i == 0 ? 8 : i;
+    if (i != 0) {
+      std::cout << ",";
+    }
+    std::cout << "{" << sz << "," << sizes[sz] << "}";
   }
+  std::cout << "}" << std::endl;
 
   return 0;
 }

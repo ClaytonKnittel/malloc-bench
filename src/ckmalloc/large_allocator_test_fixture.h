@@ -1,12 +1,15 @@
 #pragma once
 
+#include <iterator>
 #include <memory>
+#include <vector>
 
 #include "absl/status/status.h"
 
 #include "src/ckmalloc/block.h"
 #include "src/ckmalloc/freelist.h"
 #include "src/ckmalloc/large_allocator.h"
+#include "src/ckmalloc/linked_list.h"
 #include "src/ckmalloc/slab_manager_test_fixture.h"
 #include "src/ckmalloc/testlib.h"
 

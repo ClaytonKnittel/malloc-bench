@@ -30,8 +30,8 @@ void* CkMalloc::Malloc(size_t size, size_t alignment) {
 
   LocalCache* cache = LocalCache::Instance<GlobalMetadataAlloc>();
   if (LocalCache::CanHoldSize(size)) {
-    size_t alloc_size = SizeClass::FromUserDataSize(size).SliceSize();
-    void* cached_alloc = cache->TakeAlloc(alloc_size);
+    SizeClass size_class = SizeClass::FromUserDataSize(size);
+    void* cached_alloc = cache->TakeAlloc(size_class);
     if (cached_alloc != nullptr) {
       return cached_alloc;
     }
@@ -75,7 +75,7 @@ void CkMalloc::Free(void* ptr, size_t size_hint, size_t alignment_hint) {
   SizeClass size_class = main_allocator->AllocSizeClass(p);
   if (size_class != SizeClass::Nil() &&
       LocalCache::CanHoldSize(size_class.SliceSize())) {
-    cache->CacheAlloc(p, size_class.SliceSize());
+    cache->CacheAlloc(p, size_class);
   } else {
     main_allocator->Free(p);
   }

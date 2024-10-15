@@ -1,7 +1,9 @@
 #pragma once
 
 #include <cinttypes>
+#include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <ostream>
 
 #include "absl/strings/str_format.h"
@@ -17,128 +19,173 @@ std::ostream& operator<<(std::ostream& ostr, ckmalloc::SizeClass size_class);
 // array of equally-sized slices of memory for individual allocation.
 class SizeClass {
  public:
-  // The number of size classes is the count of 16-byte multiples up to
-  // `kMaxSmallSize`, plus 1 for 8-byte slices.
-  static constexpr size_t kNumSizeClasses =
+  static constexpr size_t kNumSizeClasses = 26;
+
+  static constexpr size_t kNumSizeClassLookupIdx =
       kMaxSmallSize / kDefaultAlignment + 1;
 
-  constexpr SizeClass() : size_class_(0) {}
+  struct SizeClassInfo {
+    // The maximum allocation size that fits in allocations for this size class.
+    uint16_t max_size;
+
+    // The number of pages that slabs of this size class span.
+    uint8_t pages;
+
+    // The number of allocations that fit in a single slab holding allocations
+    // of this size class.
+    uint16_t slices_per_slab;
+  };
+  static const std::array<SizeClassInfo, SizeClass::kNumSizeClasses>
+      kSizeClassInfo;
+
+  constexpr SizeClass() = default;
 
   static constexpr SizeClass Nil() {
     return SizeClass();
   }
 
-  static constexpr SizeClass FromOrdinal(size_t ord) {
+  static SizeClass FromOrdinal(size_t ord) {
     CK_ASSERT_LT(ord, kNumSizeClasses);
-    return FromSliceSize(
-        std::max<uint64_t>(ord * kDefaultAlignment, kMinAlignment));
+    return SizeClass(ord);
   }
 
-  static constexpr SizeClass FromUserDataSize(size_t user_size) {
+  static SizeClass FromUserDataSize(size_t user_size) {
     CK_ASSERT_LE(user_size, kMaxSmallSize);
     CK_ASSERT_NE(user_size, 0);
-    return FromSliceSize(user_size <= kMinAlignment
-                             ? kMinAlignment
-                             : AlignUp(user_size, kDefaultAlignment));
+    size_t idx = OrdinalMapIdx(user_size);
+    return SizeClass(kOrdinalMap[idx]);
   }
 
-  static constexpr SizeClass FromSliceSize(uint64_t slice_size) {
+  static SizeClass FromSliceSize(uint64_t slice_size) {
     CK_ASSERT_LE(slice_size, kMaxSmallSize);
     CK_ASSERT_NE(slice_size, 0);
     CK_ASSERT_TRUE(slice_size == kMinAlignment ||
                    slice_size % kDefaultAlignment == 0);
 
-    return SizeClass(static_cast<uint32_t>(slice_size));
+    return FromUserDataSize(slice_size);
   }
 
-  constexpr bool operator==(SizeClass other) const {
-    return size_class_ == other.size_class_;
+  bool operator==(SizeClass other) const {
+    return ordinal_ == other.ordinal_;
   }
-  constexpr bool operator!=(SizeClass other) const {
+  bool operator!=(SizeClass other) const {
     return !(*this == other);
   }
 
   // Returns the size of slices represented by this size class.
-  constexpr uint64_t SliceSize() const {
+  uint64_t SliceSize() const {
     CK_ASSERT_NE(*this, Nil());
-    return static_cast<uint64_t>(size_class_ * kSizeClassDivisor);
+    return kSizeClassInfo[Ordinal()].max_size;
   }
 
   // Returns a number 0 - `kNumSizeClasses`-1,
-  constexpr size_t Ordinal() const {
+  size_t Ordinal() const {
     CK_ASSERT_NE(*this, Nil());
-    return size_class_ / (kDefaultAlignment / kSizeClassDivisor);
+    return ordinal_;
+  }
+
+  uint32_t Pages() const {
+    CK_ASSERT_NE(*this, Nil());
+    return kSizeClassInfo[Ordinal()].pages;
   }
 
   // The number of slices that can fit into a small slab of this size class.
-  constexpr uint32_t MaxSlicesPerSlab() const {
-    // If the number of size classes grows, the compiler will not complain that
-    // we have not specified every entry of `kSliceMap`. This static assert is
-    // to make sure the map is updated if the number of size classes changes.
-    static_assert(kNumSizeClasses == 17);
-    constexpr uint32_t kSliceMap[kNumSizeClasses] = {
-      kPageSize / 8,   kPageSize / 16,  kPageSize / 32,  kPageSize / 48,
-      kPageSize / 64,  kPageSize / 80,  kPageSize / 96,  kPageSize / 112,
-      kPageSize / 128, kPageSize / 144, kPageSize / 160, kPageSize / 176,
-      kPageSize / 192, kPageSize / 208, kPageSize / 224, kPageSize / 240,
-      kPageSize / 256,
-    };
-
-    return kSliceMap[Ordinal()];
+  uint32_t MaxSlicesPerSlab() const {
+    CK_ASSERT_NE(*this, Nil());
+    return kSizeClassInfo[Ordinal()].slices_per_slab;
   }
 
   // TODO check if this is the fastest way to do this.
-  constexpr uint32_t OffsetToIdx(uint64_t offset_bytes) const {
-    static_assert(kNumSizeClasses == 17);
+  uint32_t OffsetToIdx(uint64_t offset_bytes) const {
+    static_assert(kNumSizeClasses == 26);
+    CK_ASSERT_LT(offset_bytes, Pages() * kPageSize);
     switch (Ordinal()) {
+      // NOLINTNEXTLINE(bugprone-branch-clone)
       case 0:
-        return static_cast<uint32_t>(offset_bytes / 8);
+        return static_cast<uint32_t>(offset_bytes / SliceSize());
       case 1:
-        return static_cast<uint32_t>(offset_bytes / 16);
+        return static_cast<uint32_t>(offset_bytes / SliceSize());
       case 2:
-        return static_cast<uint32_t>(offset_bytes / 32);
+        return static_cast<uint32_t>(offset_bytes / SliceSize());
       case 3:
-        return static_cast<uint32_t>(offset_bytes / 48);
+        return static_cast<uint32_t>(offset_bytes / SliceSize());
       case 4:
-        return static_cast<uint32_t>(offset_bytes / 64);
+        return static_cast<uint32_t>(offset_bytes / SliceSize());
       case 5:
-        return static_cast<uint32_t>(offset_bytes / 80);
+        return static_cast<uint32_t>(offset_bytes / SliceSize());
       case 6:
-        return static_cast<uint32_t>(offset_bytes / 96);
+        return static_cast<uint32_t>(offset_bytes / SliceSize());
       case 7:
-        return static_cast<uint32_t>(offset_bytes / 112);
+        return static_cast<uint32_t>(offset_bytes / SliceSize());
       case 8:
-        return static_cast<uint32_t>(offset_bytes / 128);
+        return static_cast<uint32_t>(offset_bytes / SliceSize());
       case 9:
-        return static_cast<uint32_t>(offset_bytes / 144);
+        return static_cast<uint32_t>(offset_bytes / SliceSize());
       case 10:
-        return static_cast<uint32_t>(offset_bytes / 160);
+        return static_cast<uint32_t>(offset_bytes / SliceSize());
       case 11:
-        return static_cast<uint32_t>(offset_bytes / 176);
+        return static_cast<uint32_t>(offset_bytes / SliceSize());
       case 12:
-        return static_cast<uint32_t>(offset_bytes / 192);
+        return static_cast<uint32_t>(offset_bytes / SliceSize());
       case 13:
-        return static_cast<uint32_t>(offset_bytes / 208);
+        return static_cast<uint32_t>(offset_bytes / SliceSize());
       case 14:
-        return static_cast<uint32_t>(offset_bytes / 224);
+        return static_cast<uint32_t>(offset_bytes / SliceSize());
       case 15:
-        return static_cast<uint32_t>(offset_bytes / 240);
+        return static_cast<uint32_t>(offset_bytes / SliceSize());
       case 16:
-        return static_cast<uint32_t>(offset_bytes / 256);
+        return static_cast<uint32_t>(offset_bytes / SliceSize());
+      case 17:
+        return static_cast<uint32_t>(offset_bytes / SliceSize());
+      case 18:
+        return static_cast<uint32_t>(offset_bytes / SliceSize());
+      case 19:
+        return static_cast<uint32_t>(offset_bytes / SliceSize());
+      case 20:
+        return static_cast<uint32_t>(offset_bytes / SliceSize());
+      case 21:
+        return static_cast<uint32_t>(offset_bytes / SliceSize());
+      case 22:
+        return static_cast<uint32_t>(offset_bytes / SliceSize());
+      case 23:
+        return static_cast<uint32_t>(offset_bytes / SliceSize());
+      case 24:
+        return static_cast<uint32_t>(offset_bytes / SliceSize());
+      case 25:
+        return static_cast<uint32_t>(offset_bytes / SliceSize());
       default:
         CK_UNREACHABLE();
     }
   }
 
+  // Given a user size, returns the index into the ordinal map. This is called
+  // on every allocation.
+  //
+  // TODO: See if it's better to do CeilDiv(user_size, 8) and have ordinal map
+  // be 2x larger.
+  static constexpr size_t OrdinalMapIdx(size_t user_size) {
+    if (user_size <= 8) {
+      return 0;
+    }
+    return CeilDiv(user_size, kDefaultAlignment);
+  }
+
  private:
-  explicit constexpr SizeClass(uint32_t size_class)
-      : size_class_(static_cast<uint8_t>(size_class / kSizeClassDivisor)) {}
+  static constexpr uint8_t kNilOrdinal = std::numeric_limits<uint8_t>::max();
 
-  static constexpr uint64_t kSizeClassDivisor = kMinAlignment;
+  // A map from a quickly-computed index (from `OrdinalMapIdx()`) derived from a
+  // user allocation request size to the corresponding size class that holds
+  // allocations of that size.
+  static const std::array<SizeClass, SizeClass::kNumSizeClassLookupIdx>
+      kOrdinalMap;
 
-  // The size in bytes of slices / `kSizeClassDivisor` for this size class.
-  uint8_t size_class_;
+  explicit SizeClass(uint8_t ord) : ordinal_(ord) {}
+
+  uint8_t ordinal_ = kNilOrdinal;
 };
+
+static_assert(SizeClass::OrdinalMapIdx(kMaxSmallSize) + 1 ==
+              SizeClass::kNumSizeClassLookupIdx);
 
 template <typename Sink>
 void AbslStringify(Sink& sink, ckmalloc::SizeClass size_class) {
