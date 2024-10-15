@@ -11,11 +11,16 @@
 
 namespace bench {
 
+struct TracefileExecutorOptions {
+  uint32_t n_threads = 1;
+};
+
 class TracefileExecutor {
  public:
   TracefileExecutor(TracefileReader& reader, HeapFactory& heap_factory);
 
-  absl::Status Run();
+  absl::Status Run(
+      TracefileExecutorOptions options = TracefileExecutorOptions());
 
   virtual void InitializeHeap(HeapFactory& heap_factory) = 0;
   virtual absl::StatusOr<void*> Malloc(size_t size,

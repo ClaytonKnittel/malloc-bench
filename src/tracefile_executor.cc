@@ -15,7 +15,7 @@ TracefileExecutor::TracefileExecutor(TracefileReader& reader,
                                      HeapFactory& heap_factory)
     : reader_(reader), heap_factory_(&heap_factory) {}
 
-absl::Status TracefileExecutor::Run() {
+absl::Status TracefileExecutor::Run(TracefileExecutorOptions options) {
   InitializeHeap(*heap_factory_);
   return ProcessTracefile();
 }
