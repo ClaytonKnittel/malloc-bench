@@ -19,6 +19,8 @@ class TracefileExecutor {
  public:
   TracefileExecutor(TracefileReader& reader, HeapFactory& heap_factory);
 
+  // hi i am a coder woww i am going to hack into your compouter now with mty
+  // computer skills hohohohoho
   absl::Status Run(
       TracefileExecutorOptions options = TracefileExecutorOptions());
 
