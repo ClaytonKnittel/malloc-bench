@@ -22,14 +22,20 @@ void CkMalloc::InitializeHeap() {
   Initialize();
 }
 
+// TODO make separate AlignedAlloc to avoid alignment logic in all allocations.
 void* CkMalloc::Malloc(size_t size, size_t alignment) {
-  (void) alignment;
+  CK_ASSERT_EQ((alignment & (alignment - 1)), 0);
   if (size == 0) {
     return nullptr;
   }
 
   LocalCache* cache = LocalCache::Instance<GlobalMetadataAlloc>();
-  if (LocalCache::CanHoldSize(size)) {
+  if (IsSmallSize(size) && IsSmallSize(alignment)) {
+    // TODO: Dedup this logic
+    if (alignment != 0) {
+      size = AlignUp(size, alignment);
+    }
+
     SizeClass size_class = SizeClass::FromUserDataSize(size);
     void* cached_alloc = cache->TakeAlloc(size_class);
     if (cached_alloc != nullptr) {
@@ -41,7 +47,11 @@ void* CkMalloc::Malloc(size_t size, size_t alignment) {
     cache->Flush(*global_state_.MainAllocator());
   }
 
-  return global_state_.MainAllocator()->Alloc(size);
+  if (alignment != 0) {
+    return global_state_.MainAllocator()->AlignedAlloc(size, alignment);
+  } else {
+    return global_state_.MainAllocator()->Alloc(size);
+  }
 }
 
 void* CkMalloc::Calloc(size_t nmemb, size_t size) {

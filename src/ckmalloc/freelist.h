@@ -24,10 +24,18 @@ class Freelist {
   // none is found, `nullptr` is returned.
   TrackedBlock* FindFree(uint64_t block_size);
 
+  // Like FindFree, but returns a block that can fit an aligned allocation of
+  // size `block_size`.
+  TrackedBlock* FindFreeAligned(uint64_t block_size, uint64_t alignment);
+
   // Searches the freelists for a block at least as large as `block_size`, but
   // only checks one potentially non-empty exact-size bin. Does not check the
   // red-black tree for blocks.
   TrackedBlock* FindFreeLazy(uint64_t block_size);
+
+  // Like FindFreeLazy, but returns a block that can fit an aligned allocation
+  // of size `block_size`.
+  TrackedBlock* FindFreeLazyAligned(uint64_t block_size, uint64_t alignment);
 
   // Initializes an uninitialized block to free with given size, inserting it
   // into the given freelist if the size is large enough, and returning `block`
