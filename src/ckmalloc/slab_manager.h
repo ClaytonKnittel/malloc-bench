@@ -145,6 +145,7 @@ SlabManagerImpl<MetadataAlloc, SlabMap>::Alloc(uint32_t n_pages, Args... args) {
   static_assert(kHasMetadata<S>,
                 "You may only directly allocate non-metadata slabs.");
   using AllocResult = std::pair<PageId, Slab*>;
+  CK_ASSERT_NE(n_pages, 0);
   CK_ASSERT_LE(n_pages, PagesPerHeap());
 
   DEFINE_OR_RETURN_OPT(AllocResult, result, Alloc(n_pages));
@@ -448,7 +449,7 @@ SlabManagerImpl<MetadataAlloc, SlabMap>::AllocEndWithSbrk(uint32_t n_pages) {
 
     // First, we need to extend this heap to the maximum size, since we don't
     // want to "waste" any already-mmapped memory.
-    if (!ExtendHeap(new_memory_id, remaining_pages)) {
+    if (remaining_pages != 0 && !ExtendHeap(new_memory_id, remaining_pages)) {
       if (last_free_slab != nullptr) {
         FreeRegion(last_free_slab, last_free_slab->StartId(),
                    last_free_slab->Pages());

@@ -239,6 +239,7 @@ MappedSlab* SlabMapImpl<MetadataAlloc>::FindSlab(PageId page_id) const {
 
 template <MetadataAllocInterface MetadataAlloc>
 bool SlabMapImpl<MetadataAlloc>::AllocatePath(PageId start_id, PageId end_id) {
+  CK_ASSERT_LE(start_id, end_id);
   // TODO: Do this with iterators.
   const auto root_idxs = std::make_pair(RootIdx(start_id), RootIdx(end_id));
   const auto middle_idxs =
@@ -297,6 +298,7 @@ bool SlabMapImpl<MetadataAlloc>::AllocatePath(PageId start_id, PageId end_id) {
 template <MetadataAllocInterface MetadataAlloc>
 void SlabMapImpl<MetadataAlloc>::DeallocatePath(PageId start_id,
                                                 PageId end_id) {
+  CK_ASSERT_LE(start_id, end_id);
   const auto root_idxs = std::make_pair(RootIdx(start_id), RootIdx(end_id));
   const auto middle_idxs =
       std::make_pair(MiddleIdx(start_id), MiddleIdx(end_id));
@@ -365,6 +367,7 @@ template <MetadataAllocInterface MetadataAlloc>
 void SlabMapImpl<MetadataAlloc>::InsertRange(
     PageId start_id, PageId end_id, MappedSlab* slab,
     std::optional<SizeClass> size_class) {
+  CK_ASSERT_LE(start_id, end_id);
   const auto root_idxs = std::make_pair(RootIdx(start_id), RootIdx(end_id));
   const auto middle_idxs =
       std::make_pair(MiddleIdx(start_id), MiddleIdx(end_id));
