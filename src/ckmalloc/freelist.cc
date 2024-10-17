@@ -11,6 +11,14 @@
 
 namespace ckmalloc {
 
+namespace {
+
+bool CanFitAlignedAlloc(Block* block, uint64_t block_size, uint64_t alignment) {
+  return true;
+}
+
+}  // namespace
+
 TrackedBlock* Freelist::FindFree(uint64_t block_size) {
   CK_ASSERT_TRUE(IsAligned(block_size, kDefaultAlignment));
 
@@ -36,6 +44,33 @@ TrackedBlock* Freelist::FindFree(uint64_t block_size) {
       });
 }
 
+TrackedBlock* Freelist::FindFreeAligned(uint64_t block_size,
+                                        uint64_t alignment) {
+  // If the required block size is small enough for the exact-size bins, check
+  // those first in order of size, starting from `block_size`.
+  if (block_size <= Block::kMaxExactSizeBlock) {
+    for (auto it = exact_bin_skiplist_.begin(/*from=*/ExactSizeIdx(block_size));
+         it != exact_bin_skiplist_.end(); ++it) {
+      LinkedList<ExactSizeBlock>& bin = exact_size_bins_[*it];
+      for (ExactSizeBlock& block : bin) {
+        if (CanFitAlignedAlloc(&block, block_size, alignment)) {
+          return &block;
+        }
+      }
+    }
+  }
+
+  TreeBlock* block =
+      large_blocks_tree_.LowerBound([block_size](const TreeBlock& tree_block) {
+        return tree_block.Size() >= block_size;
+      });
+  for (; block != nullptr && CanFitAlignedAlloc(block, block_size, alignment);
+       block = large_blocks_tree_.Next(block))
+    ;
+
+  return block;
+}
+
 TrackedBlock* Freelist::FindFreeLazy(uint64_t block_size) {
   CK_ASSERT_TRUE(IsAligned(block_size, kDefaultAlignment));
 
@@ -49,6 +84,12 @@ TrackedBlock* Freelist::FindFreeLazy(uint64_t block_size) {
   }
 
   return nullptr;
+}
+
+TrackedBlock* Freelist::FindFreeLazyAligned(uint64_t block_size,
+                                            uint64_t alignment) {
+  TrackedBlock* block = FindFreeLazy(block_size);
+  return CanFitAlignedAlloc(block, block_size, alignment) ? block : nullptr;
 }
 
 FreeBlock* Freelist::InitFree(Block* block, uint64_t size) {

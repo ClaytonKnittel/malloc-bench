@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <optional>
@@ -28,6 +29,8 @@ class SmallAllocatorImpl {
       : slab_map_(slab_map), slab_manager_(slab_manager), freelist_(freelist) {}
 
   Void* AllocSmall(size_t user_size);
+
+  Void* AlignedAllocSmall(size_t user_size, size_t alignment);
 
   // Reallocates a small slice to another small slice size.
   Void* ReallocSmall(SmallSlab* slab, Void* ptr, size_t user_size);
@@ -78,6 +81,39 @@ Void* SmallAllocatorImpl<SlabMap, SlabManager>::AllocSmall(size_t user_size) {
   if (block_size >= Block::kMinTrackedSize) {
     TrackedBlock* block = freelist_->FindFreeLazy(block_size);
     if (block != nullptr) {
+      BlockedSlab* slab =
+          slab_map_->FindSlab(PageId::FromPtr(block))->ToBlocked();
+      auto [allocated, free] = freelist_->Split(block, block_size);
+      slab->AddAllocation(allocated->Size());
+      return allocated->UserDataPtr();
+    }
+  }
+
+  auto slice_from_new_slab = TakeSliceFromNewSlab(size_class);
+  if (slice_from_new_slab.has_value()) {
+    return slice_from_new_slab.value()->UserDataPtr();
+  }
+
+  return nullptr;
+}
+
+template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
+Void* SmallAllocatorImpl<SlabMap, SlabManager>::AlignedAllocSmall(
+    size_t user_size, size_t alignment) {
+  SizeClass size_class =
+      SizeClass::FromUserDataSize(AlignUp(user_size, alignment));
+
+  auto slice_from_freelist = FindSliceInFreelist(size_class);
+  if (slice_from_freelist.has_value()) {
+    return slice_from_freelist.value()->UserDataPtr();
+  }
+
+  // TODO: Test this in main allocator test.
+  uint64_t block_size = Block::BlockSizeForUserSize(user_size);
+  if (block_size >= Block::kMinTrackedSize) {
+    TrackedBlock* block = freelist_->FindFreeLazyAligned(block_size, alignment);
+    if (block != nullptr) {
+      // TODO: unify this logic in freelist.
       BlockedSlab* slab =
           slab_map_->FindSlab(PageId::FromPtr(block))->ToBlocked();
       auto [allocated, free] = freelist_->Split(block, block_size);
