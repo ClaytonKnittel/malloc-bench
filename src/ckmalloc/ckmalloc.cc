@@ -37,7 +37,7 @@ void* CkMalloc::Malloc(size_t size, size_t alignment) {
     }
   }
 
-  if (cache->ShouldFlush()) {
+  if (!IsSmallSize(size) && cache->ShouldFlush()) {
     cache->Flush(*global_state_.MainAllocator());
   }
 
