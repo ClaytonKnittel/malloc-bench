@@ -64,7 +64,7 @@ TrackedBlock* Freelist::FindFreeAligned(uint64_t block_size,
       large_blocks_tree_.LowerBound([block_size](const TreeBlock& tree_block) {
         return tree_block.Size() >= block_size;
       });
-  for (; block != nullptr && CanFitAlignedAlloc(block, block_size, alignment);
+  for (; block != nullptr && !CanFitAlignedAlloc(block, block_size, alignment);
        block = large_blocks_tree_.Next(block))
     ;
 
