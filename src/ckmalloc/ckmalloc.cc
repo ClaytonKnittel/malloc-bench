@@ -31,12 +31,8 @@ void* CkMalloc::Malloc(size_t size, size_t alignment) {
 
   LocalCache* cache = LocalCache::Instance<GlobalMetadataAlloc>();
   if (IsSmallSize(size) && IsSmallSize(alignment)) {
-    // TODO: Dedup this logic
-    if (alignment != 0) {
-      size = AlignUp(size, alignment);
-    }
-
-    SizeClass size_class = SizeClass::FromUserDataSize(size);
+    SizeClass size_class = SizeClass::FromUserDataSize(
+        size, alignment != 0 ? std::optional(alignment) : std::nullopt);
     void* cached_alloc = cache->TakeAlloc(size_class);
     if (cached_alloc != nullptr) {
       return cached_alloc;

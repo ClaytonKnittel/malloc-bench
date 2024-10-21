@@ -29,6 +29,8 @@ class LargeAllocatorImpl {
   // !IsSmallSize(user_size)).
   Void* AllocLarge(size_t user_size);
 
+  Void* AlignedAllocLarge(size_t user_size, size_t alignment);
+
   // Performs reallocation for an allocation in a large slab. `user_size` must
   // be a large size.
   Void* ReallocLarge(LargeSlab* slab, Void* ptr, size_t user_size);
@@ -44,14 +46,18 @@ class LargeAllocatorImpl {
   // found, returns the `AllocatedBlock` large enough to serve this request.
   AllocatedBlock* MakeBlockFromFreelist(uint64_t block_size);
 
+  AllocatedBlock* MakeAlignedBlockFromFreelist(uint64_t block_size,
+                                               size_t alignment);
+
   // Allocates a new large slab large enough for `user_size`, and returns a
   // pointer to the newly created `AllocatedBlock` that is large enough for
   // `user_size`.
-  AllocatedBlock* AllocBlockedSlabAndMakeBlock(uint64_t block_size);
+  AllocatedBlock* AllocBlockedSlabAndMakeBlock(uint64_t block_size,
+                                               std::optional<size_t> alignment);
 
   // Allocates a single-alloc slab, returning a pointer to the single allocation
   // within that slab.
-  Void* AllocSingleAllocSlab(size_t user_size);
+  Void* AllocSingleAllocSlab(size_t user_size, std::optional<size_t> alignment);
 
   // Tries resizing a single-alloc slab. This will only succeed if `new_size` is
   // suitable for single-alloc slabs, and the new single-alloc slab is <= the
@@ -71,6 +77,31 @@ Void* LargeAllocatorImpl<SlabMap, SlabManager>::AllocLarge(size_t user_size) {
   CK_ASSERT_LT(user_size, kMinMmapSize);
   uint64_t block_size = Block::BlockSizeForUserSize(user_size);
   AllocatedBlock* block = MakeBlockFromFreelist(block_size);
+  if (block != nullptr) {
+    return block->UserDataPtr();
+  }
+
+  // If allocating from the freelist fails, we need to request another slab of
+  // memory.
+  // TODO: do this immediately for large allocs which don't have an exact fit in
+  // the freelist.
+  if (SingleAllocSlab::SizeSuitableForSingleAlloc(user_size)) {
+    return AllocSingleAllocSlab(user_size);
+  }
+
+  block = AllocBlockedSlabAndMakeBlock(block_size);
+  return block != nullptr ? block->UserDataPtr() : nullptr;
+}
+
+template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
+Void* LargeAllocatorImpl<SlabMap, SlabManager>::AlignedAllocLarge(
+    size_t user_size, size_t alignment) {
+  CK_ASSERT_LT(user_size, kMinMmapSize);
+  CK_ASSERT_NE(alignment, 0);
+  CK_ASSERT_EQ(alignment & (alignment - 1), 0);
+
+  uint64_t block_size = Block::BlockSizeForUserSize(user_size);
+  AllocatedBlock* block = MakeAlignedBlockFromFreelist(block_size, alignment);
   if (block != nullptr) {
     return block->UserDataPtr();
   }
@@ -185,9 +216,10 @@ AllocatedBlock* LargeAllocatorImpl<SlabMap, SlabManager>::MakeBlockFromFreelist(
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
 AllocatedBlock*
 LargeAllocatorImpl<SlabMap, SlabManager>::AllocBlockedSlabAndMakeBlock(
-    uint64_t block_size) {
+    uint64_t block_size, std::optional<size_t> alignment) {
   uint32_t n_pages = BlockedSlab::NPagesForBlock(block_size);
-  auto result = slab_manager_->template Alloc<BlockedSlab>(n_pages);
+  auto result =
+      slab_manager_->template AlignedAlloc<BlockedSlab>(n_pages, alignment);
   if (result == std::nullopt) {
     return nullptr;
   }
@@ -228,10 +260,11 @@ LargeAllocatorImpl<SlabMap, SlabManager>::AllocBlockedSlabAndMakeBlock(
 
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
 Void* LargeAllocatorImpl<SlabMap, SlabManager>::AllocSingleAllocSlab(
-    size_t user_size) {
+    size_t user_size, std::optional<size_t> alignment) {
   CK_ASSERT_TRUE(SingleAllocSlab::SizeSuitableForSingleAlloc(user_size));
   uint32_t n_pages = SingleAllocSlab::NPagesForAlloc(user_size);
-  auto result = slab_manager_->template Alloc<SingleAllocSlab>(n_pages);
+  auto result =
+      slab_manager_->template AlignedAlloc<SingleAllocSlab>(n_pages, alignment);
   if (result == std::nullopt) {
     return nullptr;
   }

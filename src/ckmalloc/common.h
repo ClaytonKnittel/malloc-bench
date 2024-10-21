@@ -86,28 +86,36 @@ concept SlabMapInterface =
     };
 
 template <typename T>
-concept SlabManagerInterface =
-    requires(const T const_slab_mgr, T slab_mgr, class PageId page_id,
-             const void* ptr, uint32_t n_pages, class AllocatedSlab* slab,
-             class BlockedSlab* blocked_slab) {
-      {
-        slab_mgr.template Alloc<class SmallSlab>(n_pages)
-      } -> std::convertible_to<
-          std::optional<std::pair<class PageId, class SmallSlab*>>>;
-      {
-        slab_mgr.template Alloc<class BlockedSlab>(n_pages)
-      } -> std::convertible_to<
-          std::optional<std::pair<class PageId, class BlockedSlab*>>>;
-      {
-        slab_mgr.template Alloc<class SingleAllocSlab>(n_pages)
-      } -> std::convertible_to<
-          std::optional<std::pair<class PageId, class SingleAllocSlab*>>>;
-      { slab_mgr.Resize(slab, n_pages) } -> std::convertible_to<bool>;
-      { slab_mgr.Free(slab) } -> std::same_as<void>;
-      {
-        slab_mgr.FirstBlockInBlockedSlab(blocked_slab)
-      } -> std::convertible_to<class Block*>;
-    };
+concept SlabManagerInterface = requires(
+    const T const_slab_mgr, T slab_mgr, class PageId page_id, const void* ptr,
+    uint32_t n_pages, size_t alignment, class AllocatedSlab* slab,
+    class BlockedSlab* blocked_slab) {
+  {
+    slab_mgr.template Alloc<class SmallSlab>(n_pages)
+  } -> std::convertible_to<
+      std::optional<std::pair<class PageId, class SmallSlab*>>>;
+  {
+    slab_mgr.template Alloc<class BlockedSlab>(n_pages)
+  } -> std::convertible_to<
+      std::optional<std::pair<class PageId, class BlockedSlab*>>>;
+  {
+    slab_mgr.template Alloc<class SingleAllocSlab>(n_pages)
+  } -> std::convertible_to<
+      std::optional<std::pair<class PageId, class SingleAllocSlab*>>>;
+  {
+    slab_mgr.template AlignedAlloc<class BlockedSlab>(n_pages, alignment)
+  } -> std::convertible_to<
+      std::optional<std::pair<class PageId, class BlockedSlab*>>>;
+  {
+    slab_mgr.template AlignedAlloc<class SingleAllocSlab>(n_pages, alignment)
+  } -> std::convertible_to<
+      std::optional<std::pair<class PageId, class SingleAllocSlab*>>>;
+  { slab_mgr.Resize(slab, n_pages) } -> std::convertible_to<bool>;
+  { slab_mgr.Free(slab) } -> std::same_as<void>;
+  {
+    slab_mgr.FirstBlockInBlockedSlab(blocked_slab)
+  } -> std::convertible_to<class Block*>;
+};
 
 template <typename T>
 concept MetadataManagerInterface =
@@ -132,14 +140,18 @@ concept SmallAllocatorInterface =
     };
 
 template <typename T>
-concept LargeAllocatorInterface = requires(T large_alloc, size_t user_size,
-                                           class LargeSlab* slab, Void* ptr) {
-  { large_alloc.AllocLarge(user_size) } -> std::convertible_to<Void*>;
-  {
-    large_alloc.ReallocLarge(slab, ptr, user_size)
-  } -> std::convertible_to<Void*>;
-  { large_alloc.FreeLarge(slab, ptr) } -> std::same_as<void>;
-};
+concept LargeAllocatorInterface =
+    requires(T large_alloc, size_t user_size, size_t alignment,
+             class LargeSlab* slab, Void* ptr) {
+      { large_alloc.AllocLarge(user_size) } -> std::convertible_to<Void*>;
+      {
+        large_alloc.AlignedAllocLarge(user_size, alignment)
+      } -> std::convertible_to<Void*>;
+      {
+        large_alloc.ReallocLarge(slab, ptr, user_size)
+      } -> std::convertible_to<Void*>;
+      { large_alloc.FreeLarge(slab, ptr) } -> std::same_as<void>;
+    };
 
 template <typename T>
 concept MainAllocatorInterface =

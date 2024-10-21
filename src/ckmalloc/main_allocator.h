@@ -98,11 +98,11 @@ Void* MainAllocatorImpl<MetadataAlloc, SlabMap, SlabManager, SmallAllocator,
   CK_ASSERT_EQ((alignment & (alignment - 1)), 0);
 
   if (IsSmallSize(user_size)) {
-    return small_alloc_->AllocSmall(user_size);
+    return small_alloc_->AlignedAllocSmall(user_size, alignment);
   } else if (IsMmapSize(user_size)) {
     return AllocMmap(user_size);
   } else {
-    return large_alloc_->AllocLarge(user_size);
+    return large_alloc_->AlignedAllocLarge(user_size, alignment);
   }
 }
 
