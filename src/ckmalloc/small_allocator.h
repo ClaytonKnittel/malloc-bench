@@ -100,8 +100,7 @@ Void* SmallAllocatorImpl<SlabMap, SlabManager>::AllocSmall(size_t user_size) {
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
 Void* SmallAllocatorImpl<SlabMap, SlabManager>::AlignedAllocSmall(
     size_t user_size, size_t alignment) {
-  SizeClass size_class =
-      SizeClass::FromUserDataSize(AlignUp(user_size, alignment));
+  SizeClass size_class = SizeClass::FromUserDataSize(user_size, alignment);
 
   auto slice_from_freelist = FindSliceInFreelist(size_class);
   if (slice_from_freelist.has_value()) {

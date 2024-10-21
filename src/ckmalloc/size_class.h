@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <optional>
 #include <ostream>
 
 #include "absl/strings/str_format.h"
@@ -49,20 +50,33 @@ class SizeClass {
     return SizeClass(ord);
   }
 
-  static SizeClass FromUserDataSize(size_t user_size) {
+  static SizeClass FromUserDataSize(
+      size_t user_size, std::optional<size_t> alignment = std::nullopt) {
     CK_ASSERT_LE(user_size, kMaxSmallSize);
     CK_ASSERT_NE(user_size, 0);
-    size_t idx = OrdinalMapIdx(user_size);
+    size_t alignment_val = alignment.value_or(0);
+    CK_ASSERT_EQ(alignment_val & (alignment_val - 1), 0);
+    CK_ASSERT_LE(alignment_val, kMaxSmallSize);
+
+    size_t idx;
+    if (alignment_val <= kDefaultAlignment) {
+      idx = OrdinalMapIdx(user_size);
+    } else {
+      idx = OrdinalMapIdx(AlignUp(user_size, alignment_val));
+      for (; (kSizeClassInfo[idx].max_size & (alignment_val - 1)) != 0; idx++)
+        ;
+    }
     return SizeClass(kOrdinalMap[idx]);
   }
 
-  static SizeClass FromSliceSize(uint64_t slice_size) {
+  static SizeClass FromSliceSize(
+      uint64_t slice_size, std::optional<size_t> alignment = std::nullopt) {
     CK_ASSERT_LE(slice_size, kMaxSmallSize);
     CK_ASSERT_NE(slice_size, 0);
     CK_ASSERT_TRUE(slice_size == kMinAlignment ||
                    slice_size % kDefaultAlignment == 0);
 
-    return FromUserDataSize(slice_size);
+    return FromUserDataSize(slice_size, alignment);
   }
 
   bool operator==(SizeClass other) const {
