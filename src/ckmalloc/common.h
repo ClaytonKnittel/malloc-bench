@@ -118,14 +118,18 @@ concept MetadataManagerInterface =
     };
 
 template <typename T>
-concept SmallAllocatorInterface = requires(T small_alloc, size_t user_size,
-                                           class SmallSlab* slab, Void* ptr) {
-  { small_alloc.AllocSmall(user_size) } -> std::convertible_to<Void*>;
-  {
-    small_alloc.ReallocSmall(slab, ptr, user_size)
-  } -> std::convertible_to<Void*>;
-  { small_alloc.FreeSmall(slab, ptr) } -> std::same_as<void>;
-};
+concept SmallAllocatorInterface =
+    requires(T small_alloc, size_t user_size, size_t alignment,
+             class SmallSlab* slab, Void* ptr) {
+      { small_alloc.AllocSmall(user_size) } -> std::convertible_to<Void*>;
+      {
+        small_alloc.AlignedAllocSmall(user_size, alignment)
+      } -> std::convertible_to<Void*>;
+      {
+        small_alloc.ReallocSmall(slab, ptr, user_size)
+      } -> std::convertible_to<Void*>;
+      { small_alloc.FreeSmall(slab, ptr) } -> std::same_as<void>;
+    };
 
 template <typename T>
 concept LargeAllocatorInterface = requires(T large_alloc, size_t user_size,
@@ -139,8 +143,11 @@ concept LargeAllocatorInterface = requires(T large_alloc, size_t user_size,
 
 template <typename T>
 concept MainAllocatorInterface =
-    requires(T main_alloc, size_t user_size, Void* ptr) {
+    requires(T main_alloc, size_t user_size, size_t alignment, Void* ptr) {
       { main_alloc.Alloc(user_size) } -> std::convertible_to<Void*>;
+      {
+        main_alloc.AlignedAlloc(user_size, alignment)
+      } -> std::convertible_to<Void*>;
       { main_alloc.Realloc(ptr, user_size) } -> std::convertible_to<Void*>;
       { main_alloc.Free(ptr) } -> std::same_as<void>;
       { main_alloc.AllocSize(ptr) } -> std::convertible_to<size_t>;
