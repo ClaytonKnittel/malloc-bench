@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <tuple>
 
 #include "src/ckmalloc/block.h"
 #include "src/ckmalloc/common.h"
@@ -13,8 +14,12 @@ namespace ckmalloc {
 
 namespace {
 
-bool CanFitAlignedAlloc(Block* block, uint64_t block_size, uint64_t alignment) {
-  return true;
+bool CanFitAlignedAlloc(Block* block, uint64_t block_size, size_t alignment) {
+  return AlignUpDiff(reinterpret_cast<size_t>(
+                         static_cast<AllocatedBlock*>(block)->UserDataPtr()),
+                     alignment) +
+             block_size <=
+         block->Size();
 }
 
 }  // namespace
@@ -112,7 +117,7 @@ std::pair<AllocatedBlock*, FreeBlock*> Freelist::Split(TrackedBlock* block,
   CK_ASSERT_LE(block_size, size);
 
   uint64_t remainder = size - block_size;
-  if (remainder < Block::kMinBlockSize) {
+  if (remainder == 0) {
     AllocatedBlock* allocated_block = MarkAllocated(block);
     return std::make_pair(allocated_block, nullptr);
   }
@@ -123,6 +128,40 @@ std::pair<AllocatedBlock*, FreeBlock*> Freelist::Split(TrackedBlock* block,
   FreeBlock* remainder_block =
       InitFree(allocated_block->NextAdjacentBlock(), remainder);
   return std::make_pair(allocated_block, remainder_block);
+}
+
+std::tuple<FreeBlock*, AllocatedBlock*, FreeBlock*> Freelist::SplitAligned(
+    TrackedBlock* block, uint64_t block_size, size_t alignment) {
+  uint64_t size = block->Size();
+  CK_ASSERT_LE(block_size, size);
+
+  uint64_t alignment_offset =
+      AlignUpDiff(reinterpret_cast<size_t>(
+                      static_cast<AllocatedBlock*>(static_cast<Block*>(block))
+                          ->UserDataPtr()),
+                  alignment);
+  if (alignment_offset == 0) {
+    auto [alloc_block, free_block] = Split(block, block_size);
+    return std::make_tuple(nullptr, alloc_block, free_block);
+  }
+
+  RemoveBlock(block);
+  FreeBlock* prev_free = InitFree(block, alignment_offset);
+  Block* middle_block = prev_free->NextAdjacentBlock();
+  size -= alignment_offset;
+
+  uint64_t remainder = size - block_size;
+  if (remainder == 0) {
+    AllocatedBlock* allocated_block = MarkAllocated(block);
+    return std::make_tuple(prev_free, allocated_block, nullptr);
+  }
+
+  AllocatedBlock* allocated_block =
+      middle_block->InitAllocated(block_size, /*prev_free=*/true);
+
+  FreeBlock* next_free =
+      InitFree(allocated_block->NextAdjacentBlock(), remainder);
+  return std::make_tuple(prev_free, allocated_block, next_free);
 }
 
 FreeBlock* Freelist::MarkFree(AllocatedBlock* block) {

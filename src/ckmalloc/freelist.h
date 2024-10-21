@@ -49,6 +49,11 @@ class Freelist {
   std::pair<AllocatedBlock*, FreeBlock*> Split(TrackedBlock* block,
                                                uint64_t block_size);
 
+  // Splits this block into up to 3 blocks, such that the middle block is
+  // aligned to `alignment`.
+  std::tuple<FreeBlock*, AllocatedBlock*, FreeBlock*> SplitAligned(
+      TrackedBlock* block, uint64_t block_size, size_t alignment);
+
   // Marks this block as free, inserting it into the given free block list and
   // writing the footer to the end of the block and setting the "prev free" bit
   // of the next adjacent block.
