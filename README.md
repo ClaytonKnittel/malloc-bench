@@ -46,7 +46,7 @@ The freelist is responsible for tracking all free blocks in blocked slabs. Block
 
 Up to a certain size, the freelist has many linked lists of blocks (named "bins") of exactly a certain size (all blocks must be sized to a multiple of 16). When searching for a block of a certain size, it can be expensive to iterate over all bins starting from the requested size and going up. To speed this up, especially in the case where many bins are empty, we have a "skiplist", which is a bit set that maps to the exact-size bins, with bits set for bins that ~may be~ empty. Then, to find a block of a certain size, we start iterating over the skiplist (which reduces to an `absl::countl_zero`), checking only bins with their bit set. If those bins are found to be empty, we clear the bit in the skiplist and keep looking. By clearing the bit here, we can avoid checking if lists are empty every time a block is taken from a bin.
 
-Beyond the maximum size of these exact-sized bins, the remaining larger blocks are held in a red black tree sorted by size (see [Intrusive Red-Black Tree](#intrusive-red-black-tree)).
+Beyond the maximum size of these exact-sized bins, the remaining larger blocks are held in an intrusive red black tree sorted by size.
 
 ## Slab Manager
 
@@ -62,6 +62,18 @@ Lookup from pointers alone is needed since `free` is not required to give a size
 
 ## Metadata Manager
 
+The metadata manager allocates memory from metadata heaps (which the metadata manager manages). The metadata manager only allocates from these heaps. This makes its allocation logic very simple. More complex logic is hardly necessary, as there are only a few distinct types of metadata, each with many instances, making individual freelists of those particular types sufficient to minimize fragmentation.
+
+The type of metadata allocated in ckmalloc includes mostly [Slab metadata](#slabs) and [Slab Map](#slab-map) nodes. The other types of metadata are allocated only once.
+
 ## Slabs
 
-## Intrusive Red-Black Tree
+Slabs are spans of pages of memory of a particular type. The types indicate how the memory within the span of pages is laid out. Each slab has an associated metadata object indicating the slabs type, size in pages, and other information particular to the type. The metadata is mapped to this slab via the [Slab Map](#slab-map).
+
+There are 5 types of slabs:
+
+* Free: the slab is not currently used for any user-allocated memory, and any pages within are free to hand out on future allocation requests to the [Slab Manager](#slab-manager)
+* Small: the slab holds small allocations of a particular size class, which is managed by the [Small Allocator](#small-allocator)
+* Blocked: the slab holds variable-sized blocks with 8-byte headers, managed by the [Large Allocator](#large-allocator).
+* Single-Alloc: the slab holds a single allocation of memory that spans the whole slab, starting from the starting page-boundary of the slab
+* Mmap: the slab holds a single allocation of memory which lives in its own `mmap`ped region of memory that should be `munmap`ped when the memory is freed by the user
