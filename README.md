@@ -1,8 +1,8 @@
-## ckmalloc overview
+# ckmalloc overview
 
 ckmalloc is a dynamic memory allocator that implements the libc malloc API and C++ new/delete API.
 
-### Memory layout
+## Memory layout
 
 ckmalloc manages multiple "heaps" (large spans of `mmap`ped memory from the OS). Metadata is held in separate heaps from memory given to the user (see [Metadata Manager](#metadata-manager)).
 
@@ -12,7 +12,7 @@ Here is a flow chart of the different components of ckmalloc:
 
 ![alt text](img/malloc_flow.png)
 
-### Small Allocator
+## Small Allocator
 
 The small allocator is responsible for allocations under a certain size. Sizes are grouped into "size classes", which are particularly chosen sizes based on both profiles of the traces in `traces/` and memory fragmentation per divisibility of sizes into the heaps they are packed into.
 
@@ -22,7 +22,7 @@ Free slices are kept in an unrolled linked list of free slices. Slices are ident
 
 The small allocator has a list of all of the slabs containing free slices for each size class, making it very easy to find a free block of a particular size class. If there are no free slices of a particular size class, the small allocator will create a new slab for that size class, requesting memory from the [Slab Manager](#slab-manager).
 
-### Large Allocator
+## Large Allocator
 
 The large allocator manages all other allocation sizes not supported by the small allocator.
 
@@ -32,15 +32,15 @@ The free blocks in blocked slabs are tracked in the [Freelist](#freelist). The f
 
 When the large allocator receives an allocation request, it first checks the freelist for the smallest block of memory large enough to hold the request. If a block is found, it asks the freelist to "split" the block in two, which sizes the block to exactly the requested size and returns the remainder of the block to the freelist. If no such block is found, then the large allocator requests a new slab of memory from the [Slab Manager](#slab-manager) that is large enough to hold the request, and adds the leftover memory at the end of the slab to the freelist as a free block.
 
-#### Page-multiple allocations
+### Page-multiple allocations
 
 The large allocator treats page-multiple size requests slightly differently. For all size requests for which adding metadata/alignment adjustments would require an additional page to fit (i.e. allocation sizes "close to" or equal to a multiple of page size), they are placed in special slabs called "Page Multiple" slabs. These are not "blocks" like in blocked slabs, as they have no headers, and the type of slab metadata associated with the pages spanned by the allocation is different to indicate this.
 
-#### Huge allocations
+### Huge allocations
 
 For allocations above a very large threshold, the large allocator will request memory directly from the system allocator (i.e. `mmap`). This is to avoid very large blocks from severely fragmenting heaps. The smaller this threshold is made, the better memory utilization becomes, but at the cost of performance, as making a syscall and making new virtual memory mappings is very expensive. The threshold was chosen so that performance was hardly impacted, and memory utilization improved significantly.
 
-### Freelist
+## Freelist
 
 The freelist is responsible for tracking all free blocks in blocked slabs. Blocked slabs are variable sized, with 8-byte headers at the beginning indicating their size.
 
@@ -48,11 +48,11 @@ Up to a certain size, the freelist has many linked lists of blocks (named "bins"
 
 Beyond the maximum size of these exact-sized bins, the remaining larger blocks are held in a red black tree sorted by size (see [Intrusive Red-Black Tree](#intrusive-red-black-tree)).
 
-### Slab Manager
+## Slab Manager
 
 The slab manager is the interface both the small and large allocators use to allocate memory by pages. It tracks all free page-multiple spans of memory in each heap, holding these free regions in a red-black tree sorted by size (except single-page regions which are held in their own list). Allocation of page-multiple spans of memory is done by searching the tree for the smallest free span large enough to hold the request. If no such span is found, the slab manager allocates a new heap from the system allocator (which calls `mmap`).
 
-### Slab Map
+## Slab Map
 
 The slab map is a 3-level lookup table from allocated pointers to the slab metadata managing the region of memory containing the pointer. The nodes of the slab map are allocated through the [metadata manager](#metadata-manager). The nodes can be freed and later reused when heaps are deallocated, all of which is handled within the slab manager (as the metadata manager is an allocate-only allocator).
 
@@ -60,8 +60,8 @@ Userspace virtual memory address space on most linux systems only spans ~48 bits
 
 Lookup from pointers alone is needed since `free` is not required to give a size hint, and small allocaations do not have any metadata near the freed pointer.
 
-### Metadata Manager
+## Metadata Manager
 
-### Slabs
+## Slabs
 
-### Intrusive Red-Black Tree
+## Intrusive Red-Black Tree
