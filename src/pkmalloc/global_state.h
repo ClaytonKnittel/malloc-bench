@@ -25,7 +25,7 @@ void set_heap_start(bench::Heap* heap);
 
 // returns a free block pointer to the first free block in the free list, null
 // if free list is empty
-FreeBlock* get_free_list_start();
+FreeBlock* get_free_list_start(bench::Heap* heap);
 
 // struct at beginning of the heap stores this pointer, here, it is updated
 // returns ptr to beginning of free list

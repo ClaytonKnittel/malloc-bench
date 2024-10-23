@@ -13,7 +13,7 @@
 #include "src/pkmalloc/global_state.h"
 
 // global ptr to start of heap
-bench::Heap* global_heap_start_ptr = nullptr;
+bench::Heap* heap = nullptr;
 
 namespace bench {
 
@@ -24,8 +24,8 @@ void* initialize_heap(bench::HeapFactory& heap_factory) {
     std::cerr << "Failed to make new heap: " << result.status() << std::endl;
     std::abort();
   }
-  global_heap_start_ptr = result.value();
-  pkmalloc::set_heap_start(global_heap_start_ptr);
+  heap = result.value();
+  pkmalloc::set_heap_start(heap);
 }
 
 // more asserts ??
@@ -37,7 +37,9 @@ void* malloc(size_t size, size_t alignment) {
   if (size == 0) {
     return nullptr;
   }
-  AllocatedBlock* result_block = FreeList::mallocate(size, heap_start_ptr);
+  FreeBlock* free_list_start = pkmalloc::get_free_list_start(heap);
+  AllocatedBlock* result_block =
+      pkmalloc::FreeList::mallocate(size, free_list_start);
   return result_block->GetBody();
 }
 
@@ -66,7 +68,8 @@ void free(void* ptr, size_t size_hint, size_t alignment_hint) {
     return;
   }
   AllocatedBlock* block = AllocatedBlock::FromRawPtr(ptr);
-  FreeList::add_free_block_to_list(block, free_list_start_ptr);
+  FreeBlock* free_list_start = pkmalloc::get_free_list_start(heap);
+  pkmalloc::FreeList::add_free_block_to_list(block, free_list_start);
 }
 
 size_t get_size(void* ptr) {
