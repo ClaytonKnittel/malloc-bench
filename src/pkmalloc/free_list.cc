@@ -1,6 +1,9 @@
 #include "src/pkmalloc/free_list.h"
 
-#include "src/singleton_heap.h"
+#include "src/heap_factory.h"
+#include "src/heap_interface.h"
+
+namespace pkmalloc {
 
 void FreeList::add_free_block_to_list(AllocatedBlock* curr_block,
                                       FreeBlock* begin) {
@@ -31,17 +34,18 @@ void FreeList::add_free_block_to_list(AllocatedBlock* curr_block,
   }
 }
 
-static AllocatedBlock* EmptyHeapAlloc(size_t size) {
+static AllocatedBlock* EmptyFreeListAlloc(size_t size) {
   // to align, keep?????????????
-  bench::SingletonHeap::GlobalInstance()->sbrk(8);
+  // bench::Heap::GlobalInstance()->sbrk(8);
   AllocatedBlock* start_block = AllocatedBlock::create_block_extend_heap(size);
+  // AllocatedBlock* start_block = bench::
   return start_block;
 }
 
-AllocatedBlock* FindFreeBlockForAlloc(size_t size, FreeBlock* free_list_begin) {
+AllocatedBlock* FindFreeBlockForAlloc(size_t size, FreeBlock* free_list_start) {
   // auto* start_block = reinterpret_cast<FreeBlock*>(
   // reinterpret_cast<uint8_t*>(SingletonHeap::GlobalInstance()->Start()) + 8);
-  auto* begin = free_list_begin;
+  auto* begin = free_list_start;
   auto* current_block = begin;
   AllocatedBlock* result_block;
   // auto* end_block =
@@ -67,9 +71,10 @@ AllocatedBlock* FindFreeBlockForAlloc(size_t size, FreeBlock* free_list_begin) {
   return result_block;
 }
 
-AllocatedBlock* mallocate(size_t size, FreeBlock* free_list_begin) {
-  if (bench::SingletonHeap::GlobalInstance()->Size() == 0) {
-    return EmptyHeapAlloc(size);
+AllocatedBlock* mallocate(size_t size, FreeBlock* free_list_start) {
+  if (free_list_start == nullptr) {
+    return EmptyFreeListAlloc(size);
   }
-  return FindFreeBlockForAlloc(size, free_list_begin);
+  return FindFreeBlockForAlloc(size, free_list_start);
 }
+}  // namespace pkmalloc

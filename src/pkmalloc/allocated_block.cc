@@ -2,7 +2,8 @@
 
 #include <cstddef>
 
-#include "src/singleton_heap.h"
+#include "src/heap_factory.h"
+#include "src/heap_interface.h"
 
 uint8_t* AllocatedBlock::GetBody() {
   return body_;
@@ -24,8 +25,8 @@ AllocatedBlock* AllocatedBlock::take_free_block() {
 
 AllocatedBlock* AllocatedBlock::create_block_extend_heap(size_t size) {
   size_t block_size = AllocatedBlock::space_needed_with_header(size);
-  auto* block = reinterpret_cast<AllocatedBlock*>(
-      bench::SingletonHeap::GlobalInstance()->sbrk(block_size));
+  // auto* block = reinterpret_cast<AllocatedBlock*>(
+  // bench::SingletonHeap::GlobalInstance()->sbrk(block_size));
   block->SetBlockSize(block_size);
   block->SetFree(false);
   return block;

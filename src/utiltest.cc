@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 #include <cstdint>
 
 #include "absl/flags/flag.h"
@@ -83,77 +82,16 @@ absl::StatusOr<double> MeasureUtilization(TracefileReader& reader,
       }
       case TraceLine::OP_NOT_SET: {
         __builtin_unreachable();
-=======
-#include <optional>
-
-#include "absl/container/flat_hash_map.h"
-#include "absl/status/statusor.h"
-#include "util/absl_util.h"
-
-#include "src/allocator_interface.h"
-#include "src/singleton_heap.h"
-#include "src/tracefile_reader.h"
-
-namespace bench {
-
-absl::StatusOr<double> MeasureUtilization(const std::string& tracefile) {
-  absl::flat_hash_map<void*, std::pair<void*, size_t>> id_to_ptrs;
-  DEFINE_OR_RETURN(TracefileReader, reader, TracefileReader::Open(tracefile));
-
-  SingletonHeap::GlobalInstance()->Reset();
-  initialize_heap();
-
-  size_t total_allocated_bytes = 0;
-  size_t max_allocated_bytes = 0;
-  while (true) {
-    DEFINE_OR_RETURN(std::optional<TraceLine>, line, reader.NextLine());
-    if (!line.has_value()) {
-      break;
-    }
-
-    switch (line->op) {
-      case TraceLine::Op::kMalloc: {
-        void* ptr = malloc(line->input_size);
-        id_to_ptrs[line->result] = { ptr, line->input_size };
-        total_allocated_bytes += line->input_size;
-        break;
-      }
-      case TraceLine::Op::kCalloc: {
-        void* ptr = calloc(line->nmemb, line->input_size);
-        id_to_ptrs[line->result] = { ptr, line->input_size };
-        total_allocated_bytes += line->input_size;
-        break;
-      }
-      case TraceLine::Op::kRealloc: {
-        void* new_ptr =
-            realloc(id_to_ptrs[line->input_ptr].first, line->input_size);
-        if (line->input_ptr != nullptr) {
-          total_allocated_bytes -= id_to_ptrs[line->input_ptr].second;
-          id_to_ptrs.erase(line->input_ptr);
-        }
-        total_allocated_bytes += line->input_size;
-        id_to_ptrs[line->result] = { new_ptr, line->input_size };
-        break;
-      }
-      case TraceLine::Op::kFree: {
-        free(id_to_ptrs[line->input_ptr].first);
-        total_allocated_bytes -= id_to_ptrs[line->input_ptr].second;
-        id_to_ptrs.erase(line->input_ptr);
-        break;
->>>>>>> d3b973fd6e938786ae4ec0560b204de2d3ba8e58
       }
     }
 
     max_allocated_bytes = std::max(total_allocated_bytes, max_allocated_bytes);
-<<<<<<< HEAD
 
     size_t heap_size = 0;
     for (const auto& heap : heap_factory.Instances()) {
       heap_size += heap->Size();
     }
     max_heap_size = std::max(heap_size, max_heap_size);
-=======
->>>>>>> d3b973fd6e938786ae4ec0560b204de2d3ba8e58
   }
 
   if (total_allocated_bytes != 0) {
@@ -164,14 +102,9 @@ absl::StatusOr<double> MeasureUtilization(const std::string& tracefile) {
         "Tracefile does not free all the memory it allocates.");
   }
 
-<<<<<<< HEAD
   return max_heap_size != 0
              ? static_cast<double>(max_allocated_bytes) / max_heap_size
              : -1;
-=======
-  return static_cast<double>(max_allocated_bytes) /
-         SingletonHeap::GlobalInstance()->Size();
->>>>>>> d3b973fd6e938786ae4ec0560b204de2d3ba8e58
 }
 
 }  // namespace bench

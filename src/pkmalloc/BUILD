@@ -1,3 +1,5 @@
+package(default_visibility = ["//src:__subpackages__"])
+
 cc_library(
     name = "allocated_block",
     srcs = ["allocated_block.cc"],
@@ -5,7 +7,8 @@ cc_library(
     deps = [
         ":block",
         ":free_block",
-        "//src:singleton_heap",
+        "//src:heap_factory",
+        "//src:heap_interface",
     ],
 )
 
@@ -15,7 +18,8 @@ cc_library(
     hdrs = ["block.h"],
     deps = [
         ":malloc_assert",
-        "//src:singleton_heap",
+        "//src:heap_factory",
+        "//src:heap_interface",
     ],
 )
 
@@ -36,7 +40,19 @@ cc_library(
         ":allocated_block",
         ":block",
         ":free_block",
-        "//src:singleton_heap",
+        "//src:heap_factory",
+        "//src:heap_interface",
+    ],
+)
+
+cc_library(
+    name = "global_state",
+    srcs = ["global_state.cc"],
+    hdrs = ["global_state.h"],
+    deps = [
+        ":free_block",
+        "//src:heap_factory",
+        "//src:heap_interface",
     ],
 )
 

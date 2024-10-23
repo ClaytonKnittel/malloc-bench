@@ -1,11 +1,4 @@
-build --repo_env=CC=clang
+build --repo_env=CC=/opt/homebrew/Cellar/llvm/19.1.1/bin/clang-19
 build --features=layering_check
-<<<<<<< HEAD
-=======
-
-# Turn off these flags to not confuse the compile commands generator when building abseil.
-
-build --process_headers_in_dependencies=false --features=-parse_headers
->>>>>>> d3b973fd6e938786ae4ec0560b204de2d3ba8e58
 build --cxxopt=-std=c++20
 build:opt --copt=-flto=thin --linkopt=-flto=thin

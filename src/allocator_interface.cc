@@ -1,32 +1,3 @@
-<<<<<<< HEAD
-#include "src/allocator_interface.h"
-
-#include <mutex>
-#include <optional>
-
-#include "src/heap_interface.h"
-#include "src/mmap_heap.h"
-
-namespace bench {
-
-namespace {
-
-std::optional<MMapHeap> heap;
-
-}
-
-Heap* g_heap = nullptr;
-
-std::mutex g_lock;
-
-void initialize() {
-  auto res = MMapHeap::New(kHeapSize);
-  heap.emplace(std::move(res.value()));
-  g_heap = &heap.value();
-}
-
-}  // namespace bench
-=======
 
 #include "src/allocator_interface.h"
 
@@ -34,36 +5,50 @@ void initialize() {
 #include <cstddef>
 #include <cstring>
 
+#include "src/heap_factory.h"
+#include "src/heap_interface.h"
 #include "src/pkmalloc/allocated_block.h"
 #include "src/pkmalloc/free_block.h"
 #include "src/pkmalloc/free_list.h"
+#include "src/pkmalloc/global_state.h"
 
-FreeBlock* heap_metadata_start = nullptr;
+// global ptr to start of heap
+bench::Heap* global_heap_start_ptr = nullptr;
 
-void* initialize_heap() {
-  // do stuff
+namespace bench {
+
+void* initialize_heap(bench::HeapFactory& heap_factory) {
+  // heap size: 500MB
+  auto result = heap_factory.NewInstance(524288000);
+  if (!result.ok()) {
+    std::cerr << "Failed to make new heap: " << result.status() << std::endl;
+    std::abort();
+  }
+  global_heap_start_ptr = result.value();
+  pkmalloc::set_heap_start(global_heap_start_ptr);
 }
 
 // more asserts ??
 // check for consistency on size w and wo header
 // make sure int types are good
 
-inline void* bench::malloc(size_t size) {
+void* malloc(size_t size, size_t alignment) {
+  (void) alignment;
   if (size == 0) {
     return nullptr;
   }
-  AllocatedBlock* result_block = FreeList::mallocate(size, heap_metadata_start);
+  AllocatedBlock* result_block = FreeList::mallocate(size, heap_start_ptr);
   return result_block->GetBody();
 }
 
-inline void* bench::calloc(size_t nmemb, size_t size) {
+void* calloc(size_t nmemb, size_t size) {
   // TODO: implement
   void* ptr = malloc(nmemb * size);
   memset(ptr, 0, nmemb * size);
   return ptr;
 }
 
-inline void* bench::realloc(void* ptr, size_t size) {
+void* realloc(void* ptr, size_t size) {
   // TODO: implement
   void* new_ptr = malloc(size);
   if (ptr != nullptr) {
@@ -74,11 +59,20 @@ inline void* bench::realloc(void* ptr, size_t size) {
 
 // when calling coalesce, make sure to check direct address neighbors, not free
 // block list
-inline void bench::free(void* ptr) {
+void free(void* ptr, size_t size_hint, size_t alignment_hint) {
+  (void) size_hint;
+  (void) alignment_hint;
   if (ptr == nullptr) {
     return;
   }
   AllocatedBlock* block = AllocatedBlock::FromRawPtr(ptr);
-  FreeList::add_free_block_to_list(block, heap_metadata_start);
+  FreeList::add_free_block_to_list(block, free_list_start_ptr);
 }
->>>>>>> d3b973fd6e938786ae4ec0560b204de2d3ba8e58
+
+size_t get_size(void* ptr) {
+  // TODO: implement
+  (void) ptr;
+  return 0;
+}
+
+}  // namespace bench

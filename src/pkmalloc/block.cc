@@ -2,12 +2,13 @@
 
 #include <cassert>
 
+#include "src/heap_factory.h"
+#include "src/heap_interface.h"
 #include "src/pkmalloc/malloc_assert.h"
-#include "src/singleton_heap.h"
 
 uint64_t Block::GetBlockSize() const {
   uint64_t block_size = header_ & ~0xf;
-  MALLOC_ASSERT(block_size < bench::SingletonHeap::kHeapSize);
+  // MALLOC_ASSERT(block_size < bench::SingletonHeap::kHeapSize);
   MALLOC_ASSERT(block_size != 0);
   return block_size;
 }
