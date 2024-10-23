@@ -1,3 +1,3 @@
 ## ckmalloc overview
 
-![alt text](malloc_flow.pdf)
+![alt text](img/malloc_flow.png)
