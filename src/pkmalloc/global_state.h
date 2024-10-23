@@ -18,16 +18,17 @@ struct GlobalState {
 Block* get_heap_start(bench::Heap* heap);
 
 // returns the end of the heap to user
-void* get_heap_end(bench::Heap* global_heap_start_ptr, int heap_size);
+void* get_heap_end(bench::Heap* heap);
 
 // initialize global state object located at heap start
 void set_heap_start(bench::Heap* heap);
 
 // returns a free block pointer to the first free block in the free list, null
-// if empty
+// if free list is empty
 FreeBlock* get_free_list_start();
 
 // struct at beginning of the heap stores this pointer, here, it is updated
+// returns ptr to beginning of free list
 void set_free_list_start(FreeBlock* free_list_start, bench::Heap* heap);
 
 }  // namespace pkmalloc

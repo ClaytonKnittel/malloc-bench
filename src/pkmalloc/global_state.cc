@@ -7,12 +7,11 @@
 namespace pkmalloc {
 Block* get_heap_start(bench::Heap* heap) {
   GlobalState* global_heap_start = static_cast<GlobalState*>(heap->Start());
-  return reinterpret_cast<Block*>(global_heap_start);
+  return global_heap_start->heap_start_ptr;
 }
 
-void* get_heap_end(bench::Heap* global_heap_start_ptr, int heap_size) {
-  // heap size should be 524288000
-  return global_heap_start_ptr + heap_size;
+void* get_heap_end(bench::Heap* heap) {
+  return heap->End();
 }
 
 void set_heap_start(bench::Heap* heap) {
@@ -27,16 +26,12 @@ void set_heap_start(bench::Heap* heap) {
 
 FreeBlock* get_free_list_start(bench::Heap* heap) {
   GlobalState* global_heap_start = static_cast<GlobalState*>(heap->Start());
-  return reinterpret_cast<FreeBlock*>(
-      reinterpret_cast<uint8_t*>(global_heap_start) + 1);
+  return global_heap_start->free_list_start_ptr;
 }
 
 void set_free_list_start(FreeBlock* free_list_start, bench::Heap* heap) {
-  // free_list_start_ptr = free_list_start;
   GlobalState* global_heap_start = static_cast<GlobalState*>(heap->Start());
-  FreeBlock* free_list_start_ptr = reinterpret_cast<FreeBlock*>(
-      reinterpret_cast<uint8_t*>(global_heap_start) + 1);
-  free_list_start_ptr = free_list_start;
+  global_heap_start->free_list_start_ptr = free_list_start;
 }
 
 }  // namespace pkmalloc
