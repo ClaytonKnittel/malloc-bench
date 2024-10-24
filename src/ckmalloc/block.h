@@ -37,7 +37,6 @@ class Block {
   static constexpr uint64_t kFirstBlockInSlabOffset =
       kDefaultAlignment - kMetadataOverhead;
 
-  // TODO: Delete since alignment forces this anyway.
   static constexpr uint64_t kMinBlockSize = kDefaultAlignment;
 
   // Blocks of this size or smaller will not be tracked in any freelist.

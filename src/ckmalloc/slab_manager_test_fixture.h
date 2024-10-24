@@ -32,6 +32,10 @@ class TestSlabManager {
   template <typename S, typename... Args>
   std::optional<std::pair<PageId, S*>> Alloc(uint32_t n_pages, Args...);
 
+  template <typename S, typename... Args>
+  std::optional<std::pair<PageId, S*>> AlignedAlloc(uint32_t n_pages,
+                                                    size_t alignment, Args...);
+
   bool Resize(AllocatedSlab* slab, uint32_t new_size);
 
   void Free(AllocatedSlab* slab);
@@ -137,6 +141,20 @@ std::optional<std::pair<PageId, S*>> TestSlabManager::Alloc(uint32_t n_pages,
   DEFINE_OR_RETURN_OPT(
       AllocResult, result,
       slab_manager_.template Alloc<S>(n_pages, std::forward<Args>(args)...));
+  auto [page_id, slab] = result;
+
+  // Allocated slabs must map every page to their metadata.
+  HandleAlloc(slab);
+  return std::make_pair(page_id, slab);
+}
+
+template <typename S, typename... Args>
+std::optional<std::pair<PageId, S*>> TestSlabManager::AlignedAlloc(
+    uint32_t n_pages, size_t alignment, Args... args) {
+  using AllocResult = std::pair<PageId, S*>;
+  DEFINE_OR_RETURN_OPT(AllocResult, result,
+                       slab_manager_.template AlignedAlloc<S>(
+                           n_pages, alignment, std::forward<Args>(args)...));
   auto [page_id, slab] = result;
 
   // Allocated slabs must map every page to their metadata.

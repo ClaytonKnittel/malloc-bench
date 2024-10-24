@@ -184,8 +184,8 @@ SlabManagerImpl<MetadataAlloc, SlabMap>::Alloc(uint32_t n_pages, Args... args) {
 
   DEFINE_OR_RETURN_OPT(AllocResult, result, Alloc(n_pages));
   auto [page_id, slab] = std::move(result);
-  return InitializeAllocation(page_id, n_pages, slab,
-                              std::forward<Args>(args)...);
+  return InitializeAllocation<S, Args...>(page_id, n_pages, slab,
+                                          std::forward<Args>(args)...);
 }
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
@@ -208,8 +208,8 @@ SlabManagerImpl<MetadataAlloc, SlabMap>::AlignedAlloc(uint32_t n_pages,
 
   DEFINE_OR_RETURN_OPT(AllocResult, result, AlignedAlloc(n_pages, alignment));
   auto [page_id, slab] = std::move(result);
-  return InitializeAllocation(page_id, n_pages, slab,
-                              std::forward<Args>(args)...);
+  return InitializeAllocation<S, Args...>(page_id, n_pages, slab,
+                                          std::forward<Args>(args)...);
 }
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>

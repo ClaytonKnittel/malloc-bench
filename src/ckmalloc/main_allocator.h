@@ -102,7 +102,7 @@ Void* MainAllocatorImpl<MetadataAlloc, SlabMap, SlabManager, SmallAllocator,
   } else if (IsMmapSize(user_size)) {
     return AllocMmap(user_size);
   } else {
-    return large_alloc_->AlignedAllocLarge(user_size, alignment);
+    return large_alloc_->AllocLarge(user_size, alignment);
   }
 }
 

@@ -27,9 +27,8 @@ class LargeAllocatorImpl {
 
   // Performs allocation for a large-sized allocation (i.e.
   // !IsSmallSize(user_size)).
-  Void* AllocLarge(size_t user_size);
-
-  Void* AlignedAllocLarge(size_t user_size, size_t alignment);
+  Void* AllocLarge(size_t user_size,
+                   std::optional<size_t> alignment = std::nullopt);
 
   // Performs reallocation for an allocation in a large slab. `user_size` must
   // be a large size.
@@ -44,10 +43,8 @@ class LargeAllocatorImpl {
 
   // Tries to find a free block large enough for `user_size`, and if one is
   // found, returns the `AllocatedBlock` large enough to serve this request.
-  AllocatedBlock* MakeBlockFromFreelist(uint64_t block_size);
-
-  AllocatedBlock* MakeAlignedBlockFromFreelist(uint64_t block_size,
-                                               size_t alignment);
+  AllocatedBlock* MakeBlockFromFreelist(uint64_t block_size,
+                                        std::optional<size_t> alignment);
 
   // Allocates a new large slab large enough for `user_size`, and returns a
   // pointer to the newly created `AllocatedBlock` that is large enough for
@@ -73,10 +70,11 @@ class LargeAllocatorImpl {
 };
 
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
-Void* LargeAllocatorImpl<SlabMap, SlabManager>::AllocLarge(size_t user_size) {
+Void* LargeAllocatorImpl<SlabMap, SlabManager>::AllocLarge(
+    size_t user_size, std::optional<size_t> alignment) {
   CK_ASSERT_LT(user_size, kMinMmapSize);
   uint64_t block_size = Block::BlockSizeForUserSize(user_size);
-  AllocatedBlock* block = MakeBlockFromFreelist(block_size);
+  AllocatedBlock* block = MakeBlockFromFreelist(block_size, alignment);
   if (block != nullptr) {
     return block->UserDataPtr();
   }
@@ -86,35 +84,10 @@ Void* LargeAllocatorImpl<SlabMap, SlabManager>::AllocLarge(size_t user_size) {
   // TODO: do this immediately for large allocs which don't have an exact fit in
   // the freelist.
   if (SingleAllocSlab::SizeSuitableForSingleAlloc(user_size)) {
-    return AllocSingleAllocSlab(user_size);
+    return AllocSingleAllocSlab(user_size, alignment);
   }
 
-  block = AllocBlockedSlabAndMakeBlock(block_size);
-  return block != nullptr ? block->UserDataPtr() : nullptr;
-}
-
-template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
-Void* LargeAllocatorImpl<SlabMap, SlabManager>::AlignedAllocLarge(
-    size_t user_size, size_t alignment) {
-  CK_ASSERT_LT(user_size, kMinMmapSize);
-  CK_ASSERT_NE(alignment, 0);
-  CK_ASSERT_EQ(alignment & (alignment - 1), 0);
-
-  uint64_t block_size = Block::BlockSizeForUserSize(user_size);
-  AllocatedBlock* block = MakeAlignedBlockFromFreelist(block_size, alignment);
-  if (block != nullptr) {
-    return block->UserDataPtr();
-  }
-
-  // If allocating from the freelist fails, we need to request another slab of
-  // memory.
-  // TODO: do this immediately for large allocs which don't have an exact fit in
-  // the freelist.
-  if (SingleAllocSlab::SizeSuitableForSingleAlloc(user_size)) {
-    return AllocSingleAllocSlab(user_size);
-  }
-
-  block = AllocBlockedSlabAndMakeBlock(block_size);
+  block = AllocBlockedSlabAndMakeBlock(block_size, alignment);
   return block != nullptr ? block->UserDataPtr() : nullptr;
 }
 
@@ -197,8 +170,11 @@ void LargeAllocatorImpl<SlabMap, SlabManager>::ReleaseBlockedSlab(
 
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
 AllocatedBlock* LargeAllocatorImpl<SlabMap, SlabManager>::MakeBlockFromFreelist(
-    uint64_t block_size) {
-  TrackedBlock* free_block = freelist_->FindFree(block_size);
+    uint64_t block_size, std::optional<size_t> alignment) {
+  TrackedBlock* free_block =
+      alignment.has_value()
+          ? freelist_->FindFreeAligned(block_size, alignment.value())
+          : freelist_->FindFree(block_size);
   if (free_block == nullptr) {
     return nullptr;
   }
@@ -206,6 +182,7 @@ AllocatedBlock* LargeAllocatorImpl<SlabMap, SlabManager>::MakeBlockFromFreelist(
   BlockedSlab* slab =
       slab_map_->FindSlab(PageId::FromPtr(free_block))->ToBlocked();
 
+  // TODO: do split aligned if an aligned allocation.
   auto [allocated_block, remainder_block] =
       freelist_->Split(free_block, block_size);
 
@@ -218,8 +195,10 @@ AllocatedBlock*
 LargeAllocatorImpl<SlabMap, SlabManager>::AllocBlockedSlabAndMakeBlock(
     uint64_t block_size, std::optional<size_t> alignment) {
   uint32_t n_pages = BlockedSlab::NPagesForBlock(block_size);
-  auto result =
-      slab_manager_->template AlignedAlloc<BlockedSlab>(n_pages, alignment);
+  auto result = alignment.has_value()
+                    ? slab_manager_->template AlignedAlloc<BlockedSlab>(
+                          n_pages, alignment.value())
+                    : slab_manager_->template Alloc<BlockedSlab>(n_pages);
   if (result == std::nullopt) {
     return nullptr;
   }
@@ -263,8 +242,8 @@ Void* LargeAllocatorImpl<SlabMap, SlabManager>::AllocSingleAllocSlab(
     size_t user_size, std::optional<size_t> alignment) {
   CK_ASSERT_TRUE(SingleAllocSlab::SizeSuitableForSingleAlloc(user_size));
   uint32_t n_pages = SingleAllocSlab::NPagesForAlloc(user_size);
-  auto result =
-      slab_manager_->template AlignedAlloc<SingleAllocSlab>(n_pages, alignment);
+  auto result = slab_manager_->template AlignedAlloc<SingleAllocSlab>(
+      n_pages, alignment.value());
   if (result == std::nullopt) {
     return nullptr;
   }

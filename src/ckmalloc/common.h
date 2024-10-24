@@ -145,7 +145,7 @@ concept LargeAllocatorInterface =
              class LargeSlab* slab, Void* ptr) {
       { large_alloc.AllocLarge(user_size) } -> std::convertible_to<Void*>;
       {
-        large_alloc.AlignedAllocLarge(user_size, alignment)
+        large_alloc.AllocLarge(user_size, alignment)
       } -> std::convertible_to<Void*>;
       {
         large_alloc.ReallocLarge(slab, ptr, user_size)
