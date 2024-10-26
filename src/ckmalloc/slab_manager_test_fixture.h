@@ -110,7 +110,8 @@ class SlabManagerFixture : public CkMallocTest {
   // Checks that the heap is empty, returning a non-ok status if it isn't.
   absl::Status ValidateEmpty();
 
-  absl::StatusOr<AllocatedSlab*> AllocateSlab(uint32_t n_pages);
+  absl::StatusOr<AllocatedSlab*> AllocateSlab(
+      uint32_t n_pages, std::optional<size_t> alignment = std::nullopt);
 
   absl::Status FreeSlab(AllocatedSlab* slab);
 

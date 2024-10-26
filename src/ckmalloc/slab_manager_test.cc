@@ -285,4 +285,87 @@ TEST_F(SlabManagerTest, ExtendHeapWithExtraRoom) {
                             Property(&AllocatedSlab::Pages, 5))));
 }
 
+TEST_F(SlabManagerTest, SingleUnderalignedPage) {
+  ASSERT_OK_AND_DEFINE(AllocatedSlab*, slab,
+                       Fixture().AllocateSlab(1, kPageSize));
+  ASSERT_THAT(HeapsVec(), ElementsAre(_));
+
+  const TestHeap& slab_heap = *Heaps().begin()->second.second;
+  EXPECT_EQ(slab->StartId(), PageId::FromPtr(slab_heap.Start()));
+  EXPECT_THAT(ValidateHeap(), IsOk());
+}
+
+TEST_F(SlabManagerTest, SingleAlignedPage) {
+  ASSERT_OK_AND_DEFINE(AllocatedSlab*, slab,
+                       Fixture().AllocateSlab(1, 64 * kPageSize));
+  ASSERT_THAT(HeapsVec(), ElementsAre(_));
+
+  const TestHeap& slab_heap = *Heaps().begin()->second.second;
+  EXPECT_EQ(slab->StartId(), PageId::FromPtr(slab_heap.Start()));
+  EXPECT_THAT(ValidateHeap(), IsOk());
+}
+
+TEST_F(SlabManagerTest, TwoAdjacentAlignedSlabs) {
+  ASSERT_OK_AND_DEFINE(AllocatedSlab*, slab1,
+                       Fixture().AllocateSlab(1, 4 * kPageSize));
+  ASSERT_OK_AND_DEFINE(AllocatedSlab*, slab2,
+                       Fixture().AllocateSlab(1, 4 * kPageSize));
+  ASSERT_OK_AND_DEFINE(AllocatedSlab*, slab3, Fixture().AllocateSlab(3));
+  ASSERT_THAT(HeapsVec(), ElementsAre(_));
+
+  const TestHeap& slab_heap = *Heaps().begin()->second.second;
+  EXPECT_EQ(slab1->StartId(), PageId::FromPtr(slab_heap.Start()));
+  EXPECT_EQ(slab2->StartId(), PageId::FromPtr(slab_heap.Start()) + 4);
+  EXPECT_EQ(slab3->StartId(), PageId::FromPtr(slab_heap.Start()) + 1);
+  EXPECT_THAT(ValidateHeap(), IsOk());
+}
+
+TEST_F(SlabManagerTest, AlignedSlabBetweenSlabs) {
+  ASSERT_OK_AND_DEFINE(AllocatedSlab*, slab1,
+                       Fixture().AllocateSlab(1, 4 * kPageSize));
+  ASSERT_OK_AND_DEFINE(AllocatedSlab*, slab2,
+                       Fixture().AllocateSlab(1, 4 * kPageSize));
+  ASSERT_OK_AND_DEFINE(AllocatedSlab*, slab3,
+                       Fixture().AllocateSlab(1, 2 * kPageSize));
+  ASSERT_THAT(HeapsVec(), ElementsAre(_));
+
+  const TestHeap& slab_heap = *Heaps().begin()->second.second;
+  EXPECT_EQ(slab1->StartId(), PageId::FromPtr(slab_heap.Start()));
+  EXPECT_EQ(slab2->StartId(), PageId::FromPtr(slab_heap.Start()) + 4);
+  EXPECT_EQ(slab3->StartId(), PageId::FromPtr(slab_heap.Start()) + 2);
+  EXPECT_THAT(ValidateHeap(), IsOk());
+}
+
+TEST_F(SlabManagerTest, AlignedSlabBetweenSlabs2) {
+  ASSERT_OK_AND_DEFINE(AllocatedSlab*, slab1,
+                       Fixture().AllocateSlab(1, 4 * kPageSize));
+  ASSERT_OK_AND_DEFINE(AllocatedSlab*, slab2,
+                       Fixture().AllocateSlab(1, 4 * kPageSize));
+  ASSERT_OK_AND_DEFINE(AllocatedSlab*, slab3,
+                       Fixture().AllocateSlab(2, 2 * kPageSize));
+  ASSERT_THAT(HeapsVec(), ElementsAre(_));
+
+  const TestHeap& slab_heap = *Heaps().begin()->second.second;
+  EXPECT_EQ(slab1->StartId(), PageId::FromPtr(slab_heap.Start()));
+  EXPECT_EQ(slab2->StartId(), PageId::FromPtr(slab_heap.Start()) + 4);
+  EXPECT_EQ(slab3->StartId(), PageId::FromPtr(slab_heap.Start()) + 2);
+  EXPECT_THAT(ValidateHeap(), IsOk());
+}
+
+TEST_F(SlabManagerTest, AlignedSlabBetweenSlabsExactFit) {
+  ASSERT_OK_AND_DEFINE(AllocatedSlab*, slab1,
+                       Fixture().AllocateSlab(2, 4 * kPageSize));
+  ASSERT_OK_AND_DEFINE(AllocatedSlab*, slab2,
+                       Fixture().AllocateSlab(1, 4 * kPageSize));
+  ASSERT_OK_AND_DEFINE(AllocatedSlab*, slab3,
+                       Fixture().AllocateSlab(2, 2 * kPageSize));
+  ASSERT_THAT(HeapsVec(), ElementsAre(_));
+
+  const TestHeap& slab_heap = *Heaps().begin()->second.second;
+  EXPECT_EQ(slab1->StartId(), PageId::FromPtr(slab_heap.Start()));
+  EXPECT_EQ(slab2->StartId(), PageId::FromPtr(slab_heap.Start()) + 4);
+  EXPECT_EQ(slab3->StartId(), PageId::FromPtr(slab_heap.Start()) + 2);
+  EXPECT_THAT(ValidateHeap(), IsOk());
+}
+
 }  // namespace ckmalloc

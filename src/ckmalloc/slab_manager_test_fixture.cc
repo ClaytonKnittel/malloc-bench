@@ -394,10 +394,13 @@ absl::Status SlabManagerFixture::ValidateEmpty() {
 }
 
 absl::StatusOr<AllocatedSlab*> SlabManagerFixture::AllocateSlab(
-    uint32_t n_pages) {
+    uint32_t n_pages, std::optional<size_t> alignment) {
   // Arbitrarily make all allocated slabs blocked slabs. Their actual type
   // doesn't matter, `SlabManager` only cares about free vs. not free.
-  auto result = SlabManager().template Alloc<BlockedSlab>(n_pages);
+  auto result = alignment.has_value()
+                    ? SlabManager().template AlignedAlloc<BlockedSlab>(
+                          n_pages, alignment.value())
+                    : SlabManager().template Alloc<BlockedSlab>(n_pages);
   if (!result.has_value()) {
     return nullptr;
   }
