@@ -242,8 +242,10 @@ Void* LargeAllocatorImpl<SlabMap, SlabManager>::AllocSingleAllocSlab(
     size_t user_size, std::optional<size_t> alignment) {
   CK_ASSERT_TRUE(SingleAllocSlab::SizeSuitableForSingleAlloc(user_size));
   uint32_t n_pages = SingleAllocSlab::NPagesForAlloc(user_size);
-  auto result = slab_manager_->template AlignedAlloc<SingleAllocSlab>(
-      n_pages, alignment.value());
+  auto result = alignment.has_value()
+                    ? slab_manager_->template AlignedAlloc<SingleAllocSlab>(
+                          n_pages, alignment.value())
+                    : slab_manager_->template Alloc<SingleAllocSlab>(n_pages);
   if (result == std::nullopt) {
     return nullptr;
   }

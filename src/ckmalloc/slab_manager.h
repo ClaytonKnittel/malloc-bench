@@ -393,7 +393,7 @@ SlabManagerImpl<MetadataAlloc, SlabMap>::TakeSinglePageFreeSlab(
     FreeSinglePageSlab* slab_start) {
   RemoveSinglePageFreeSlab(slab_start);
 
-  PageId page_id = PageId::FromPtr(&slab_start);
+  PageId page_id = PageId::FromPtr(slab_start);
   MappedSlab* slab = slab_map_->FindSlab(page_id);
   CK_ASSERT_NE(slab, nullptr);
   return std::make_pair(page_id, slab);
@@ -578,8 +578,6 @@ SlabManagerImpl<MetadataAlloc, SlabMap>::AllocEndWithSbrk(
   FreeSlab* last_free_slab;
   // The `PageId` of where newly allocated memory will start.
   PageId new_memory_id = HeapEndPageId();
-  // The `PageId` where the new slab will start.
-  PageId aligned_start_id;
   if (HeapSize() != 0 && (slab = LastSlab())->Type() == SlabType::kFree) {
     last_free_slab = slab->ToFree();
     // required_pages may temporarily underflow here if `alignment` is set.
@@ -594,6 +592,8 @@ SlabManagerImpl<MetadataAlloc, SlabMap>::AllocEndWithSbrk(
     start_id = new_memory_id;
   }
 
+  // The `PageId` where the new slab will start.
+  PageId aligned_start_id;
   if (alignment.has_value()) {
     uint32_t alignment_pages =
         AlignUpDiff(reinterpret_cast<size_t>(start_id.PageStart()),
@@ -664,7 +664,7 @@ SlabManagerImpl<MetadataAlloc, SlabMap>::AllocEndWithSbrk(
   }
 
   if (alignment.has_value() && aligned_start_id != start_id) {
-    if (slab != nullptr) {
+    if (slab == nullptr) {
       slab = MetadataAlloc::SlabAlloc();
       // TODO: handle failed allocation.
       CK_ASSERT_NE(slab, nullptr);
