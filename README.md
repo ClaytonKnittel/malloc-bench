@@ -1,321 +1,79 @@
-## Implicit list malloc (no coalesce) results:
+# ckmalloc overview
 
-```
--------------------------------------------------------------------------
-| trace                         | correct? | mega ops / s | utilization |
--------------------------------------------------------------------------
-| traces/bdd-aa32.trace         |        Y |          0.2 |       58.3% |
-| traces/bdd-aa4.trace          |        Y |          4.1 |       64.8% |
-| traces/bdd-ma4.trace          |        Y |          0.4 |       58.0% |
-| traces/bdd-nq7.trace          |        Y |          0.1 |       58.1% |
-| traces/cbit-abs.trace         |        Y |          1.7 |       56.5% |
-| traces/cbit-parity.trace      |        Y |          0.4 |       54.9% |
-| traces/cbit-satadd.trace      |        Y |          0.4 |       57.6% |
-| traces/cbit-xyz.trace         |        Y |          0.7 |       49.7% |
-|*traces/ngram-fox1.trace       |        Y |        359.5 |       63.5% |
-| traces/ngram-gulliver1.trace  |        Y |          1.2 |       31.2% |
-| traces/ngram-gulliver2.trace  |        Y |          0.3 |       31.2% |
-| traces/ngram-moby1.trace      |        Y |          0.6 |       29.5% |
-| traces/ngram-shake1.trace     |        Y |          0.4 |       28.7% |
-| traces/onoro.trace            |        Y |          0.0 |       56.6% |
-| traces/onoro-cc.trace         |        Y |          8.0 |       75.0% |
-| traces/server.trace           |        Y |          4.4 |       66.4% |
-|*traces/simple.trace           |        Y |        300.3 |       57.4% |
-|*traces/simple_calloc.trace    |        Y |        292.0 |       97.2% |
-|*traces/simple_realloc.trace   |        Y |        281.4 |       96.2% |
-| traces/syn-array.trace        |        Y |          0.1 |       78.4% |
-|*traces/syn-array-short.trace  |        Y |        347.2 |       79.5% |
-| traces/syn-mix.trace          |        Y |          0.2 |       77.8% |
-| traces/syn-mix-realloc.trace  |        Y |         26.9 |       40.8% |
-|*traces/syn-mix-short.trace    |        Y |        362.2 |       81.7% |
-| traces/syn-string.trace       |        Y |          0.2 |       69.4% |
-|*traces/syn-string-short.trace |        Y |        353.8 |       63.1% |
-| traces/syn-struct.trace       |        Y |          0.2 |       70.0% |
-|*traces/syn-struct-short.trace |        Y |        377.1 |       62.3% |
-|*traces/test.trace             |        Y |        328.8 |       80.4% |
-|*traces/test-zero.trace        |        Y |        236.0 |       76.0% |
--------------------------------------------------------------------------
-* = ignored for scoring
+ckmalloc is a dynamic memory allocator that implements the libc malloc API and C++ new/delete API.
 
-Summary:
-All correct? Y
-Average utilization: 55.6%
-Average mega ops / s: 0.5
-```
+## Memory layout
 
-## SlabMalloc results:
+ckmalloc manages multiple "heaps" (large spans of `mmap`ped memory from the OS). Metadata is held in separate heaps from memory given to the user (see [Metadata Manager](#metadata-manager)).
 
-```
--------------------------------------------------------------------------
-| trace                         | correct? | mega ops / s | utilization |
--------------------------------------------------------------------------
-| traces/bdd-aa32.trace         |        Y |        264.1 |       82.3% |
-| traces/bdd-aa4.trace          |        Y |        291.4 |       55.6% |
-| traces/bdd-ma4.trace          |        Y |        287.8 |       80.7% |
-| traces/bdd-nq7.trace          |        Y |        270.6 |       83.5% |
-| traces/cbit-abs.trace         |        Y |        150.7 |       64.2% |
-| traces/cbit-parity.trace      |        Y |        129.5 |       64.8% |
-| traces/cbit-satadd.trace      |        Y |        132.6 |       72.2% |
-| traces/cbit-xyz.trace         |        Y |        140.7 |       66.3% |
-|*traces/ngram-fox1.trace       |        Y |        203.7 |       21.3% |
-| traces/ngram-gulliver1.trace  |        Y |        150.1 |       59.4% |
-| traces/ngram-gulliver2.trace  |        Y |        131.5 |       69.3% |
-| traces/ngram-moby1.trace      |        Y |        139.3 |       62.3% |
-| traces/ngram-shake1.trace     |        Y |        138.6 |       63.4% |
-| traces/onoro.trace            |        Y |         52.3 |       83.8% |
-| traces/onoro-cc.trace         |        Y |        138.2 |       74.9% |
-| traces/server.trace           |        Y |        301.8 |       57.1% |
-|*traces/simple.trace           |        Y |         93.5 |       19.2% |
-|*traces/simple_calloc.trace    |        Y |        336.1 |       73.8% |
-|*traces/simple_realloc.trace   |        Y |        103.6 |       82.0% |
-| traces/syn-array.trace        |        Y |         50.1 |       80.8% |
-|*traces/syn-array-short.trace  |        Y |        125.6 |       79.6% |
-| traces/syn-mix.trace          |        Y |         77.1 |       80.2% |
-| traces/syn-mix-realloc.trace  |        Y |        117.9 |       73.1% |
-|*traces/syn-mix-short.trace    |        Y |        141.2 |       32.9% |
-| traces/syn-string.trace       |        Y |        108.5 |       84.5% |
-|*traces/syn-string-short.trace |        Y |        148.6 |       14.1% |
-| traces/syn-struct.trace       |        Y |        105.1 |       87.0% |
-|*traces/syn-struct-short.trace |        Y |        151.6 |       13.9% |
-|*traces/test.trace             |        Y |        129.4 |       75.3% |
-|*traces/test-zero.trace        |        Y |         83.9 |       48.0% |
--------------------------------------------------------------------------
-* = ignored for scoring
+The heaps containing blocks given to the user are managed by the [Slab Manager](#slab-manager), which is responsible for giving out pages of memory to other components of the allocator. The [large](#large-allocator) and [small](#small-allocator) both request pages of memory from the Slab Manager when they run out of memory, and return pages of memory back to the Slab Manger when they are no longer needed.
 
-Summary:
-All correct? Y
-Average utilization: 72.3%
-Average mega ops / s: 140.8
-```
+Here is a flow chart of the different components of ckmalloc:
 
-## glibc malloc results:
+![alt text](img/malloc_flow.png)
 
-```
----------------------------------------------------------------------------
-| trace                           | correct? | mega ops / s | utilization |
----------------------------------------------------------------------------
-|*traces/bdd-aa32.trace           |        Y |        136.4 |        inf% |
-|*traces/bdd-aa4.trace            |        Y |        166.2 |        inf% |
-|*traces/bdd-ma4.trace            |        Y |        140.8 |        inf% |
-|*traces/bdd-nq7.trace            |        Y |        109.2 |        inf% |
-|*traces/cbit-abs.trace           |        Y |        125.0 |        inf% |
-|*traces/cbit-parity.trace        |        Y |        119.8 |        inf% |
-|*traces/cbit-satadd.trace        |        Y |        114.9 |        inf% |
-|*traces/cbit-xyz.trace           |        Y |        125.1 |        inf% |
-| traces/firefox.trace            |        Y |         69.7 |        inf% |
-| traces/four-in-a-row.trace      |        Y |        117.9 |        inf% |
-| traces/grep.trace               |        Y |        120.7 |        inf% |
-| traces/haskell-web-server.trace |        Y |         82.2 |        inf% |
-| traces/mc_server.trace          |        Y |         59.9 |        inf% |
-| traces/mc_server_large.trace    |        Y |         69.5 |        inf% |
-| traces/mc_server_small.trace    |        Y |         78.1 |        inf% |
-|*traces/ngram-fox1.trace         |        Y |        253.6 |        inf% |
-|*traces/ngram-gulliver1.trace    |        Y |        146.1 |        inf% |
-|*traces/ngram-gulliver2.trace    |        Y |        153.8 |        inf% |
-|*traces/ngram-moby1.trace        |        Y |        144.8 |        inf% |
-|*traces/ngram-shake1.trace       |        Y |        143.4 |        inf% |
-| traces/onoro.trace              |        Y |         15.9 |        inf% |
-| traces/onoro-cc.trace           |        Y |        246.2 |        inf% |
-| traces/py-catan-ai.trace        |        Y |         18.0 |        inf% |
-| traces/py-euler-nayuki.trace    |        Y |         82.5 |        inf% |
-| traces/scp.trace                |        Y |        118.3 |        inf% |
-|*traces/server.trace             |        Y |        141.7 |        inf% |
-|*traces/simple.trace             |        Y |        191.0 |        inf% |
-|*traces/simple_calloc.trace      |        Y |        328.2 |        inf% |
-|*traces/simple_realloc.trace     |        Y |        147.5 |        inf% |
-| traces/solitaire.trace          |        Y |        123.0 |        inf% |
-| traces/ssh.trace                |        Y |        118.0 |        inf% |
-|*traces/syn-array.trace          |        Y |         26.7 |        inf% |
-|*traces/syn-array-short.trace    |        Y |         78.2 |        inf% |
-|*traces/syn-mix.trace            |        Y |         48.4 |        inf% |
-|*traces/syn-mix-realloc.trace    |        Y |         47.6 |        inf% |
-|*traces/syn-mix-short.trace      |        Y |        246.8 |        inf% |
-|*traces/syn-string.trace         |        Y |         96.6 |        inf% |
-|*traces/syn-string-short.trace   |        Y |        271.0 |        inf% |
-|*traces/syn-struct.trace         |        Y |         99.5 |        inf% |
-|*traces/syn-struct-short.trace   |        Y |        270.0 |        inf% |
-|*traces/test.trace               |        Y |         95.0 |        inf% |
-|*traces/test-zero.trace          |        Y |        161.0 |        inf% |
-| traces/vim.trace                |        Y |        110.7 |        inf% |
-| traces/vlc.trace                |        Y |        102.6 |        inf% |
----------------------------------------------------------------------------
-* = ignored for scoring
+## Small Allocator
 
-Summary:
-Average mega ops / s: 80.3
-```
+The small allocator is responsible for allocations under a certain size. Sizes are grouped into "size classes", which are particularly chosen sizes based on both profiles of the traces in `traces/` and memory fragmentation per divisibility of sizes into the heaps they are packed into.
 
-# TCMalloc results:
+The small allocator manages many [slabs](#slabs) each containing a single size class of equally-sized allocatable memory regions. I.e., for size class 16, there are 256 memory slices packged contiguously in a single page of memory.
 
-```
----------------------------------------------------------------------------
-| trace                           | correct? | mega ops / s | utilization |
----------------------------------------------------------------------------
-|*traces/bdd-aa32.trace           |        Y |        120.6 |        inf% |
-|*traces/bdd-aa4.trace            |        Y |        338.8 |        inf% |
-|*traces/bdd-ma4.trace            |        Y |        290.8 |        inf% |
-|*traces/bdd-nq7.trace            |        Y |        176.0 |        inf% |
-|*traces/cbit-abs.trace           |        Y |        327.8 |        inf% |
-|*traces/cbit-parity.trace        |        Y |        312.8 |        inf% |
-|*traces/cbit-satadd.trace        |        Y |        319.6 |        inf% |
-|*traces/cbit-xyz.trace           |        Y |        325.1 |        inf% |
-| traces/firefox.trace            |        Y |        140.4 |        inf% |
-| traces/four-in-a-row.trace      |        Y |        183.1 |        inf% |
-| traces/grep.trace               |        Y |        316.6 |        inf% |
-| traces/haskell-web-server.trace |        Y |        321.6 |        inf% |
-| traces/mc_server.trace          |        Y |         89.5 |        inf% |
-| traces/mc_server_large.trace    |        Y |         99.6 |        inf% |
-| traces/mc_server_small.trace    |        Y |        194.8 |        inf% |
-|*traces/ngram-fox1.trace         |        Y |        517.9 |        inf% |
-|*traces/ngram-gulliver1.trace    |        Y |        329.2 |        inf% |
-|*traces/ngram-gulliver2.trace    |        Y |        290.6 |        inf% |
-|*traces/ngram-moby1.trace        |        Y |        314.9 |        inf% |
-|*traces/ngram-shake1.trace       |        Y |        312.9 |        inf% |
-| traces/onoro.trace              |        Y |         38.4 |        inf% |
-| traces/onoro-cc.trace           |        Y |        294.4 |        inf% |
-| traces/py-catan-ai.trace        |        Y |         20.9 |        inf% |
-| traces/py-euler-nayuki.trace    |        Y |         76.2 |        inf% |
-| traces/scp.trace                |        Y |        333.9 |        inf% |
-|*traces/server.trace             |        Y |        367.7 |        inf% |
-|*traces/simple.trace             |        Y |        477.5 |        inf% |
-|*traces/simple_calloc.trace      |        Y |        507.5 |        inf% |
-|*traces/simple_realloc.trace     |        Y |        414.3 |        inf% |
-| traces/solitaire.trace          |        Y |        173.6 |        inf% |
-| traces/ssh.trace                |        Y |        369.5 |        inf% |
-|*traces/syn-array.trace          |        Y |        131.4 |        inf% |
-|*traces/syn-array-short.trace    |        Y |        494.8 |        inf% |
-|*traces/syn-mix.trace            |        Y |        253.2 |        inf% |
-|*traces/syn-mix-realloc.trace    |        Y |        221.6 |        inf% |
-|*traces/syn-mix-short.trace      |        Y |        533.1 |        inf% |
-|*traces/syn-string.trace         |        Y |        285.8 |        inf% |
-|*traces/syn-string-short.trace   |        Y |        542.9 |        inf% |
-|*traces/syn-struct.trace         |        Y |        290.6 |        inf% |
-|*traces/syn-struct-short.trace   |        Y |        515.8 |        inf% |
-|*traces/test.trace               |        Y |        513.3 |        inf% |
-|*traces/test-zero.trace          |        Y |        440.0 |        inf% |
-| traces/vim.trace                |        Y |        236.7 |        inf% |
-| traces/vlc.trace                |        Y |        144.9 |        inf% |
----------------------------------------------------------------------------
-* = ignored for scoring
+Free slices are kept in an unrolled linked list of free slices. Slices are identified by their index in the array of slices in the slab, so for 8- and 16-byte slices, the index is 2 bytes (number of elements >= 256 for both), and all other size classes use an index size of 1 byte. The nodes of the freelist are the free slices themselves, and each node holds as many ids of other slices in the freelist as can fit. So for 16-byte slices, each node can hold 8 other ids (16 / 2), and for 32-byte slices, each node can hold 32 other ids (32 / 1).
 
-Summary:
-Average mega ops / s: 149.2
-```
+The small allocator has a list of all of the slabs containing free slices for each size class, making it very easy to find a free block of a particular size class. If there are no free slices of a particular size class, the small allocator will create a new slab for that size class, requesting memory from the [Slab Manager](#slab-manager).
 
-## jemalloc results:
+## Large Allocator
 
-```
----------------------------------------------------------------------------
-| trace                           | correct? | mega ops / s | utilization |
----------------------------------------------------------------------------
-|*traces/bdd-aa32.trace           |        Y |        189.7 |        inf% |
-|*traces/bdd-aa4.trace            |        Y |        303.4 |        inf% |
-|*traces/bdd-ma4.trace            |        Y |        245.3 |        inf% |
-|*traces/bdd-nq7.trace            |        Y |        209.3 |        inf% |
-|*traces/cbit-abs.trace           |        Y |        265.6 |        inf% |
-|*traces/cbit-parity.trace        |        Y |        239.7 |        inf% |
-|*traces/cbit-satadd.trace        |        Y |        243.9 |        inf% |
-|*traces/cbit-xyz.trace           |        Y |        264.3 |        inf% |
-| traces/firefox.trace            |        Y |        104.6 |        inf% |
-| traces/four-in-a-row.trace      |        Y |        167.5 |        inf% |
-| traces/grep.trace               |        Y |         88.9 |        inf% |
-| traces/haskell-web-server.trace |        Y |         86.3 |        inf% |
-| traces/mc_server.trace          |        Y |         61.7 |        inf% |
-| traces/mc_server_large.trace    |        Y |         67.6 |        inf% |
-| traces/mc_server_small.trace    |        Y |         80.9 |        inf% |
-|*traces/ngram-fox1.trace         |        Y |        380.4 |        inf% |
-|*traces/ngram-gulliver1.trace    |        Y |        251.5 |        inf% |
-|*traces/ngram-gulliver2.trace    |        Y |        249.5 |        inf% |
-|*traces/ngram-moby1.trace        |        Y |        267.1 |        inf% |
-|*traces/ngram-shake1.trace       |        Y |        262.6 |        inf% |
-| traces/onoro.trace              |        Y |         29.2 |        inf% |
-| traces/onoro-cc.trace           |        Y |        267.1 |        inf% |
-| traces/py-catan-ai.trace        |        Y |         41.4 |        inf% |
-| traces/py-euler-nayuki.trace    |        Y |         59.9 |        inf% |
-| traces/scp.trace                |        Y |         75.4 |        inf% |
-|*traces/server.trace             |        Y |        257.7 |        inf% |
-|*traces/simple.trace             |        Y |        336.1 |        inf% |
-|*traces/simple_calloc.trace      |        Y |        403.0 |        inf% |
-|*traces/simple_realloc.trace     |        Y |         34.8 |        inf% |
-| traces/solitaire.trace          |        Y |        147.1 |        inf% |
-| traces/ssh.trace                |        Y |        216.2 |        inf% |
-|*traces/syn-array.trace          |        Y |         49.1 |        inf% |
-|*traces/syn-array-short.trace    |        Y |         45.5 |        inf% |
-|*traces/syn-mix.trace            |        Y |         98.6 |        inf% |
-|*traces/syn-mix-realloc.trace    |        Y |         40.3 |        inf% |
-|*traces/syn-mix-short.trace      |        Y |        365.6 |        inf% |
-|*traces/syn-string.trace         |        Y |        220.3 |        inf% |
-|*traces/syn-string-short.trace   |        Y |        423.4 |        inf% |
-|*traces/syn-struct.trace         |        Y |        229.3 |        inf% |
-|*traces/syn-struct-short.trace   |        Y |        421.6 |        inf% |
-|*traces/test.trace               |        Y |         58.5 |        inf% |
-|*traces/test-zero.trace          |        Y |        308.8 |        inf% |
-| traces/vim.trace                |        Y |         71.1 |        inf% |
-| traces/vlc.trace                |        Y |        146.1 |        inf% |
----------------------------------------------------------------------------
-* = ignored for scoring
+The large allocator manages all other allocation sizes not supported by the small allocator.
 
-Summary:
-Average mega ops / s: 90.9
-```
+Most allocations will be held in "blocked slabs", which are regions of memory with variable-sized blocks. Each block in blocked slabs have an 8-byte header that holds the size of the block, whether it is free, and whether the block before it is free. If the block before it is free, then the 8 bytes immediately before the header hold the size of the previous block (allowing blocks to find their neighbors for "coalescing" when they are freed).
 
-## No-op allocator
+The free blocks in blocked slabs are tracked in the [Freelist](#freelist). The freelist is used for quickly finding blocks large enough to hold an allocation of a certain size.
 
-This allocator always returns nullptr. This is a loose measure of the perftest
-overhead.
+When the large allocator receives an allocation request, it first checks the freelist for the smallest block of memory large enough to hold the request. If a block is found, it asks the freelist to "split" the block in two, which sizes the block to exactly the requested size and returns the remainder of the block to the freelist. If no such block is found, then the large allocator requests a new slab of memory from the [Slab Manager](#slab-manager) that is large enough to hold the request, and adds the leftover memory at the end of the slab to the freelist as a free block.
 
-```
----------------------------------------------------------------------------
-| trace                           | correct? | mega ops / s | utilization |
----------------------------------------------------------------------------
-|*traces/bdd-aa32.trace           |        Y |        581.6 |        inf% |
-|*traces/bdd-aa4.trace            |        Y |       2842.5 |        inf% |
-|*traces/bdd-ma4.trace            |        Y |       1118.8 |        inf% |
-|*traces/bdd-nq7.trace            |        Y |        872.2 |        inf% |
-|*traces/cbit-abs.trace           |        Y |       1071.8 |        inf% |
-|*traces/cbit-parity.trace        |        Y |        656.8 |        inf% |
-|*traces/cbit-satadd.trace        |        Y |        674.0 |        inf% |
-|*traces/cbit-xyz.trace           |        Y |        720.5 |        inf% |
-| traces/firefox.trace            |        Y |        410.6 |        inf% |
-| traces/four-in-a-row.trace      |        Y |        429.6 |        inf% |
-| traces/grep.trace               |        Y |        773.1 |        inf% |
-| traces/haskell-web-server.trace |        Y |       1575.7 |        inf% |
-| traces/mc_server.trace          |        Y |        434.8 |        inf% |
-| traces/mc_server_large.trace    |        Y |        419.7 |        inf% |
-| traces/mc_server_small.trace    |        Y |        969.4 |        inf% |
-|*traces/ngram-fox1.trace         |        Y |       2943.7 |        inf% |
-|*traces/ngram-gulliver1.trace    |        Y |        912.3 |        inf% |
-|*traces/ngram-gulliver2.trace    |        Y |        663.8 |        inf% |
-|*traces/ngram-moby1.trace        |        Y |        742.4 |        inf% |
-|*traces/ngram-shake1.trace       |        Y |        730.1 |        inf% |
-| traces/onoro.trace              |        Y |        655.7 |        inf% |
-| traces/onoro-cc.trace           |        Y |        473.2 |        inf% |
-| traces/py-catan-ai.trace        |        Y |        613.3 |        inf% |
-| traces/py-euler-nayuki.trace    |        Y |        463.2 |        inf% |
-| traces/scp.trace                |        Y |       1173.3 |        inf% |
-|*traces/server.trace             |        Y |       2535.4 |        inf% |
-|*traces/simple.trace             |        Y |       4875.5 |        inf% |
-|*traces/simple_calloc.trace      |        Y |       3670.9 |        inf% |
-|*traces/simple_realloc.trace     |        Y |       2192.7 |        inf% |
-| traces/solitaire.trace          |        Y |        433.1 |        inf% |
-| traces/ssh.trace                |        Y |       2439.6 |        inf% |
-|*traces/syn-array.trace          |        Y |        732.5 |        inf% |
-|*traces/syn-array-short.trace    |        Y |       2892.7 |        inf% |
-|*traces/syn-mix.trace            |        Y |        753.9 |        inf% |
-|*traces/syn-mix-realloc.trace    |        Y |       3296.4 |        inf% |
-|*traces/syn-mix-short.trace      |        Y |       2730.3 |        inf% |
-|*traces/syn-string.trace         |        Y |        754.4 |        inf% |
-|*traces/syn-string-short.trace   |        Y |       2801.6 |        inf% |
-|*traces/syn-struct.trace         |        Y |        750.1 |        inf% |
-|*traces/syn-struct-short.trace   |        Y |       2893.0 |        inf% |
-|*traces/test.trace               |        Y |       2722.0 |        inf% |
-|*traces/test-zero.trace          |        Y |       4915.1 |        inf% |
-| traces/vim.trace                |        Y |        440.6 |        inf% |
-| traces/vlc.trace                |        Y |        415.8 |        inf% |
----------------------------------------------------------------------------
-* = ignored for scoring
+### Page-multiple allocations
 
-Summary:
-All correct? Y
-Average mega ops / s: 638.4
-```
+The large allocator treats page-multiple size requests slightly differently. For all size requests for which adding metadata/alignment adjustments would require an additional page to fit (i.e. allocation sizes "close to" or equal to a multiple of page size), they are placed in special slabs called "Page Multiple" slabs. These are not "blocks" like in blocked slabs, as they have no headers, and the type of slab metadata associated with the pages spanned by the allocation is different to indicate this.
+
+### Huge allocations
+
+For allocations above a very large threshold, the large allocator will request memory directly from the system allocator (i.e. `mmap`). This is to avoid very large blocks from severely fragmenting heaps. The smaller this threshold is made, the better memory utilization becomes, but at the cost of performance, as making a syscall and making new virtual memory mappings is very expensive. The threshold was chosen so that performance was hardly impacted, and memory utilization improved significantly.
+
+## Freelist
+
+The freelist is responsible for tracking all free blocks in blocked slabs. Blocked slabs are variable sized, with 8-byte headers at the beginning indicating their size.
+
+Up to a certain size, the freelist has many linked lists of blocks (named "bins") of exactly a certain size (all blocks must be sized to a multiple of 16). When searching for a block of a certain size, it can be expensive to iterate over all bins starting from the requested size and going up. To speed this up, especially in the case where many bins are empty, we have a "skiplist", which is a bit set that maps to the exact-size bins, with bits set for bins that ~may be~ empty. Then, to find a block of a certain size, we start iterating over the skiplist (which reduces to an `absl::countl_zero`), checking only bins with their bit set. If those bins are found to be empty, we clear the bit in the skiplist and keep looking. By clearing the bit here, we can avoid checking if lists are empty every time a block is taken from a bin.
+
+Beyond the maximum size of these exact-sized bins, the remaining larger blocks are held in an intrusive red black tree sorted by size.
+
+## Slab Manager
+
+The slab manager is the interface both the small and large allocators use to allocate memory by pages. It tracks all free page-multiple spans of memory in each heap, holding these free regions in a red-black tree sorted by size (except single-page regions which are held in their own list). Allocation of page-multiple spans of memory is done by searching the tree for the smallest free span large enough to hold the request. If no such span is found, the slab manager allocates a new heap from the system allocator (which calls `mmap`).
+
+## Slab Map
+
+The slab map is a 3-level lookup table from allocated pointers to the slab metadata managing the region of memory containing the pointer. The nodes of the slab map are allocated through the [metadata manager](#metadata-manager). The nodes can be freed and later reused when heaps are deallocated, all of which is handled within the slab manager (as the metadata manager is an allocate-only allocator).
+
+Userspace virtual memory address space on most linux systems only spans ~48 bits, and the page size is typically 4096 (12 bits). This leaves ~36 bits needed for Page Ids. The slab map has 3 levels of nodes, each with ~2^12 entries. The first two levels contain only pointers to the levels below, and the last level holds pointers to the metadata for the slab that contains the corresponding page. See [Slabs](#slabs) for more information on the different types of slabs.
+
+Lookup from pointers alone is needed since `free` is not required to give a size hint, and small allocaations do not have any metadata near the freed pointer.
+
+## Metadata Manager
+
+The metadata manager allocates memory from metadata heaps (which the metadata manager manages). The metadata manager only allocates from these heaps. This makes its allocation logic very simple. More complex logic is hardly necessary, as there are only a few distinct types of metadata, each with many instances, making individual freelists of those particular types sufficient to minimize fragmentation.
+
+The type of metadata allocated in ckmalloc includes mostly [Slab metadata](#slabs) and [Slab Map](#slab-map) nodes. The other types of metadata are allocated only once.
+
+## Slabs
+
+Slabs are spans of pages of memory of a particular type. The types indicate how the memory within the span of pages is laid out. Each slab has an associated metadata object indicating the slabs type, size in pages, and other information particular to the type. The metadata is mapped to this slab via the [Slab Map](#slab-map).
+
+There are 5 types of slabs:
+
+* Free: the slab is not currently used for any user-allocated memory, and any pages within are free to hand out on future allocation requests to the [Slab Manager](#slab-manager)
+* Small: the slab holds small allocations of a particular size class, which is managed by the [Small Allocator](#small-allocator)
+* Blocked: the slab holds variable-sized blocks with 8-byte headers, managed by the [Large Allocator](#large-allocator).
+* Single-Alloc: the slab holds a single allocation of memory that spans the whole slab, starting from the starting page-boundary of the slab
+* Mmap: the slab holds a single allocation of memory which lives in its own `mmap`ped region of memory that should be `munmap`ped when the memory is freed by the user
