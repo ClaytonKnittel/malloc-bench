@@ -320,6 +320,22 @@ TEST_F(SlabManagerTest, TwoAdjacentAlignedSlabs) {
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
+TEST_F(SlabManagerTest, LargeAlignedSlabs) {
+  ASSERT_OK_AND_DEFINE(AllocatedSlab*, slab1, Fixture().AllocateSlab(1));
+  ASSERT_OK_AND_DEFINE(AllocatedSlab*, slab2, Fixture().AllocateSlab(1));
+  ASSERT_OK_AND_DEFINE(AllocatedSlab*, slab3, Fixture().AllocateSlab(2));
+  ASSERT_THAT(Fixture().FreeSlab(slab1), IsOk());
+  ASSERT_THAT(Fixture().FreeSlab(slab3), IsOk());
+  ASSERT_OK_AND_DEFINE(AllocatedSlab*, slab4,
+                       Fixture().AllocateSlab(2, 2 * kPageSize));
+  ASSERT_THAT(HeapsVec(), ElementsAre(_));
+
+  const TestHeap& slab_heap = *Heaps().begin()->second.second;
+  EXPECT_EQ(slab2->StartId(), PageId::FromPtr(slab_heap.Start()) + 1);
+  EXPECT_EQ(slab4->StartId(), PageId::FromPtr(slab_heap.Start()) + 2);
+  EXPECT_THAT(ValidateHeap(), IsOk());
+}
+
 TEST_F(SlabManagerTest, AlignedSlabBetweenSlabs) {
   ASSERT_OK_AND_DEFINE(AllocatedSlab*, slab1,
                        Fixture().AllocateSlab(1, 4 * kPageSize));
