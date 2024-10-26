@@ -131,7 +131,7 @@ concept SmallAllocatorInterface =
              class SmallSlab* slab, Void* ptr) {
       { small_alloc.AllocSmall(user_size) } -> std::convertible_to<Void*>;
       {
-        small_alloc.AlignedAllocSmall(user_size, alignment)
+        small_alloc.AllocSmall(user_size, alignment)
       } -> std::convertible_to<Void*>;
       {
         small_alloc.ReallocSmall(slab, ptr, user_size)
