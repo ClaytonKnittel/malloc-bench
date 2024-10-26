@@ -16,6 +16,7 @@
 #include "src/ckmalloc/slab_manager_test_fixture.h"
 #include "src/ckmalloc/small_allocator_test_fixture.h"
 #include "src/ckmalloc/testlib.h"
+#include "src/ckmalloc/util.h"
 #include "src/heap_factory.h"
 #include "src/tracefile_executor.h"
 #include "src/tracefile_reader.h"
@@ -148,6 +149,13 @@ absl::StatusOr<void*> TestCkMalloc::Malloc(size_t size,
     return absl::FailedPreconditionError("Returned nullptr from malloc");
   }
 
+  if (alignment.has_value() &&
+      !ckmalloc::IsAligned(reinterpret_cast<size_t>(result),
+                           alignment.value())) {
+    return absl::FailedPreconditionError(absl::StrFormat(
+        "Pointer %p not aligned to %zu", result, alignment.value()));
+  }
+
   if (++iter_ % validate_every_n_ == 0) {
     RETURN_IF_ERROR(fixture_->ValidateHeap());
   }
@@ -155,12 +163,12 @@ absl::StatusOr<void*> TestCkMalloc::Malloc(size_t size,
 }
 
 absl::StatusOr<void*> TestCkMalloc::Calloc(size_t nmemb, size_t size) {
-  return Malloc(nmemb * size, /*alignment=*/0);
+  return Malloc(nmemb * size, /*alignment=*/std::nullopt);
 }
 
 absl::StatusOr<void*> TestCkMalloc::Realloc(void* ptr, size_t size) {
   if (ptr == nullptr) {
-    return Malloc(size, /*alignment=*/0);
+    return Malloc(size, /*alignment=*/std::nullopt);
   }
 
   CK_ASSERT_NE(size, 0);
