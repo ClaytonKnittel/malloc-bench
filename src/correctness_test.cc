@@ -141,7 +141,9 @@ absl::StatusOr<void*> TestCkMalloc::Malloc(size_t size,
 #ifdef PRINT
   std::cout << "malloc(" << size << ") (" << iter_ << ")" << std::endl;
 #endif
-  void* result = fixture_->MainAllocator().Alloc(size);
+  void* result = alignment.has_value() ? fixture_->MainAllocator().AlignedAlloc(
+                                             size, alignment.value())
+                                       : fixture_->MainAllocator().Alloc(size);
 #ifdef PRINT
   std::cout << "returned " << result << std::endl;
 #endif
