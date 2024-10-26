@@ -94,7 +94,9 @@ TrackedBlock* Freelist::FindFreeLazy(uint64_t block_size) {
 TrackedBlock* Freelist::FindFreeLazyAligned(uint64_t block_size,
                                             uint64_t alignment) {
   TrackedBlock* block = FindFreeLazy(block_size);
-  return CanFitAlignedAlloc(block, block_size, alignment) ? block : nullptr;
+  return block != nullptr && CanFitAlignedAlloc(block, block_size, alignment)
+             ? block
+             : nullptr;
 }
 
 FreeBlock* Freelist::InitFree(Block* block, uint64_t size) {
