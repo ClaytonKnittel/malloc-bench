@@ -109,7 +109,7 @@ cc_test(
     data = [
         "//traces",
     ],
-    shard_count = 45,
+    shard_count = 46,
     deps = [
         ":heap_factory",
         ":tracefile_executor",

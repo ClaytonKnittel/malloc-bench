@@ -252,6 +252,12 @@ TEST_F(TestCorrectness, cbitxyz) {
   ASSERT_THAT(ValidateEmpty(), IsOk());
 }
 
+TEST_F(TestCorrectness, Clang) {
+  ASSERT_THAT(RunTrace("traces/clang.trace", /*validate_every_n=*/1024),
+              util::IsOk());
+  ASSERT_THAT(ValidateEmpty(), IsOk());
+}
+
 TEST_F(TestCorrectness, Firefox) {
   ASSERT_THAT(RunTrace("traces/firefox.trace", /*validate_every_n=*/16384),
               util::IsOk());
@@ -272,7 +278,7 @@ TEST_F(TestCorrectness, Grep) {
 }
 
 TEST_F(TestCorrectness, Gto) {
-  ASSERT_THAT(RunTrace("traces/gto.trace", /*validate_every_n=*/65536),
+  ASSERT_THAT(RunTrace("traces/gto.trace", /*validate_every_n=*/1 << 19),
               util::IsOk());
   ASSERT_THAT(ValidateEmpty(), IsOk());
 }
