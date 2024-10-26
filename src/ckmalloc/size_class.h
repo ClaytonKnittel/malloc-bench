@@ -64,21 +64,16 @@ class SizeClass {
   }
 
   // Returns the size of slices represented by this size class.
-  uint64_t SliceSize() const {
-    CK_ASSERT_NE(*this, Nil());
-    return kSizeClassInfo[Ordinal()].max_size;
-  }
+  uint64_t SliceSize() const;
 
   // Returns a number 0 - `kNumSizeClasses`-1,
-  size_t Ordinal() const {
+  constexpr size_t Ordinal() const {
     CK_ASSERT_NE(*this, Nil());
     return ordinal_;
   }
 
-  uint32_t Pages() const {
-    CK_ASSERT_NE(*this, Nil());
-    return kSizeClassInfo[Ordinal()].pages;
-  }
+  // Returns the number of pages a small slab of this size class should span.
+  uint32_t Pages() const;
 
   // The number of slices that can fit into a small slab of this size class.
   uint32_t MaxSlicesPerSlab() const {

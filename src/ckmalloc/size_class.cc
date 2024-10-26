@@ -104,6 +104,16 @@ std::ostream& operator<<(std::ostream& ostr, ckmalloc::SizeClass size_class) {
   }
 }
 
+uint64_t SizeClass::SliceSize() const {
+  CK_ASSERT_NE(*this, Nil());
+  return kSizeClassInfo[Ordinal()].max_size;
+}
+
+uint32_t SizeClass::Pages() const {
+  CK_ASSERT_NE(*this, Nil());
+  return kSizeClassInfo[Ordinal()].pages;
+}
+
 /* static */
 SizeClass SizeClass::FromUserDataSize(size_t user_size,
                                       std::optional<size_t> alignment) {
