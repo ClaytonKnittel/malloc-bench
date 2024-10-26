@@ -604,8 +604,6 @@ SlabManagerImpl<MetadataAlloc, SlabMap>::AllocEndWithSbrk(
   } else {
     aligned_start_id = start_id;
   }
-  CK_ASSERT_GT(required_pages,
-               last_free_slab != nullptr ? last_free_slab->Pages() : 0);
   CK_ASSERT_LE(required_pages, kUserHeapSize / kPageSize);
 
   uint32_t remaining_pages = (max_heap_size_ - HeapSize()) / kPageSize;

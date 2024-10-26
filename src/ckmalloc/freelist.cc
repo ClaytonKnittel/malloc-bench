@@ -214,7 +214,7 @@ bool Freelist::ResizeIfPossible(AllocatedBlock* block, uint64_t new_size) {
       }
 
       InitFree(new_head, next_size + block_size - new_size);
-    } else {
+    } else if (block_size != new_size) {
       // Otherwise, we create a new free block in between the shrunk block and
       // next_block.
       InitFree(new_head, block_size - new_size);
