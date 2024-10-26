@@ -56,10 +56,10 @@ class SizeClass {
   static SizeClass FromSliceSize(
       uint64_t slice_size, std::optional<size_t> alignment = std::nullopt);
 
-  bool operator==(SizeClass other) const {
+  constexpr bool operator==(SizeClass other) const {
     return ordinal_ == other.ordinal_;
   }
-  bool operator!=(SizeClass other) const {
+  constexpr bool operator!=(SizeClass other) const {
     return !(*this == other);
   }
 
@@ -76,10 +76,7 @@ class SizeClass {
   uint32_t Pages() const;
 
   // The number of slices that can fit into a small slab of this size class.
-  uint32_t MaxSlicesPerSlab() const {
-    CK_ASSERT_NE(*this, Nil());
-    return kSizeClassInfo[Ordinal()].slices_per_slab;
-  }
+  uint32_t MaxSlicesPerSlab() const;
 
   // Given an offset in a small slab of `this` size class in bytes, returns the
   // index of the slice.

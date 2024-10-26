@@ -114,6 +114,11 @@ uint32_t SizeClass::Pages() const {
   return kSizeClassInfo[Ordinal()].pages;
 }
 
+uint32_t SizeClass::MaxSlicesPerSlab() const {
+  CK_ASSERT_NE(*this, Nil());
+  return kSizeClassInfo[Ordinal()].slices_per_slab;
+}
+
 /* static */
 SizeClass SizeClass::FromUserDataSize(size_t user_size,
                                       std::optional<size_t> alignment) {
