@@ -176,8 +176,9 @@ template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
 template <typename S, typename... Args>
 std::optional<std::pair<PageId, S*>>
 SlabManagerImpl<MetadataAlloc, SlabMap>::Alloc(uint32_t n_pages, Args... args) {
-  static_assert(kHasMetadata<S>,
-                "You may only directly allocate non-metadata slabs.");
+  static_assert(
+      kIsManagedSlab<S>,
+      "You may only directly allocate slab-manager-allocatable slabs.");
   using AllocResult = std::pair<PageId, Slab*>;
   CK_ASSERT_NE(n_pages, 0);
   CK_ASSERT_LE(n_pages, PagesPerHeap());
@@ -194,8 +195,9 @@ std::optional<std::pair<PageId, S*>>
 SlabManagerImpl<MetadataAlloc, SlabMap>::AlignedAlloc(uint32_t n_pages,
                                                       size_t alignment,
                                                       Args... args) {
-  static_assert(kHasMetadata<S>,
-                "You may only directly allocate non-metadata slabs.");
+  static_assert(
+      kIsManagedSlab<S>,
+      "You may only directly allocate slab-manager-allocatable slabs.");
   using AllocResult = std::pair<PageId, Slab*>;
   CK_ASSERT_NE(n_pages, 0);
   CK_ASSERT_LE(n_pages, PagesPerHeap());
@@ -427,6 +429,8 @@ SlabManagerImpl<MetadataAlloc, SlabMap>::TakeMultiPageFreeSlab(
       // We have used the slab metadata for this new free region, so we will
       // need to allocate another.
       slab = MetadataAlloc::SlabAlloc();
+      // TODO: handle OOM
+      CK_ASSERT_NE(slab, nullptr);
     }
   }
 
@@ -438,6 +442,8 @@ SlabManagerImpl<MetadataAlloc, SlabMap>::TakeMultiPageFreeSlab(
     // We have used the slab metadata for this new free region, so we will need
     // to allocate another.
     slab = MetadataAlloc::SlabAlloc();
+    // TODO: handle OOM
+    CK_ASSERT_NE(slab, nullptr);
   }
 
   return std::make_pair(page_id, slab);
