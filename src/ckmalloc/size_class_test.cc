@@ -82,7 +82,7 @@ TEST_F(SizeClassTest, TestAlignedSizes) {
         ;
       ASSERT_NE(aligned_ord, SizeClass::kNumSizeClasses);
       SizeClass expected_aligned_size = SizeClass::FromOrdinal(aligned_ord);
-      ASSERT_EQ(aligned_size_class, expected_aligned_size)
+      EXPECT_EQ(aligned_size_class, expected_aligned_size)
           << "Expected equality for size " << size_class << " with alignment "
           << alignment;
     }
