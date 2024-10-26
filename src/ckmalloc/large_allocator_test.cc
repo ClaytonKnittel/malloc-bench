@@ -412,8 +412,8 @@ TEST_F(LargeAllocatorTest, FreeWithUntrackedNeighbors) {
   EXPECT_EQ(freed_block->Size(), 0x30 + kBlockSize);
 
   ASSERT_TRUE(static_cast<Block*>(freed_block)->Free());
-  EXPECT_THAT(FreelistList(), UnorderedElementsAre(freed_block->ToFree(),
-                                                   b3->NextAdjacentBlock()));
+  EXPECT_THAT(FreelistList(),
+              UnorderedElementsAre(freed_block, b3->NextAdjacentBlock()));
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
@@ -539,13 +539,12 @@ TEST_F(LargeAllocatorTest, ResizeUpBeforeFreeTooLarge) {
   EXPECT_NE(b4, b1);
   EXPECT_EQ(b4->Size(), kNewSize);
 
-  EXPECT_THAT(
-      FreelistList(),
-      UnorderedElementsAre(b1->ToFree(), b4->NextAdjacentBlock()->ToFree()));
+  EXPECT_THAT(FreelistList(),
+              UnorderedElementsAre(b1->ToFree(), b4->NextAdjacentBlock()));
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
-TEST_F(LargeAllocatorTest, SingleAlignedAlloc) {
+TEST_F(LargeAllocatorTest, InitialAlignedAlloc) {
   constexpr uint64_t kBlockSize = 0x340;
 
   AllocatedBlock* b1 = Alloc(kBlockSize, /*alignment=*/64);
@@ -556,11 +555,11 @@ TEST_F(LargeAllocatorTest, SingleAlignedAlloc) {
   EXPECT_EQ(b1, PtrAdd<AllocatedBlock>(slab->StartId().PageStart(),
                                        64 - Block::kMetadataOverhead));
 
-  EXPECT_THAT(FreelistList(), ElementsAre(b1->NextAdjacentBlock()->ToFree()));
+  EXPECT_THAT(FreelistList(), ElementsAre(b1->NextAdjacentBlock()));
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
-TEST_F(LargeAllocatorTest, AlignmentExactlyFits) {
+TEST_F(LargeAllocatorTest, InitialAlignmentExactlyFits) {
   AllocatedBlock* b1 = Alloc(2048, /*alignment=*/2048);
 
   ASSERT_THAT(SlabMap().FindSlab(PageId::FromPtr(b1)),
@@ -575,7 +574,7 @@ TEST_F(LargeAllocatorTest, AlignmentExactlyFits) {
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
-TEST_F(LargeAllocatorTest, AlignmentRequiresExtraPage) {
+TEST_F(LargeAllocatorTest, InitialAlignmentRequiresExtraPage) {
   AllocatedBlock* b1 = Alloc(2064, /*alignment=*/2048);
 
   ASSERT_THAT(SlabMap().FindSlab(PageId::FromPtr(b1)),
@@ -588,7 +587,39 @@ TEST_F(LargeAllocatorTest, AlignmentRequiresExtraPage) {
       FreelistList(),
       UnorderedElementsAre(PtrAdd<TrackedBlock>(slab->StartId().PageStart(),
                                                 Block::kFirstBlockInSlabOffset),
-                           b1->NextAdjacentBlock()->ToFree()));
+                           b1->NextAdjacentBlock()));
+  EXPECT_THAT(ValidateHeap(), IsOk());
+}
+
+TEST_F(LargeAllocatorTest, AlignedAlloc) {
+  AllocatedBlock* b1 = Alloc(0x400);
+  AllocatedBlock* b2 = Alloc(0x240, /*alignment=*/128);
+
+  ASSERT_TRUE(b1->NextAdjacentBlock()->Free());
+  EXPECT_EQ(b1->NextAdjacentBlock()->Size(),
+            128 - (Block::kFirstBlockInSlabOffset + Block::kMetadataOverhead));
+  EXPECT_EQ(b2, b1->NextAdjacentBlock()->NextAdjacentBlock());
+
+  EXPECT_THAT(FreelistList(), ElementsAre(b2->NextAdjacentBlock()));
+  EXPECT_THAT(ValidateHeap(), IsOk());
+}
+
+TEST_F(LargeAllocatorTest, AlignedAllocSplitsIntoTwoTrackedBlocks) {
+  AllocatedBlock* b1 = Alloc(0x8020);
+  AllocatedBlock* b2 = Alloc(0x300);
+  Free(b1);
+  AllocatedBlock* b3 = Alloc(0x1000, 0x2000);
+
+  ASSERT_TRUE(static_cast<Block*>(b1)->Free());
+  EXPECT_EQ(b1->Size(), 0x2000 - (Block::kFirstBlockInSlabOffset +
+                                  Block::kMetadataOverhead));
+  EXPECT_EQ(b1->NextAdjacentBlock(), b3);
+  ASSERT_TRUE(b3->NextAdjacentBlock()->Free());
+  EXPECT_EQ(b3->NextAdjacentBlock()->NextAdjacentBlock(), b2);
+
+  EXPECT_THAT(FreelistList(), UnorderedElementsAre(static_cast<Block*>(b1),
+                                                   b3->NextAdjacentBlock(),
+                                                   b2->NextAdjacentBlock()));
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
