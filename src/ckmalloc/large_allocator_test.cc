@@ -23,8 +23,6 @@ namespace ckmalloc {
 
 using testing::AnyOf;
 using testing::ElementsAre;
-using testing::Pointee;
-using testing::Property;
 using testing::UnorderedElementsAre;
 using util::IsOk;
 
@@ -80,7 +78,17 @@ class LargeAllocatorTest : public ::testing::Test {
                         std::optional<size_t> alignment = std::nullopt) {
     Void* res = LargeAllocator().AllocLarge(
         Block::UserSizeForBlockSize(block_size), alignment);
+    CK_ASSERT_EQ(SlabMap().FindSlab(PageId::FromPtr(res))->Type(),
+                 SlabType::kBlocked);
     return res != nullptr ? AllocatedBlock::FromUserDataPtr(res) : nullptr;
+  }
+
+  Void* SingleAlloc(uint64_t size,
+                    std::optional<size_t> alignment = std::nullopt) {
+    Void* res = LargeAllocator().AllocLarge(size, alignment);
+    CK_ASSERT_EQ(SlabMap().FindSlab(PageId::FromPtr(res))->Type(),
+                 SlabType::kSingleAlloc);
+    return res;
   }
 
   AllocatedBlock* Realloc(AllocatedBlock* block, uint64_t block_size) {
@@ -549,8 +557,6 @@ TEST_F(LargeAllocatorTest, InitialAlignedAlloc) {
 
   AllocatedBlock* b1 = Alloc(kBlockSize, /*alignment=*/64);
 
-  ASSERT_THAT(SlabMap().FindSlab(PageId::FromPtr(b1)),
-              Pointee(Property(&Slab::Type, SlabType::kBlocked)));
   LargeSlab* slab = SlabMap().FindSlab(PageId::FromPtr(b1))->ToLarge();
   EXPECT_EQ(b1, PtrAdd<AllocatedBlock>(slab->StartId().PageStart(),
                                        64 - Block::kMetadataOverhead));
@@ -562,8 +568,6 @@ TEST_F(LargeAllocatorTest, InitialAlignedAlloc) {
 TEST_F(LargeAllocatorTest, InitialAlignmentExactlyFits) {
   AllocatedBlock* b1 = Alloc(2048, /*alignment=*/2048);
 
-  ASSERT_THAT(SlabMap().FindSlab(PageId::FromPtr(b1)),
-              Pointee(Property(&Slab::Type, SlabType::kBlocked)));
   LargeSlab* slab = SlabMap().FindSlab(PageId::FromPtr(b1))->ToLarge();
   EXPECT_EQ(b1, PtrAdd<AllocatedBlock>(slab->StartId().PageStart(),
                                        2048 - Block::kMetadataOverhead));
@@ -577,8 +581,6 @@ TEST_F(LargeAllocatorTest, InitialAlignmentExactlyFits) {
 TEST_F(LargeAllocatorTest, InitialAlignmentRequiresExtraPage) {
   AllocatedBlock* b1 = Alloc(2064, /*alignment=*/2048);
 
-  ASSERT_THAT(SlabMap().FindSlab(PageId::FromPtr(b1)),
-              Pointee(Property(&Slab::Type, SlabType::kBlocked)));
   LargeSlab* slab = SlabMap().FindSlab(PageId::FromPtr(b1))->ToLarge();
   EXPECT_EQ(b1, PtrAdd<AllocatedBlock>(slab->StartId().PageStart(),
                                        2048 - Block::kMetadataOverhead));
@@ -620,6 +622,26 @@ TEST_F(LargeAllocatorTest, AlignedAllocSplitsIntoTwoTrackedBlocks) {
   EXPECT_THAT(FreelistList(), UnorderedElementsAre(static_cast<Block*>(b1),
                                                    b3->NextAdjacentBlock(),
                                                    b2->NextAdjacentBlock()));
+  EXPECT_THAT(ValidateHeap(), IsOk());
+}
+
+TEST_F(LargeAllocatorTest, AlignedAllocSplitAlreadyAligned) {
+  AllocatedBlock* b1 = Alloc(0x3f0);
+  AllocatedBlock* b2 = Alloc(0x400, 128);
+
+  EXPECT_EQ(b1->NextAdjacentBlock(), b2);
+
+  EXPECT_THAT(FreelistList(), ElementsAre(b2->NextAdjacentBlock()));
+  EXPECT_THAT(ValidateHeap(), IsOk());
+}
+
+TEST_F(LargeAllocatorTest, LargeAlignmentForcesSingleAlloc) {
+  // Make a large slab so b1 will need to reserve a slab 2 pages over.
+  AllocatedBlock* b1 = Alloc(0x400);
+  Void* b2 = SingleAlloc(0x300, 2 * kPageSize);
+
+  EXPECT_EQ(PageId::FromPtr(b1) + 2, PageId::FromPtr(b2));
+
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 

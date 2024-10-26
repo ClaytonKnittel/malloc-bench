@@ -152,8 +152,9 @@ absl::StatusOr<void*> TestCkMalloc::Malloc(size_t size,
   if (alignment.has_value() &&
       !ckmalloc::IsAligned(reinterpret_cast<size_t>(result),
                            alignment.value())) {
-    return absl::FailedPreconditionError(absl::StrFormat(
-        "Pointer %p not aligned to %zu", result, alignment.value()));
+    return absl::FailedPreconditionError(
+        absl::StrFormat("Pointer %p of size %zu not aligned to %zu", result,
+                        size, alignment.value()));
   }
 
   if (++iter_ % validate_every_n_ == 0) {
