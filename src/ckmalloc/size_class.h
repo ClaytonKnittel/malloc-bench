@@ -58,18 +58,19 @@ class SizeClass {
     CK_ASSERT_EQ(alignment_val & (alignment_val - 1), 0);
     CK_ASSERT_LE(alignment_val, kMaxSmallSize);
 
-    size_t idx;
-    if (alignment_val <= kDefaultAlignment) {
-      idx = OrdinalMapIdx(user_size);
-    } else {
-      idx = OrdinalMapIdx(AlignUp(user_size, alignment_val));
-      for (; idx < kNumSizeClasses &&
-             (kSizeClassInfo[idx].max_size & (alignment_val - 1)) != 0;
-           idx++)
-        ;
-      CK_ASSERT_NE(idx, kNumSizeClasses);
+    if (alignment_val <= kMinAlignment ||
+        (alignment_val <= kDefaultAlignment && user_size > kMinAlignment)) {
+      return kOrdinalMap[OrdinalMapIdx(user_size)];
     }
-    return SizeClass(kOrdinalMap[idx]);
+
+    size_t ord =
+        kOrdinalMap[OrdinalMapIdx(AlignUp(user_size, alignment_val))].Ordinal();
+    for (; ord < kNumSizeClasses &&
+           !IsAligned<size_t>(kSizeClassInfo[ord].max_size, alignment_val);
+         ord++)
+      ;
+    CK_ASSERT_NE(ord, kNumSizeClasses);
+    return SizeClass::FromOrdinal(ord);
   }
 
   static SizeClass FromSliceSize(
