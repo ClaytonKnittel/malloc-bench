@@ -104,4 +104,102 @@ std::ostream& operator<<(std::ostream& ostr, ckmalloc::SizeClass size_class) {
   }
 }
 
+/* static */
+SizeClass SizeClass::FromUserDataSize(size_t user_size,
+                                      std::optional<size_t> alignment) {
+  CK_ASSERT_LE(user_size, kMaxSmallSize);
+  CK_ASSERT_NE(user_size, 0);
+  size_t alignment_val = alignment.value_or(0);
+  CK_ASSERT_EQ(alignment_val & (alignment_val - 1), 0);
+  CK_ASSERT_LE(alignment_val, kMaxSmallSize);
+
+  if (alignment_val <= kMinAlignment ||
+      (alignment_val <= kDefaultAlignment && user_size > kMinAlignment)) {
+    return kOrdinalMap[OrdinalMapIdx(user_size)];
+  }
+
+  size_t ord =
+      kOrdinalMap[OrdinalMapIdx(AlignUp(user_size, alignment_val))].Ordinal();
+  for (; ord < kNumSizeClasses &&
+         !IsAligned<size_t>(kSizeClassInfo[ord].max_size, alignment_val);
+       ord++)
+    ;
+  CK_ASSERT_NE(ord, kNumSizeClasses);
+  return SizeClass::FromOrdinal(ord);
+}
+
+/* static */
+SizeClass SizeClass::FromSliceSize(uint64_t slice_size,
+                                   std::optional<size_t> alignment) {
+  CK_ASSERT_LE(slice_size, kMaxSmallSize);
+  CK_ASSERT_NE(slice_size, 0);
+  CK_ASSERT_TRUE(slice_size == kMinAlignment ||
+                 slice_size % kDefaultAlignment == 0);
+
+  return FromUserDataSize(slice_size, alignment);
+}
+
+// TODO check if this is the fastest way to do this.
+uint32_t SizeClass::OffsetToIdx(uint64_t offset_bytes) const {
+  static_assert(kNumSizeClasses == 26);
+  CK_ASSERT_LT(offset_bytes, Pages() * kPageSize);
+  switch (Ordinal()) {
+    // NOLINTNEXTLINE(bugprone-branch-clone)
+    case 0:
+      return static_cast<uint32_t>(offset_bytes / SliceSize());
+    case 1:
+      return static_cast<uint32_t>(offset_bytes / SliceSize());
+    case 2:
+      return static_cast<uint32_t>(offset_bytes / SliceSize());
+    case 3:
+      return static_cast<uint32_t>(offset_bytes / SliceSize());
+    case 4:
+      return static_cast<uint32_t>(offset_bytes / SliceSize());
+    case 5:
+      return static_cast<uint32_t>(offset_bytes / SliceSize());
+    case 6:
+      return static_cast<uint32_t>(offset_bytes / SliceSize());
+    case 7:
+      return static_cast<uint32_t>(offset_bytes / SliceSize());
+    case 8:
+      return static_cast<uint32_t>(offset_bytes / SliceSize());
+    case 9:
+      return static_cast<uint32_t>(offset_bytes / SliceSize());
+    case 10:
+      return static_cast<uint32_t>(offset_bytes / SliceSize());
+    case 11:
+      return static_cast<uint32_t>(offset_bytes / SliceSize());
+    case 12:
+      return static_cast<uint32_t>(offset_bytes / SliceSize());
+    case 13:
+      return static_cast<uint32_t>(offset_bytes / SliceSize());
+    case 14:
+      return static_cast<uint32_t>(offset_bytes / SliceSize());
+    case 15:
+      return static_cast<uint32_t>(offset_bytes / SliceSize());
+    case 16:
+      return static_cast<uint32_t>(offset_bytes / SliceSize());
+    case 17:
+      return static_cast<uint32_t>(offset_bytes / SliceSize());
+    case 18:
+      return static_cast<uint32_t>(offset_bytes / SliceSize());
+    case 19:
+      return static_cast<uint32_t>(offset_bytes / SliceSize());
+    case 20:
+      return static_cast<uint32_t>(offset_bytes / SliceSize());
+    case 21:
+      return static_cast<uint32_t>(offset_bytes / SliceSize());
+    case 22:
+      return static_cast<uint32_t>(offset_bytes / SliceSize());
+    case 23:
+      return static_cast<uint32_t>(offset_bytes / SliceSize());
+    case 24:
+      return static_cast<uint32_t>(offset_bytes / SliceSize());
+    case 25:
+      return static_cast<uint32_t>(offset_bytes / SliceSize());
+    default:
+      CK_UNREACHABLE();
+  }
+}
+
 }  // namespace ckmalloc
