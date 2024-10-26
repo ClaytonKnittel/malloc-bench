@@ -182,9 +182,15 @@ AllocatedBlock* LargeAllocatorImpl<SlabMap, SlabManager>::MakeBlockFromFreelist(
   BlockedSlab* slab =
       slab_map_->FindSlab(PageId::FromPtr(free_block))->ToBlocked();
 
-  // TODO: do split aligned if an aligned allocation.
-  auto [allocated_block, remainder_block] =
-      freelist_->Split(free_block, block_size);
+  AllocatedBlock* allocated_block;
+  if (alignment.has_value()) {
+    auto [prev_free, block, next_free] =
+        freelist_->SplitAligned(free_block, block_size, alignment.value());
+    allocated_block = block;
+  } else {
+    auto [block, remainder_block] = freelist_->Split(free_block, block_size);
+    allocated_block = block;
+  }
 
   slab->AddAllocation(allocated_block->Size());
   return allocated_block;
