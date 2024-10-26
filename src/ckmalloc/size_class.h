@@ -45,7 +45,7 @@ class SizeClass {
     return SizeClass();
   }
 
-  static SizeClass FromOrdinal(size_t ord) {
+  static constexpr SizeClass FromOrdinal(size_t ord) {
     CK_ASSERT_LT(ord, kNumSizeClasses);
     return SizeClass(ord);
   }
