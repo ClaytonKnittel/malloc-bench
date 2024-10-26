@@ -63,8 +63,11 @@ class SizeClass {
       idx = OrdinalMapIdx(user_size);
     } else {
       idx = OrdinalMapIdx(AlignUp(user_size, alignment_val));
-      for (; (kSizeClassInfo[idx].max_size & (alignment_val - 1)) != 0; idx++)
+      for (; idx < kNumSizeClasses &&
+             (kSizeClassInfo[idx].max_size & (alignment_val - 1)) != 0;
+           idx++)
         ;
+      CK_ASSERT_NE(idx, kNumSizeClasses);
     }
     return SizeClass(kOrdinalMap[idx]);
   }
