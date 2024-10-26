@@ -111,6 +111,7 @@ class TestCorrectness : public ::testing::Test {
   }
 
   absl::Status ValidateEmpty() const {
+    RETURN_IF_ERROR(metadata_manager_fixture_->ValidateHeap());
     RETURN_IF_ERROR(slab_manager_fixture_->ValidateEmpty());
     RETURN_IF_ERROR(small_allocator_fixture_->ValidateEmpty());
     RETURN_IF_ERROR(large_allocator_fixture_->ValidateEmpty());
