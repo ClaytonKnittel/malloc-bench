@@ -103,7 +103,7 @@ class SizeClass {
   static const std::array<SizeClass, SizeClass::kNumSizeClassLookupIdx>
       kOrdinalMap;
 
-  explicit SizeClass(uint8_t ord) : ordinal_(ord) {}
+  explicit constexpr SizeClass(uint8_t ord) : ordinal_(ord) {}
 
   uint8_t ordinal_ = kNilOrdinal;
 };
