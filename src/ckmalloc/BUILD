@@ -554,6 +554,7 @@ cc_test(
     deps = [
         ":common",
         ":freelist",
+        ":page_id",
         ":size_class",
         ":slab",
         ":slab_manager_test_fixture",
