@@ -368,4 +368,14 @@ TEST_F(SlabManagerTest, AlignedSlabBetweenSlabsExactFit) {
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
+TEST_F(SlabManagerTest, AlignedHighlyAlignedSlab) {
+  ASSERT_OK_AND_DEFINE(AllocatedSlab*, slab1, Fixture().AllocateSlab(3));
+  ASSERT_THAT(Fixture().AllocateSlab(32, 64 * kPageSize).status(), IsOk());
+  ASSERT_OK_AND_DEFINE(AllocatedSlab*, slab3, Fixture().AllocateSlab(61));
+  ASSERT_THAT(HeapsVec(), ElementsAre(_, _));
+
+  EXPECT_EQ(slab1->StartId() + 3, slab3->StartId());
+  EXPECT_THAT(ValidateHeap(), IsOk());
+}
+
 }  // namespace ckmalloc
