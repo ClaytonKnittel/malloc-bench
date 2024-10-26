@@ -527,13 +527,12 @@ template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
 std::optional<std::pair<PageId, Slab*>>
 SlabManagerImpl<MetadataAlloc, SlabMap>::DoAlignedAllocWithoutSbrk(
     uint32_t n_pages, size_t alignment) {
-  for (auto& slab_start : single_page_freelist_) {
-    if (IsAligned(reinterpret_cast<size_t>(&slab_start), alignment)) {
-      return TakeSinglePageFreeSlab(&slab_start);
+  if (n_pages == 1) {
+    for (auto& slab_start : single_page_freelist_) {
+      if (IsAligned(reinterpret_cast<size_t>(&slab_start), alignment)) {
+        return TakeSinglePageFreeSlab(&slab_start);
+      }
     }
-  }
-  if (smallest_multi_page_ == nullptr) {
-    return std::nullopt;
   }
 
   FreeMultiPageSlab* slab_start;

@@ -336,6 +336,20 @@ TEST_F(SlabManagerTest, LargeAlignedSlabs) {
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
+TEST_F(SlabManagerTest, AlignAllocCarve) {
+  ASSERT_OK_AND_DEFINE(AllocatedSlab*, slab1, Fixture().AllocateSlab(1));
+  ASSERT_OK_AND_DEFINE(AllocatedSlab*, slab2, Fixture().AllocateSlab(10));
+  ASSERT_THAT(Fixture().FreeSlab(slab2), IsOk());
+  ASSERT_OK_AND_DEFINE(AllocatedSlab*, slab3,
+                       Fixture().AllocateSlab(2, 2 * kPageSize));
+  ASSERT_THAT(HeapsVec(), ElementsAre(_));
+
+  const TestHeap& slab_heap = *Heaps().begin()->second.second;
+  EXPECT_EQ(slab1->StartId(), PageId::FromPtr(slab_heap.Start()));
+  EXPECT_EQ(slab3->StartId(), PageId::FromPtr(slab_heap.Start()) + 2);
+  EXPECT_THAT(ValidateHeap(), IsOk());
+}
+
 TEST_F(SlabManagerTest, AlignedSlabBetweenSlabs) {
   ASSERT_OK_AND_DEFINE(AllocatedSlab*, slab1,
                        Fixture().AllocateSlab(1, 4 * kPageSize));
