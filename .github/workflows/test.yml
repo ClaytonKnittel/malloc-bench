@@ -22,7 +22,9 @@ jobs:
           key: bazel
       - name: Install clang
         run: |
-          sudo apt-get install -y clang-18
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 18
       - name: Test
         working-directory: ckmalloc
         run: |
