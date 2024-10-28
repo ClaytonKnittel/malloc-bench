@@ -189,7 +189,7 @@ template <uint32_t S>
 class SmallSlabTestParams {
  public:
   using IdType = std::conditional_t<S == 8 || S == 16, uint16_t, uint8_t>;
-  static constexpr uint32_t kSizeClass = S;
+  static constexpr uint32_t kSliceSize = S;
 };
 
 template <typename P>
@@ -198,7 +198,7 @@ class SmallSlabTest : public ::testing::TestWithParam<uint64_t> {
   using T = P::IdType;
 
   static SizeClass GetSizeClass() {
-    return SizeClass::FromSliceSize(P::kSizeClass);
+    return SizeClass::FromSliceSize(P::kSliceSize);
   }
 
   static TestSmallSlab<T> MakeSlab() {
