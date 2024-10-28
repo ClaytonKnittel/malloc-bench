@@ -1,0 +1,26 @@
+name: Format
+
+on:
+  push:
+    branches:
+      - ckmalloc
+  pull_request:
+jobs:
+  check-format:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        path:
+          - "src"
+          - "proto"
+    steps:
+      - name: Check out ckmalloc
+        uses: actions/checkout@v4
+        with:
+          path: ckmalloc
+          submodules: recursive
+      - name: clang-format style check
+        uses: jidicula/clang-format-action@v4.13.0
+        with:
+          clang-format-version: "17"
+          check-path: ${{ matrix.path }}
