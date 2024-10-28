@@ -1,0 +1,26 @@
+name: Test
+
+on:
+  push:
+    branches:
+      - ckmalloc
+  pull_request:
+jobs:
+  check-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out ckmalloc
+        uses: actions/checkout@v4
+        with:
+          path: ckmalloc
+          submodules: recursive
+      - uses: bazelbuild/setup-bazelisk@v3
+      - name: Mount bazel cache
+        uses: actions/cache@v4
+        with:
+          path: "~/.cache/bazel"
+          key: bazel
+      - name: Test
+        working-directory: ckmalloc
+        run: |
+          bazel test --config=test //...
