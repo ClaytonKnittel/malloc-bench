@@ -20,6 +20,9 @@ jobs:
         with:
           path: "~/.cache/bazel"
           key: bazel
+      - name: Install clang
+        run: |
+          sudo apt-get install -y clang-18
       - name: Test
         working-directory: ckmalloc
         run: |
