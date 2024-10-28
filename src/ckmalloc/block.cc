@@ -26,15 +26,11 @@ constexpr bool UserDataOffsetValid() {
 }
 
 static_assert(HeaderOffset() == 0, "FreeBlock header offset must be 0");
-static_assert(sizeof(ExactSizeBlock) <= Block::kMinBlockSize,
-              "ExactSizeBlock size is larger than the max small size.");
-static_assert(sizeof(TreeBlock) <= Block::kMinBlockSize,
-              "TreeBlock size is larger than the max small size.");
 static_assert(
     UserDataOffsetValid(),
     "User data region starts at the incorrect offset in allocated blocks.");
 static_assert(sizeof(UntrackedBlock) + sizeof(uint64_t) <= Block::kMinBlockSize,
-              "Untracked blocks + footers must be <= min block size");
+              "Untracked blocks + footers must be <= default alignment");
 
 AllocatedBlock* Block::InitAllocated(uint64_t size, bool prev_free) {
   CK_ASSERT_GE(size, kMinBlockSize);

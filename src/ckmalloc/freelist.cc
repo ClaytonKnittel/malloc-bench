@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <tuple>
 
 #include "src/ckmalloc/block.h"
 #include "src/ckmalloc/common.h"
@@ -10,6 +11,18 @@
 #include "src/ckmalloc/util.h"
 
 namespace ckmalloc {
+
+namespace {
+
+bool CanFitAlignedAlloc(Block* block, uint64_t block_size, size_t alignment) {
+  return AlignUpDiff(reinterpret_cast<size_t>(
+                         static_cast<AllocatedBlock*>(block)->UserDataPtr()),
+                     alignment) +
+             block_size <=
+         block->Size();
+}
+
+}  // namespace
 
 TrackedBlock* Freelist::FindFree(uint64_t block_size) {
   CK_ASSERT_TRUE(IsAligned(block_size, kDefaultAlignment));
@@ -36,6 +49,33 @@ TrackedBlock* Freelist::FindFree(uint64_t block_size) {
       });
 }
 
+TrackedBlock* Freelist::FindFreeAligned(uint64_t block_size,
+                                        uint64_t alignment) {
+  // If the required block size is small enough for the exact-size bins, check
+  // those first in order of size, starting from `block_size`.
+  if (block_size <= Block::kMaxExactSizeBlock) {
+    for (auto it = exact_bin_skiplist_.begin(/*from=*/ExactSizeIdx(block_size));
+         it != exact_bin_skiplist_.end(); ++it) {
+      LinkedList<ExactSizeBlock>& bin = exact_size_bins_[*it];
+      for (ExactSizeBlock& block : bin) {
+        if (CanFitAlignedAlloc(&block, block_size, alignment)) {
+          return &block;
+        }
+      }
+    }
+  }
+
+  TreeBlock* block =
+      large_blocks_tree_.LowerBound([block_size](const TreeBlock& tree_block) {
+        return tree_block.Size() >= block_size;
+      });
+  for (; block != nullptr && !CanFitAlignedAlloc(block, block_size, alignment);
+       block = large_blocks_tree_.Next(block))
+    ;
+
+  return block;
+}
+
 TrackedBlock* Freelist::FindFreeLazy(uint64_t block_size) {
   CK_ASSERT_TRUE(IsAligned(block_size, kDefaultAlignment));
 
@@ -49,6 +89,14 @@ TrackedBlock* Freelist::FindFreeLazy(uint64_t block_size) {
   }
 
   return nullptr;
+}
+
+TrackedBlock* Freelist::FindFreeLazyAligned(uint64_t block_size,
+                                            uint64_t alignment) {
+  TrackedBlock* block = FindFreeLazy(block_size);
+  return block != nullptr && CanFitAlignedAlloc(block, block_size, alignment)
+             ? block
+             : nullptr;
 }
 
 FreeBlock* Freelist::InitFree(Block* block, uint64_t size) {
@@ -71,7 +119,7 @@ std::pair<AllocatedBlock*, FreeBlock*> Freelist::Split(TrackedBlock* block,
   CK_ASSERT_LE(block_size, size);
 
   uint64_t remainder = size - block_size;
-  if (remainder < Block::kMinBlockSize) {
+  if (remainder == 0) {
     AllocatedBlock* allocated_block = MarkAllocated(block);
     return std::make_pair(allocated_block, nullptr);
   }
@@ -82,6 +130,40 @@ std::pair<AllocatedBlock*, FreeBlock*> Freelist::Split(TrackedBlock* block,
   FreeBlock* remainder_block =
       InitFree(allocated_block->NextAdjacentBlock(), remainder);
   return std::make_pair(allocated_block, remainder_block);
+}
+
+std::tuple<FreeBlock*, AllocatedBlock*, FreeBlock*> Freelist::SplitAligned(
+    TrackedBlock* block, uint64_t block_size, size_t alignment) {
+  uint64_t size = block->Size();
+  CK_ASSERT_LE(block_size, size);
+
+  uint64_t alignment_offset =
+      AlignUpDiff(reinterpret_cast<size_t>(
+                      static_cast<AllocatedBlock*>(static_cast<Block*>(block))
+                          ->UserDataPtr()),
+                  alignment);
+  if (alignment_offset == 0) {
+    auto [alloc_block, free_block] = Split(block, block_size);
+    return std::make_tuple(nullptr, alloc_block, free_block);
+  }
+
+  RemoveBlock(block);
+  FreeBlock* prev_free = InitFree(block, alignment_offset);
+  Block* middle_block = prev_free->NextAdjacentBlock();
+  size -= alignment_offset;
+
+  uint64_t remainder = size - block_size;
+  if (remainder == 0) {
+    AllocatedBlock* allocated_block = MarkAllocated(block);
+    return std::make_tuple(prev_free, allocated_block, nullptr);
+  }
+
+  AllocatedBlock* allocated_block =
+      middle_block->InitAllocated(block_size, /*prev_free=*/true);
+
+  FreeBlock* next_free =
+      InitFree(allocated_block->NextAdjacentBlock(), remainder);
+  return std::make_tuple(prev_free, allocated_block, next_free);
 }
 
 FreeBlock* Freelist::MarkFree(AllocatedBlock* block) {
@@ -134,14 +216,10 @@ bool Freelist::ResizeIfPossible(AllocatedBlock* block, uint64_t new_size) {
       }
 
       InitFree(new_head, next_size + block_size - new_size);
-    } else if (new_size + Block::kMinBlockSize <= block_size) {
+    } else if (block_size != new_size) {
       // Otherwise, we create a new free block in between the shrunk block and
       // next_block.
       InitFree(new_head, block_size - new_size);
-    } else {
-      // Otherwise we need to undo the resize of the block, as it would leave a
-      // remainder bloc <= kMinBlockSize.
-      block->SetSize(block_size);
     }
     return true;
   }
@@ -152,7 +230,7 @@ bool Freelist::ResizeIfPossible(AllocatedBlock* block, uint64_t new_size) {
     }
 
     uint64_t remainder_size = block_size + next_size - new_size;
-    if (remainder_size < Block::kMinBlockSize) {
+    if (remainder_size == 0) {
       block->SetSize(block_size + next_size);
       block->NextAdjacentBlock()->SetPrevFree(false);
     } else {

@@ -10,6 +10,7 @@
 
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/freelist.h"
+#include "src/ckmalloc/page_id.h"
 #include "src/ckmalloc/size_class.h"
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/slab_manager_test_fixture.h"
@@ -19,6 +20,8 @@
 
 namespace ckmalloc {
 
+using testing::Pointee;
+using testing::Property;
 using testing::UnorderedElementsAreArray;
 using util::IsOk;
 
@@ -264,6 +267,23 @@ TEST_P(SizeClassTest, AllocFreeAllocFull) {
 
   EXPECT_THAT(ptrs2, UnorderedElementsAreArray(frees));
   EXPECT_EQ(TotalHeapsSize(), SizeClass().Pages() * kPageSize);
+}
+
+TEST_P(SizeClassTest, AllocAligned) {
+  Void* ptr = SmallAllocator().AllocSmall(SizeClass().SliceSize(), 128);
+  ASSERT_NE(ptr, nullptr);
+  ASSERT_THAT(SlabMap().FindSlab(PageId::FromPtr(ptr)),
+              Pointee(Property(&Slab::Type, SlabType::kSmall)));
+
+  class SizeClass expected_size_class =
+      SizeClass::FromSliceSize(SizeClass().SliceSize(), 128);
+  EXPECT_THAT(SlabMap().FindSlab(PageId::FromPtr(ptr)),
+              Pointee(Property(&Slab::ToSmall, Property(&SmallSlab::SizeClass,
+                                                        expected_size_class))));
+
+  FreeSmall(ptr);
+
+  EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
 static const auto kAllSizeClasses =

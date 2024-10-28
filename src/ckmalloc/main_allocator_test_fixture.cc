@@ -33,21 +33,16 @@ Void* TestMainAllocator::Alloc(size_t user_size) {
   if (alloc == nullptr) {
     return nullptr;
   }
+  HandleAllocation(alloc, user_size);
+  return alloc;
+}
 
-  uint64_t magic = test_fixture_->rng_.GenRand64();
-  MainAllocatorFixture::FillMagic(alloc, user_size, magic);
-
-  auto [it, inserted] =
-      test_fixture_->allocations_.insert({ alloc, { user_size, magic } });
-  CK_ASSERT_TRUE(inserted);
-
-  MappedSlab* slab = test_fixture_->SlabMap().FindSlab(PageId::FromPtr(alloc));
-  CK_ASSERT_NE(slab, nullptr);
-  if (slab->Type() == SlabType::kMmap) {
-    auto [_, inserted] = test_fixture_->mmap_blocks_.insert(alloc);
-    CK_ASSERT_TRUE(inserted);
+Void* TestMainAllocator::AlignedAlloc(size_t user_size, size_t alignment) {
+  Void* alloc = main_allocator_.AlignedAlloc(user_size, alignment);
+  if (alloc == nullptr) {
+    return nullptr;
   }
-
+  HandleAllocation(alloc, user_size);
   return alloc;
 }
 
@@ -109,6 +104,22 @@ void TestMainAllocator::Free(Void* ptr) {
 
 size_t TestMainAllocator::AllocSize(Void* ptr) {
   return main_allocator_.AllocSize(ptr);
+}
+
+void TestMainAllocator::HandleAllocation(Void* alloc, size_t user_size) {
+  uint64_t magic = test_fixture_->rng_.GenRand64();
+  MainAllocatorFixture::FillMagic(alloc, user_size, magic);
+
+  auto [it, inserted] =
+      test_fixture_->allocations_.insert({ alloc, { user_size, magic } });
+  CK_ASSERT_TRUE(inserted);
+
+  MappedSlab* slab = test_fixture_->SlabMap().FindSlab(PageId::FromPtr(alloc));
+  CK_ASSERT_NE(slab, nullptr);
+  if (slab->Type() == SlabType::kMmap) {
+    auto [_, inserted] = test_fixture_->mmap_blocks_.insert(alloc);
+    CK_ASSERT_TRUE(inserted);
+  }
 }
 
 absl::Status MainAllocatorFixture::ValidateHeap() {
