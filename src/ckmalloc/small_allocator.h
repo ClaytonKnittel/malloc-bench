@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <optional>
@@ -27,7 +28,8 @@ class SmallAllocatorImpl {
                               Freelist* freelist)
       : slab_map_(slab_map), slab_manager_(slab_manager), freelist_(freelist) {}
 
-  Void* AllocSmall(size_t user_size);
+  Void* AllocSmall(size_t user_size,
+                   std::optional<size_t> alignment = std::nullopt);
 
   // Reallocates a small slice to another small slice size.
   Void* ReallocSmall(SmallSlab* slab, Void* ptr, size_t user_size);
@@ -65,8 +67,9 @@ class SmallAllocatorImpl {
 };
 
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
-Void* SmallAllocatorImpl<SlabMap, SlabManager>::AllocSmall(size_t user_size) {
-  SizeClass size_class = SizeClass::FromUserDataSize(user_size);
+Void* SmallAllocatorImpl<SlabMap, SlabManager>::AllocSmall(
+    size_t user_size, std::optional<size_t> alignment) {
+  SizeClass size_class = SizeClass::FromUserDataSize(user_size, alignment);
 
   auto slice_from_freelist = FindSliceInFreelist(size_class);
   if (slice_from_freelist.has_value()) {
@@ -76,13 +79,26 @@ Void* SmallAllocatorImpl<SlabMap, SlabManager>::AllocSmall(size_t user_size) {
   // TODO: Test this in main allocator test.
   uint64_t block_size = Block::BlockSizeForUserSize(user_size);
   if (block_size >= Block::kMinTrackedSize) {
-    TrackedBlock* block = freelist_->FindFreeLazy(block_size);
+    TrackedBlock* block =
+        alignment.has_value()
+            ? freelist_->FindFreeLazyAligned(block_size, alignment.value())
+            : freelist_->FindFreeLazy(block_size);
     if (block != nullptr) {
+      // TODO: unify this logic in freelist.
       BlockedSlab* slab =
           slab_map_->FindSlab(PageId::FromPtr(block))->ToBlocked();
-      auto [allocated, free] = freelist_->Split(block, block_size);
-      slab->AddAllocation(allocated->Size());
-      return allocated->UserDataPtr();
+      AllocatedBlock* allocated_block;
+      if (alignment.has_value()) {
+        auto [prev_free, allocated, next_free] =
+            freelist_->SplitAligned(block, block_size, alignment.value());
+        allocated_block = allocated;
+      } else {
+        auto [allocated, free] = freelist_->Split(block, block_size);
+        allocated_block = allocated;
+      }
+      CK_ASSERT_EQ(allocated_block->Size(), block_size);
+      slab->AddAllocation(block_size);
+      return allocated_block->UserDataPtr();
     }
   }
 

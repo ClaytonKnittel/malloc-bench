@@ -38,6 +38,11 @@ class MainAllocatorImpl {
   // the beginning of the region.
   Void* Alloc(size_t user_size);
 
+  // Allocates a region of memory `user_size` bytes long aligned to `alignment`
+  // (which must be a power of two), returning a pointer to the beginning of the
+  // region.
+  Void* AlignedAlloc(size_t user_size, size_t alignment);
+
   // Re-allocates a region of memory to be `user_size` bytes long, returning a
   // pointer to the beginning of the new region and copying the data from `ptr`
   // over. The returned pointer may equal the `ptr` argument. If `user_size` is
@@ -79,6 +84,26 @@ Void* MainAllocatorImpl<MetadataAlloc, SlabMap, SlabManager, SmallAllocator,
     return AllocMmap(user_size);
   } else {
     return large_alloc_->AllocLarge(user_size);
+  }
+}
+
+template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap,
+          SlabManagerInterface SlabManager,
+          SmallAllocatorInterface SmallAllocator,
+          LargeAllocatorInterface LargeAllocator>
+Void* MainAllocatorImpl<MetadataAlloc, SlabMap, SlabManager, SmallAllocator,
+                        LargeAllocator>::AlignedAlloc(size_t user_size,
+                                                      size_t alignment) {
+  CK_ASSERT_NE(alignment, 0);
+  CK_ASSERT_EQ((alignment & (alignment - 1)), 0);
+
+  if (IsSmallSize(user_size)) {
+    return small_alloc_->AllocSmall(user_size, alignment);
+  } else if (IsMmapSize(user_size)) {
+    // TODO: Use alignment here.
+    return AllocMmap(user_size);
+  } else {
+    return large_alloc_->AllocLarge(user_size, alignment);
   }
 }
 

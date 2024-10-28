@@ -13,17 +13,17 @@
 namespace ckmalloc {
 
 template <typename>
-struct HasMetadataHelper : public std::false_type {};
+struct IsManagedSlabHelper : public std::false_type {};
 
 template <>
-struct HasMetadataHelper<class SmallSlab> : public std::true_type {};
+struct IsManagedSlabHelper<class SmallSlab> : public std::true_type {};
 template <>
-struct HasMetadataHelper<class BlockedSlab> : public std::true_type {};
+struct IsManagedSlabHelper<class BlockedSlab> : public std::true_type {};
 template <>
-struct HasMetadataHelper<class SingleAllocSlab> : public std::true_type {};
+struct IsManagedSlabHelper<class SingleAllocSlab> : public std::true_type {};
 
 template <typename S>
-inline constexpr bool kHasMetadata = HasMetadataHelper<S>::value;
+inline constexpr bool kIsManagedSlab = IsManagedSlabHelper<S>::value;
 
 template <typename>
 struct HasOneAllocationHelper : public std::false_type {};

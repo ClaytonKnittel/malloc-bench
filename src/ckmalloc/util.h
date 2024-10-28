@@ -94,6 +94,14 @@ constexpr T AlignUp(T val, T alignment) {
   return (val + alignment - 1) & ~(alignment - 1);
 }
 
+// Equivalent to `AlignUp(val, alignment) - val`.
+template <typename T>
+requires std::is_integral_v<T>
+constexpr T AlignUpDiff(T val, T alignment) {
+  CK_ASSERT_EQ((alignment & (alignment - 1)), 0);
+  return (~val + 1) & (alignment - 1);
+}
+
 template <typename T>
 requires std::is_integral_v<T>
 constexpr T CeilDiv(T val, T quotient) {

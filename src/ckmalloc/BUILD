@@ -554,6 +554,7 @@ cc_test(
     deps = [
         ":common",
         ":freelist",
+        ":page_id",
         ":size_class",
         ":slab",
         ":slab_manager_test_fixture",
@@ -659,4 +660,5 @@ cc_binary(
 cc_library(
     name = "util",
     hdrs = ["util.h"],
+    visibility = ["//visibility:public"],
 )

@@ -41,6 +41,8 @@ class TestMainAllocator {
 
   Void* Alloc(size_t user_size);
 
+  Void* AlignedAlloc(size_t user_size, size_t alignment);
+
   Void* Realloc(Void* ptr, size_t user_size);
 
   void Free(Void* ptr);
@@ -48,6 +50,8 @@ class TestMainAllocator {
   size_t AllocSize(Void* ptr);
 
  private:
+  void HandleAllocation(Void* alloc, size_t user_size);
+
   class MainAllocatorFixture* test_fixture_;
   MainAllocatorT main_allocator_;
 };

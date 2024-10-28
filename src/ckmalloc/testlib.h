@@ -176,8 +176,9 @@ void AbslStringify(Sink& sink, HeapType heap_type) {
 
 class TestHeap : private AlignedAlloc, public bench::Heap {
  public:
+  static constexpr size_t kHeapAlignment = 64 * kPageSize;
   explicit TestHeap(size_t n_pages)
-      : AlignedAlloc(n_pages * kPageSize, kPageSize),
+      : AlignedAlloc(n_pages * kPageSize, kHeapAlignment),
         bench::Heap(RegionStart(), n_pages * kPageSize) {}
 };
 
