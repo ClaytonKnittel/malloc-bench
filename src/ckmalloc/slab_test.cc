@@ -1,10 +1,10 @@
 #include "src/ckmalloc/slab.h"
 
-#include <array>
 #include <cinttypes>
 #include <cstdint>
 #include <tuple>
 #include <type_traits>
+#include <vector>
 
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
@@ -30,9 +30,11 @@ template <typename T>
 requires std::is_integral_v<T>
 class TestSmallSlab {
  public:
-  explicit TestSmallSlab(SizeClass size_class) {
-    static_cast<Slab*>(&slab_)->Init<SmallSlab>(
-        PageId(0), /*n_pages=*/UINT32_C(1), size_class);
+  explicit TestSmallSlab(SizeClass size_class)
+      : data_(size_class.Pages() * kPageSize / sizeof(uint64_t), 0),
+        magic_(size_class.Pages() * kPageSize / sizeof(uint64_t), 0) {
+    static_cast<Slab*>(&slab_)->Init<SmallSlab>(PageId(0), size_class.Pages(),
+                                                size_class);
   }
 
   SmallSlab& Underlying() {
@@ -62,11 +64,12 @@ class TestSmallSlab {
 
     if (reinterpret_cast<uint64_t*>(slice) < data_.data() ||
         reinterpret_cast<uint64_t*>(slice) >=
-            &data_[kPageSize / sizeof(uint64_t)]) {
+            &data_[size_class.Pages() * kPageSize / sizeof(uint64_t)]) {
       return absl::FailedPreconditionError(absl::StrFormat(
           "Allocated slice outside the range of the slab: allocated %p, slab "
           "ranges from %p to %p",
-          slice, data_.data(), &data_[kPageSize / sizeof(uint64_t)]));
+          slice, data_.data(),
+          &data_[size_class.Pages() * kPageSize / sizeof(uint64_t)]));
     }
 
     if (PtrDistance(slice, data_.data()) % size_class.SliceSize() != 0) {
@@ -172,8 +175,8 @@ class TestSmallSlab {
   static util::Rng rng_;
 
   SmallSlab slab_;
-  std::array<uint64_t, kPageSize / sizeof(uint64_t)> data_;
-  std::array<uint64_t, kPageSize / sizeof(uint64_t)> magic_;
+  std::vector<uint64_t> data_;
+  std::vector<uint64_t> magic_;
 
   absl::flat_hash_set<AllocatedSlice*> allocated_slices_;
 };
@@ -185,11 +188,11 @@ template <typename T>
 requires std::is_integral_v<T>
 util::Rng TestSmallSlab<T>::rng_ = util::Rng(1031, 5);
 
-template <uint32_t S>
+template <uint32_t Ordinal>
 class SmallSlabTestParams {
  public:
-  using IdType = std::conditional_t<S == 8 || S == 16, uint16_t, uint8_t>;
-  static constexpr uint32_t kSliceSize = S;
+  using IdType = std::conditional_t<Ordinal <= 1, uint16_t, uint8_t>;
+  static constexpr SizeClass kSizeClass = SizeClass::FromOrdinal(Ordinal);
 };
 
 template <typename P>
@@ -197,8 +200,8 @@ class SmallSlabTest : public ::testing::TestWithParam<uint64_t> {
  public:
   using T = P::IdType;
 
-  static SizeClass GetSizeClass() {
-    return SizeClass::FromSliceSize(P::kSliceSize);
+  static constexpr SizeClass GetSizeClass() {
+    return P::kSizeClass;
   }
 
   static TestSmallSlab<T> MakeSlab() {
@@ -209,13 +212,21 @@ class SmallSlabTest : public ::testing::TestWithParam<uint64_t> {
   SmallSlab small_slab_;
 };
 
-using Types =
-    ::testing::Types<SmallSlabTestParams<8>, SmallSlabTestParams<16>,
-                     SmallSlabTestParams<32>, SmallSlabTestParams<48>,
-                     SmallSlabTestParams<64>, SmallSlabTestParams<80>,
-                     SmallSlabTestParams<96>, SmallSlabTestParams<112>,
-                     SmallSlabTestParams<128> >;
-TYPED_TEST_SUITE(SmallSlabTest, Types);
+template <uint8_t N, typename... SizeClasses>
+struct SizeClassesGenerator;
+
+template <typename... SizeClasses>
+struct SizeClassesGenerator<0, SizeClasses...> {
+  using Types = ::testing::Types<SizeClasses...>;
+};
+
+template <uint8_t N, typename... SizeClasses>
+struct SizeClassesGenerator
+    : public SizeClassesGenerator<N - 1, SmallSlabTestParams<N - 1>,
+                                  SizeClasses...> {};
+
+TYPED_TEST_SUITE(SmallSlabTest,
+                 SizeClassesGenerator<SizeClass::kNumSizeClasses>::Types);
 
 TYPED_TEST(SmallSlabTest, EmptySmallSlab) {
   auto slab = SmallSlabTest<TypeParam>::MakeSlab();
