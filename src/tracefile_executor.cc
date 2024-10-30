@@ -168,9 +168,6 @@ absl::Status TracefileExecutor::ProcessTracefileMultithreaded(
   RETURN_IF_ERROR(RewriteIdsToUnique(tracefile));
 
   {
-    std::vector<std::jthread> threads;
-    threads.reserve(options.n_threads);
-
     std::atomic<uint64_t> idx;
     absl::Mutex id_map_mutex;
     absl::flat_hash_map<uint64_t, void*> id_map;
@@ -178,6 +175,9 @@ absl::Status TracefileExecutor::ProcessTracefileMultithreaded(
 
     absl::Mutex queue_mutex;
     std::deque<uint64_t> queued_idxs;
+
+    std::vector<std::jthread> threads;
+    threads.reserve(options.n_threads);
 
     for (uint32_t i = 0; i < options.n_threads; i++) {
       threads.emplace_back([this, &idx, &tracefile, &id_map_container,
@@ -255,6 +255,10 @@ absl::Status TracefileExecutor::RewriteIdsToUnique(
     switch (line.op_case()) {
       case TraceLine::kMalloc: {
         TraceLine::Malloc& malloc = *line.mutable_malloc();
+        if (malloc.input_size() == 0 && !malloc.has_result_id()) {
+          break;
+        }
+
         auto [it, inserted] =
             new_id_map.insert({ malloc.result_id(), next_id });
         if (!inserted) {
@@ -267,6 +271,11 @@ absl::Status TracefileExecutor::RewriteIdsToUnique(
       }
       case TraceLine::kCalloc: {
         TraceLine::Calloc& calloc = *line.mutable_calloc();
+        if (calloc.input_size() == 0 && calloc.input_nmemb() == 0 &&
+            !calloc.has_result_id()) {
+          break;
+        }
+
         auto [it, inserted] =
             new_id_map.insert({ calloc.result_id(), next_id });
         if (!inserted) {
@@ -279,12 +288,15 @@ absl::Status TracefileExecutor::RewriteIdsToUnique(
       }
       case TraceLine::kRealloc: {
         TraceLine::Realloc& realloc = *line.mutable_realloc();
-        auto release_it = new_id_map.find(realloc.input_id());
-        if (release_it == new_id_map.end()) {
-          return absl::FailedPreconditionError(absl::StrFormat(
-              "Unknown ID being realloc-ed: %v", realloc.input_id()));
+        if (realloc.has_input_id()) {
+          auto release_it = new_id_map.find(realloc.input_id());
+          if (release_it == new_id_map.end()) {
+            return absl::FailedPreconditionError(absl::StrFormat(
+                "Unknown ID being realloc-ed: %v", realloc.input_id()));
+          }
+          realloc.set_input_id(release_it->second);
+          new_id_map.erase(release_it);
         }
-        realloc.set_input_id(release_it->second);
 
         auto [it, inserted] =
             new_id_map.insert({ realloc.result_id(), next_id });
@@ -298,12 +310,17 @@ absl::Status TracefileExecutor::RewriteIdsToUnique(
       }
       case TraceLine::kFree: {
         TraceLine::Free& free = *line.mutable_free();
+        if (!free.has_input_id()) {
+          break;
+        }
+
         auto release_it = new_id_map.find(free.input_id());
         if (release_it == new_id_map.end()) {
           return absl::FailedPreconditionError(
               absl::StrFormat("Unknown ID being freed: %v", free.input_id()));
         }
         free.set_input_id(release_it->second);
+        new_id_map.erase(release_it);
         break;
       }
       case TraceLine::OP_NOT_SET: {
