@@ -25,14 +25,14 @@ bool CorrectnessChecker::IsFailedTestStatus(const absl::Status& status) {
 }
 
 /* static */
-absl::Status CorrectnessChecker::Check(TracefileReader& reader,
-                                       HeapFactory& heap_factory,
-                                       bool verbose) {
+absl::Status CorrectnessChecker::Check(
+    TracefileReader& reader, HeapFactory& heap_factory, bool verbose,
+    const TracefileExecutorOptions& options) {
   absl::btree_map<void*, uint32_t> allocated_blocks;
 
   CorrectnessChecker checker(reader, heap_factory);
   checker.verbose_ = verbose;
-  return checker.Run();
+  return checker.Run(options);
 }
 
 CorrectnessChecker::CorrectnessChecker(TracefileReader& reader,

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <optional>
 
 #include "absl/status/status.h"
@@ -10,6 +11,13 @@
 #include "src/tracefile_reader.h"
 
 namespace bench {
+
+template <typename T>
+concept IdMapContainer =
+    requires(const T const_t, T t, uint64_t id, void* ptr) {
+      { t.SetId(id, ptr) } -> std::same_as<void>;
+      { const_t.GetId(id) } -> std::convertible_to<std::optional<void*>>;
+    };
 
 struct TracefileExecutorOptions {
   uint32_t n_threads = 1;
@@ -22,7 +30,7 @@ class TracefileExecutor {
   // hi i am a coder woww i am going to hack into your compouter now with mty
   // computer skills hohohohoho
   absl::Status Run(
-      TracefileExecutorOptions options = TracefileExecutorOptions());
+      const TracefileExecutorOptions& options = TracefileExecutorOptions());
 
   virtual void InitializeHeap(HeapFactory& heap_factory) = 0;
   virtual absl::StatusOr<void*> Malloc(size_t size,
@@ -33,7 +41,29 @@ class TracefileExecutor {
                             std::optional<size_t> alignment_hint) = 0;
 
  private:
+  template <IdMapContainer IdMap>
+  absl::Status DoMalloc(const proto::TraceLine::Malloc& malloc, IdMap& id_map);
+
+  template <IdMapContainer IdMap>
+  absl::Status DoCalloc(const proto::TraceLine::Calloc& calloc, IdMap& id_map);
+
+  template <IdMapContainer IdMap>
+  absl::StatusOr<bool> DoRealloc(const proto::TraceLine::Realloc& realloc,
+                                 IdMap& id_map);
+
+  template <IdMapContainer IdMap>
+  absl::StatusOr<bool> DoFree(const proto::TraceLine::Free& free,
+                              IdMap& id_map);
+
   absl::Status ProcessTracefile();
+
+  absl::Status ProcessTracefileMultithreaded(
+      const TracefileExecutorOptions& options);
+
+  static absl::Status RewriteIdsToUnique(proto::Tracefile& tracefile);
+
+  template <IdMapContainer IdMap>
+  absl::StatusOr<bool> ProcessLine(const proto::TraceLine& line, IdMap& id_map);
 
   TracefileReader& reader_;
 
