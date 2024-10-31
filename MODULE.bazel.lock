@@ -808,7 +808,7 @@
     },
     "@@rules_nodejs~//nodejs:extensions.bzl%node": {
       "general": {
-        "bzlTransitiveDigest": "TM5vSziLzivLo3iHgHsnuYXNWO8qxt+r5MHLWREavDE=",
+        "bzlTransitiveDigest": "xRRX0NuyvfLtjtzM4AqJgxdMSWWnLIw28rUUi10y6k0=",
         "usagesDigest": "9IUJvk13jWE1kE+N3sP2y0mw9exjO9CGQ2oAgwKTNK4=",
         "recordedFileInputs": {},
         "recordedDirentsInputs": {},
@@ -908,7 +908,7 @@
     },
     "@@rules_rust~//rust:extensions.bzl%rust": {
       "general": {
-        "bzlTransitiveDigest": "55tZw4uvEWX98iPmaZf4phsqPxtTR0KoKeYjhj/dQ4c=",
+        "bzlTransitiveDigest": "WtmdqwlM3aa/7bmxjfh+PFDdL1lBLJuHAw7SGzzcl4s=",
         "usagesDigest": "ElzJR5U/JYBUVkh3JnMDYgDbl5hTB0/+pB2cMOfl8IQ=",
         "recordedFileInputs": {},
         "recordedDirentsInputs": {},
@@ -940,42 +940,12 @@
             }
           },
           "rust_darwin_aarch64__aarch64-apple-darwin__stable_tools": {
-          "rust_analyzer_1.78.0_tools": {
-            "bzlFile": "@@rules_rust~//rust:repositories.bzl",
-            "ruleClassName": "rust_analyzer_toolchain_tools_repository",
-            "attributes": {
-              "version": "1.78.0",
-              "iso_date": "",
-              "sha256s": {},
-              "urls": [
-                "https://static.rust-lang.org/dist/{}.tar.xz"
-              ],
-              "auth": {},
-              "netrc": "",
-              "auth_patterns": []
-            }
-          },
-          "rust_analyzer_1.78.0": {
-            "bzlFile": "@@rules_rust~//rust:repositories.bzl",
-            "ruleClassName": "toolchain_repository_proxy",
-            "attributes": {
-              "toolchain": "@rust_analyzer_1.78.0_tools//:rust_analyzer_toolchain",
-              "toolchain_type": "@rules_rust//rust/rust_analyzer:toolchain_type",
-              "exec_compatible_with": [],
-              "target_compatible_with": []
-            }
-          },
-          "rust_darwin_aarch64__aarch64-apple-darwin__stable_tools": {
             "bzlFile": "@@rules_rust~//rust:repositories.bzl",
             "ruleClassName": "rust_toolchain_tools_repository",
             "attributes": {
               "exec_triple": "aarch64-apple-darwin",
-              "exec_triple": "aarch64-apple-darwin",
               "allocator_library": "@rules_rust//ffi/cc/allocator_library",
               "global_allocator_library": "@rules_rust//ffi/cc/global_allocator_library",
-              "target_triple": "aarch64-apple-darwin",
-              "iso_date": "",
-              "version": "1.78.0",
               "target_triple": "aarch64-apple-darwin",
               "iso_date": "",
               "version": "1.78.0",
