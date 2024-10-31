@@ -35,7 +35,7 @@ cc_library(
 
 cc_library(
     name = "free_list",
-    srcs = ["free_block.cc"],
+    srcs = ["free_list.cc"],
     hdrs = ["free_list.h"],
     deps = [
         ":allocated_block",

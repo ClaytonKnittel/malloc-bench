@@ -8,27 +8,32 @@
 
 namespace bench {
 
+// Called before any allocations are made.
+inline void initialize_heap(HeapFactory& heap_factory) {
+  pkmalloc::PkMalloc::initialize_heap(heap_factory);
+}
+
 // return ptr to block of contiguous memory >= size
 // either sbrk new memory or pull block from free list
-void* malloc(size_t size, size_t alignment = 0) {
-  pkmalloc::PkMalloc::malloc(size, alignment);
+inline void* malloc(size_t size, size_t alignment = 0) {
+  return pkmalloc::PkMalloc::malloc(size, alignment);
 }
 
-void* calloc(size_t nmemb, size_t size) {
-  pkmalloc::PkMalloc::calloc(nmemb, size);
+inline void* calloc(size_t nmemb, size_t size) {
+  return pkmalloc::PkMalloc::calloc(nmemb, size);
 }
 
-void* realloc(void* ptr, size_t size) {
-  pkmalloc::PkMalloc::realloc(ptr, size);
+inline void* realloc(void* ptr, size_t size) {
+  return pkmalloc::PkMalloc::realloc(ptr, size);
 }
 
 // frees allocated memory, updates free list
-void free(void* ptr, size_t size_hint = 0, size_t alignment_hint = 0) {
+inline void free(void* ptr, size_t size_hint = 0, size_t alignment_hint = 0) {
   pkmalloc::PkMalloc::free(ptr, size_hint, alignment_hint);
 }
 
-size_t get_size(void* ptr) {
-  pkmalloc::PkMalloc::get_size(ptr);
+inline size_t get_size(void* ptr) {
+  return pkmalloc::PkMalloc::get_size(ptr);
 }
 
 }  // namespace bench

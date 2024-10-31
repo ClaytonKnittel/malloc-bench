@@ -3,7 +3,6 @@
 #include "src/heap_factory.h"
 #include "src/heap_interface.h"
 #include "src/pkmalloc/global_state.h"
-#include "src/pkmalloc/pkmalloc.h"
 
 namespace pkmalloc {
 
