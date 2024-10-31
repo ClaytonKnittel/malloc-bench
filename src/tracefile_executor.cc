@@ -274,7 +274,7 @@ absl::Status TracefileExecutor::ProcessorWorker(
 absl::Status TracefileExecutor::RewriteIdsToUnique(
     proto::Tracefile& tracefile) {
   uint64_t next_id = 0;
-  absl::flat_hash_map<uint64_t, uint64_t> new_id_map;
+  absl::flat_hash_map<uint64_t, std::pair<uint64_t, size_t>> new_id_map;
 
   for (TraceLine& line : *tracefile.mutable_lines()) {
     switch (line.op_case()) {
@@ -284,8 +284,8 @@ absl::Status TracefileExecutor::RewriteIdsToUnique(
           break;
         }
 
-        auto [it, inserted] =
-            new_id_map.insert({ malloc.result_id(), next_id });
+        auto [it, inserted] = new_id_map.insert(
+            { malloc.result_id(), { next_id, malloc.input_size() } });
         if (!inserted) {
           return absl::FailedPreconditionError(
               absl::StrFormat("Duplicate result ID %v", malloc.result_id()));
@@ -301,8 +301,9 @@ absl::Status TracefileExecutor::RewriteIdsToUnique(
           break;
         }
 
-        auto [it, inserted] =
-            new_id_map.insert({ calloc.result_id(), next_id });
+        auto [it, inserted] = new_id_map.insert(
+            { calloc.result_id(),
+              { next_id, calloc.input_nmemb() * calloc.input_size() } });
         if (!inserted) {
           return absl::FailedPreconditionError(
               absl::StrFormat("Duplicate result ID %v", calloc.result_id()));
@@ -319,12 +320,16 @@ absl::Status TracefileExecutor::RewriteIdsToUnique(
             return absl::FailedPreconditionError(absl::StrFormat(
                 "Unknown ID being realloc-ed: %v", realloc.input_id()));
           }
-          realloc.set_input_id(release_it->second);
+          if (release_it->second.second != 0) {
+            realloc.set_input_id(release_it->second.first);
+          } else {
+            realloc.clear_input_id();
+          }
           new_id_map.erase(release_it);
         }
 
-        auto [it, inserted] =
-            new_id_map.insert({ realloc.result_id(), next_id });
+        auto [it, inserted] = new_id_map.insert(
+            { realloc.result_id(), { next_id, realloc.input_size() } });
         if (!inserted) {
           return absl::FailedPreconditionError(
               absl::StrFormat("Duplicate result ID %v", realloc.result_id()));
@@ -344,7 +349,11 @@ absl::Status TracefileExecutor::RewriteIdsToUnique(
           return absl::FailedPreconditionError(
               absl::StrFormat("Unknown ID being freed: %v", free.input_id()));
         }
-        free.set_input_id(release_it->second);
+        if (release_it->second.second != 0) {
+          free.set_input_id(release_it->second.first);
+        } else {
+          free.clear_input_id();
+        }
         new_id_map.erase(release_it);
         break;
       }
