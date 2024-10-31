@@ -16,6 +16,7 @@ cc_binary(
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/strings",
         "@cc-util//util:absl_util",
+        "@folly",
     ],
 )
 
