@@ -55,16 +55,9 @@ cc_library(
 
 cc_library(
     name = "allocator_interface",
-    srcs = ["allocator_interface.cc"],
     hdrs = ["allocator_interface.h"],
     deps = [
-        ":heap_factory",
-        ":heap_interface",
-        ":mmap_heap",
-        "//src/pkmalloc:allocated_block",
-        "//src/pkmalloc:free_block",
-        "//src/pkmalloc:free_list",
-        "//src/pkmalloc:global_state",
+        "//src/pkmalloc",
     ],
 )
 

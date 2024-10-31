@@ -4,6 +4,9 @@
 
 #include "src/heap_factory.h"
 #include "src/heap_interface.h"
+#include "src/pkmalloc/global_state.h"
+
+namespace pkmalloc {
 
 uint8_t* AllocatedBlock::GetBody() {
   return body_;
@@ -14,7 +17,7 @@ AllocatedBlock* AllocatedBlock::FromRawPtr(void* ptr) {
                                            offsetof(AllocatedBlock, body_));
 }
 
-AllocatedBlock* AllocatedBlock::take_free_block() {
+AllocatedBlock* AllocatedBlock::TakeFreeBlock() {
   // fix later, if you change size to be smaller, the remainder of this block
   // should be made to be a new free block SetBlockSize(size);
   // should take parameter size_t size in the future to allow user to change
@@ -23,16 +26,18 @@ AllocatedBlock* AllocatedBlock::take_free_block() {
   return this;
 }
 
-AllocatedBlock* AllocatedBlock::create_block_extend_heap(size_t size) {
-  size_t block_size = AllocatedBlock::space_needed_with_header(size);
-  // auto* block = reinterpret_cast<AllocatedBlock*>(
-  // bench::SingletonHeap::GlobalInstance()->sbrk(block_size));
-  block->SetBlockSize(block_size);
-  block->SetFree(false);
-  return block;
+AllocatedBlock* AllocatedBlock::CreateBlockExtendHeap(
+    size_t size, GlobalState* global_state) {
+  size_t block_size = AllocatedBlock::SpaceNeededWithHeader(size);
+  bench::Heap* heap = global_state->GetGlobalHeapStart(global_state);
+  AllocatedBlock* new_allocated_block =
+      static_cast<AllocatedBlock*>(heap->sbrk(block_size));
+  new_allocated_block->SetBlockSize(block_size);
+  new_allocated_block->SetFree(false);
+  return new_allocated_block;
 }
 
-size_t AllocatedBlock::space_needed_with_header(const size_t& size) {
+size_t AllocatedBlock::SpaceNeededWithHeader(const size_t& size) {
   // add size of header to size, 8 bytes
   size_t round_up = size + sizeof(AllocatedBlock);
   // round up size of memory, needs to be 16 byte aligned
@@ -42,14 +47,16 @@ size_t AllocatedBlock::space_needed_with_header(const size_t& size) {
   return round_up;
 }
 
-AllocatedBlock* AllocatedBlock::free_to_alloc(FreeBlock* current_block) {
+AllocatedBlock* AllocatedBlock::FreeToAlloc(FreeBlock* current_block) {
   current_block->SetFree(false);
   auto* result = reinterpret_cast<AllocatedBlock*>(current_block);
   return result;
 }
 
-FreeBlock* AllocatedBlock::alloc_to_free(AllocatedBlock* current_block) {
+FreeBlock* AllocatedBlock::AllocToFree(AllocatedBlock* current_block) {
   current_block->SetFree(true);
   auto* result = reinterpret_cast<FreeBlock*>(current_block);
   return result;
 }
+
+}  // namespace pkmalloc

@@ -2,6 +2,8 @@
 
 #include "src/pkmalloc/block.h"
 
+namespace pkmalloc {
+
 class FreeBlock : public Block {
  public:
   // sets the current block's next to be next value
@@ -27,3 +29,5 @@ class FreeBlock : public Block {
  private:
   FreeBlock* next_;
 };
+
+}  // namespace pkmalloc

@@ -2,14 +2,17 @@
 
 #include "src/heap_factory.h"
 #include "src/heap_interface.h"
+#include "src/pkmalloc/global_state.h"
+#include "src/pkmalloc/pkmalloc.h"
 
 namespace pkmalloc {
 
-void FreeList::add_free_block_to_list(AllocatedBlock* curr_block,
-                                      FreeBlock* begin) {
-  FreeBlock* current_block = AllocatedBlock::alloc_to_free(curr_block);
-  auto* free_list_iter = begin;
-  auto* prev_iter = begin;
+void FreeList::AddFreeBlockToList(AllocatedBlock* curr_block,
+                                  GlobalState* global_state) {
+  FreeBlock* current_block = AllocatedBlock::AllocToFree(curr_block);
+  FreeBlock* begin = global_state->GlobalState::GetFreeListStart(global_state);
+  FreeBlock* free_list_iter = begin;
+  FreeBlock* prev_iter = free_list_iter;
   // free list is empty
   if (free_list_iter == nullptr) {
     begin = current_block;
@@ -34,47 +37,43 @@ void FreeList::add_free_block_to_list(AllocatedBlock* curr_block,
   }
 }
 
-static AllocatedBlock* EmptyFreeListAlloc(size_t size) {
-  // to align, keep?????????????
-  // bench::Heap::GlobalInstance()->sbrk(8);
-  AllocatedBlock* start_block = AllocatedBlock::create_block_extend_heap(size);
-  // AllocatedBlock* start_block = bench::
+AllocatedBlock* FreeList::EmptyFreeListAlloc(size_t size,
+                                             GlobalState* global_state) {
+  AllocatedBlock* start_block =
+      AllocatedBlock::CreateBlockExtendHeap(size, global_state);
   return start_block;
 }
 
-AllocatedBlock* FindFreeBlockForAlloc(size_t size, FreeBlock* free_list_start) {
-  // auto* start_block = reinterpret_cast<FreeBlock*>(
-  // reinterpret_cast<uint8_t*>(SingletonHeap::GlobalInstance()->Start()) + 8);
+AllocatedBlock* FreeList::FindFreeBlockForAlloc(size_t size,
+                                                FreeBlock* free_list_start,
+                                                GlobalState* global_state) {
   auto* begin = free_list_start;
   auto* current_block = begin;
   AllocatedBlock* result_block;
-  // auto* end_block =
-  // reinterpret_cast<FreeBlock*>(SingletonHeap::GlobalInstance()->End());
-  // search current heap for free memory of size size
+  // search free list for free memory of size size
   while (current_block != nullptr) {
+    // shouldn't need to check if free block from free list is free
     if (current_block->IsFree()) {
+      // IS HEADER SIZE INCLUDED/CONSIDERED HERE?
       if (current_block->GetBlockSize() >= size) {
-        result_block = AllocatedBlock::free_to_alloc(current_block);
+        result_block = AllocatedBlock::FreeToAlloc(current_block);
         return result_block;
       }
     }
     current_block = FreeBlock::GetNext(current_block);
   }
-  // what are these next two lines for? why do i need temp
-  // auto* temp = current_block;
-  // current_block = FreeBlock::GetNext(current_block);
-  // MALLOC_ASSERT(current_block > temp);
-  // need to increase heap size for this call
-  // could be current block but must assert this equals end block???? maybe
-  // doesnt matter
-  result_block = AllocatedBlock::create_block_extend_heap(size);
+  // if nothing is found in free list of a big enough size, extend heap
+  result_block = AllocatedBlock::CreateBlockExtendHeap(size, global_state);
   return result_block;
 }
 
-AllocatedBlock* mallocate(size_t size, FreeBlock* free_list_start) {
+AllocatedBlock* FreeList::mallocate(size_t size, GlobalState* global_state) {
+  FreeBlock* free_list_start =
+      global_state->GlobalState::GetFreeListStart(global_state);
   if (free_list_start == nullptr) {
-    return EmptyFreeListAlloc(size);
+    return EmptyFreeListAlloc(size, global_state);
   }
-  return FindFreeBlockForAlloc(size, free_list_start);
+  return FindFreeBlockForAlloc(size, free_list_start, global_state);
 }
+
 }  // namespace pkmalloc

@@ -2,6 +2,9 @@
 
 #include "src/pkmalloc/block.h"
 #include "src/pkmalloc/free_block.h"
+#include "src/pkmalloc/global_state.h"
+
+namespace pkmalloc {
 
 class AllocatedBlock : public Block {
  public:
@@ -13,21 +16,22 @@ class AllocatedBlock : public Block {
 
   // initializes free block to now be allocated and
   // returns pointer to beginning of this now allocated block
-  AllocatedBlock* take_free_block();
+  AllocatedBlock* TakeFreeBlock();
 
   // extends the heap and initializes a new allocated block
-  static AllocatedBlock* create_block_extend_heap(size_t size);
+  static AllocatedBlock* CreateBlockExtendHeap(size_t size,
+                                               GlobalState* global_state);
   // this function shouldnt be in block **********
 
   // give the size needed for an allocated block to be 16 byte alligned and
   // including header size
-  static size_t space_needed_with_header(const size_t& size);
+  static size_t SpaceNeededWithHeader(const size_t& size);
 
   // changes the type of the current block from free to allocated
-  static AllocatedBlock* free_to_alloc(FreeBlock* current_block);
+  static AllocatedBlock* FreeToAlloc(FreeBlock* current_block);
 
   // changes the type of the current block from allocated to free
-  static FreeBlock* alloc_to_free(AllocatedBlock* current_block);
+  static FreeBlock* AllocToFree(AllocatedBlock* current_block);
 
   // still need header, keep 16 byte aligned so make header bits 8-16 of 16 byte
   // chunk*************
@@ -36,3 +40,5 @@ class AllocatedBlock : public Block {
   // flexible size, returns pointer to beginning of body
   uint8_t body_[];
 };
+
+}  // namespace pkmalloc

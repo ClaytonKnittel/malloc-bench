@@ -7,6 +7,7 @@ cc_library(
     deps = [
         ":block",
         ":free_block",
+        ":global_state",
         "//src:heap_factory",
         "//src:heap_interface",
     ],
@@ -40,6 +41,7 @@ cc_library(
         ":allocated_block",
         ":block",
         ":free_block",
+        ":global_state",
         "//src:heap_factory",
         "//src:heap_interface",
     ],
@@ -65,4 +67,18 @@ cc_library(
 cc_library(
     name = "malloc_assert",
     hdrs = ["malloc_assert.h"],
+)
+
+cc_library(
+    name = "pkmalloc",
+    srcs = ["pkmalloc.cc"],
+    hdrs = ["pkmalloc.h"],
+    deps = [
+        ":allocated_block",
+        ":free_block",
+        ":free_list",
+        ":global_state",
+        "//src:heap_factory",
+        "//src:heap_interface",
+    ],
 )

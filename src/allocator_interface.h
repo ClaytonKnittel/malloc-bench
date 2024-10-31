@@ -4,21 +4,31 @@
 #include <cstddef>
 #include <cstring>
 
-#include "src/heap_factory.h"
+#include "src/pkmalloc/pkmalloc.h"
 
 namespace bench {
 
-// calls heap factory, sets global_heap_start_pointer and heap_start_pointer
-void* initialize_heap(HeapFactory& heap_factory);
+// return ptr to block of contiguous memory >= size
+// either sbrk new memory or pull block from free list
+void* malloc(size_t size, size_t alignment = 0) {
+  pkmalloc::PkMalloc::malloc(size, alignment);
+}
 
-void* malloc(size_t size, size_t alignment = 0);
+void* calloc(size_t nmemb, size_t size) {
+  pkmalloc::PkMalloc::calloc(nmemb, size);
+}
 
-void* calloc(size_t nmemb, size_t size);
+void* realloc(void* ptr, size_t size) {
+  pkmalloc::PkMalloc::realloc(ptr, size);
+}
 
-void* realloc(void* ptr, size_t size);
+// frees allocated memory, updates free list
+void free(void* ptr, size_t size_hint = 0, size_t alignment_hint = 0) {
+  pkmalloc::PkMalloc::free(ptr, size_hint, alignment_hint);
+}
 
-void free(void* ptr, size_t size_hint = 0, size_t alignment_hint = 0);
-
-size_t get_size(void* ptr);
+size_t get_size(void* ptr) {
+  pkmalloc::PkMalloc::get_size(ptr);
+}
 
 }  // namespace bench

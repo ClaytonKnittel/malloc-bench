@@ -1,5 +1,7 @@
 #include "src/pkmalloc/free_block.h"
 
+namespace pkmalloc {
+
 void FreeBlock::SetNext(FreeBlock* first, FreeBlock* second) {
   first->next_ = second;
 }
@@ -36,3 +38,5 @@ void FreeBlock::coalesce(FreeBlock* current, FreeBlock* prev) {
     }
   }
 }
+
+}  // namespace pkmalloc
