@@ -17,12 +17,10 @@ git_override(
 )
 
 bazel_dep(name = "rules_boost", repo_name = "com_github_nelhage_rules_boost")
-archive_override(
+git_override(
     module_name = "rules_boost",
-    urls = "https://github.com/nelhage/rules_boost/archive/refs/heads/master.tar.gz",
-    strip_prefix = "rules_boost-master",
-    # It is recommended to edit the above URL and the below sha256 to point to a specific version of this repository.
-    # integrity = "sha256-...",
+    commit = "504e4dbc8c480fac5da33035490bc2ccc59db749",
+    remote = "https://github.com/nelhage/rules_boost.git",
 )
 
 non_module_boost_repositories = use_extension("@com_github_nelhage_rules_boost//:boost/repositories.bzl", "non_module_dependencies")
