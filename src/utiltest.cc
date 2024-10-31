@@ -95,9 +95,11 @@ absl::StatusOr<double> MeasureUtilization(TracefileReader& reader,
     max_allocated_bytes = std::max(total_allocated_bytes, max_allocated_bytes);
 
     size_t heap_size = 0;
-    for (const auto& heap : heap_factory.Instances()) {
-      heap_size += heap->Size();
-    }
+    heap_factory.WithInstances<void>([&heap_size](const auto& instances) {
+      for (const auto& heap : instances) {
+        heap_size += heap->Size();
+      }
+    });
     max_heap_size = std::max(heap_size, max_heap_size);
   }
 

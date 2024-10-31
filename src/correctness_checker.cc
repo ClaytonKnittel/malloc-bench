@@ -263,24 +263,28 @@ absl::Status CorrectnessChecker::ValidateNewBlock(void* ptr, size_t size,
         kFailedTestPrefix, size));
   }
 
-  if (!absl::c_any_of(heap_factory_->Instances(),
-                      [ptr, size](const auto& heap) {
-                        return ptr >= heap->Start() &&
-                               static_cast<uint8_t*>(ptr) + size <= heap->End();
-                      })) {
-    std::string heaps;
-    for (const auto& heap : heap_factory_->Instances()) {
-      if (!heaps.empty()) {
-        heaps += ", ";
-      }
-      heaps += absl::StrFormat("%p-%p", heap->Start(), heap->End());
-    }
+  RETURN_IF_ERROR(heap_factory_->WithInstances<absl::Status>(
+      [ptr, size](const auto& instances) -> absl::Status {
+        if (absl::c_any_of(instances, [ptr, size](const auto& heap) {
+              return ptr >= heap->Start() &&
+                     static_cast<uint8_t*>(ptr) + size <= heap->End();
+            })) {
+          return absl::OkStatus();
+        }
 
-    return absl::InternalError(
-        absl::StrFormat("%s Bad alloc of out-of-range block at %p of size %zu, "
-                        "heaps range from %v",
-                        kFailedTestPrefix, ptr, size, heaps));
-  }
+        std::string heaps;
+        for (const auto& heap : instances) {
+          if (!heaps.empty()) {
+            heaps += ", ";
+          }
+          heaps += absl::StrFormat("%p-%p", heap->Start(), heap->End());
+        }
+
+        return absl::InternalError(absl::StrFormat(
+            "%s Bad alloc of out-of-range block at %p of size %zu, "
+            "heaps range from %v",
+            kFailedTestPrefix, ptr, size, heaps));
+      }));
 
   auto block = FindContainingBlock(ptr);
   if (block.has_value()) {

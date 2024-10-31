@@ -5,6 +5,7 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_format.h"
+#include "absl/synchronization/mutex.h"
 #include "util/absl_util.h"
 
 #include "src/heap_interface.h"
@@ -14,11 +15,14 @@ namespace bench {
 absl::StatusOr<Heap*> HeapFactory::NewInstance(size_t size) {
   DEFINE_OR_RETURN(std::unique_ptr<Heap>, heap, MakeHeap(size));
   Heap* heap_ptr = heap.get();
+
+  absl::MutexLock lock(&mutex_);
   heaps_.emplace(std::move(heap));
   return heap_ptr;
 }
 
 absl::Status HeapFactory::DeleteInstance(Heap* heap) {
+  absl::MutexLock lock(&mutex_);
   auto it = heaps_.find(heap);
   if (it == heaps_.end()) {
     return absl::NotFoundError(absl::StrFormat("Heap not found: %p", heap));
@@ -28,12 +32,8 @@ absl::Status HeapFactory::DeleteInstance(Heap* heap) {
   return absl::OkStatus();
 }
 
-const absl::flat_hash_set<std::unique_ptr<Heap>>& HeapFactory::Instances()
-    const {
-  return heaps_;
-}
-
 void HeapFactory::Reset() {
+  absl::MutexLock lock(&mutex_);
   heaps_.clear();
 }
 
