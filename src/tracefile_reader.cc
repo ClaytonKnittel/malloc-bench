@@ -3,7 +3,6 @@
 #include <cstddef>
 #include <fstream>
 #include <string>
-#include <vector>
 
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"

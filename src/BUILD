@@ -32,7 +32,6 @@ cc_library(
         ":tracefile_reader",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/time",
-        "@cc-util//util:absl_util",
     ],
 )
 
@@ -49,7 +48,6 @@ cc_library(
         ":tracefile_reader",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/status:statusor",
-        "@cc-util//util:absl_util",
     ],
 )
 
@@ -212,7 +210,6 @@ cc_library(
         "//proto:tracefile_cc_proto",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
-        "@cc-util//util:absl_util",
     ],
 )
 

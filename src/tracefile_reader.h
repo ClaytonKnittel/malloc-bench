@@ -2,7 +2,6 @@
 
 #include <cstddef>
 #include <string>
-#include <vector>
 
 #include "absl/status/statusor.h"
 
@@ -28,9 +27,6 @@ class TracefileReader {
   const Tracefile& Tracefile() const {
     return tracefile_;
   }
-
-  // Reads all lines in a file into a vector.
-  absl::StatusOr<std::vector<TraceLine>> CollectLines();
 
  private:
   explicit TracefileReader(class Tracefile&& tracefile);
