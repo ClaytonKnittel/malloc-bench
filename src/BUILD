@@ -73,12 +73,14 @@ cc_library(
         ":rng",
         ":tracefile_executor",
         ":tracefile_reader",
+        ":util",
         "@abseil-cpp//absl/algorithm:container",
         "@abseil-cpp//absl/container:btree",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",
+        "@abseil-cpp//absl/synchronization",
         "@cc-util//util:absl_util",
     ],
 )
@@ -225,4 +227,9 @@ cc_library(
     deps = [
         "@abseil-cpp//absl/status:statusor",
     ],
+)
+
+cc_library(
+    name = "util",
+    hdrs = ["util.h"],
 )

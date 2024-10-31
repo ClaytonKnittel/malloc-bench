@@ -149,25 +149,14 @@ absl::Status TracefileExecutor::ProcessTracefile() {
 
 absl::Status TracefileExecutor::ProcessTracefileMultithreaded(
     const TracefileExecutorOptions& options) {
-  struct HashIdMap {
-    absl::flat_hash_map<uint64_t, void*> id_map;
-    absl::Mutex mutex;
-
-    void SetId(uint64_t id, void* ptr) {
-      absl::MutexLock guard(&mutex);
-      id_map[id] = ptr;
-    }
-    std::optional<void*> GetId(uint64_t id) {
-      absl::MutexLock guard(&mutex);
-      auto it = id_map.find(id);
-      return it != id_map.end() ? std::optional(it->second) : std::nullopt;
-    }
-  };
-
   Tracefile tracefile(reader_.Tracefile());
   RETURN_IF_ERROR(RewriteIdsToUnique(tracefile));
 
+  absl::Status status = absl::OkStatus();
+
   {
+    std::atomic<bool> done;
+
     std::atomic<uint64_t> idx;
     HashIdMap id_map_container;
 
@@ -178,65 +167,80 @@ absl::Status TracefileExecutor::ProcessTracefileMultithreaded(
     threads.reserve(options.n_threads);
 
     for (uint32_t i = 0; i < options.n_threads; i++) {
-      threads.emplace_back([this, &idx, &tracefile, &id_map_container,
-                            &queue_mutex, &queued_idxs]() {
-        static constexpr uint64_t kBatchSize = 32;
-        bool queue_empty = false;
-        bool tracefile_complete = false;
+      threads.emplace_back([this, &status, &done, &idx, &tracefile,
+                            &id_map_container, &queue_mutex, &queued_idxs]() {
+        auto result = ProcessorWorker(idx, done, tracefile, id_map_container,
+                                      queue_mutex, queued_idxs);
+        if (!result.ok()) {
+          done.store(true, std::memory_order_relaxed);
 
-        while (!queue_empty || !tracefile_complete) {
-          uint64_t idxs[4];
-          uint32_t iters = 0;
-          {
-            absl::MutexLock lock(&queue_mutex);
-            if (!queued_idxs.empty()) {
-              iters = std::min<uint32_t>(queued_idxs.size(), 4);
-              for (uint32_t i = 0; i < iters; i++) {
-                idxs[i] = queued_idxs.front();
-                queued_idxs.pop_front();
-              }
-            }
-          }
-          queue_empty = iters == 0;
-
-          uint64_t first_idx =
-              idx.fetch_add(kBatchSize, std::memory_order_relaxed);
-          if (first_idx >= tracefile.lines_size()) {
-            idx.store(tracefile.lines_size(), std::memory_order_relaxed);
-            tracefile_complete = true;
-          } else {
-            for (uint64_t i = first_idx;
-                 i < std::min<uint64_t>(first_idx + kBatchSize,
-                                        tracefile.lines_size());
-                 i++) {
-              auto result = ProcessLine(tracefile.lines(i), id_map_container);
-              if (!result.ok()) {
-                std::cerr << result << std::endl;
-                std::abort();
-              }
-
-              if (!result.value()) {
-                absl::MutexLock lock(&queue_mutex);
-                queued_idxs.push_back(i);
-              }
-            }
-          }
-
-          for (uint64_t i = 0; i < iters; i++) {
-            auto result =
-                ProcessLine(tracefile.lines(idxs[i]), id_map_container);
-            if (!result.ok()) {
-              std::cerr << result << std::endl;
-              return;
-            }
-
-            if (!result.value()) {
-              absl::MutexLock lock(&queue_mutex);
-              queued_idxs.push_back(i);
-            }
+          // Use the queue lock, no need to make another lock.
+          absl::MutexLock lock(&queue_mutex);
+          if (status.ok()) {
+            status = result;
           }
         }
       });
+    }
+  }
+
+  return status;
+}
+
+absl::Status TracefileExecutor::ProcessorWorker(
+    std::atomic<uint64_t>& idx, std::atomic<bool>& done,
+    const proto::Tracefile& tracefile, HashIdMap& id_map_container,
+    absl::Mutex& queue_mutex, std::deque<uint64_t>& queued_idxs) {
+  static constexpr uint64_t kBatchSize = 32;
+  bool queue_empty = false;
+  bool tracefile_complete = false;
+
+  while (!done.load(std::memory_order_relaxed) &&
+         (!queue_empty || !tracefile_complete)) {
+    uint64_t idxs[4];
+    uint32_t iters = 0;
+    {
+      absl::MutexLock lock(&queue_mutex);
+      if (!queued_idxs.empty()) {
+        iters = std::min<uint32_t>(queued_idxs.size(), 4);
+        for (uint32_t i = 0; i < iters; i++) {
+          idxs[i] = queued_idxs.front();
+          queued_idxs.pop_front();
+        }
+      }
+    }
+    queue_empty = iters == 0;
+
+    uint64_t first_idx = idx.fetch_add(kBatchSize, std::memory_order_relaxed);
+    if (first_idx >= tracefile.lines_size()) {
+      idx.store(tracefile.lines_size(), std::memory_order_relaxed);
+      tracefile_complete = true;
+    } else {
+      for (uint64_t i = first_idx;
+           i <
+           std::min<uint64_t>(first_idx + kBatchSize, tracefile.lines_size());
+           i++) {
+        auto result = ProcessLine(tracefile.lines(i), id_map_container);
+        if (!result.ok()) {
+          std::cerr << result << std::endl;
+          std::abort();
+        }
+
+        if (!result.value()) {
+          absl::MutexLock lock(&queue_mutex);
+          queued_idxs.push_back(i);
+        }
+      }
+    }
+
+    for (uint64_t i = 0; i < iters; i++) {
+      DEFINE_OR_RETURN(bool, succeeded,
+                       ProcessLine(tracefile.lines(idxs[i]), id_map_container));
+
+      if (!succeeded) {
+        absl::MutexLock lock(&queue_mutex);
+        queued_idxs.push_back(i);
+      }
     }
   }
 

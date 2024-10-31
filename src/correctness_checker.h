@@ -7,11 +7,13 @@
 #include "absl/container/btree_map.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/synchronization/mutex.h"
 
 #include "src/heap_factory.h"
 #include "src/rng.h"
 #include "src/tracefile_executor.h"
 #include "src/tracefile_reader.h"
+#include "src/util.h"
 
 namespace bench {
 
@@ -44,28 +46,33 @@ class CorrectnessChecker : private TracefileExecutor {
                     std::optional<size_t> alignment_hint) override;
 
   absl::StatusOr<void*> Alloc(size_t nmemb, size_t size, size_t alignment,
-                              bool is_calloc);
+                              bool is_calloc) BENCH_LOCKS_EXCLUDED(mutex_);
 
   absl::Status HandleNewAllocation(void* ptr, size_t size, size_t alignment,
-                                   bool is_calloc);
+                                   bool is_calloc) BENCH_LOCKS_EXCLUDED(mutex_);
 
   // Validates that a new block doesn't overlap with any existing block, and
   // that it satisfies alignment requirements.
-  absl::Status ValidateNewBlock(void* ptr, size_t size, size_t alignment) const;
+  absl::Status ValidateNewBlock(void* ptr, size_t size, size_t alignment)
+      BENCH_LOCKS_EXCLUDED(mutex_);
 
-  static void FillMagicBytes(void* ptr, size_t size, uint64_t magic_bytes);
+  static void FillMagicBytes(void* ptr, size_t size, uint64_t magic_bytes)
+      BENCH_LOCKS_EXCLUDED(mutex_);
   // Checks if pointer is filled with magic_bytes, and if any byte differs,
   // returns the offset from the beginning of the block of the first differing
   // byte.
   static absl::Status CheckMagicBytes(void* ptr, size_t size,
-                                      uint64_t magic_bytes);
+                                      uint64_t magic_bytes)
+      BENCH_LOCKS_EXCLUDED(mutex_);
 
-  std::optional<typename Map::const_iterator> FindContainingBlock(
-      void* ptr) const;
+  std::optional<typename Map::const_iterator> FindContainingBlock(void* ptr)
+      BENCH_LOCKS_EXCLUDED(mutex_);
 
   HeapFactory* const heap_factory_;
 
-  Map allocated_blocks_;
+  Map allocated_blocks_ BENCH_GUARDED_BY(mutex_);
+
+  absl::Mutex mutex_;
 
   util::Rng rng_;
 

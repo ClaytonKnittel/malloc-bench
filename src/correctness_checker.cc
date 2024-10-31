@@ -9,6 +9,7 @@
 #include "absl/container/btree_map.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_format.h"
+#include "absl/synchronization/mutex.h"
 #include "util/absl_util.h"
 
 #include "src/allocator_interface.h"
@@ -67,9 +68,19 @@ absl::StatusOr<void*> CorrectnessChecker::Realloc(void* ptr, size_t size) {
     return new_ptr;
   }
 
-  auto block_it = allocated_blocks_.find(ptr);
-  AllocatedBlock block = block_it->second;
-  size_t orig_size = block.size;
+  AllocatedBlock block;
+  size_t orig_size;
+  {
+    absl::MutexLock lock(&mutex_);
+    auto block_it = allocated_blocks_.find(ptr);
+    if (block_it == allocated_blocks_.end()) {
+      return absl::InternalError(absl::StrFormat(
+          "%s realloc-ed block %p not found in allocated blocks map",
+          kFailedTestPrefix, ptr));
+    }
+    block = block_it->second;
+    orig_size = block.size;
+  }
 
   if (verbose_) {
     std::cout << "realloc(" << ptr << ", " << size << ")" << std::endl;
@@ -88,17 +99,40 @@ absl::StatusOr<void*> CorrectnessChecker::Realloc(void* ptr, size_t size) {
                           kFailedTestPrefix, new_ptr, ptr, size));
     }
 
-    allocated_blocks_.erase(block_it);
+    absl::MutexLock lock(&mutex_);
+    allocated_blocks_.erase(ptr);
     return new_ptr;
   }
   if (new_ptr != ptr) {
-    allocated_blocks_.erase(block_it);
+    mutex_.Lock();
+    size_t erased_elems = allocated_blocks_.erase(ptr);
+    mutex_.Unlock();
+    if (erased_elems != 1) {
+      return absl::InternalError(absl::StrFormat(
+          "%s realloc-ed block %p not found in allocated blocks map",
+          kFailedTestPrefix, ptr));
+    }
 
     RETURN_IF_ERROR(ValidateNewBlock(new_ptr, size, /*alignment=*/0));
 
     block.size = size;
-    block_it = allocated_blocks_.insert({ new_ptr, block }).first;
+    mutex_.Lock();
+    auto [it, inserted] = allocated_blocks_.insert({ new_ptr, block });
+    mutex_.Unlock();
+    if (!inserted) {
+      return absl::InternalError(
+          absl::StrFormat("%s realloc-ed block %p of size %zu conflicts with "
+                          "existing allocation",
+                          kFailedTestPrefix, ptr, size));
+    }
   } else {
+    absl::MutexLock lock(&mutex_);
+    auto block_it = allocated_blocks_.find(ptr);
+    if (block_it == allocated_blocks_.end()) {
+      return absl::InternalError(absl::StrFormat(
+          "%s realloc-ed block %p not found in allocated blocks map",
+          kFailedTestPrefix, ptr));
+    }
     block_it->second.size = size;
   }
 
@@ -119,19 +153,36 @@ absl::Status CorrectnessChecker::Free(void* ptr,
     return absl::OkStatus();
   }
 
-  auto block_it = allocated_blocks_.find(ptr);
+  AllocatedBlock block;
+  {
+    absl::MutexLock lock(&mutex_);
+    auto block_it = allocated_blocks_.find(ptr);
+    if (block_it == allocated_blocks_.end()) {
+      return absl::InternalError(
+          absl::StrFormat("%s freed block %p not found in allocated blocks map",
+                          kFailedTestPrefix, ptr));
+    }
+    block = block_it->second;
+  }
 
   if (verbose_) {
     std::cout << "free(" << ptr << ")" << std::endl;
   }
 
   // Check that the block has not been corrupted.
-  RETURN_IF_ERROR(CheckMagicBytes(ptr, block_it->second.size,
-                                  block_it->second.magic_bytes));
+  RETURN_IF_ERROR(CheckMagicBytes(ptr, block.size, block.magic_bytes));
 
   bench::free(ptr, size_hint.value_or(0), alignment_hint.value_or(0));
 
-  allocated_blocks_.erase(block_it);
+  mutex_.Lock();
+  size_t erased_elems = allocated_blocks_.erase(ptr);
+  mutex_.Unlock();
+  if (erased_elems != 1) {
+    return absl::InternalError(
+        absl::StrFormat("%s freed block %p not found in allocated blocks map",
+                        kFailedTestPrefix, ptr));
+  }
+
   return absl::OkStatus();
 }
 
@@ -178,13 +229,16 @@ absl::Status CorrectnessChecker::HandleNewAllocation(void* ptr, size_t size,
   RETURN_IF_ERROR(ValidateNewBlock(ptr, size, alignment));
 
   uint64_t magic_bytes = rng_.GenRand64();
-  allocated_blocks_.insert({
-      ptr,
-      AllocatedBlock{
-          .size = size,
-          .magic_bytes = magic_bytes,
-      },
-  });
+  {
+    absl::MutexLock lock(&mutex_);
+    allocated_blocks_.insert({
+        ptr,
+        AllocatedBlock{
+            .size = size,
+            .magic_bytes = magic_bytes,
+        },
+    });
+  }
 
   if (is_calloc) {
     for (size_t i = 0; i < size; i++) {
@@ -201,7 +255,7 @@ absl::Status CorrectnessChecker::HandleNewAllocation(void* ptr, size_t size,
 }
 
 absl::Status CorrectnessChecker::ValidateNewBlock(void* ptr, size_t size,
-                                                  size_t alignment) const {
+                                                  size_t alignment) {
   if (ptr == nullptr) {
     return absl::InternalError(absl::StrFormat(
         "%s Bad nullptr alloc for size %zu, did you run out of memory?",
@@ -287,7 +341,8 @@ absl::Status CorrectnessChecker::CheckMagicBytes(void* ptr, size_t size,
 }
 
 std::optional<typename CorrectnessChecker::Map::const_iterator>
-CorrectnessChecker::FindContainingBlock(void* ptr) const {
+CorrectnessChecker::FindContainingBlock(void* ptr) {
+  absl::MutexLock lock(&mutex_);
   auto it = allocated_blocks_.upper_bound(ptr);
   if (it != allocated_blocks_.begin() && it != allocated_blocks_.end()) {
     --it;

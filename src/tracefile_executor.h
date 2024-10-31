@@ -1,11 +1,14 @@
 #pragma once
 
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
 
+#include "absl/container/flat_hash_map.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/synchronization/mutex.h"
 
 #include "src/heap_factory.h"
 #include "src/tracefile_reader.h"
@@ -40,6 +43,21 @@ class TracefileExecutor {
                             std::optional<size_t> alignment_hint) = 0;
 
  private:
+  struct HashIdMap {
+    absl::flat_hash_map<uint64_t, void*> id_map;
+    absl::Mutex mutex;
+
+    void SetId(uint64_t id, void* ptr) {
+      absl::MutexLock guard(&mutex);
+      id_map[id] = ptr;
+    }
+    std::optional<void*> GetId(uint64_t id) {
+      absl::MutexLock guard(&mutex);
+      auto it = id_map.find(id);
+      return it != id_map.end() ? std::optional(it->second) : std::nullopt;
+    }
+  };
+
   template <IdMapContainer IdMap>
   absl::Status DoMalloc(const proto::TraceLine::Malloc& malloc, IdMap& id_map);
 
@@ -58,6 +76,13 @@ class TracefileExecutor {
 
   absl::Status ProcessTracefileMultithreaded(
       const TracefileExecutorOptions& options);
+
+  absl::Status ProcessorWorker(std::atomic<uint64_t>& idx,
+                               std::atomic<bool>& done,
+                               const proto::Tracefile& tracefile,
+                               HashIdMap& id_map_container,
+                               absl::Mutex& queue_mutex,
+                               std::deque<uint64_t>& queued_idxs);
 
   static absl::Status RewriteIdsToUnique(proto::Tracefile& tracefile);
 
