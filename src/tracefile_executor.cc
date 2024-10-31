@@ -39,7 +39,11 @@ absl::Status TracefileExecutor::DoMalloc(const proto::TraceLine::Malloc& malloc,
   DEFINE_OR_RETURN(void*, ptr, Malloc(malloc.input_size(), alignment));
 
   if (malloc.input_size() != 0 && malloc.has_result_id()) {
-    id_map.SetId(malloc.result_id(), ptr);
+    if (!id_map.SetId(malloc.result_id(), ptr)) {
+      return absl::InternalError(absl::StrFormat(
+          "Failed to set ID %v for malloc in id map, already exists",
+          malloc.result_id()));
+    }
   }
 
   return absl::OkStatus();
@@ -53,7 +57,11 @@ absl::Status TracefileExecutor::DoCalloc(const proto::TraceLine::Calloc& calloc,
 
   if (calloc.input_nmemb() != 0 && calloc.input_size() != 0 &&
       calloc.has_result_id()) {
-    id_map.SetId(calloc.result_id(), ptr);
+    if (!id_map.SetId(calloc.result_id(), ptr)) {
+      return absl::InternalError(absl::StrFormat(
+          "Failed to set ID %v for calloc in id map, already exists",
+          calloc.result_id()));
+    }
   }
 
   return absl::OkStatus();
@@ -69,11 +77,21 @@ absl::StatusOr<bool> TracefileExecutor::DoRealloc(
       return false;
     }
     input_ptr = result.value();
+
+    if (id_map.ClearId(realloc.input_id()) != 1) {
+      return absl::InternalError(
+          absl::StrFormat("ID %v for realloc erased by other concurrent op",
+                          realloc.input_id()));
+    }
   } else {
     input_ptr = nullptr;
   }
   DEFINE_OR_RETURN(void*, result_ptr, Realloc(input_ptr, realloc.input_size()));
-  id_map.SetId(realloc.result_id(), result_ptr);
+  if (!id_map.SetId(realloc.result_id(), result_ptr)) {
+    return absl::InternalError(absl::StrFormat(
+        "Failed to set ID %v for realloc in id map, already exists",
+        realloc.result_id()));
+  }
 
   return true;
 }
@@ -100,6 +118,12 @@ absl::StatusOr<bool> TracefileExecutor::DoFree(
           ? std::optional(free.input_alignment_hint())
           : std::nullopt;
   RETURN_IF_ERROR(Free(ptr, size_hint, alignment_hint));
+
+  if (id_map.ClearId(free.input_id()) != 1) {
+    return absl::InternalError(absl::StrFormat(
+        "ID %v for free erased by other concurrent op", free.input_id()));
+  }
+
   return true;
 }
 
@@ -110,11 +134,16 @@ absl::Status TracefileExecutor::ProcessTracefile() {
   struct VectorIdMap {
     std::vector<void*> id_map;
 
-    void SetId(uint64_t id, void* ptr) {
+    bool SetId(uint64_t id, void* ptr) {
       id_map[id] = ptr;
+      return true;
     }
     std::optional<void*> GetId(uint64_t id) const {
       return id_map[id];
+    }
+    static size_t ClearId(uint64_t id) {
+      (void) id;
+      return 1;
     }
   };
   VectorIdMap id_map{ std::vector<void*>(
@@ -157,7 +186,7 @@ absl::Status TracefileExecutor::ProcessTracefileMultithreaded(
   {
     std::atomic<bool> done = false;
 
-    std::atomic<uint64_t> idx = 0;
+    std::atomic<size_t> idx = 0;
     HashIdMap id_map_container;
 
     absl::Mutex queue_mutex;
@@ -188,37 +217,34 @@ absl::Status TracefileExecutor::ProcessTracefileMultithreaded(
 }
 
 absl::Status TracefileExecutor::ProcessorWorker(
-    std::atomic<uint64_t>& idx, std::atomic<bool>& done,
+    std::atomic<size_t>& idx, std::atomic<bool>& done,
     const proto::Tracefile& tracefile, HashIdMap& id_map_container,
     absl::Mutex& queue_mutex, std::deque<uint64_t>& queued_idxs) {
-  static constexpr uint64_t kBatchSize = 32;
+  static constexpr size_t kBatchSize = 32;
   bool queue_empty = false;
   bool tracefile_complete = false;
 
   while (!done.load(std::memory_order_relaxed) &&
          (!queue_empty || !tracefile_complete)) {
     uint64_t idxs[4];
-    uint32_t iters = 0;
+    uint32_t iters;
     {
       absl::MutexLock lock(&queue_mutex);
-      if (!queued_idxs.empty()) {
-        iters = std::min<uint32_t>(queued_idxs.size(), 4);
-        for (uint32_t i = 0; i < iters; i++) {
-          idxs[i] = queued_idxs.front();
-          queued_idxs.pop_front();
-        }
+      iters = static_cast<uint32_t>(std::min<size_t>(queued_idxs.size(), 4));
+      for (uint32_t i = 0; i < iters; i++) {
+        idxs[i] = queued_idxs.front();
+        queued_idxs.pop_front();
       }
     }
     queue_empty = iters == 0;
 
-    uint64_t first_idx = idx.fetch_add(kBatchSize, std::memory_order_relaxed);
+    size_t first_idx = idx.fetch_add(kBatchSize, std::memory_order_relaxed);
     if (first_idx >= tracefile.lines_size()) {
       idx.store(tracefile.lines_size(), std::memory_order_relaxed);
       tracefile_complete = true;
     } else {
-      for (uint64_t i = first_idx;
-           i <
-           std::min<uint64_t>(first_idx + kBatchSize, tracefile.lines_size());
+      for (size_t i = first_idx;
+           i < std::min<size_t>(first_idx + kBatchSize, tracefile.lines_size());
            i++) {
         DEFINE_OR_RETURN(bool, succeeded,
                          ProcessLine(tracefile.lines(i), id_map_container));
@@ -236,7 +262,7 @@ absl::Status TracefileExecutor::ProcessorWorker(
 
       if (!succeeded) {
         absl::MutexLock lock(&queue_mutex);
-        queued_idxs.push_back(i);
+        queued_idxs.push_back(idxs[i]);
       }
     }
   }

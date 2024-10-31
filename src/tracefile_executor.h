@@ -17,8 +17,9 @@ namespace bench {
 
 template <typename T>
 concept IdMapContainer = requires(T t, uint64_t id, void* ptr) {
-  { t.SetId(id, ptr) } -> std::same_as<void>;
+  { t.SetId(id, ptr) } -> std::convertible_to<bool>;
   { t.GetId(id) } -> std::convertible_to<std::optional<void*>>;
+  { t.ClearId(id) } -> std::convertible_to<size_t>;
 };
 
 struct TracefileExecutorOptions {
@@ -47,14 +48,19 @@ class TracefileExecutor {
     absl::flat_hash_map<uint64_t, void*> id_map;
     absl::Mutex mutex;
 
-    void SetId(uint64_t id, void* ptr) {
-      absl::MutexLock guard(&mutex);
-      id_map[id] = ptr;
+    bool SetId(uint64_t id, void* ptr) {
+      absl::MutexLock lock(&mutex);
+      auto [it, inserted] = id_map.insert({ id, ptr });
+      return inserted;
     }
     std::optional<void*> GetId(uint64_t id) {
-      absl::MutexLock guard(&mutex);
+      absl::MutexLock lock(&mutex);
       auto it = id_map.find(id);
       return it != id_map.end() ? std::optional(it->second) : std::nullopt;
+    }
+    size_t ClearId(uint64_t id) {
+      absl::MutexLock lock(&mutex);
+      return id_map.erase(id);
     }
   };
 
@@ -77,7 +83,7 @@ class TracefileExecutor {
   absl::Status ProcessTracefileMultithreaded(
       const TracefileExecutorOptions& options);
 
-  absl::Status ProcessorWorker(std::atomic<uint64_t>& idx,
+  absl::Status ProcessorWorker(std::atomic<size_t>& idx,
                                std::atomic<bool>& done,
                                const proto::Tracefile& tracefile,
                                HashIdMap& id_map_container,
