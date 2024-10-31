@@ -11,6 +11,7 @@
 
 namespace bench {
 
+// TODO: make this thread-safe
 class HeapFactory {
  public:
   HeapFactory() = default;

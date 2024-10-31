@@ -228,9 +228,10 @@ absl::Status CorrectnessChecker::HandleNewAllocation(void* ptr, size_t size,
                                                      bool is_calloc) {
   RETURN_IF_ERROR(ValidateNewBlock(ptr, size, alignment));
 
-  uint64_t magic_bytes = rng_.GenRand64();
+  uint64_t magic_bytes;
   {
     absl::MutexLock lock(&mutex_);
+    magic_bytes = rng_.GenRand64();
     allocated_blocks_.insert({
         ptr,
         AllocatedBlock{

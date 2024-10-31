@@ -74,7 +74,7 @@ class CorrectnessChecker : private TracefileExecutor {
 
   absl::Mutex mutex_;
 
-  util::Rng rng_;
+  util::Rng rng_ BENCH_GUARDED_BY(mutex_);
 
   bool verbose_;
 };
