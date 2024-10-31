@@ -1,5 +1,6 @@
-build --repo_env=CC=/opt/homebrew/Cellar/llvm/19.1.1/bin/clang-19
-build --features=layering_check
-build --cxxopt=-std=c++20
-build --cxxopt=-mmacosx-version-min=10.15
+#build --repo_env=CC=/opt/homebrew/Cellar/llvm/19.1.1/bin/clang-19
+#build --features=layering_check
+#build --cxxopt=-std=c++20
+#build --cxxopt=-mmacosx-version-min=10.15
+#build --cxxopt=-v
 build:opt --copt=-flto=thin --linkopt=-flto=thin
