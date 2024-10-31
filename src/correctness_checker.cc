@@ -30,14 +30,14 @@ absl::Status CorrectnessChecker::Check(TracefileReader& reader,
                                        bool verbose) {
   absl::btree_map<void*, uint32_t> allocated_blocks;
 
-  CorrectnessChecker checker(std::move(reader), heap_factory);
+  CorrectnessChecker checker(reader, heap_factory);
   checker.verbose_ = verbose;
   return checker.Run();
 }
 
-CorrectnessChecker::CorrectnessChecker(TracefileReader&& reader,
+CorrectnessChecker::CorrectnessChecker(TracefileReader& reader,
                                        HeapFactory& heap_factory)
-    : TracefileExecutor(std::move(reader), heap_factory),
+    : TracefileExecutor(reader, heap_factory),
       heap_factory_(&heap_factory),
       rng_(0, 1) {}
 
@@ -46,12 +46,13 @@ void CorrectnessChecker::InitializeHeap(HeapFactory& heap_factory) {
   initialize_heap(heap_factory);
 }
 
-absl::StatusOr<void*> CorrectnessChecker::Malloc(size_t size) {
-  return Alloc(1, size, /*is_calloc=*/false);
+absl::StatusOr<void*> CorrectnessChecker::Malloc(
+    size_t size, std::optional<size_t> alignment) {
+  return Alloc(1, size, alignment.value_or(0), /*is_calloc=*/false);
 }
 
 absl::StatusOr<void*> CorrectnessChecker::Calloc(size_t nmemb, size_t size) {
-  return Alloc(nmemb, size, /*is_calloc=*/true);
+  return Alloc(nmemb, size, /*alignment=*/0, /*is_calloc=*/true);
 }
 
 absl::StatusOr<void*> CorrectnessChecker::Realloc(void* ptr, size_t size) {
@@ -61,7 +62,8 @@ absl::StatusOr<void*> CorrectnessChecker::Realloc(void* ptr, size_t size) {
     }
 
     void* new_ptr = bench::realloc(nullptr, size);
-    RETURN_IF_ERROR(HandleNewAllocation(new_ptr, size, /*is_calloc=*/false));
+    RETURN_IF_ERROR(HandleNewAllocation(new_ptr, size, /*alignment=*/0,
+                                        /*is_calloc=*/false));
     return new_ptr;
   }
 
@@ -92,7 +94,7 @@ absl::StatusOr<void*> CorrectnessChecker::Realloc(void* ptr, size_t size) {
   if (new_ptr != ptr) {
     allocated_blocks_.erase(block_it);
 
-    RETURN_IF_ERROR(ValidateNewBlock(new_ptr, size));
+    RETURN_IF_ERROR(ValidateNewBlock(new_ptr, size, /*alignment=*/0));
 
     block.size = size;
     block_it = allocated_blocks_.insert({ new_ptr, block }).first;
@@ -109,7 +111,9 @@ absl::StatusOr<void*> CorrectnessChecker::Realloc(void* ptr, size_t size) {
   return new_ptr;
 }
 
-absl::Status CorrectnessChecker::Free(void* ptr) {
+absl::Status CorrectnessChecker::Free(void* ptr,
+                                      std::optional<size_t> size_hint,
+                                      std::optional<size_t> alignment_hint) {
   if (ptr == nullptr) {
     free(nullptr);
     return absl::OkStatus();
@@ -125,17 +129,21 @@ absl::Status CorrectnessChecker::Free(void* ptr) {
   RETURN_IF_ERROR(CheckMagicBytes(ptr, block_it->second.size,
                                   block_it->second.magic_bytes));
 
-  bench::free(ptr);
+  bench::free(ptr, size_hint.value_or(0), alignment_hint.value_or(0));
 
   allocated_blocks_.erase(block_it);
   return absl::OkStatus();
 }
 
 absl::StatusOr<void*> CorrectnessChecker::Alloc(size_t nmemb, size_t size,
+                                                size_t alignment,
                                                 bool is_calloc) {
   if (verbose_) {
     if (is_calloc) {
       std::cout << "calloc(" << nmemb << ", " << size << ")" << std::endl;
+    } else if (alignment != 0) {
+      std::cout << "aligned_alloc(" << size << ", " << alignment << ")"
+                << std::endl;
     } else {
       std::cout << "malloc(" << size << ")" << std::endl;
     }
@@ -145,7 +153,7 @@ absl::StatusOr<void*> CorrectnessChecker::Alloc(size_t nmemb, size_t size,
   if (is_calloc) {
     ptr = bench::calloc(nmemb, size);
   } else {
-    ptr = bench::malloc(nmemb * size);
+    ptr = bench::malloc(nmemb * size, alignment);
   }
   size *= nmemb;
 
@@ -160,13 +168,14 @@ absl::StatusOr<void*> CorrectnessChecker::Alloc(size_t nmemb, size_t size,
     return ptr;
   }
 
-  RETURN_IF_ERROR(HandleNewAllocation(ptr, size, is_calloc));
+  RETURN_IF_ERROR(HandleNewAllocation(ptr, size, alignment, is_calloc));
   return ptr;
 }
 
 absl::Status CorrectnessChecker::HandleNewAllocation(void* ptr, size_t size,
+                                                     size_t alignment,
                                                      bool is_calloc) {
-  RETURN_IF_ERROR(ValidateNewBlock(ptr, size));
+  RETURN_IF_ERROR(ValidateNewBlock(ptr, size, alignment));
 
   uint64_t magic_bytes = rng_.GenRand64();
   allocated_blocks_.insert({
@@ -191,36 +200,8 @@ absl::Status CorrectnessChecker::HandleNewAllocation(void* ptr, size_t size,
   return absl::OkStatus();
 }
 
-absl::Status CorrectnessChecker::HandleNewAllocation(void* id, void* ptr,
-                                                     size_t size,
-                                                     bool is_calloc) {
-  RETURN_IF_ERROR(ValidateNewBlock(ptr, size));
-
-  uint64_t magic_bytes = rng_.GenRand64();
-  allocated_blocks_.insert({
-      ptr,
-      AllocatedBlock{
-          .size = size,
-          .magic_bytes = magic_bytes,
-      },
-  });
-
-  if (is_calloc) {
-    for (size_t i = 0; i < size; i++) {
-      if (static_cast<uint8_t*>(ptr)[i] != 0x00) {
-        return absl::InternalError(absl::StrFormat(
-            "calloc-ed block at %p of size %zu is not cleared", ptr, size));
-      }
-    }
-  }
-
-  FillMagicBytes(ptr, size, magic_bytes);
-  id_map_[id] = ptr;
-  return absl::OkStatus();
-}
-
-absl::Status CorrectnessChecker::ValidateNewBlock(void* ptr,
-                                                  size_t size) const {
+absl::Status CorrectnessChecker::ValidateNewBlock(void* ptr, size_t size,
+                                                  size_t alignment) const {
   if (ptr == nullptr) {
     return absl::InternalError(absl::StrFormat(
         "%s Bad nullptr alloc for size %zu, did you run out of memory?",
@@ -232,9 +213,18 @@ absl::Status CorrectnessChecker::ValidateNewBlock(void* ptr,
                         return ptr >= heap->Start() &&
                                static_cast<uint8_t*>(ptr) + size <= heap->End();
                       })) {
+    std::string heaps;
+    for (const auto& heap : heap_factory_->Instances()) {
+      if (!heaps.empty()) {
+        heaps += ", ";
+      }
+      heaps += absl::StrFormat("%p-%p", heap->Start(), heap->End());
+    }
+
     return absl::InternalError(
-        absl::StrFormat("%s Bad alloc of out-of-range block at %p of size %zu",
-                        kFailedTestPrefix, ptr, size));
+        absl::StrFormat("%s Bad alloc of out-of-range block at %p of size %zu, "
+                        "heaps range from %v",
+                        kFailedTestPrefix, ptr, size, heaps));
   }
 
   auto block = FindContainingBlock(ptr);
@@ -246,15 +236,12 @@ absl::Status CorrectnessChecker::ValidateNewBlock(void* ptr,
   }
 
   size_t ptr_val = static_cast<char*>(ptr) - static_cast<char*>(nullptr);
-  if (size <= 8 && ptr_val % 8 != 0) {
+  const size_t min_alignment = size <= 8 ? 8 : 16;
+  alignment = std::max(alignment, min_alignment);
+  if (ptr_val % alignment != 0) {
     return absl::InternalError(
-        absl::StrFormat("%s Pointer %p of size %zu is not aligned to 8 bytes",
-                        kFailedTestPrefix, ptr, size));
-  }
-  if (size > 8 && ptr_val % /*16*/ 8 != 0) {
-    return absl::InternalError(
-        absl::StrFormat("%s Pointer %p of size %zu is not aligned to 16 bytes",
-                        kFailedTestPrefix, ptr, size));
+        absl::StrFormat("%s Pointer %p of size %zu is not aligned to %zu bytes",
+                        kFailedTestPrefix, ptr, size, alignment));
   }
 
   return absl::OkStatus();

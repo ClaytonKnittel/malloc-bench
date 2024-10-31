@@ -3,9 +3,8 @@
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <ostream>
-#include <regex>
-#include <sstream>
 #include <unistd.h>
 
 #include "absl/container/btree_set.h"
@@ -16,6 +15,7 @@
 #include "absl/strings/str_format.h"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 #include "google/protobuf/text_format.h"
+#include "re2/re2.h"
 #include "util/absl_util.h"
 
 #include "proto/tracefile.pb.h"
@@ -24,12 +24,20 @@ ABSL_FLAG(std::string, trace, "", "File path of the trace to clean.");
 
 ABSL_FLAG(bool, binary, false, "Output binary proto");
 
+ABSL_FLAG(uint64_t, max_ops, std::numeric_limits<uint64_t>::max(),
+          "Limits the total number of ops in a trace. A tracefile will stop "
+          "being parsed after enough ops have been parsed, accounting for "
+          "needing to free all allocated memory.");
+
 namespace bench {
 
 using proto::Tracefile;
 using proto::TraceLine;
 
 namespace {
+
+using re2::LazyRE2;
+using re2::RE2;
 
 /**
  * Matches a single line of valigrind --trace-malloc=yes output.
@@ -47,14 +55,18 @@ namespace {
  * "free" has aliases "_ZdlPv", "_ZdaPv", "_ZdlPvm", "_ZdaPvm", and
  * "malloc" has aliases "_Znwm", "_Znam".
  */
-const std::regex kFreeRegex(
-    R"(--(\d+)-- (?:free|_ZdlPv|_ZdaPv|_ZdlPvm|_ZdaPvm)\(([0-9A-Fa-fx]+)\))");
-const std::regex kMallocRegex(
-    R"(--(\d+)-- (?:malloc|_Znwm|_Znam)\((\d+)\) = ([0-9A-Fa-fx]+))");
-const std::regex kCallocRegex(
-    R"(--(\d+)-- calloc\((\d+),(\d+)\) = ([0-9A-Fa-fx]+))");
-const std::regex kReallocRegex(
-    R"(--(\d+)-- realloc\(([0-9A-Fa-fx]+),(\d+)\)(?:malloc\(\d+\))? = ([0-9A-Fa-fx]+))");
+constexpr LazyRE2 kFreeRegex(
+    R"(--(\d+)-- (?:free|_ZdlPv|_ZdaPv|_ZdlPvm|_ZdaPvm|_ZdlPvSt11align_val_t)\(0x([0-9A-Fa-f]+)\))");
+constexpr LazyRE2 kMallocRegex(
+    R"(--(\d+)-- (?:malloc|_Znwm|_Znam|_ZnwmRKSt9nothrow_t)\((\d+)\) = 0x([0-9A-Fa-f]+))");
+constexpr LazyRE2 kMemalignAllocRegex(
+    R"(--(\d+)-- (?:memalign)\(al (\d+), size (\d+)\) = 0x([0-9A-Fa-f]+))");
+constexpr LazyRE2 kAlignedAllocRegex(
+    R"(--(\d+)-- (?:_ZnwmSt11align_val_t)\(size (\d+), al (\d+)\) = 0x([0-9A-Fa-f]+))");
+constexpr LazyRE2 kCallocRegex(
+    R"(--(\d+)-- calloc\((\d+),(\d+)\) = 0x([0-9A-Fa-f]+))");
+constexpr LazyRE2 kReallocRegex(
+    R"(--(\d+)-- realloc\(0x([0-9A-Fa-f]+),(\d+)\)(?:malloc\(\d+\))? = 0x([0-9A-Fa-f]+))");
 
 }  // namespace
 
@@ -112,62 +124,98 @@ class DirtyTracefileReader {
       return id;
     };
 
-    while (true) {
+    for (uint64_t iter = 0; iter + id_map.size() < absl::GetFlag(FLAGS_max_ops);
+         iter++) {
       std::string line_str;
       if (std::getline(file, line_str).eof()) {
         break;
       }
 
       TraceLine line;
-      std::smatch match;
       int32_t pid;
-      if (std::regex_match(line_str, match, kFreeRegex)) {
-        ASSIGN_OR_RETURN(pid, ParsePid(match[1].str()));
+      absl::string_view matches[4];
+      if (RE2::PartialMatch(line_str, *kFreeRegex, &matches[0], &matches[1])) {
+        ASSIGN_OR_RETURN(pid, ParsePid(matches[0]));
 
         void* input_ptr;
-        ASSIGN_OR_RETURN(input_ptr, ParsePtr(match[2].str()));
+        ASSIGN_OR_RETURN(input_ptr, ParsePtr(matches[1]));
 
         proto::TraceLine_Free* free = line.mutable_free();
         if (input_ptr != nullptr) {
           DEFINE_OR_RETURN(uint64_t, id, find_and_erase_id(input_ptr));
           free->set_input_id(id);
         }
-      } else if (std::regex_match(line_str, match, kMallocRegex)) {
-        ASSIGN_OR_RETURN(pid, ParsePid(match[1].str()));
+      } else if (RE2::PartialMatch(line_str, *kMallocRegex, &matches[0],
+                                   &matches[1], &matches[2])) {
+        ASSIGN_OR_RETURN(pid, ParsePid(matches[0]));
 
         uint64_t input_size;
-        ASSIGN_OR_RETURN(input_size, ParseSize(match[2].str()));
+        ASSIGN_OR_RETURN(input_size, ParseSize(matches[1]));
         void* result_ptr;
-        ASSIGN_OR_RETURN(result_ptr, ParsePtr(match[3].str()));
+        ASSIGN_OR_RETURN(result_ptr, ParsePtr(matches[2]));
 
         DEFINE_OR_RETURN(uint64_t, id, get_next_id(result_ptr));
         proto::TraceLine_Malloc* malloc = line.mutable_malloc();
         malloc->set_input_size(input_size);
         malloc->set_result_id(id);
-      } else if (std::regex_match(line_str, match, kCallocRegex)) {
-        ASSIGN_OR_RETURN(pid, ParsePid(match[1].str()));
+      } else if (RE2::PartialMatch(line_str, *kMemalignAllocRegex, &matches[0],
+                                   &matches[1], &matches[2], &matches[3])) {
+        ASSIGN_OR_RETURN(pid, ParsePid(matches[0]));
+
+        uint64_t input_alignment;
+        ASSIGN_OR_RETURN(input_alignment, ParseSize(matches[1]));
+        uint64_t input_size;
+        ASSIGN_OR_RETURN(input_size, ParseSize(matches[2]));
+        void* result_ptr;
+        ASSIGN_OR_RETURN(result_ptr, ParsePtr(matches[3]));
+
+        DEFINE_OR_RETURN(uint64_t, id, get_next_id(result_ptr));
+        proto::TraceLine_Malloc* malloc = line.mutable_malloc();
+        malloc->set_input_size(input_size);
+        malloc->set_input_alignment(input_alignment);
+        malloc->set_result_id(id);
+      } else if (RE2::PartialMatch(line_str, *kAlignedAllocRegex, &matches[0],
+                                   &matches[1], &matches[2], &matches[3])) {
+        ASSIGN_OR_RETURN(pid, ParsePid(matches[0]));
+
+        uint64_t input_size;
+        ASSIGN_OR_RETURN(input_size, ParseSize(matches[1]));
+        uint64_t input_alignment;
+        ASSIGN_OR_RETURN(input_alignment, ParseSize(matches[2]));
+        void* result_ptr;
+        ASSIGN_OR_RETURN(result_ptr, ParsePtr(matches[3]));
+
+        DEFINE_OR_RETURN(uint64_t, id, get_next_id(result_ptr));
+        proto::TraceLine_Malloc* malloc = line.mutable_malloc();
+        malloc->set_input_size(input_size);
+        malloc->set_input_alignment(input_alignment);
+        malloc->set_result_id(id);
+      } else if (RE2::PartialMatch(line_str, *kCallocRegex, &matches[0],
+                                   &matches[1], &matches[2], &matches[3])) {
+        ASSIGN_OR_RETURN(pid, ParsePid(matches[0]));
 
         uint64_t nmemb;
-        ASSIGN_OR_RETURN(nmemb, ParseSize(match[2].str()));
+        ASSIGN_OR_RETURN(nmemb, ParseSize(matches[1]));
         uint64_t input_size;
-        ASSIGN_OR_RETURN(input_size, ParseSize(match[3].str()));
+        ASSIGN_OR_RETURN(input_size, ParseSize(matches[2]));
         void* result_ptr;
-        ASSIGN_OR_RETURN(result_ptr, ParsePtr(match[4].str()));
+        ASSIGN_OR_RETURN(result_ptr, ParsePtr(matches[3]));
 
         DEFINE_OR_RETURN(uint64_t, id, get_next_id(result_ptr));
         proto::TraceLine_Calloc* calloc = line.mutable_calloc();
         calloc->set_input_nmemb(nmemb);
         calloc->set_input_size(input_size);
         calloc->set_result_id(id);
-      } else if (std::regex_match(line_str, match, kReallocRegex)) {
-        ASSIGN_OR_RETURN(pid, ParsePid(match[1].str()));
+      } else if (RE2::PartialMatch(line_str, *kReallocRegex, &matches[0],
+                                   &matches[1], &matches[2], &matches[3])) {
+        ASSIGN_OR_RETURN(pid, ParsePid(matches[0]));
 
         void* input_ptr;
-        ASSIGN_OR_RETURN(input_ptr, ParsePtr(match[2].str()));
+        ASSIGN_OR_RETURN(input_ptr, ParsePtr(matches[1]));
         uint64_t input_size;
-        ASSIGN_OR_RETURN(input_size, ParseSize(match[3].str()));
+        ASSIGN_OR_RETURN(input_size, ParseSize(matches[2]));
         void* result_ptr;
-        ASSIGN_OR_RETURN(result_ptr, ParsePtr(match[4].str()));
+        ASSIGN_OR_RETURN(result_ptr, ParsePtr(matches[3]));
 
         proto::TraceLine_Realloc* realloc = line.mutable_realloc();
         if (input_ptr != nullptr) {
@@ -178,6 +226,7 @@ class DirtyTracefileReader {
         realloc->set_input_size(input_size);
         realloc->set_result_id(id);
       } else {
+        std::cerr << "Skipping line " << line_str << std::endl;
         continue;
       }
 
@@ -214,26 +263,31 @@ class DirtyTracefileReader {
   explicit DirtyTracefileReader(class Tracefile&& tracefile)
       : tracefile_(std::move(tracefile)) {}
 
-  template <typename T>
-  static absl::StatusOr<T> ParsePrimitive(const std::string& str,
-                                          const std::string& debug_name) {
-    T val;
-    if (!(std::istringstream(str) >> val).eof()) {
+  static absl::StatusOr<int32_t> ParsePid(absl::string_view spid) {
+    int32_t pid;
+    if (!absl::SimpleAtoi(spid, &pid)) {
       return absl::InternalError(
-          absl::StrCat("failed to parse ", str, " as ", debug_name));
+          absl::StrCat("failed to parse ", spid, " as int32"));
     }
-    return val;
+    return pid;
+  }
+  static absl::StatusOr<void*> ParsePtr(absl::string_view sptr) {
+    uintptr_t ptr_val;
+    if (!absl::SimpleHexAtoi(sptr, &ptr_val)) {
+      return absl::InternalError(
+          absl::StrCat("failed to parse 0x", sptr, " as void*"));
+    }
+    // NOLINTNEXTLINE(performance-no-int-to-ptr)
+    return reinterpret_cast<void*>(ptr_val);
   }
 
-  static absl::StatusOr<int32_t> ParsePid(const std::string& spid) {
-    return ParsePrimitive<int32_t>(spid, "pid");
-  }
-  static absl::StatusOr<void*> ParsePtr(const std::string& sptr) {
-    return ParsePrimitive<void*>(sptr, "pointer");
-  }
-
-  static absl::StatusOr<size_t> ParseSize(const std::string& ssize) {
-    return ParsePrimitive<size_t>(ssize, "size");
+  static absl::StatusOr<size_t> ParseSize(absl::string_view ssize) {
+    size_t size;
+    if (!absl::SimpleAtoi(ssize, &size)) {
+      return absl::InternalError(
+          absl::StrCat("failed to parse ", ssize, " as size_t"));
+    }
+    return size;
   }
 
   const class Tracefile tracefile_;

@@ -3,4 +3,5 @@
 #build --cxxopt=-std=c++20
 #build --cxxopt=-mmacosx-version-min=10.15
 #build --cxxopt=-v
+build --copt=-fno-exceptions
 build:opt --copt=-flto=thin --linkopt=-flto=thin

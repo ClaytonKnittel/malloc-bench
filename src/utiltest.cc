@@ -39,7 +39,9 @@ absl::StatusOr<double> MeasureUtilization(TracefileReader& reader,
     switch (line.op_case()) {
       case TraceLine::kMalloc: {
         uint64_t size = line.malloc().input_size();
-        void* ptr = malloc(size);
+        void* ptr = malloc(size, line.malloc().has_input_alignment()
+                                     ? line.malloc().input_alignment()
+                                     : 0);
         ptrs[line.malloc().result_id()] = { ptr, size };
         total_allocated_bytes += RoundUp(size);
         break;
@@ -75,7 +77,12 @@ absl::StatusOr<double> MeasureUtilization(TracefileReader& reader,
           break;
         }
 
-        free(ptrs[line.free().input_id()].first);
+        free(ptrs[line.free().input_id()].first,
+             line.free().has_input_size_hint() ? line.free().input_size_hint()
+                                               : 0,
+             line.free().has_input_alignment_hint()
+                 ? line.free().input_alignment_hint()
+                 : 0);
         total_allocated_bytes -= RoundUp(ptrs[line.free().input_id()].second);
         ptrs[line.free().input_id()].first = nullptr;
         break;

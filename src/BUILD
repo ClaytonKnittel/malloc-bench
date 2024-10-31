@@ -114,19 +114,13 @@ cc_library(
     ],
 )
 
-cc_library(
-    name = "libc_override",
+cc_binary(
+    name = "liballoc.so",
     srcs = ["libc_override.cc"],
+    copts = ["-fexceptions"],
+    linkshared = 1,
     deps = [
         ":allocator_interface",
-    ],
-)
-
-cc_shared_library(
-    name = "liballoc",
-    shared_lib_name = "liballoc.so",
-    deps = [
-        ":libc_override",
     ],
 )
 
@@ -191,6 +185,7 @@ cc_binary(
         "@cc-util//util:absl_util",
         "@protobuf",
         "@protobuf//src/google/protobuf/io",
+        "@re2",
     ],
 )
 
