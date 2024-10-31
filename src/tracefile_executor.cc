@@ -155,9 +155,9 @@ absl::Status TracefileExecutor::ProcessTracefileMultithreaded(
   absl::Status status = absl::OkStatus();
 
   {
-    std::atomic<bool> done;
+    std::atomic<bool> done = false;
 
-    std::atomic<uint64_t> idx;
+    std::atomic<uint64_t> idx = 0;
     HashIdMap id_map_container;
 
     absl::Mutex queue_mutex;
@@ -220,13 +220,10 @@ absl::Status TracefileExecutor::ProcessorWorker(
            i <
            std::min<uint64_t>(first_idx + kBatchSize, tracefile.lines_size());
            i++) {
-        auto result = ProcessLine(tracefile.lines(i), id_map_container);
-        if (!result.ok()) {
-          std::cerr << result << std::endl;
-          std::abort();
-        }
+        DEFINE_OR_RETURN(bool, succeeded,
+                         ProcessLine(tracefile.lines(i), id_map_container));
 
-        if (!result.value()) {
+        if (!succeeded) {
           absl::MutexLock lock(&queue_mutex);
           queued_idxs.push_back(i);
         }
