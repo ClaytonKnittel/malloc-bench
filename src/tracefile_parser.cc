@@ -55,18 +55,24 @@ using re2::RE2;
  * "free" has aliases "_ZdlPv", "_ZdaPv", "_ZdlPvm", "_ZdaPvm", and
  * "malloc" has aliases "_Znwm", "_Znam".
  */
-constexpr LazyRE2 kFreeRegex(
-    R"(--(\d+)-- (?:free|_ZdlPv|_ZdaPv|_ZdlPvm|_ZdaPvm|_ZdlPvSt11align_val_t)\(0x([0-9A-Fa-f]+)\))");
-constexpr LazyRE2 kMallocRegex(
-    R"(--(\d+)-- (?:malloc|_Znwm|_Znam|_ZnwmRKSt9nothrow_t)\((\d+)\) = 0x([0-9A-Fa-f]+))");
-constexpr LazyRE2 kMemalignAllocRegex(
-    R"(--(\d+)-- (?:memalign)\(al (\d+), size (\d+)\) = 0x([0-9A-Fa-f]+))");
-constexpr LazyRE2 kAlignedAllocRegex(
-    R"(--(\d+)-- (?:_ZnwmSt11align_val_t)\(size (\d+), al (\d+)\) = 0x([0-9A-Fa-f]+))");
-constexpr LazyRE2 kCallocRegex(
-    R"(--(\d+)-- calloc\((\d+),(\d+)\) = 0x([0-9A-Fa-f]+))");
-constexpr LazyRE2 kReallocRegex(
-    R"(--(\d+)-- realloc\(0x([0-9A-Fa-f]+),(\d+)\)(?:malloc\(\d+\))? = 0x([0-9A-Fa-f]+))");
+constexpr LazyRE2 kFreeRegex = {
+  R"(--(\d+)-- (?:free|_ZdlPv|_ZdaPv|_ZdlPvm|_ZdaPvm|_ZdlPvSt11align_val_t)\(0x([0-9A-Fa-f]+)\))"
+};
+constexpr LazyRE2 kMallocRegex = {
+  R"(--(\d+)-- (?:malloc|_Znwm|_Znam|_ZnwmRKSt9nothrow_t)\((\d+)\) = 0x([0-9A-Fa-f]+))"
+};
+constexpr LazyRE2 kMemalignAllocRegex = {
+  R"(--(\d+)-- (?:memalign)\(al (\d+), size (\d+)\) = 0x([0-9A-Fa-f]+))"
+};
+constexpr LazyRE2 kAlignedAllocRegex = {
+  R"(--(\d+)-- (?:_ZnwmSt11align_val_t)\(size (\d+), al (\d+)\) = 0x([0-9A-Fa-f]+))"
+};
+constexpr LazyRE2 kCallocRegex = {
+  R"(--(\d+)-- calloc\((\d+),(\d+)\) = 0x([0-9A-Fa-f]+))"
+};
+constexpr LazyRE2 kReallocRegex = {
+  R"(--(\d+)-- realloc\(0x([0-9A-Fa-f]+),(\d+)\)(?:malloc\(\d+\))? = 0x([0-9A-Fa-f]+))"
+};
 
 }  // namespace
 
@@ -149,7 +155,7 @@ class DirtyTracefileReader {
                                    &matches[1], &matches[2])) {
         ASSIGN_OR_RETURN(pid, ParsePid(matches[0]));
 
-        uint64_t input_size;
+        size_t input_size;
         ASSIGN_OR_RETURN(input_size, ParseSize(matches[1]));
         void* result_ptr;
         ASSIGN_OR_RETURN(result_ptr, ParsePtr(matches[2]));
@@ -162,9 +168,9 @@ class DirtyTracefileReader {
                                    &matches[1], &matches[2], &matches[3])) {
         ASSIGN_OR_RETURN(pid, ParsePid(matches[0]));
 
-        uint64_t input_alignment;
+        size_t input_alignment;
         ASSIGN_OR_RETURN(input_alignment, ParseSize(matches[1]));
-        uint64_t input_size;
+        size_t input_size;
         ASSIGN_OR_RETURN(input_size, ParseSize(matches[2]));
         void* result_ptr;
         ASSIGN_OR_RETURN(result_ptr, ParsePtr(matches[3]));
@@ -178,9 +184,9 @@ class DirtyTracefileReader {
                                    &matches[1], &matches[2], &matches[3])) {
         ASSIGN_OR_RETURN(pid, ParsePid(matches[0]));
 
-        uint64_t input_size;
+        size_t input_size;
         ASSIGN_OR_RETURN(input_size, ParseSize(matches[1]));
-        uint64_t input_alignment;
+        size_t input_alignment;
         ASSIGN_OR_RETURN(input_alignment, ParseSize(matches[2]));
         void* result_ptr;
         ASSIGN_OR_RETURN(result_ptr, ParsePtr(matches[3]));
@@ -194,9 +200,9 @@ class DirtyTracefileReader {
                                    &matches[1], &matches[2], &matches[3])) {
         ASSIGN_OR_RETURN(pid, ParsePid(matches[0]));
 
-        uint64_t nmemb;
+        size_t nmemb;
         ASSIGN_OR_RETURN(nmemb, ParseSize(matches[1]));
-        uint64_t input_size;
+        size_t input_size;
         ASSIGN_OR_RETURN(input_size, ParseSize(matches[2]));
         void* result_ptr;
         ASSIGN_OR_RETURN(result_ptr, ParsePtr(matches[3]));
@@ -212,7 +218,7 @@ class DirtyTracefileReader {
 
         void* input_ptr;
         ASSIGN_OR_RETURN(input_ptr, ParsePtr(matches[1]));
-        uint64_t input_size;
+        size_t input_size;
         ASSIGN_OR_RETURN(input_size, ParseSize(matches[2]));
         void* result_ptr;
         ASSIGN_OR_RETURN(result_ptr, ParsePtr(matches[3]));
