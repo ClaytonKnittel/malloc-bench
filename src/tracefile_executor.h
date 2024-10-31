@@ -13,11 +13,10 @@
 namespace bench {
 
 template <typename T>
-concept IdMapContainer =
-    requires(const T const_t, T t, uint64_t id, void* ptr) {
-      { t.SetId(id, ptr) } -> std::same_as<void>;
-      { const_t.GetId(id) } -> std::convertible_to<std::optional<void*>>;
-    };
+concept IdMapContainer = requires(T t, uint64_t id, void* ptr) {
+  { t.SetId(id, ptr) } -> std::same_as<void>;
+  { t.GetId(id) } -> std::convertible_to<std::optional<void*>>;
+};
 
 struct TracefileExecutorOptions {
   uint32_t n_threads = 1;

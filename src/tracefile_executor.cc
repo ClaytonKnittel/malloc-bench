@@ -150,14 +150,14 @@ absl::Status TracefileExecutor::ProcessTracefile() {
 absl::Status TracefileExecutor::ProcessTracefileMultithreaded(
     const TracefileExecutorOptions& options) {
   struct HashIdMap {
-    absl::flat_hash_map<uint64_t, void*>& id_map;
-    absl::Mutex& mutex;
+    absl::flat_hash_map<uint64_t, void*> id_map;
+    absl::Mutex mutex;
 
     void SetId(uint64_t id, void* ptr) {
       absl::MutexLock guard(&mutex);
       id_map[id] = ptr;
     }
-    std::optional<void*> GetId(uint64_t id) const {
+    std::optional<void*> GetId(uint64_t id) {
       absl::MutexLock guard(&mutex);
       auto it = id_map.find(id);
       return it != id_map.end() ? std::optional(it->second) : std::nullopt;
@@ -169,9 +169,7 @@ absl::Status TracefileExecutor::ProcessTracefileMultithreaded(
 
   {
     std::atomic<uint64_t> idx;
-    absl::Mutex id_map_mutex;
-    absl::flat_hash_map<uint64_t, void*> id_map;
-    HashIdMap id_map_container{ id_map, id_map_mutex };
+    HashIdMap id_map_container;
 
     absl::Mutex queue_mutex;
     std::deque<uint64_t> queued_idxs;
@@ -183,7 +181,6 @@ absl::Status TracefileExecutor::ProcessTracefileMultithreaded(
       threads.emplace_back([this, &idx, &tracefile, &id_map_container,
                             &queue_mutex, &queued_idxs]() {
         static constexpr uint64_t kBatchSize = 32;
-        HashIdMap id_map = id_map_container;
         bool queue_empty = false;
         bool tracefile_complete = false;
 
@@ -212,7 +209,7 @@ absl::Status TracefileExecutor::ProcessTracefileMultithreaded(
                  i < std::min<uint64_t>(first_idx + kBatchSize,
                                         tracefile.lines_size());
                  i++) {
-              auto result = ProcessLine(tracefile.lines(i), id_map);
+              auto result = ProcessLine(tracefile.lines(i), id_map_container);
               if (!result.ok()) {
                 std::cerr << result << std::endl;
                 std::abort();
@@ -226,7 +223,8 @@ absl::Status TracefileExecutor::ProcessTracefileMultithreaded(
           }
 
           for (uint64_t i = 0; i < iters; i++) {
-            auto result = ProcessLine(tracefile.lines(idxs[i]), id_map);
+            auto result =
+                ProcessLine(tracefile.lines(idxs[i]), id_map_container);
             if (!result.ok()) {
               std::cerr << result << std::endl;
               return;
