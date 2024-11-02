@@ -237,7 +237,7 @@ absl::Status CorrectnessChecker::HandleNewAllocation(void* ptr, size_t size,
 }
 
 absl::Status CorrectnessChecker::ValidateNewBlock(void* ptr, size_t size,
-                                                  size_t alignment) {
+                                                  size_t alignment) const {
   if (ptr == nullptr) {
     return absl::InternalError(absl::StrFormat(
         "%s Bad nullptr alloc for size %zu, did you run out of memory?",

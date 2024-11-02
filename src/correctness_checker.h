@@ -50,7 +50,7 @@ class CorrectnessChecker : private TracefileExecutor {
 
   // Validates that a new block doesn't overlap with any existing block, and
   // that it satisfies alignment requirements.
-  absl::Status ValidateNewBlock(void* ptr, size_t size, size_t alignment);
+  absl::Status ValidateNewBlock(void* ptr, size_t size, size_t alignment) const;
 
   static void FillMagicBytes(void* ptr, size_t size, uint64_t magic_bytes);
   // Checks if pointer is filled with magic_bytes, and if any byte differs,
