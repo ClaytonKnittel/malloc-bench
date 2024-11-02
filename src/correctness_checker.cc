@@ -96,6 +96,8 @@ absl::Status CorrectnessChecker::PreRealloc(void* ptr, size_t size) {
 
 absl::Status CorrectnessChecker::PostRealloc(void* new_ptr, void* old_ptr,
                                              size_t size) {
+  RETURN_IF_ERROR(ValidateNewBlock(new_ptr, size, /*alignment=*/0));
+
   auto block_it = allocated_blocks_.find(old_ptr);
   if (block_it == allocated_blocks_.end()) {
     return absl::InternalError(absl::StrFormat(
@@ -112,8 +114,6 @@ absl::Status CorrectnessChecker::PostRealloc(void* new_ptr, void* old_ptr,
           "%s realloc-ed block %p not found in allocated blocks map",
           kFailedTestPrefix, old_ptr));
     }
-
-    RETURN_IF_ERROR(ValidateNewBlock(new_ptr, size, /*alignment=*/0));
 
     block.size = size;
     auto [it, inserted] = allocated_blocks_.insert({ new_ptr, block });
