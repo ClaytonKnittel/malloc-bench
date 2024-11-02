@@ -75,7 +75,6 @@ cc_library(
         ":tracefile_reader",
         ":util",
         "@abseil-cpp//absl/algorithm:container",
-        "@abseil-cpp//absl/container:btree",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
@@ -204,12 +203,12 @@ cc_library(
         ":heap_factory",
         ":tracefile_reader",
         "//proto:tracefile_cc_proto",
-        "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings:str_format",
         "@abseil-cpp//absl/synchronization",
         "@cc-util//util:absl_util",
+        "@folly",
     ],
 )
 

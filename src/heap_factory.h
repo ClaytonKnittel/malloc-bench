@@ -47,7 +47,7 @@ template <typename ReturnVal, typename Fn>
 requires std::is_invocable_r_v<
     ReturnVal, Fn, const absl::flat_hash_set<std::unique_ptr<Heap>>&>
 ReturnVal HeapFactory::WithInstances(const Fn& fn) {
-  absl::MutexLock lock(&mutex_);
+  absl::ReaderMutexLock lock(&mutex_);
   return fn(heaps_);
 }
 
