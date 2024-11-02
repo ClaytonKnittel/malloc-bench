@@ -36,8 +36,7 @@ absl::Status CorrectnessChecker::Check(
 CorrectnessChecker::CorrectnessChecker(TracefileReader& reader,
                                        HeapFactory& heap_factory, bool verbose)
     : MallocRunner(reader, heap_factory, verbose),
-      heap_factory_(&heap_factory),
-      allocated_blocks_(reader.SuggestedAtomicMapSize()) {}
+      heap_factory_(&heap_factory) {}
 
 absl::Status CorrectnessChecker::PostAlloc(void* ptr, size_t size,
                                            std::optional<size_t> alignment,

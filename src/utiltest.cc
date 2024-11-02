@@ -42,8 +42,7 @@ absl::StatusOr<double> Utiltest::MeasureUtilization(
 }
 
 Utiltest::Utiltest(TracefileReader& reader, HeapFactory& heap_factory)
-    : MallocRunner(reader, heap_factory),
-      size_map_(reader.SuggestedAtomicMapSize()) {}
+    : MallocRunner(reader, heap_factory) {}
 
 absl::Status Utiltest::PostAlloc(void* ptr, size_t size,
                                  std::optional<size_t> alignment,

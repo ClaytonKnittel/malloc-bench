@@ -8,7 +8,7 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/synchronization/mutex.h"
-#include "folly/AtomicHashMap.h"
+#include "folly/concurrency/ConcurrentHashMap.h"
 
 #include "src/heap_factory.h"
 #include "src/tracefile_reader.h"
@@ -53,13 +53,13 @@ class TracefileExecutor {
 
  private:
   struct HashIdMap {
-    folly::AtomicHashMap<uint64_t, void*> id_map;
+    folly::ConcurrentHashMap<uint64_t, void*> id_map;
 
     bool SetId(uint64_t id, void* ptr) {
       auto [it, inserted] = id_map.insert({ id, ptr });
       return inserted;
     }
-    std::optional<void*> GetId(uint64_t id) {
+    std::optional<void*> GetId(uint64_t id) const {
       auto it = id_map.find(id);
       return it != id_map.end() ? std::optional(it->second) : std::nullopt;
     }

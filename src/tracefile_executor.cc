@@ -6,7 +6,6 @@
 
 #include "absl/status/status.h"
 #include "absl/synchronization/mutex.h"
-#include "folly/AtomicHashMap.h"
 #include "util/absl_util.h"
 
 #include "proto/tracefile.pb.h"
@@ -192,10 +191,7 @@ absl::Status TracefileExecutor::ProcessTracefileMultithreaded(
     std::atomic<bool> done = false;
 
     std::atomic<size_t> idx = 0;
-    HashIdMap id_map_container{
-      .id_map = folly::AtomicHashMap<uint64_t, void*>(
-          reader_.SuggestedAtomicMapSize()),
-    };
+    HashIdMap id_map_container;
 
     absl::Mutex queue_mutex;
     std::deque<uint64_t> queued_idxs;
