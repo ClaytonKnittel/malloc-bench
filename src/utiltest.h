@@ -1,7 +1,7 @@
 #pragma once
 
 #include "absl/status/statusor.h"
-#include "folly/AtomicHashMap.h"
+#include "folly/concurrency/ConcurrentHashMap.h"
 
 #include "src/heap_factory.h"
 #include "src/malloc_runner.h"
@@ -33,7 +33,7 @@ class Utiltest : private MallocRunner {
 
   absl::StatusOr<double> ComputeUtilization() const;
 
-  folly::AtomicHashMap<void*, size_t> size_map_;
+  folly::ConcurrentHashMap<void*, size_t> size_map_;
 
   std::atomic<size_t> total_allocated_bytes_ = 0;
   std::atomic<size_t> max_allocated_bytes_ = 0;

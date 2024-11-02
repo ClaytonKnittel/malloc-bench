@@ -124,9 +124,13 @@ absl::Status CorrectnessChecker::PostRealloc(void* new_ptr, void* old_ptr,
                           kFailedTestPrefix, old_ptr, size));
     }
   } else {
-    // This write cannot be a race since operations on allocations are
-    // synchronized.
-    block_it->second.size = size;
+    auto result = allocated_blocks_.assign(new_ptr, size);
+    if (!result.has_value()) {
+      return absl::InternalError(
+          absl::StrFormat("Reassigning size of realloc-ed memory %p from %zu "
+                          "to %zu failed, not found in map.",
+                          new_ptr, orig_size, size));
+    }
   }
 
   RETURN_IF_ERROR(
