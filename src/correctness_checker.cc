@@ -105,6 +105,7 @@ absl::Status CorrectnessChecker::PostRealloc(void* new_ptr, void* old_ptr,
   }
   AllocatedBlock block = block_it->second;
   const size_t orig_size = block.size;
+  block.size = size;
 
   if (new_ptr != old_ptr) {
     size_t erased_elems = allocated_blocks_.erase(old_ptr);
@@ -114,7 +115,6 @@ absl::Status CorrectnessChecker::PostRealloc(void* new_ptr, void* old_ptr,
           kFailedTestPrefix, old_ptr));
     }
 
-    block.size = size;
     auto [it, inserted] = allocated_blocks_.insert({ new_ptr, block });
     if (!inserted) {
       return absl::InternalError(
@@ -123,7 +123,7 @@ absl::Status CorrectnessChecker::PostRealloc(void* new_ptr, void* old_ptr,
                           kFailedTestPrefix, old_ptr, size));
     }
   } else {
-    auto result = allocated_blocks_.assign(new_ptr, size);
+    auto result = allocated_blocks_.assign(new_ptr, block);
     if (!result.has_value()) {
       return absl::InternalError(
           absl::StrFormat("Reassigning size of realloc-ed memory %p from %zu "
