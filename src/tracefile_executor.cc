@@ -24,10 +24,15 @@ TracefileExecutor::TracefileExecutor(TracefileReader& reader,
 absl::Status TracefileExecutor::Run(const TracefileExecutorOptions& options) {
   InitializeHeap(*heap_factory_);
 
+  absl::Status result;
   if (options.n_threads == 1) {
-    return ProcessTracefile();
+    result = ProcessTracefile();
+  } else {
+    result = ProcessTracefileMultithreaded(options);
   }
-  return ProcessTracefileMultithreaded(options);
+
+  RETURN_IF_ERROR(CleanupHeap());
+  return result;
 }
 
 template <IdMapContainer IdMap>

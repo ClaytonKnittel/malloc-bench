@@ -260,6 +260,7 @@ cc_library(
     hdrs = ["malloc_runner.h"],
     deps = [
         ":allocator_interface",
+        ":heap_factory",
         ":test_allocator_interface",
         ":tracefile_executor",
         "@cc-util//util:absl_util",

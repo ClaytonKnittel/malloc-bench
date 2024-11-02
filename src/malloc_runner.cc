@@ -3,6 +3,7 @@
 #include "util/absl_util.h"
 
 #include "src/allocator_interface.h"
+#include "src/heap_factory.h"
 #include "src/test_allocator_interface.h"
 #include "src/tracefile_executor.h"
 
@@ -16,6 +17,11 @@ void MallocRunner::InitializeHeap(HeapFactory& heap_factory) {
   heap_factory.Reset();
   bench::reset_test_heap();
   bench::initialize_test_heap(heap_factory);
+}
+
+absl::Status MallocRunner::CleanupHeap() {
+  bench::reset_test_heap();
+  return absl::OkStatus();
 }
 
 absl::StatusOr<void*> MallocRunner::Malloc(size_t size,
