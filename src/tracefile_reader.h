@@ -21,6 +21,10 @@ class TracefileReader {
 
   size_t size() const;
 
+  // A suggested size to use for atomic maps that will contain all allocated
+  // pointers from this trace.
+  size_t SuggestedAtomicMapSize() const;
+
   const_iterator begin() const;
   const_iterator end() const;
 

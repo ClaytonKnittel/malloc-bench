@@ -43,6 +43,13 @@ class TracefileExecutor {
   virtual absl::Status Free(void* ptr, std::optional<size_t> size_hint,
                             std::optional<size_t> alignment_hint) = 0;
 
+  HeapFactory& HeapFactoryRef() {
+    return *heap_factory_;
+  }
+  const HeapFactory& HeapFactoryRef() const {
+    return *heap_factory_;
+  }
+
  private:
   struct HashIdMap {
     folly::AtomicHashMap<uint64_t, void*> id_map;
