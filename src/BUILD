@@ -221,14 +221,6 @@ cc_library(
 )
 
 cc_library(
-    name = "rng",
-    hdrs = ["rng.h"],
-    deps = [
-        "@abseil-cpp//absl/status:statusor",
-    ],
-)
-
-cc_library(
     name = "util",
     hdrs = ["util.h"],
 )

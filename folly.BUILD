@@ -1,6 +1,5 @@
 cc_library(
     name = "folly",
-    # "folly/Subprocess.cpp",
     srcs = [
         "folly/Demangle.cpp",
         "folly/Random.cpp",
