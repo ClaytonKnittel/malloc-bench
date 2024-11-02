@@ -36,6 +36,7 @@ class TracefileExecutor {
       const TracefileExecutorOptions& options = TracefileExecutorOptions());
 
   virtual void InitializeHeap(HeapFactory& heap_factory) = 0;
+  virtual absl::Status CleanupHeap() = 0;
   virtual absl::StatusOr<void*> Malloc(size_t size,
                                        std::optional<size_t> alignment) = 0;
   virtual absl::StatusOr<void*> Calloc(size_t nmemb, size_t size) = 0;

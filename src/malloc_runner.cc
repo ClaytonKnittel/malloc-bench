@@ -3,6 +3,7 @@
 #include "util/absl_util.h"
 
 #include "src/allocator_interface.h"
+#include "src/heap_factory.h"
 #include "src/tracefile_executor.h"
 
 namespace bench {
@@ -14,6 +15,10 @@ MallocRunner::MallocRunner(TracefileReader& reader, HeapFactory& heap_factory,
 void MallocRunner::InitializeHeap(HeapFactory& heap_factory) {
   heap_factory.Reset();
   initialize_heap(heap_factory);
+}
+
+absl::Status MallocRunner::CleanupHeap() {
+  return absl::OkStatus();
 }
 
 absl::StatusOr<void*> MallocRunner::Malloc(size_t size,
