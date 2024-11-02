@@ -116,12 +116,6 @@ absl::StatusOr<void*> CorrectnessChecker::Realloc(void* ptr, size_t size) {
                           kFailedTestPrefix, ptr, size));
     }
   } else {
-    auto block_it = allocated_blocks_.find(ptr);
-    if (block_it == allocated_blocks_.end()) {
-      return absl::InternalError(absl::StrFormat(
-          "%s realloc-ed block %p not found in allocated blocks map",
-          kFailedTestPrefix, ptr));
-    }
     // This write cannot be a race since operations on allocations are
     // synchronized.
     block_it->second.size = size;
