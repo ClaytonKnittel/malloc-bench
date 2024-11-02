@@ -123,8 +123,8 @@ absl::Status CorrectnessChecker::PostRealloc(void* new_ptr, void* old_ptr,
                           kFailedTestPrefix, old_ptr, size));
     }
   } else {
-    auto result = allocated_blocks_.assign(new_ptr, size);
-    if (!result.has_value()) {
+    auto [it, inserted] = allocated_blocks_.insert(new_ptr, size);
+    if (!inserted) {
       return absl::InternalError(
           absl::StrFormat("Reassigning size of realloc-ed memory %p from %zu "
                           "to %zu failed, not found in map.",
