@@ -8,12 +8,11 @@
 #include "absl/algorithm/container.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_format.h"
-#include "absl/synchronization/mutex.h"
+#include "folly/Random.h"
 #include "util/absl_util.h"
 
 #include "src/allocator_interface.h"
 #include "src/heap_factory.h"
-#include "src/rng.h"
 #include "src/tracefile_executor.h"
 #include "src/tracefile_reader.h"
 
@@ -41,8 +40,7 @@ CorrectnessChecker::CorrectnessChecker(TracefileReader& reader,
       heap_factory_(&heap_factory),
       // Use load factor of ~50%, assuming about 50% of operations are allocs
       // and 50% are frees.
-      allocated_blocks_(reader.size()),
-      rng_(0, 1) {}
+      allocated_blocks_(reader.size()) {}
 
 void CorrectnessChecker::InitializeHeap(HeapFactory& heap_factory) {
   heap_factory.Reset();
@@ -215,11 +213,7 @@ absl::Status CorrectnessChecker::HandleNewAllocation(void* ptr, size_t size,
                                                      bool is_calloc) {
   RETURN_IF_ERROR(ValidateNewBlock(ptr, size, alignment));
 
-  uint64_t magic_bytes;
-  {
-    absl::MutexLock lock(&mutex_);
-    magic_bytes = rng_.GenRand64();
-  }
+  uint64_t magic_bytes = static_cast<uint64_t>(folly::ThreadLocalPRNG()());
   auto [it, inserted] = allocated_blocks_.insert({
       ptr,
       AllocatedBlock{

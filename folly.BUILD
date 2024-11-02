@@ -3,8 +3,10 @@ cc_library(
     # "folly/Subprocess.cpp",
     srcs = [
         "folly/Demangle.cpp",
+        "folly/Random.cpp",
         "folly/ScopeGuard.cpp",
         "folly/SharedMutex.cpp",
+        "folly/SingletonThreadLocal.cpp",
         "folly/concurrency/CacheLocality.cpp",
         "folly/detail/Futex.cpp",
         "folly/detail/StaticSingletonManager.cpp",
