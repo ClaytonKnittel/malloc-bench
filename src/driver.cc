@@ -19,6 +19,7 @@
 #include "src/heap_factory.h"
 #include "src/mmap_heap_factory.h"
 #include "src/perftest.h"
+#include "src/tracefile_executor.h"
 #include "src/tracefile_reader.h"
 #include "src/utiltest.h"
 
@@ -37,6 +38,9 @@ ABSL_FLAG(bool, ignore_hard, true,
 ABSL_FLAG(size_t, perftest_iters, 1000000,
           "The minimum number of alloc/free operations to perform for each "
           "tracefile when measuring allocator throughput.");
+
+ABSL_FLAG(uint32_t, threads, 1,
+          "If not 1, the number of threads to run all tests with.");
 
 namespace bench {
 
@@ -69,10 +73,14 @@ absl::StatusOr<TraceResult> RunTrace(const std::string& tracefile,
 
   DEFINE_OR_RETURN(TracefileReader, reader, TracefileReader::Open(tracefile));
 
+  TracefileExecutorOptions options = {
+    .n_threads = absl::GetFlag(FLAGS_threads),
+  };
+
   // Check for correctness.
   if (!absl::GetFlag(FLAGS_skip_correctness)) {
-    absl::Status correctness_status =
-        CorrectnessChecker::Check(reader, heap_factory);
+    absl::Status correctness_status = CorrectnessChecker::Check(
+        reader, heap_factory, /*verbose=*/false, options);
     if (correctness_status.ok()) {
       result.correct = true;
     } else {
@@ -92,8 +100,9 @@ absl::StatusOr<TraceResult> RunTrace(const std::string& tracefile,
     DEFINE_OR_RETURN(
         double, mega_ops,
         TimeTrace(reader, heap_factory, absl::GetFlag(FLAGS_perftest_iters)));
-    DEFINE_OR_RETURN(double, utilization,
-                     MeasureUtilization(reader, heap_factory));
+    DEFINE_OR_RETURN(
+        double, utilization,
+        Utiltest::MeasureUtilization(reader, heap_factory, options));
 
     result.mega_ops = mega_ops;
     result.utilization = utilization;
