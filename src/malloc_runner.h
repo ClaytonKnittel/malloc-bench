@@ -27,6 +27,7 @@ class MallocRunner : protected TracefileExecutor {
 
  protected:
   void InitializeHeap(HeapFactory& heap_factory) final;
+  absl::Status CleanupHeap() final;
   absl::StatusOr<void*> Malloc(size_t size,
                                std::optional<size_t> alignment) final;
   absl::StatusOr<void*> Calloc(size_t nmemb, size_t size) final;
