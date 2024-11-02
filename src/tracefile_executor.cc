@@ -196,7 +196,7 @@ absl::Status TracefileExecutor::ProcessTracefileMultithreaded(
     absl::Mutex queue_mutex;
     std::deque<uint64_t> queued_idxs;
 
-    std::vector<std::jthread> threads;
+    std::vector<std::thread> threads;
     threads.reserve(options.n_threads);
 
     for (uint32_t i = 0; i < options.n_threads; i++) {
@@ -214,6 +214,10 @@ absl::Status TracefileExecutor::ProcessTracefileMultithreaded(
           }
         }
       });
+    }
+
+    for (uint32_t i = 0; i < options.n_threads; i++) {
+      threads[i].join();
     }
   }
 
