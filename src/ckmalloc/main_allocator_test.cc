@@ -33,9 +33,7 @@ class MainAllocatorTest : public ::testing::Test {
 
   MainAllocatorTest()
       : heap_factory_(std::make_shared<TestHeapFactory>(kMetadataHeapSize)),
-        metadata_heap_(
-            static_cast<TestHeap*>(heap_factory_->Instances().begin()->get()),
-            Noop<TestHeap>),
+        metadata_heap_(RandomHeapFromFactory(*heap_factory_), Noop<TestHeap>),
         slab_map_(std::make_shared<TestSlabMap>()),
         slab_manager_fixture_(std::make_shared<SlabManagerFixture>(
             heap_factory_, slab_map_, kUserHeapSize)),

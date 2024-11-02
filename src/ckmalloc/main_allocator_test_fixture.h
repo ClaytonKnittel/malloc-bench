@@ -14,7 +14,6 @@
 #include "src/ckmalloc/slab_manager_test_fixture.h"
 #include "src/ckmalloc/small_allocator_test_fixture.h"
 #include "src/ckmalloc/testlib.h"
-#include "src/rng.h"
 
 namespace ckmalloc {
 
@@ -78,8 +77,7 @@ class MainAllocatorFixture : public CkMallocTest {
             this, slab_map_.get(),
             slab_manager_test_fixture_->SlabManagerPtr().get(),
             small_allocator_test_fixture_->SmallAllocatorPtr().get(),
-            large_allocator_test_fixture_->LargeAllocatorPtr().get())),
-        rng_(53, 47) {}
+            large_allocator_test_fixture_->LargeAllocatorPtr().get())) {}
 
   const char* TestPrefix() const override {
     return kPrefix;
@@ -124,8 +122,6 @@ class MainAllocatorFixture : public CkMallocTest {
   std::shared_ptr<SmallAllocatorFixture> small_allocator_test_fixture_;
   std::shared_ptr<LargeAllocatorFixture> large_allocator_test_fixture_;
   std::shared_ptr<TestMainAllocator> main_allocator_;
-
-  util::Rng rng_;
 
   // A map from allocation pointers to a pair of their size and magic number,
   // respectively.

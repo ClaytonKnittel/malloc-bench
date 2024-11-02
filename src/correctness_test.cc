@@ -59,8 +59,7 @@ class TestCorrectness : public ::testing::Test {
   TestCorrectness()
       : heap_factory_(std::make_shared<ckmalloc::TestHeapFactory>(
             ckmalloc::kMetadataHeapSize)),
-        metadata_heap_(static_cast<ckmalloc::TestHeap*>(
-                           heap_factory_->Instances().begin()->get()),
+        metadata_heap_(ckmalloc::RandomHeapFromFactory(*heap_factory_),
                        ckmalloc::Noop<ckmalloc::TestHeap>),
         slab_map_(std::make_shared<ckmalloc::TestSlabMap>()),
         slab_manager_fixture_(std::make_shared<ckmalloc::SlabManagerFixture>(

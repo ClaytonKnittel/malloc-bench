@@ -113,14 +113,23 @@ absl::StatusOr<std::unique_ptr<bench::Heap>> TestHeapFactory::MakeHeap(
   return std::make_unique<TestHeap>(size / kPageSize);
 }
 
+TestHeap* RandomHeapFromFactory(bench::HeapFactory& heap_factory) {
+  return heap_factory.WithInstances<TestHeap*>(
+      [](const auto& instances) -> TestHeap* {
+        return static_cast<TestHeap*>(instances.begin()->get());
+      });
+}
+
 TestSysAlloc::TestSysAlloc(bench::HeapFactory* heap_factory)
     : heap_factory_(heap_factory) {
-  for (const auto& heap : heap_factory_->Instances()) {
-    // Assume all already-created heaps are metadata heaps.
-    heap_map_.emplace(heap->Start(),
-                      std::make_pair(HeapType::kMetadataHeap,
-                                     static_cast<TestHeap*>(heap.get())));
-  }
+  heap_factory_->WithInstances<void>([this](const auto& instances) {
+    for (const auto& heap : instances) {
+      // Assume all already-created heaps are metadata heaps.
+      heap_map_.emplace(heap->Start(),
+                        std::make_pair(HeapType::kMetadataHeap,
+                                       static_cast<TestHeap*>(heap.get())));
+    }
+  });
 }
 
 /* static */

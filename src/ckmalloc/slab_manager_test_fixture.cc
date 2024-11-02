@@ -6,6 +6,7 @@
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "folly/Random.h"
 #include "util/absl_util.h"
 
 #include "src/ckmalloc/common.h"
@@ -16,7 +17,6 @@
 #include "src/ckmalloc/sys_alloc.h"
 #include "src/ckmalloc/testlib.h"
 #include "src/ckmalloc/util.h"
-#include "src/rng.h"
 
 namespace ckmalloc {
 
@@ -434,7 +434,7 @@ absl::StatusOr<AllocatedSlab*> SlabManagerFixture::AllocateSlab(
     }
   }
 
-  uint64_t magic = rng_.GenRand64();
+  uint64_t magic = folly::ThreadLocalPRNG()();
   FillMagic(slab, magic);
 
   // Make a copy of this slab's metadata to ensure it does not get dirtied.

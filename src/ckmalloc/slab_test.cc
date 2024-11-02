@@ -10,6 +10,7 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_format.h"
+#include "folly/Random.h"
 #include "gtest/gtest.h"
 #include "util/absl_util.h"
 #include "util/gtest_util.h"
@@ -20,7 +21,6 @@
 #include "src/ckmalloc/slice.h"
 #include "src/ckmalloc/slice_id.h"
 #include "src/ckmalloc/util.h"
-#include "src/rng.h"
 
 namespace ckmalloc {
 
@@ -150,7 +150,7 @@ class TestSmallSlab {
         &magic_[PtrDistance(begin, data_.data()) / sizeof(uint64_t)];
 
     for (size_t i = 0; i < SizeClass().SliceSize() / sizeof(uint64_t); i++) {
-      uint64_t val = rng_.GenRand64();
+      uint64_t val = folly::ThreadLocalPRNG()();
       begin[i] = val;
       magic_begin[i] = val;
     }
@@ -172,8 +172,6 @@ class TestSmallSlab {
     return absl::OkStatus();
   }
 
-  static util::Rng rng_;
-
   SmallSlab slab_;
   std::vector<uint64_t> data_;
   std::vector<uint64_t> magic_;
@@ -183,10 +181,6 @@ class TestSmallSlab {
 
 using X = std::tuple<uint32_t, int>;
 using Y = std::tuple_element_t<1, X>;
-
-template <typename T>
-requires std::is_integral_v<T>
-util::Rng TestSmallSlab<T>::rng_ = util::Rng(1031, 5);
 
 template <uint32_t Ordinal>
 class SmallSlabTestParams {

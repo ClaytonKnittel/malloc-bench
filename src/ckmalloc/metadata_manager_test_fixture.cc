@@ -4,6 +4,7 @@
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "folly/Random.h"
 #include "util/absl_util.h"
 
 #include "src/ckmalloc/slab.h"
@@ -11,7 +12,6 @@
 #include "src/ckmalloc/testlib.h"
 #include "src/ckmalloc/util.h"
 #include "src/heap_interface.h"
-#include "src/rng.h"
 
 namespace ckmalloc {
 
@@ -260,7 +260,7 @@ absl::Status MetadataManagerFixture::TraceBlockAllocation(void* block,
     }
   }
 
-  uint64_t magic = rng_.GenRand64();
+  uint64_t magic = folly::ThreadLocalPRNG()();
   FillMagic(block, size, magic);
   block_magics_.insert({ block, magic });
 

@@ -27,8 +27,7 @@ class MetadataManagerTest : public testing::Test {
 
   MetadataManagerTest()
       : heap_factory_(std::make_shared<TestHeapFactory>(kHeapSize)),
-        heap_(static_cast<TestHeap*>(heap_factory_->Instances().begin()->get()),
-              Noop<TestHeap>),
+        heap_(RandomHeapFromFactory(*heap_factory_), Noop<TestHeap>),
         slab_map_(std::make_shared<TestSlabMap>()),
         metadata_manager_fixture_(std::make_shared<MetadataManagerFixture>(
             heap_, slab_map_, kHeapSize)) {

@@ -4,6 +4,7 @@
 #include <cstddef>
 
 #include "absl/status/status.h"
+#include "folly/Random.h"
 #include "util/absl_util.h"
 
 #include "src/ckmalloc/block.h"
@@ -107,7 +108,7 @@ size_t TestMainAllocator::AllocSize(Void* ptr) {
 }
 
 void TestMainAllocator::HandleAllocation(Void* alloc, size_t user_size) {
-  uint64_t magic = test_fixture_->rng_.GenRand64();
+  uint64_t magic = folly::ThreadLocalPRNG()();
   MainAllocatorFixture::FillMagic(alloc, user_size, magic);
 
   auto [it, inserted] =

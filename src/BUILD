@@ -56,10 +56,8 @@ cc_library(
         "//traces",
     ],
     deps = [
-        ":allocator_interface",
         ":heap_factory",
         ":malloc_runner",
-        ":test_allocator_interface",
         ":tracefile_executor",
         ":tracefile_reader",
         "@abseil-cpp//absl/flags:flag",
@@ -94,7 +92,6 @@ cc_library(
     deps = [
         ":heap_factory",
         ":malloc_runner",
-        ":test_allocator_interface",
         ":tracefile_executor",
         ":tracefile_reader",
         "@abseil-cpp//absl/algorithm:container",
@@ -263,6 +260,7 @@ cc_library(
     hdrs = ["malloc_runner.h"],
     deps = [
         ":allocator_interface",
+        ":test_allocator_interface",
         ":tracefile_executor",
         "@cc-util//util:absl_util",
     ],

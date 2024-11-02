@@ -208,6 +208,8 @@ void AbslStringify(Sink& sink, const TestHeap& heap) {
                heap.End(), heap.Size(), heap.MaxSize());
 }
 
+TestHeap* RandomHeapFromFactory(bench::HeapFactory& heap_factory);
+
 class TestHeapFactory : public bench::HeapFactory {
  public:
   TestHeapFactory() = default;

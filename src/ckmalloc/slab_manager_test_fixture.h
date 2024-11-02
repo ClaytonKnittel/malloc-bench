@@ -14,7 +14,6 @@
 #include "src/ckmalloc/slab_manager.h"
 #include "src/ckmalloc/sys_alloc.h"
 #include "src/ckmalloc/testlib.h"
-#include "src/rng.h"
 
 namespace ckmalloc {
 
@@ -86,8 +85,7 @@ class SlabManagerFixture : public CkMallocTest {
       : heap_factory_(std::move(heap_factory)),
         slab_map_(std::move(slab_map)),
         slab_manager_(std::make_shared<TestSlabManager>(this, slab_map_.get(),
-                                                        heap_size)),
-        rng_(1027, 3) {}
+                                                        heap_size)) {}
 
   const char* TestPrefix() const override {
     return kPrefix;
@@ -123,7 +121,6 @@ class SlabManagerFixture : public CkMallocTest {
   std::shared_ptr<TestHeapFactory> heap_factory_;
   std::shared_ptr<TestSlabMap> slab_map_;
   std::shared_ptr<TestSlabManager> slab_manager_;
-  util::Rng rng_;
 
   // Maps allocated slabs to a copy of their metadata.
   absl::flat_hash_map<AllocatedSlab*, AllocatedSlab> allocated_slabs_;

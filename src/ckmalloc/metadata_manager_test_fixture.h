@@ -10,7 +10,6 @@
 #include "src/ckmalloc/metadata_manager.h"
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/testlib.h"
-#include "src/rng.h"
 
 namespace ckmalloc {
 
@@ -69,8 +68,7 @@ class MetadataManagerFixture : public CkMallocTest {
         slab_map_(std::move(slab_map)),
         metadata_manager_(std::make_shared<TestMetadataManager>(
             this, heap_.get(), slab_map_.get(), heap_size)),
-        allocator_(metadata_manager_.get()),
-        rng_(2021, 5) {
+        allocator_(metadata_manager_.get()) {
     TestGlobalMetadataAlloc::OverrideAllocator(&allocator_);
   }
 
@@ -127,8 +125,6 @@ class MetadataManagerFixture : public CkMallocTest {
   std::shared_ptr<TestMetadataManager> metadata_manager_;
 
   TestMetadataAlloc allocator_;
-
-  util::Rng rng_;
 
   // Maps allocations to their sizes and the magic numbers that they are filled
   // with.
