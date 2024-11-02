@@ -6,6 +6,7 @@ build --copt=-fno-exceptions
 
 build:opt -c opt
 build:opt --copt="-DNDEBUG=1"
+build:opt --linkopt="-Wno-unused-command-line-argument"
 build:opt --features=thin_lto
 
 build:test --copt=-O1
@@ -13,9 +14,9 @@ build:test --copt=-g3
 build:test --strip=never
 
 build:profile --copt=-O2
-build:profile --linkopt=-lprofiler
 build:profile --copt=-g3
 build:profile --copt="-DNDEBUG=1"
+build:profile --linkopt=-lprofiler
 
 build:asan -c dbg
 build:asan --strip=never
