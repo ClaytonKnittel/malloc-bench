@@ -32,6 +32,12 @@ size_t TracefileReader::size() const {
   return tracefile_.lines_size();
 }
 
+size_t TracefileReader::SuggestedAtomicMapSize() const {
+  // Use load factor of ~50%, assuming about 50% of operations are allocs and
+  // 50% are frees.
+  return size();
+}
+
 TracefileReader::const_iterator TracefileReader::begin() const {
   return tracefile_.lines().cbegin();
 }

@@ -20,6 +20,7 @@ class TracefileReader {
   static absl::StatusOr<TracefileReader> Open(const std::string& filename);
 
   size_t size() const;
+  size_t SuggestedAtomicMapSize() const;
 
   const_iterator begin() const;
   const_iterator end() const;

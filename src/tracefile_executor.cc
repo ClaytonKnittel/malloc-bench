@@ -188,9 +188,8 @@ absl::Status TracefileExecutor::ProcessTracefileMultithreaded(
 
     std::atomic<size_t> idx = 0;
     HashIdMap id_map_container{
-      // Use load factor of ~50%, assuming about 50% of operations are allocs
-      // and 50% are frees.
-      .id_map = folly::AtomicHashMap<uint64_t, void*>(tracefile.lines_size()),
+      .id_map = folly::AtomicHashMap<uint64_t, void*>(
+          reader_.SuggestedAtomicMapSize()),
     };
 
     absl::Mutex queue_mutex;
