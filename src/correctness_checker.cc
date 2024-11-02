@@ -42,6 +42,10 @@ CorrectnessChecker::CorrectnessChecker(TracefileReader& reader,
 absl::Status CorrectnessChecker::PostAlloc(void* ptr, size_t size,
                                            std::optional<size_t> alignment,
                                            bool is_calloc) {
+  if (size == 0) {
+    return absl::OkStatus();
+  }
+
   RETURN_IF_ERROR(ValidateNewBlock(ptr, size, alignment));
 
   uint64_t magic_bytes = static_cast<uint64_t>(folly::ThreadLocalPRNG()());
