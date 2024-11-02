@@ -5,10 +5,10 @@
 #include <cstdint>
 #include <optional>
 
-#include "absl/container/flat_hash_map.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/synchronization/mutex.h"
+#include "folly/AtomicHashMap.h"
 
 #include "src/heap_factory.h"
 #include "src/tracefile_reader.h"
@@ -45,21 +45,17 @@ class TracefileExecutor {
 
  private:
   struct HashIdMap {
-    absl::flat_hash_map<uint64_t, void*> id_map;
-    absl::Mutex mutex;
+    folly::AtomicHashMap<uint64_t, void*> id_map;
 
     bool SetId(uint64_t id, void* ptr) {
-      absl::MutexLock lock(&mutex);
       auto [it, inserted] = id_map.insert({ id, ptr });
       return inserted;
     }
     std::optional<void*> GetId(uint64_t id) {
-      absl::MutexLock lock(&mutex);
       auto it = id_map.find(id);
       return it != id_map.end() ? std::optional(it->second) : std::nullopt;
     }
     size_t ClearId(uint64_t id) {
-      absl::MutexLock lock(&mutex);
       return id_map.erase(id);
     }
   };

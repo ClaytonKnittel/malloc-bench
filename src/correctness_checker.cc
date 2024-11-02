@@ -6,7 +6,6 @@
 #include <optional>
 
 #include "absl/algorithm/container.h"
-#include "absl/container/btree_map.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_format.h"
 #include "absl/synchronization/mutex.h"
@@ -40,8 +39,9 @@ CorrectnessChecker::CorrectnessChecker(TracefileReader& reader,
                                        HeapFactory& heap_factory)
     : TracefileExecutor(reader, heap_factory),
       heap_factory_(&heap_factory),
-      // Use load factor of 80%.
-      allocated_blocks_(reader.Tracefile().max_simultaneous_allocs() * 5 / 4),
+      // Use load factor of ~50%, assuming about 50% of operations are allocs
+      // and 50% are frees.
+      allocated_blocks_(reader.size()),
       rng_(0, 1) {}
 
 void CorrectnessChecker::InitializeHeap(HeapFactory& heap_factory) {

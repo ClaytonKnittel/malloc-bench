@@ -4,9 +4,9 @@
 #include <deque>
 #include <thread>
 
-#include "absl/container/flat_hash_map.h"
 #include "absl/status/status.h"
 #include "absl/synchronization/mutex.h"
+#include "folly/AtomicHashMap.h"
 #include "util/absl_util.h"
 
 #include "proto/tracefile.pb.h"
@@ -187,7 +187,11 @@ absl::Status TracefileExecutor::ProcessTracefileMultithreaded(
     std::atomic<bool> done = false;
 
     std::atomic<size_t> idx = 0;
-    HashIdMap id_map_container;
+    HashIdMap id_map_container{
+      // Use load factor of ~50%, assuming about 50% of operations are allocs
+      // and 50% are frees.
+      .id_map = folly::AtomicHashMap<uint64_t, void*>(tracefile.lines_size()),
+    };
 
     absl::Mutex queue_mutex;
     std::deque<uint64_t> queued_idxs;
