@@ -42,8 +42,7 @@ absl::StatusOr<double> Utiltest::MeasureUtilization(
 }
 
 Utiltest::Utiltest(TracefileReader& reader, HeapFactory& heap_factory)
-    : MallocRunner(reader, heap_factory),
-      size_map_(reader.SuggestedAtomicMapSize()) {}
+    : MallocRunner(reader, heap_factory) {}
 
 absl::Status Utiltest::PostAlloc(void* ptr, size_t size,
                                  std::optional<size_t> alignment,
@@ -90,7 +89,13 @@ absl::Status Utiltest::PostRealloc(void* new_ptr, void* old_ptr, size_t size) {
   RecomputeMax(total_allocated_bytes);
 
   if (new_ptr == old_ptr) {
-    it->second = size;
+    auto result = size_map_.assign(new_ptr, size);
+    if (!result.has_value()) {
+      return absl::InternalError(
+          absl::StrFormat("Reassigning size of realloc-ed memory %p from %zu "
+                          "to %zu failed, not found in map.",
+                          new_ptr, old_size, size));
+    }
     return absl::OkStatus();
   }
 

@@ -5,7 +5,7 @@
 #include <optional>
 
 #include "absl/status/status.h"
-#include "folly/AtomicHashMap.h"
+#include "folly/concurrency/ConcurrentHashMap.h"
 
 #include "src/heap_factory.h"
 #include "src/malloc_runner.h"
@@ -28,7 +28,7 @@ class CorrectnessChecker : private MallocRunner {
     uint64_t magic_bytes;
   };
 
-  using BlockMap = folly::AtomicHashMap<void*, AllocatedBlock>;
+  using BlockMap = folly::ConcurrentHashMap<void*, AllocatedBlock>;
 
   CorrectnessChecker(TracefileReader& reader, HeapFactory& heap_factory,
                      bool verbose);
