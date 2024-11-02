@@ -4,10 +4,10 @@
 #include <cstdint>
 #include <optional>
 
-#include "absl/container/btree_map.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/synchronization/mutex.h"
+#include "folly/AtomicHashMap.h"
 
 #include "src/heap_factory.h"
 #include "src/rng.h"
@@ -33,7 +33,7 @@ class CorrectnessChecker : private TracefileExecutor {
     uint64_t magic_bytes;
   };
 
-  using Map = absl::btree_map<void*, AllocatedBlock>;
+  using BlockMap = folly::AtomicHashMap<void*, AllocatedBlock>;
 
   CorrectnessChecker(TracefileReader& reader, HeapFactory& heap_factory);
 
@@ -65,12 +65,9 @@ class CorrectnessChecker : private TracefileExecutor {
                                       uint64_t magic_bytes)
       BENCH_LOCKS_EXCLUDED(mutex_);
 
-  std::optional<typename Map::const_iterator> FindContainingBlock(void* ptr)
-      BENCH_LOCKS_EXCLUDED(mutex_);
-
   HeapFactory* const heap_factory_;
 
-  Map allocated_blocks_ BENCH_GUARDED_BY(mutex_);
+  BlockMap allocated_blocks_;
 
   absl::Mutex mutex_;
 

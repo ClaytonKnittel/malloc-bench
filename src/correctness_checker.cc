@@ -40,6 +40,8 @@ CorrectnessChecker::CorrectnessChecker(TracefileReader& reader,
                                        HeapFactory& heap_factory)
     : TracefileExecutor(reader, heap_factory),
       heap_factory_(&heap_factory),
+      // Use load factor of 80%.
+      allocated_blocks_(reader.Tracefile().max_simultaneous_allocs() * 5 / 4),
       rng_(0, 1) {}
 
 void CorrectnessChecker::InitializeHeap(HeapFactory& heap_factory) {
@@ -68,19 +70,14 @@ absl::StatusOr<void*> CorrectnessChecker::Realloc(void* ptr, size_t size) {
     return new_ptr;
   }
 
-  AllocatedBlock block;
-  size_t orig_size;
-  {
-    absl::MutexLock lock(&mutex_);
-    auto block_it = allocated_blocks_.find(ptr);
-    if (block_it == allocated_blocks_.end()) {
-      return absl::InternalError(absl::StrFormat(
-          "%s realloc-ed block %p not found in allocated blocks map",
-          kFailedTestPrefix, ptr));
-    }
-    block = block_it->second;
-    orig_size = block.size;
+  auto block_it = allocated_blocks_.find(ptr);
+  if (block_it == allocated_blocks_.end()) {
+    return absl::InternalError(absl::StrFormat(
+        "%s realloc-ed block %p not found in allocated blocks map",
+        kFailedTestPrefix, ptr));
   }
+  AllocatedBlock block = block_it->second;
+  size_t orig_size = block.size;
 
   if (verbose_) {
     std::cout << "realloc(" << ptr << ", " << size << ")" << std::endl;
@@ -99,14 +96,11 @@ absl::StatusOr<void*> CorrectnessChecker::Realloc(void* ptr, size_t size) {
                           kFailedTestPrefix, new_ptr, ptr, size));
     }
 
-    absl::MutexLock lock(&mutex_);
     allocated_blocks_.erase(ptr);
     return new_ptr;
   }
   if (new_ptr != ptr) {
-    mutex_.Lock();
     size_t erased_elems = allocated_blocks_.erase(ptr);
-    mutex_.Unlock();
     if (erased_elems != 1) {
       return absl::InternalError(absl::StrFormat(
           "%s realloc-ed block %p not found in allocated blocks map",
@@ -116,9 +110,7 @@ absl::StatusOr<void*> CorrectnessChecker::Realloc(void* ptr, size_t size) {
     RETURN_IF_ERROR(ValidateNewBlock(new_ptr, size, /*alignment=*/0));
 
     block.size = size;
-    mutex_.Lock();
     auto [it, inserted] = allocated_blocks_.insert({ new_ptr, block });
-    mutex_.Unlock();
     if (!inserted) {
       return absl::InternalError(
           absl::StrFormat("%s realloc-ed block %p of size %zu conflicts with "
@@ -126,13 +118,14 @@ absl::StatusOr<void*> CorrectnessChecker::Realloc(void* ptr, size_t size) {
                           kFailedTestPrefix, ptr, size));
     }
   } else {
-    absl::MutexLock lock(&mutex_);
     auto block_it = allocated_blocks_.find(ptr);
     if (block_it == allocated_blocks_.end()) {
       return absl::InternalError(absl::StrFormat(
           "%s realloc-ed block %p not found in allocated blocks map",
           kFailedTestPrefix, ptr));
     }
+    // This write cannot be a race since operations on allocations are
+    // synchronized.
     block_it->second.size = size;
   }
 
@@ -153,17 +146,13 @@ absl::Status CorrectnessChecker::Free(void* ptr,
     return absl::OkStatus();
   }
 
-  AllocatedBlock block;
-  {
-    absl::MutexLock lock(&mutex_);
-    auto block_it = allocated_blocks_.find(ptr);
-    if (block_it == allocated_blocks_.end()) {
-      return absl::InternalError(
-          absl::StrFormat("%s freed block %p not found in allocated blocks map",
-                          kFailedTestPrefix, ptr));
-    }
-    block = block_it->second;
+  auto block_it = allocated_blocks_.find(ptr);
+  if (block_it == allocated_blocks_.end()) {
+    return absl::InternalError(
+        absl::StrFormat("%s freed block %p not found in allocated blocks map",
+                        kFailedTestPrefix, ptr));
   }
+  AllocatedBlock block = block_it->second;
 
   if (verbose_) {
     std::cout << "free(" << ptr << ")" << std::endl;
@@ -174,9 +163,7 @@ absl::Status CorrectnessChecker::Free(void* ptr,
 
   bench::free(ptr, size_hint.value_or(0), alignment_hint.value_or(0));
 
-  mutex_.Lock();
   size_t erased_elems = allocated_blocks_.erase(ptr);
-  mutex_.Unlock();
   if (erased_elems != 1) {
     return absl::InternalError(
         absl::StrFormat("%s freed block %p not found in allocated blocks map",
@@ -232,13 +219,19 @@ absl::Status CorrectnessChecker::HandleNewAllocation(void* ptr, size_t size,
   {
     absl::MutexLock lock(&mutex_);
     magic_bytes = rng_.GenRand64();
-    allocated_blocks_.insert({
-        ptr,
-        AllocatedBlock{
-            .size = size,
-            .magic_bytes = magic_bytes,
-        },
-    });
+  }
+  auto [it, inserted] = allocated_blocks_.insert({
+      ptr,
+      AllocatedBlock{
+          .size = size,
+          .magic_bytes = magic_bytes,
+      },
+  });
+  if (!inserted) {
+    return absl::InternalError(
+        absl::StrFormat("%s Duplicate allocation %p, requested size %zu, but "
+                        "already exists and is of size %zu",
+                        kFailedTestPrefix, ptr, size, it->second.size));
   }
 
   if (is_calloc) {
@@ -286,13 +279,14 @@ absl::Status CorrectnessChecker::ValidateNewBlock(void* ptr, size_t size,
             kFailedTestPrefix, ptr, size, heaps));
       }));
 
-  auto block = FindContainingBlock(ptr);
-  if (block.has_value()) {
-    return absl::InternalError(absl::StrFormat(
-        "%s Bad alloc of %p within allocated block at %p of size %zu",
-        kFailedTestPrefix, ptr, block.value()->first,
-        block.value()->second.size));
-  }
+  // TODO: replicate this logic with magic bytes map lookup.
+  // auto block = FindContainingBlock(ptr);
+  // if (block.has_value()) {
+  //   return absl::InternalError(absl::StrFormat(
+  //       "%s Bad alloc of %p within allocated block at %p of size %zu",
+  //       kFailedTestPrefix, ptr, block.value()->first,
+  //       block.value()->second.size));
+  // }
 
   size_t ptr_val = static_cast<char*>(ptr) - static_cast<char*>(nullptr);
   const size_t min_alignment = size <= 8 ? 8 : 16;
@@ -343,23 +337,6 @@ absl::Status CorrectnessChecker::CheckMagicBytes(void* ptr, size_t size,
   }
 
   return absl::OkStatus();
-}
-
-std::optional<typename CorrectnessChecker::Map::const_iterator>
-CorrectnessChecker::FindContainingBlock(void* ptr) {
-  absl::MutexLock lock(&mutex_);
-  auto it = allocated_blocks_.upper_bound(ptr);
-  if (it != allocated_blocks_.begin() && it != allocated_blocks_.end()) {
-    --it;
-  }
-  if (it != allocated_blocks_.end()) {
-    // Check if the block contains `ptr`.
-    if (it->first <= ptr &&
-        ptr < static_cast<char*>(it->first) + it->second.size) {
-      return it;
-    }
-  }
-  return std::nullopt;
 }
 
 }  // namespace bench

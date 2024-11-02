@@ -82,6 +82,7 @@ cc_library(
         "@abseil-cpp//absl/strings:str_format",
         "@abseil-cpp//absl/synchronization",
         "@cc-util//util:absl_util",
+        "@folly",
     ],
 )
 
