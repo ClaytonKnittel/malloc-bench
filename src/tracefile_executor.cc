@@ -284,7 +284,7 @@ absl::Status TracefileExecutor::RewriteIdsToUnique(
     switch (line.op_case()) {
       case TraceLine::kMalloc: {
         TraceLine::Malloc& malloc = *line.mutable_malloc();
-        if (malloc.input_size() == 0 && !malloc.has_result_id()) {
+        if (!malloc.has_result_id()) {
           break;
         }
 
@@ -300,8 +300,7 @@ absl::Status TracefileExecutor::RewriteIdsToUnique(
       }
       case TraceLine::kCalloc: {
         TraceLine::Calloc& calloc = *line.mutable_calloc();
-        if (calloc.input_size() == 0 && calloc.input_nmemb() == 0 &&
-            !calloc.has_result_id()) {
+        if (!calloc.has_result_id()) {
           break;
         }
 
