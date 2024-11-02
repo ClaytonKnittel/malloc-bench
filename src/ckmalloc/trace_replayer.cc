@@ -63,10 +63,6 @@ class FindMaxAllocations : public TracefileExecutor {
   FindMaxAllocations(TracefileReader& reader, HeapFactory& heap_factory)
       : TracefileExecutor(reader, heap_factory) {}
 
-  ~FindMaxAllocations() {
-    TestSysAlloc::Reset();
-  }
-
   absl::StatusOr<uint64_t> MaxAllocations() {
     if (!iters_to_max_.has_value()) {
       RETURN_IF_ERROR(TracefileExecutor::Run());
@@ -79,6 +75,11 @@ class FindMaxAllocations : public TracefileExecutor {
   void InitializeHeap(HeapFactory& heap_factory) override {
     TestSysAlloc::NewInstance(&heap_factory);
     CkMalloc::InitializeHeap();
+  }
+
+  absl::Status CleanupHeap() override {
+    TestSysAlloc::Reset();
+    return absl::OkStatus();
   }
 
   absl::StatusOr<void*> Malloc(size_t size,
@@ -203,6 +204,11 @@ class TraceReplayer : public TracefileExecutor {
     CkMalloc::InitializeHeap();
     cur_heap_start_ =
         CkMalloc::Instance()->GlobalState()->MetadataManager()->heap_;
+  }
+
+  absl::Status CleanupHeap() override {
+    TestSysAlloc::Reset();
+    return absl::OkStatus();
   }
 
   absl::StatusOr<void*> Malloc(size_t size,

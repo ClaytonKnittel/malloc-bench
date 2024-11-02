@@ -67,6 +67,7 @@ bool IsHard(const std::string& trace) {
 
 absl::StatusOr<TraceResult> RunTrace(const std::string& tracefile,
                                      HeapFactory& heap_factory) {
+  std::cout << "Running " << tracefile << std::endl;
   TraceResult result{
     .trace = tracefile,
   };

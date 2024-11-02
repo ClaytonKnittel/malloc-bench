@@ -40,6 +40,9 @@ class TestCkMalloc : public TracefileExecutor {
         validate_every_n_(validate_every_n) {}
 
   void InitializeHeap(HeapFactory& heap_factory) override {}
+  absl::Status CleanupHeap() override {
+    return absl::OkStatus();
+  }
 
   absl::StatusOr<void*> Malloc(size_t size,
                                std::optional<size_t> alignment) override;
