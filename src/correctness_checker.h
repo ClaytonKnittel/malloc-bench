@@ -4,12 +4,11 @@
 #include <cstdint>
 #include <optional>
 
-#include "absl/container/btree_map.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "folly/AtomicHashMap.h"
 
 #include "src/heap_factory.h"
-#include "src/rng.h"
 #include "src/tracefile_executor.h"
 #include "src/tracefile_reader.h"
 
@@ -21,8 +20,9 @@ class CorrectnessChecker : private TracefileExecutor {
 
   static bool IsFailedTestStatus(const absl::Status& status);
 
-  static absl::Status Check(TracefileReader& reader, HeapFactory& heap_factory,
-                            bool verbose = false);
+  static absl::Status Check(
+      TracefileReader& reader, HeapFactory& heap_factory, bool verbose = false,
+      const TracefileExecutorOptions& options = TracefileExecutorOptions());
 
  private:
   struct AllocatedBlock {
@@ -30,7 +30,7 @@ class CorrectnessChecker : private TracefileExecutor {
     uint64_t magic_bytes;
   };
 
-  using Map = absl::btree_map<void*, AllocatedBlock>;
+  using BlockMap = folly::AtomicHashMap<void*, AllocatedBlock>;
 
   CorrectnessChecker(TracefileReader& reader, HeapFactory& heap_factory);
 
@@ -59,14 +59,9 @@ class CorrectnessChecker : private TracefileExecutor {
   static absl::Status CheckMagicBytes(void* ptr, size_t size,
                                       uint64_t magic_bytes);
 
-  std::optional<typename Map::const_iterator> FindContainingBlock(
-      void* ptr) const;
-
   HeapFactory* const heap_factory_;
 
-  Map allocated_blocks_;
-
-  util::Rng rng_;
+  BlockMap allocated_blocks_;
 
   bool verbose_;
 };

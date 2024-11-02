@@ -9,6 +9,7 @@ cc_binary(
         ":heap_factory",
         ":mmap_heap_factory",
         ":perftest",
+        ":tracefile_executor",
         ":tracefile_reader",
         ":utiltest",
         "@abseil-cpp//absl/flags:flag",
@@ -69,16 +70,15 @@ cc_library(
     deps = [
         ":allocator_interface",
         ":heap_factory",
-        ":rng",
         ":tracefile_executor",
         ":tracefile_reader",
         "@abseil-cpp//absl/algorithm:container",
-        "@abseil-cpp//absl/container:btree",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",
         "@cc-util//util:absl_util",
+        "@folly",
     ],
 )
 
@@ -107,10 +107,12 @@ cc_library(
     visibility = ["//src:__subpackages__"],
     deps = [
         ":heap_interface",
+        ":util",
         "@abseil-cpp//absl/container:flat_hash_set",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings:str_format",
+        "@abseil-cpp//absl/synchronization",
         "@cc-util//util:absl_util",
     ],
 )
@@ -201,7 +203,9 @@ cc_library(
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings:str_format",
+        "@abseil-cpp//absl/synchronization",
         "@cc-util//util:absl_util",
+        "@folly",
     ],
 )
 
@@ -217,9 +221,6 @@ cc_library(
 )
 
 cc_library(
-    name = "rng",
-    hdrs = ["rng.h"],
-    deps = [
-        "@abseil-cpp//absl/status:statusor",
-    ],
+    name = "util",
+    hdrs = ["util.h"],
 )
