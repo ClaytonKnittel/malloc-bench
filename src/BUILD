@@ -24,9 +24,6 @@ cc_library(
     name = "perftest",
     srcs = ["perftest.cc"],
     hdrs = ["perftest.h"],
-    data = [
-        "//traces",
-    ],
     deps = [
         ":heap_factory",
         ":malloc_runner",
@@ -42,9 +39,6 @@ cc_library(
     name = "utiltest",
     srcs = ["utiltest.cc"],
     hdrs = ["utiltest.h"],
-    data = [
-        "//traces",
-    ],
     deps = [
         ":allocator_interface",
         ":heap_factory",
