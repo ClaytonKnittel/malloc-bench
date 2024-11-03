@@ -11,13 +11,11 @@
 
 namespace bench {
 
-Perftest::Perftest(HeapFactory& heap_factory) : MallocRunner(heap_factory) {}
-
 /* static */
 absl::StatusOr<double> Perftest::TimeTrace(
-    TracefileReader& reader, HeapFactory& heap_factory,
-    uint64_t min_desired_ops, const TracefileExecutorOptions& options) {
-  TracefileExecutor<Perftest> perftest(reader, std::ref(heap_factory));
+    TracefileReader& reader, uint64_t min_desired_ops,
+    const TracefileExecutorOptions& options) {
+  TracefileExecutor<Perftest> perftest(reader);
 
   const uint64_t num_repetitions = (min_desired_ops - 1) / reader.size() + 1;
 

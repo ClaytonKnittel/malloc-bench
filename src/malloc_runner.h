@@ -26,6 +26,8 @@ class MallocRunner {
   static constexpr char kFailedTestPrefix[] = "[Failed]";
 
   explicit MallocRunner(
+      const MallocRunnerOptions& options = MallocRunnerOptions());
+  explicit MallocRunner(
       HeapFactory& heap_factory,
       const MallocRunnerOptions& options = MallocRunnerOptions());
 
@@ -64,22 +66,29 @@ class MallocRunner {
 static_assert(TracefileAllocator<MallocRunner<MallocRunnerConfig{}>>);
 
 template <MallocRunnerConfig Config>
+MallocRunner<Config>::MallocRunner(const MallocRunnerOptions& options)
+    : heap_factory_(nullptr), options_(options) {}
+
+template <MallocRunnerConfig Config>
 MallocRunner<Config>::MallocRunner(HeapFactory& heap_factory,
                                    const MallocRunnerOptions& options)
     : heap_factory_(&heap_factory), options_(options) {}
 
 template <MallocRunnerConfig Config>
 absl::Status MallocRunner<Config>::InitializeHeap() {
-  heap_factory_->Reset();
-  bench::reset_test_heap();
-  bench::initialize_test_heap(*heap_factory_);
+  if (heap_factory_ != nullptr) {
+    heap_factory_->Reset();
+    bench::reset_test_heap();
+    bench::initialize_test_heap(*heap_factory_);
+  }
   return absl::OkStatus();
 }
 
 template <MallocRunnerConfig Config>
-// NOLINTNEXTLINE(readability-convert-member-functions-to-static)
 absl::Status MallocRunner<Config>::CleanupHeap() {
-  bench::reset_test_heap();
+  if (heap_factory_ != nullptr) {
+    bench::reset_test_heap();
+  }
   return absl::OkStatus();
 }
 

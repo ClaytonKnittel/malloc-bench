@@ -13,12 +13,11 @@ namespace bench {
 
 class Perftest : public MallocRunner<MallocRunnerConfig{ .perftest = true }> {
  public:
-  explicit Perftest(HeapFactory& heap_factory);
+  Perftest() = default;
 
   // On success, returns the number of MOps/s (1,000,000 ops per second).
   static absl::StatusOr<double> TimeTrace(
-      TracefileReader& reader, HeapFactory& heap_factory,
-      uint64_t min_desired_ops,
+      TracefileReader& reader, uint64_t min_desired_ops,
       const TracefileExecutorOptions& options = TracefileExecutorOptions());
 
   absl::Status PostAlloc(void* ptr, size_t size,
