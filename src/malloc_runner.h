@@ -1,4 +1,5 @@
 #pragma once
+
 #include <cstddef>
 #include <optional>
 
@@ -38,14 +39,13 @@ class MallocRunner {
 
   virtual absl::Status PreRelease(void* ptr) = 0;
 
-  inline absl::Status InitializeHeap();
-  inline absl::Status CleanupHeap();
-  inline absl::StatusOr<void*> Malloc(size_t size,
-                                      std::optional<size_t> alignment);
-  inline absl::StatusOr<void*> Calloc(size_t nmemb, size_t size);
-  inline absl::StatusOr<void*> Realloc(void* ptr, size_t size);
-  inline absl::Status Free(void* ptr, std::optional<size_t> size_hint,
-                           std::optional<size_t> alignment_hint);
+  absl::Status InitializeHeap();
+  absl::Status CleanupHeap();
+  absl::StatusOr<void*> Malloc(size_t size, std::optional<size_t> alignment);
+  absl::StatusOr<void*> Calloc(size_t nmemb, size_t size);
+  absl::StatusOr<void*> Realloc(void* ptr, size_t size);
+  absl::Status Free(void* ptr, std::optional<size_t> size_hint,
+                    std::optional<size_t> alignment_hint);
 
   HeapFactory& HeapFactoryRef() {
     return *heap_factory_;
