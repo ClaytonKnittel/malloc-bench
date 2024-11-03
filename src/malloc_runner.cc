@@ -1,67 +1,3 @@
-#pragma once
-#include <cstddef>
-#include <optional>
-
-#include "util/absl_util.h"
-
-#include "src/allocator_interface.h"
-#include "src/heap_factory.h"
-#include "src/tracefile_executor.h"  // IWYU pragma: keep
-
-namespace bench {
-
-struct MallocRunnerOptions {
-  bool verbose = false;
-};
-
-struct MallocRunnerConfig {
-  bool perftest = false;
-};
-
-template <MallocRunnerConfig Config = MallocRunnerConfig()>
-class MallocRunner {
- public:
-  static constexpr char kFailedTestPrefix[] = "[Failed]";
-
-  explicit MallocRunner(
-      HeapFactory& heap_factory,
-      const MallocRunnerOptions& options = MallocRunnerOptions());
-
-  virtual absl::Status PostAlloc(void* ptr, size_t size,
-                                 std::optional<size_t> alignment,
-                                 bool is_calloc) = 0;
-
-  virtual absl::Status PreRealloc(void* ptr, size_t size) = 0;
-
-  virtual absl::Status PostRealloc(void* new_ptr, void* old_ptr,
-                                   size_t size) = 0;
-
-  virtual absl::Status PreRelease(void* ptr) = 0;
-
-  inline absl::Status InitializeHeap();
-  inline absl::Status CleanupHeap();
-  inline absl::StatusOr<void*> Malloc(size_t size,
-                                      std::optional<size_t> alignment);
-  inline absl::StatusOr<void*> Calloc(size_t nmemb, size_t size);
-  inline absl::StatusOr<void*> Realloc(void* ptr, size_t size);
-  inline absl::Status Free(void* ptr, std::optional<size_t> size_hint,
-                           std::optional<size_t> alignment_hint);
-
-  HeapFactory& HeapFactoryRef() {
-    return *heap_factory_;
-  }
-  const HeapFactory& HeapFactoryRef() const {
-    return *heap_factory_;
-  }
-
- private:
-  HeapFactory* heap_factory_;
-
-  const MallocRunnerOptions options_;
-};
-
-static_assert(TracefileAllocator<MallocRunner<MallocRunnerConfig{}>>);
-
 template <MallocRunnerConfig Config>
 MallocRunner<Config>::MallocRunner(HeapFactory& heap_factory,
                                    const MallocRunnerOptions& options)
@@ -167,5 +103,3 @@ absl::Status MallocRunner<Config>::Free(void* ptr,
   bench::free(ptr, size_hint.value_or(0), alignment_hint.value_or(0));
   return absl::OkStatus();
 }
-
-}  // namespace bench
