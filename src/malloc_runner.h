@@ -7,6 +7,7 @@
 
 #include "src/allocator_interface.h"
 #include "src/heap_factory.h"
+#include "src/test_allocator_interface.h"
 #include "src/tracefile_executor.h"  // IWYU pragma: keep
 
 namespace bench {
@@ -70,13 +71,15 @@ MallocRunner<Config>::MallocRunner(HeapFactory& heap_factory,
 template <MallocRunnerConfig Config>
 absl::Status MallocRunner<Config>::InitializeHeap() {
   heap_factory_->Reset();
-  bench::initialize_heap(*heap_factory_);
+  bench::reset_test_heap();
+  bench::initialize_test_heap(*heap_factory_);
   return absl::OkStatus();
 }
 
 template <MallocRunnerConfig Config>
 // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
 absl::Status MallocRunner<Config>::CleanupHeap() {
+  bench::reset_test_heap();
   return absl::OkStatus();
 }
 
