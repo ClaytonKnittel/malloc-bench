@@ -32,17 +32,16 @@ size_t RoundUp(size_t size) {
 
 }  // namespace
 
+Utiltest::Utiltest(HeapFactory& heap_factory) : MallocRunner(heap_factory) {}
+
 /* static */
 absl::StatusOr<double> Utiltest::MeasureUtilization(
     TracefileReader& reader, HeapFactory& heap_factory,
     const TracefileExecutorOptions& options) {
-  Utiltest utiltest(reader, heap_factory);
+  TracefileExecutor<Utiltest> utiltest(reader, std::ref(heap_factory));
   RETURN_IF_ERROR(utiltest.Run(options));
-  return utiltest.ComputeUtilization();
+  return utiltest.Inner().ComputeUtilization();
 }
-
-Utiltest::Utiltest(TracefileReader& reader, HeapFactory& heap_factory)
-    : MallocRunner(reader, heap_factory) {}
 
 absl::Status Utiltest::PostAlloc(void* ptr, size_t size,
                                  std::optional<size_t> alignment,

@@ -197,10 +197,8 @@ cc_binary(
 
 cc_library(
     name = "tracefile_executor",
-    srcs = ["tracefile_executor.cc"],
     hdrs = ["tracefile_executor.h"],
     deps = [
-        ":heap_factory",
         ":tracefile_reader",
         "//proto:tracefile_cc_proto",
         "@abseil-cpp//absl/status",
