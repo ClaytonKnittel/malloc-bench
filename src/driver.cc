@@ -97,9 +97,9 @@ absl::StatusOr<TraceResult> RunTrace(const std::string& tracefile,
   }
 
   if (result.correct) {
-    DEFINE_OR_RETURN(
-        double, mega_ops,
-        TimeTrace(reader, heap_factory, absl::GetFlag(FLAGS_perftest_iters)));
+    DEFINE_OR_RETURN(double, mega_ops,
+                     Perftest::TimeTrace(reader, heap_factory,
+                                         absl::GetFlag(FLAGS_perftest_iters)));
     DEFINE_OR_RETURN(
         double, utilization,
         Utiltest::MeasureUtilization(reader, heap_factory, options));

@@ -1,74 +1,62 @@
+#include "src/perftest.h"
+
 #include <cstddef>
 #include <cstdlib>
 
 #include "absl/status/statusor.h"
 #include "absl/time/time.h"
 
-#include "src/allocator_interface.h"
 #include "src/heap_factory.h"
+#include "src/tracefile_executor.h"
 #include "src/tracefile_reader.h"
 
 namespace bench {
 
-using proto::TraceLine;
+Perftest::Perftest(HeapFactory& heap_factory) : MallocRunner(heap_factory) {}
 
-// Runs at least 1000000 ops, and returns the average MOps/s.
-absl::StatusOr<double> TimeTrace(TracefileReader& reader,
-                                 HeapFactory& heap_factory,
-                                 size_t min_desired_ops) {
-  size_t num_repetitions = (min_desired_ops - 1) / reader.size() + 1;
-  std::vector<void*> ptrs(reader.Tracefile().max_simultaneous_allocs());
+/* static */
+absl::StatusOr<double> Perftest::TimeTrace(
+    TracefileReader& reader, HeapFactory& heap_factory,
+    uint64_t min_desired_ops, const TracefileExecutorOptions& options) {
+  TracefileExecutor<Perftest> perftest(reader, std::ref(heap_factory));
 
-  heap_factory.Reset();
+  const uint64_t num_repetitions = (min_desired_ops - 1) / reader.size() + 1;
 
   absl::Time start = absl::Now();
-  initialize_heap(heap_factory);
-  for (size_t t = 0; t < num_repetitions; t++) {
-    for (const TraceLine& line : reader) {
-      switch (line.op_case()) {
-        case TraceLine::kMalloc: {
-          void* ptr = malloc(line.malloc().input_size(),
-                             line.malloc().has_input_alignment()
-                                 ? line.malloc().input_alignment()
-                                 : 0);
-          ptrs[line.malloc().result_id()] = ptr;
-          break;
-        }
-        case TraceLine::kCalloc: {
-          void* ptr =
-              malloc(line.calloc().input_nmemb() * line.calloc().input_size());
-          ptrs[line.calloc().result_id()] = ptr;
-          break;
-        }
-        case TraceLine::kRealloc: {
-          void* ptr = realloc(line.realloc().has_input_id()
-                                  ? ptrs[line.realloc().input_id()]
-                                  : nullptr,
-                              line.realloc().input_size());
-          ptrs[line.realloc().result_id()] = ptr;
-          break;
-        }
-        case TraceLine::kFree: {
-          free(line.free().has_input_id() ? ptrs[line.free().input_id()]
-                                          : nullptr,
-               line.free().has_input_size_hint() ? line.free().input_size_hint()
-                                                 : 0,
-               line.free().has_input_alignment_hint()
-                   ? line.free().input_alignment_hint()
-                   : 0);
-          break;
-        }
-        case TraceLine::OP_NOT_SET: {
-          __builtin_unreachable();
-        }
-      }
-    }
-  }
+  RETURN_IF_ERROR(perftest.RunRepeated(num_repetitions, options));
   absl::Time end = absl::Now();
 
-  size_t total_ops = num_repetitions * reader.size();
+  uint64_t total_ops = num_repetitions * reader.size();
   double seconds = absl::FDivDuration((end - start), absl::Seconds(1));
   return total_ops / seconds / 1000000;
+}
+
+absl::Status Perftest::PostAlloc(void* ptr, size_t size,
+                                 std::optional<size_t> alignment,
+                                 bool is_calloc) {
+  (void) ptr;
+  (void) size;
+  (void) alignment;
+  (void) is_calloc;
+  return absl::OkStatus();
+}
+
+absl::Status Perftest::PreRealloc(void* ptr, size_t size) {
+  (void) ptr;
+  (void) size;
+  return absl::OkStatus();
+}
+
+absl::Status Perftest::PostRealloc(void* new_ptr, void* old_ptr, size_t size) {
+  (void) new_ptr;
+  (void) old_ptr;
+  (void) size;
+  return absl::OkStatus();
+}
+
+absl::Status Perftest::PreRelease(void* ptr) {
+  (void) ptr;
+  return absl::OkStatus();
 }
 
 }  // namespace bench
