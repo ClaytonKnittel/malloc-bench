@@ -3,16 +3,16 @@
 #include <cstddef>
 #include <optional>
 
-#include "src/tracefile_executor.h"
+#include "src/heap_factory.h"
+#include "src/tracefile_executor.h"  // IWYU pragma: keep
 
 namespace bench {
 
-class MallocRunner : protected TracefileExecutor {
+class MallocRunner {
  public:
   static constexpr char kFailedTestPrefix[] = "[Failed]";
 
-  MallocRunner(TracefileReader& reader, HeapFactory& heap_factory,
-               bool verbose = false);
+  explicit MallocRunner(HeapFactory& heap_factory, bool verbose = false);
 
   virtual absl::Status PostAlloc(void* ptr, size_t size,
                                  std::optional<size_t> alignment,
@@ -25,18 +25,27 @@ class MallocRunner : protected TracefileExecutor {
 
   virtual absl::Status PreRelease(void* ptr) = 0;
 
- protected:
-  void InitializeHeap(HeapFactory& heap_factory) final;
-  absl::Status CleanupHeap() final;
-  absl::StatusOr<void*> Malloc(size_t size,
-                               std::optional<size_t> alignment) final;
-  absl::StatusOr<void*> Calloc(size_t nmemb, size_t size) final;
-  absl::StatusOr<void*> Realloc(void* ptr, size_t size) final;
+  absl::Status InitializeHeap();
+  absl::Status CleanupHeap();
+  absl::StatusOr<void*> Malloc(size_t size, std::optional<size_t> alignment);
+  absl::StatusOr<void*> Calloc(size_t nmemb, size_t size);
+  absl::StatusOr<void*> Realloc(void* ptr, size_t size);
   absl::Status Free(void* ptr, std::optional<size_t> size_hint,
-                    std::optional<size_t> alignment_hint) final;
+                    std::optional<size_t> alignment_hint);
+
+  HeapFactory& HeapFactoryRef() {
+    return *heap_factory_;
+  }
+  const HeapFactory& HeapFactoryRef() const {
+    return *heap_factory_;
+  }
 
  private:
+  HeapFactory* heap_factory_;
+
   bool verbose_;
 };
+
+static_assert(TracefileAllocator<MallocRunner>);
 
 }  // namespace bench

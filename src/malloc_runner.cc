@@ -5,20 +5,20 @@
 #include "src/allocator_interface.h"
 #include "src/heap_factory.h"
 #include "src/test_allocator_interface.h"
-#include "src/tracefile_executor.h"
 
 namespace bench {
 
-MallocRunner::MallocRunner(TracefileReader& reader, HeapFactory& heap_factory,
-                           bool verbose)
-    : TracefileExecutor(reader, heap_factory), verbose_(verbose) {}
+MallocRunner::MallocRunner(HeapFactory& heap_factory, bool verbose)
+    : heap_factory_(&heap_factory), verbose_(verbose) {}
 
-void MallocRunner::InitializeHeap(HeapFactory& heap_factory) {
-  heap_factory.Reset();
+absl::Status MallocRunner::InitializeHeap() {
+  heap_factory_->Reset();
   bench::reset_test_heap();
-  bench::initialize_test_heap(heap_factory);
+  bench::initialize_test_heap(*heap_factory_);
+  return absl::OkStatus();
 }
 
+// NOLINTNEXTLINE(readability-convert-member-functions-to-static)
 absl::Status MallocRunner::CleanupHeap() {
   bench::reset_test_heap();
   return absl::OkStatus();

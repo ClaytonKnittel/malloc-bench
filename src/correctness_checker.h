@@ -14,13 +14,22 @@
 
 namespace bench {
 
-class CorrectnessChecker : private MallocRunner {
+class CorrectnessChecker : public MallocRunner {
  public:
+  explicit CorrectnessChecker(HeapFactory& heap_factory, bool verbose);
+
   static bool IsFailedTestStatus(const absl::Status& status);
 
   static absl::Status Check(
       TracefileReader& reader, HeapFactory& heap_factory, bool verbose = false,
       const TracefileExecutorOptions& options = TracefileExecutorOptions());
+
+  absl::Status PostAlloc(void* ptr, size_t size,
+                         std::optional<size_t> alignment,
+                         bool is_calloc) override;
+  absl::Status PreRealloc(void* ptr, size_t size) override;
+  absl::Status PostRealloc(void* new_ptr, void* old_ptr, size_t size) override;
+  absl::Status PreRelease(void* ptr) override;
 
  private:
   struct AllocatedBlock {
@@ -29,16 +38,6 @@ class CorrectnessChecker : private MallocRunner {
   };
 
   using BlockMap = folly::ConcurrentHashMap<void*, AllocatedBlock>;
-
-  CorrectnessChecker(TracefileReader& reader, HeapFactory& heap_factory,
-                     bool verbose);
-
-  absl::Status PostAlloc(void* ptr, size_t size,
-                         std::optional<size_t> alignment,
-                         bool is_calloc) override;
-  absl::Status PreRealloc(void* ptr, size_t size) override;
-  absl::Status PostRealloc(void* new_ptr, void* old_ptr, size_t size) override;
-  absl::Status PreRelease(void* ptr) override;
 
   // Validates that a new block doesn't overlap with any existing block, and
   // that it satisfies alignment requirements.
