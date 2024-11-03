@@ -41,8 +41,10 @@ cc_library(
         "//traces",
     ],
     deps = [
-        ":allocator_interface",
+        ":malloc_runner",
+        ":tracefile_executor",
         ":tracefile_reader",
+        "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/time",
     ],
