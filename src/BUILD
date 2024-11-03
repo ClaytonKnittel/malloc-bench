@@ -223,7 +223,6 @@ cc_library(
 
 cc_library(
     name = "malloc_runner",
-    srcs = ["malloc_runner.cc"],
     hdrs = ["malloc_runner.h"],
     deps = [
         ":allocator_interface",

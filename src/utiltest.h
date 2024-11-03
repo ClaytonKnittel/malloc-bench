@@ -10,7 +10,7 @@
 
 namespace bench {
 
-class Utiltest : public MallocRunner {
+class Utiltest : public MallocRunner<> {
  public:
   explicit Utiltest(HeapFactory& heap_factory);
 

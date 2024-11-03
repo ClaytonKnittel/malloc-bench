@@ -14,7 +14,7 @@
 
 namespace bench {
 
-class CorrectnessChecker : public MallocRunner {
+class CorrectnessChecker : public MallocRunner<> {
  public:
   explicit CorrectnessChecker(HeapFactory& heap_factory, bool verbose);
 

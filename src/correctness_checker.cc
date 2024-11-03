@@ -19,7 +19,8 @@
 namespace bench {
 
 CorrectnessChecker::CorrectnessChecker(HeapFactory& heap_factory, bool verbose)
-    : MallocRunner(heap_factory, verbose), heap_factory_(&heap_factory) {}
+    : MallocRunner(heap_factory, MallocRunnerOptions{ .verbose = verbose }),
+      heap_factory_(&heap_factory) {}
 
 /* static */
 bool CorrectnessChecker::IsFailedTestStatus(const absl::Status& status) {
