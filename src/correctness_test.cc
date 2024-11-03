@@ -17,7 +17,6 @@
 #include "src/ckmalloc/small_allocator_test_fixture.h"
 #include "src/ckmalloc/testlib.h"
 #include "src/ckmalloc/util.h"
-#include "src/heap_factory.h"
 #include "src/tracefile_executor.h"
 #include "src/tracefile_reader.h"
 
@@ -27,29 +26,28 @@ using util::IsOk;
 
 // #define PRINT
 
-class TestCkMalloc : public TracefileExecutor {
+class TestCkMalloc {
   friend class TestCorrectness;
 
  public:
-  explicit TestCkMalloc(TracefileReader&& tracefile_reader,
-                        HeapFactory& heap_factory,
-                        class TestCorrectness* fixture,
+  explicit TestCkMalloc(class TestCorrectness* fixture,
                         uint32_t validate_every_n)
-      : TracefileExecutor(tracefile_reader, heap_factory),
-        fixture_(fixture),
-        validate_every_n_(validate_every_n) {}
+      : fixture_(fixture), validate_every_n_(validate_every_n) {}
 
-  void InitializeHeap(HeapFactory& heap_factory) override {}
-  absl::Status CleanupHeap() override {
+  // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
+  absl::Status InitializeHeap() {
+    return absl::OkStatus();
+  }
+  // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
+  absl::Status CleanupHeap() {
     return absl::OkStatus();
   }
 
-  absl::StatusOr<void*> Malloc(size_t size,
-                               std::optional<size_t> alignment) override;
-  absl::StatusOr<void*> Calloc(size_t nmemb, size_t size) override;
-  absl::StatusOr<void*> Realloc(void* ptr, size_t size) override;
+  absl::StatusOr<void*> Malloc(size_t size, std::optional<size_t> alignment);
+  absl::StatusOr<void*> Calloc(size_t nmemb, size_t size);
+  absl::StatusOr<void*> Realloc(void* ptr, size_t size);
   absl::Status Free(void* ptr, std::optional<size_t> size_hint,
-                    std::optional<size_t> alignment_hint) override;
+                    std::optional<size_t> alignment_hint);
 
  private:
   class TestCorrectness* fixture_;
@@ -99,8 +97,7 @@ class TestCorrectness : public ::testing::Test {
   absl::Status RunTrace(const std::string& trace,
                         uint32_t validate_every_n = 1) {
     DEFINE_OR_RETURN(TracefileReader, reader, TracefileReader::Open(trace));
-    TestCkMalloc test(std::move(reader), *heap_factory_, this,
-                      validate_every_n);
+    TracefileExecutor<TestCkMalloc> test(reader, this, validate_every_n);
     return test.Run();
   }
 

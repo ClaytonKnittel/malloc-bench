@@ -30,7 +30,6 @@
 #include "src/ckmalloc/sys_alloc.h"
 #include "src/ckmalloc/testlib.h"
 #include "src/ckmalloc/util.h"
-#include "src/heap_factory.h"
 #include "src/mmap_heap_factory.h"
 #include "src/tracefile_executor.h"
 #include "src/tracefile_reader.h"
@@ -53,37 +52,31 @@ ABSL_FLAG(bool, to_max, false,
 
 namespace ckmalloc {
 
-using bench::HeapFactory;
 using bench::TracefileExecutor;
 using bench::TracefileReader;
 using Op = bench::proto::TraceLine::OpCase;
 
-class FindMaxAllocations : public TracefileExecutor {
+class FindMaxAllocations {
  public:
-  FindMaxAllocations(TracefileReader& reader, HeapFactory& heap_factory)
-      : TracefileExecutor(reader, heap_factory) {}
-
-  absl::StatusOr<uint64_t> MaxAllocations() {
-    if (!iters_to_max_.has_value()) {
-      RETURN_IF_ERROR(TracefileExecutor::Run());
-      iters_to_max_ = max_iter_;
-    }
-
-    return iters_to_max_.value();
+  static absl::StatusOr<uint64_t> MaxAllocations(TracefileReader& reader) {
+    TracefileExecutor<FindMaxAllocations> find_max_allocs(reader);
+    RETURN_IF_ERROR(find_max_allocs.Run());
+    return find_max_allocs.Inner().max_iter_;
   }
 
-  void InitializeHeap(HeapFactory& heap_factory) override {
-    TestSysAlloc::NewInstance(&heap_factory);
+  absl::Status InitializeHeap() {
+    TestSysAlloc::NewInstance(&heap_factory_);
     CkMalloc::InitializeHeap();
+    return absl::OkStatus();
   }
 
-  absl::Status CleanupHeap() override {
+  // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
+  absl::Status CleanupHeap() {
     TestSysAlloc::Reset();
     return absl::OkStatus();
   }
 
-  absl::StatusOr<void*> Malloc(size_t size,
-                               std::optional<size_t> alignment) override {
+  absl::StatusOr<void*> Malloc(size_t size, std::optional<size_t> alignment) {
     iter_++;
     void* result = CkMalloc::Instance()->Malloc(size, alignment.value_or(0));
     if (result != nullptr) {
@@ -97,7 +90,7 @@ class FindMaxAllocations : public TracefileExecutor {
     return result;
   }
 
-  absl::StatusOr<void*> Calloc(size_t nmemb, size_t size) override {
+  absl::StatusOr<void*> Calloc(size_t nmemb, size_t size) {
     iter_++;
     void* result = CkMalloc::Instance()->Calloc(nmemb, size);
     if (result != nullptr) {
@@ -111,7 +104,7 @@ class FindMaxAllocations : public TracefileExecutor {
     return result;
   }
 
-  absl::StatusOr<void*> Realloc(void* ptr, size_t size) override {
+  absl::StatusOr<void*> Realloc(void* ptr, size_t size) {
     iter_++;
     if (ptr != nullptr) {
       auto it = alloc_sizes_.find(ptr);
@@ -132,7 +125,7 @@ class FindMaxAllocations : public TracefileExecutor {
   }
 
   absl::Status Free(void* ptr, std::optional<size_t> size_hint,
-                    std::optional<size_t> alignment_hint) override {
+                    std::optional<size_t> alignment_hint) {
     iter_++;
     if (ptr != nullptr) {
       auto it = alloc_sizes_.find(ptr);
@@ -145,12 +138,12 @@ class FindMaxAllocations : public TracefileExecutor {
   }
 
  private:
+  bench::MMapHeapFactory heap_factory_;
   absl::flat_hash_map<void*, size_t> alloc_sizes_;
   uint64_t iter_ = 0;
   uint64_t total_allocations_ = 0;
   uint64_t max_iter_ = 0;
   uint64_t max_allocations_ = 0;
-  std::optional<uint64_t> iters_to_max_;
 };
 
 struct TraceOp {
@@ -169,10 +162,9 @@ struct TraceOp {
   void* result;
 };
 
-class TraceReplayer : public TracefileExecutor {
+class TraceReplayer {
  public:
-  TraceReplayer(TracefileReader& reader, HeapFactory& heap_factory)
-      : TracefileExecutor(reader, heap_factory) {
+  TraceReplayer() {
     if (!absl::GetFlag(FLAGS_test_run)) {
       std::cout << CSI_ALTERNATE_DISPLAY << CSI_HIDE << CSI_CHP(1, 1);
       SetNonCanonicalMode(/*enable=*/true);
@@ -199,20 +191,21 @@ class TraceReplayer : public TracefileExecutor {
     return absl::OkStatus();
   }
 
-  void InitializeHeap(HeapFactory& heap_factory) override {
-    TestSysAlloc::NewInstance(&heap_factory);
+  absl::Status InitializeHeap() {
+    TestSysAlloc::NewInstance(&heap_factory_);
     CkMalloc::InitializeHeap();
     cur_heap_start_ =
         CkMalloc::Instance()->GlobalState()->MetadataManager()->heap_;
+    return absl::OkStatus();
   }
 
-  absl::Status CleanupHeap() override {
+  // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
+  absl::Status CleanupHeap() {
     TestSysAlloc::Reset();
     return absl::OkStatus();
   }
 
-  absl::StatusOr<void*> Malloc(size_t size,
-                               std::optional<size_t> alignment) override {
+  absl::StatusOr<void*> Malloc(size_t size, std::optional<size_t> alignment) {
     prev_op_ = next_op_;
     next_op_ = {
       .op = Op::kMalloc,
@@ -229,7 +222,7 @@ class TraceReplayer : public TracefileExecutor {
     return result;
   }
 
-  absl::StatusOr<void*> Calloc(size_t nmemb, size_t size) override {
+  absl::StatusOr<void*> Calloc(size_t nmemb, size_t size) {
     prev_op_ = next_op_;
     next_op_ = {
       .op = Op::kCalloc,
@@ -245,7 +238,7 @@ class TraceReplayer : public TracefileExecutor {
     return result;
   }
 
-  absl::StatusOr<void*> Realloc(void* ptr, size_t size) override {
+  absl::StatusOr<void*> Realloc(void* ptr, size_t size) {
     prev_op_ = next_op_;
     next_op_ = {
       .op = Op::kRealloc,
@@ -262,7 +255,7 @@ class TraceReplayer : public TracefileExecutor {
   }
 
   absl::Status Free(void* ptr, std::optional<size_t> size_hint,
-                    std::optional<size_t> alignment_hint) override {
+                    std::optional<size_t> alignment_hint) {
     prev_op_ = next_op_;
     next_op_ = {
       .op = Op::kFree,
@@ -530,6 +523,8 @@ class TraceReplayer : public TracefileExecutor {
     return absl::OkStatus();
   }
 
+  bench::MMapHeapFactory heap_factory_;
+
   // The op about to be executed.
   TraceOp next_op_;
   // The op that was just executed. If nullopt, then there was no previous op
@@ -552,26 +547,23 @@ absl::Status Run(const std::string& tracefile) {
   uint64_t skips = 0;
   if (absl::GetFlag(FLAGS_to_max)) {
     DEFINE_OR_RETURN(TracefileReader, reader, TracefileReader::Open(tracefile));
-    bench::MMapHeapFactory heap_factory;
-    ASSIGN_OR_RETURN(skips,
-                     FindMaxAllocations(reader, heap_factory).MaxAllocations());
+    ASSIGN_OR_RETURN(skips, FindMaxAllocations::MaxAllocations(reader));
   }
 
   DEFINE_OR_RETURN(TracefileReader, reader, TracefileReader::Open(tracefile));
-  bench::MMapHeapFactory heap_factory;
-  TraceReplayer replayer(reader, heap_factory);
-  replayer.SetSkips(skips);
+  TracefileExecutor<TraceReplayer> replayer(reader);
+  replayer.Inner().SetSkips(skips);
   RETURN_IF_ERROR(replayer.Run());
   LocalCache::Instance<GlobalMetadataAlloc>()->Flush(
       *CkMalloc::Instance()->GlobalState()->MainAllocator());
-  RETURN_IF_ERROR(replayer.SetDone());
+  RETURN_IF_ERROR(replayer.Inner().SetDone());
 
   if (absl::GetFlag(FLAGS_test_run)) {
     return absl::OkStatus();
   }
 
   while (true) {
-    RETURN_IF_ERROR(replayer.AwaitInput());
+    RETURN_IF_ERROR(replayer.Inner().AwaitInput());
   }
 }
 

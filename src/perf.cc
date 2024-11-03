@@ -31,8 +31,8 @@ int main() {
       return -1;
     }
 
-    auto result =
-        bench::TimeTrace(reader.value(), /*min_desired_ops=*/500000000);
+    auto result = bench::Perftest::TimeTrace(reader.value(),
+                                             /*min_desired_ops=*/500000000);
     if (result.ok()) {
       std::cout << tracefile << ": " << result.value() << " mega ops / s"
                 << std::endl;

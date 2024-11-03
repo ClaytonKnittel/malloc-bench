@@ -639,7 +639,6 @@ cc_binary(
         ":testlib",
         ":util",
         "//proto:tracefile_cc_proto",
-        "//src:heap_factory",
         "//src:mmap_heap_factory",
         "//src:tracefile_executor",
         "//src:tracefile_reader",
