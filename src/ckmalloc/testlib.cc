@@ -147,6 +147,7 @@ TestSysAlloc* TestSysAlloc::NewInstance(bench::HeapFactory* heap_factory) {
 
 /* static */
 void TestSysAlloc::Reset() {
+  delete instance_;
   instance_ = nullptr;
 }
 

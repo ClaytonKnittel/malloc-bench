@@ -15,6 +15,8 @@ std::ostream& operator<<(std::ostream& ostr, HeapType heap_type);
 
 class SysAlloc {
  public:
+  virtual ~SysAlloc() = default;
+
   static SysAlloc* Instance();
 
   virtual void* Mmap(void* start_hint, size_t size, HeapType type) = 0;
