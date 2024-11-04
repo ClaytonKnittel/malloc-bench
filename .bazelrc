@@ -4,11 +4,11 @@ build --cxxopt=-mmacosx-version-min=10.15
 build --linkopt=-mmacosx-version-min=10.15
 build --copt=-fno-exceptions
 build --copt=-Wno-unknown-warning-option
-build:opt --copt=-flto=thin --linkopt=-flto=thin
 
 build:opt -c opt
 build:opt --copt="-DNDEBUG=1"
 build:opt --linkopt="-Wno-unused-command-line-argument"
+# build:opt --copt=-flto=thin --linkopt=-flto=thin
 build:opt --features=thin_lto
 
 build:profile --copt=-O2
