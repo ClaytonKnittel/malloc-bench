@@ -436,7 +436,6 @@ absl::Status TracefileExecutor<Allocator>::ProcessorWorker(
 
   bool queue_empty = false;
   bool tracefile_complete = false;
-  // size_t max_q_size = 0;
 
   while (!done.load(std::memory_order_relaxed) &&
          (!queue_empty || !tracefile_complete)) {
@@ -444,7 +443,6 @@ absl::Status TracefileExecutor<Allocator>::ProcessorWorker(
     uint32_t iters;
     {
       absl::MutexLock lock(&queue_mutex);
-      // max_q_size = std::max(queued_idxs.size(), max_q_size);
       iters =
           static_cast<uint32_t>(std::min(queued_idxs.size(), kQueueProcessLen));
       for (uint32_t i = 0; i < iters; i++) {
@@ -494,8 +492,6 @@ absl::Status TracefileExecutor<Allocator>::ProcessorWorker(
 
     local_id_map.FlushOps(id_map_container);
   }
-
-  // std::cout << "Max q size: " << max_q_size << std::endl;
 
   return absl::OkStatus();
 }
