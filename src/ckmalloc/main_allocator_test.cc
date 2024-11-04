@@ -82,7 +82,7 @@ class MainAllocatorTest : public ::testing::Test {
   static auto MatchHeapTypes() {
     return Pointee(UnorderedElementsAre(
         Field(&TestSysAlloc::value_type::second,
-              Field(&std::pair<HeapType, TestHeap*>::first, Heaps))...));
+              Field(&std::pair<HeapType, bench::Heap*>::first, Heaps))...));
   }
 
   std::vector<const TrackedBlock*> FreelistList() const {

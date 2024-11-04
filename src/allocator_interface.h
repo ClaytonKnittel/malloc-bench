@@ -5,6 +5,7 @@
 #include <cstring>
 
 #include "src/ckmalloc/ckmalloc.h"
+#include "src/ckmalloc/sys_alloc.h"
 
 namespace bench {
 
@@ -26,6 +27,13 @@ inline void free(void* ptr, size_t size = 0, size_t alignment = 0) {
 
 inline size_t get_size(void* ptr) {
   return ckmalloc::CkMalloc::Instance()->GetSize(ptr);
+}
+
+// Called after a trace run to clear all internal data structs before another
+// run.
+inline void reset_real_heap() {
+  ckmalloc::RealSysAlloc::Reset();
+  ckmalloc::CkMalloc::Reset();
 }
 
 }  // namespace bench

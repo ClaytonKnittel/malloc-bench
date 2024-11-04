@@ -17,6 +17,7 @@
 #include "src/ckmalloc/sys_alloc.h"
 #include "src/ckmalloc/testlib.h"
 #include "src/ckmalloc/util.h"
+#include "src/heap_interface.h"
 
 namespace ckmalloc {
 
@@ -64,7 +65,7 @@ absl::Status SlabManagerFixture::ValidateHeap() {
     if (it.second.first != HeapType::kUserHeap) {
       continue;
     }
-    TestHeap* heap = it.second.second;
+    TestHeap* heap = static_cast<TestHeap*>(it.second.second);
 
     if (heap->Size() % kPageSize != 0) {
       return FailedTest(
@@ -386,7 +387,8 @@ absl::Status SlabManagerFixture::ValidateHeap() {
 absl::Status SlabManagerFixture::ValidateEmpty() {
   for (const auto& it : *TestSysAlloc::Instance()) {
     if (it.second.first == HeapType::kUserHeap) {
-      return FailedTest("Expected no user heaps, found %v", *it.second.second);
+      return FailedTest("Expected no user heaps, found %v",
+                        static_cast<TestHeap&>(*it.second.second));
     }
   }
 
@@ -410,8 +412,9 @@ absl::StatusOr<AllocatedSlab*> SlabManagerFixture::AllocateSlab(
   TestSysAlloc& sys_alloc = *TestSysAlloc::Instance();
   auto it = std::find_if(
       sys_alloc.begin(), sys_alloc.end(),
-      [start_id, end_id](
-          const std::pair<void*, std::pair<HeapType, TestHeap*>>& it) -> bool {
+      [start_id,
+       end_id](const std::pair<void*, std::pair<HeapType, bench::Heap*>>& it)
+          -> bool {
         return it.second.first == HeapType::kUserHeap &&
                PageId::FromPtr(it.second.second->Start()) <= start_id &&
                PageId::FromPtr(it.second.second->End()) > end_id;
