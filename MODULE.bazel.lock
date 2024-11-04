@@ -683,6 +683,51 @@
         "recordedRepoMappingEntries": []
       }
     },
+    "@@rules_boost~//:boost/repositories.bzl%non_module_dependencies": {
+      "general": {
+        "bzlTransitiveDigest": "x3KMtXr4KoRJ4XlFzBdXD6YURDOScGJ0XQXOZnhxLs4=",
+        "usagesDigest": "wM1bZ+h2EEQZ9sdUOCmqB/wPEON4FqjWtign6x4ThXs=",
+        "recordedFileInputs": {},
+        "recordedDirentsInputs": {},
+        "envVariables": {},
+        "generatedRepoSpecs": {
+          "boost": {
+            "bzlFile": "@@bazel_tools//tools/build_defs/repo:http.bzl",
+            "ruleClassName": "http_archive",
+            "attributes": {
+              "build_file": "@@rules_boost~//:boost.BUILD",
+              "patch_cmds": [
+                "rm -f doc/pdf/BUILD"
+              ],
+              "patch_cmds_win": [
+                "Remove-Item -Force doc/pdf/BUILD"
+              ],
+              "patches": [
+                "@@rules_boost~//:zlib.patch"
+              ],
+              "patch_args": [
+                "-p1"
+              ],
+              "url": "https://github.com/boostorg/boost/releases/download/boost-1.84.0/boost-1.84.0.tar.gz",
+              "sha256": "4d27e9efed0f6f152dc28db6430b9d3dfb40c0345da7342eaa5a987dde57bd95",
+              "strip_prefix": "boost-1.84.0"
+            }
+          }
+        },
+        "recordedRepoMappingEntries": [
+          [
+            "rules_boost~",
+            "bazel_tools",
+            "bazel_tools"
+          ],
+          [
+            "rules_boost~",
+            "com_github_nelhage_rules_boost",
+            "rules_boost~"
+          ]
+        ]
+      }
+    },
     "@@rules_buf~//buf:extensions.bzl%ext": {
       "general": {
         "bzlTransitiveDigest": "gmPmM7QT5Jez2VVFcwbbMf/QWSRag+nJ1elFJFFTcn0=",

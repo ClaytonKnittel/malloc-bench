@@ -1,7 +1,5 @@
 build --features=layering_check
 build --cxxopt=-std=c++20
-build --cxxopt=-mmacosx-version-min=10.15
-build --linkopt=-mmacosx-version-min=10.15
 build --copt=-fno-exceptions
 build --copt=-Wno-unknown-warning-option
 

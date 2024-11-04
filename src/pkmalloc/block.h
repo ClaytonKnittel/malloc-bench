@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cassert>
+#include <cstdint>
 
 class Block {
  public:
