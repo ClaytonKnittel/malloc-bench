@@ -423,10 +423,12 @@ absl::Status TracefileExecutor<Allocator>::ProcessorWorker(
     void FlushOps(HashIdMap& id_map_container) {
       for (const auto [id, ptr] : id_map) {
         bool inserted = id_map_container.SetId(id, ptr);
+        (void) inserted;
         assert(inserted);
       }
       for (uint64_t erased_id : erased_ids) {
         size_t erased_elems = id_map_container.ClearId(erased_id);
+        (void) erased_elems;
         assert(erased_elems == 1);
       }
       id_map.clear();

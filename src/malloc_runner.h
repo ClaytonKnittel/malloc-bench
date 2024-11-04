@@ -28,6 +28,8 @@ class MallocRunner {
       HeapFactory& heap_factory,
       const MallocRunnerOptions& options = MallocRunnerOptions());
 
+  static bool IsFailedTestStatus(const absl::Status& status);
+
   virtual absl::Status PostAlloc(void* ptr, size_t size,
                                  std::optional<size_t> alignment,
                                  bool is_calloc) = 0;
@@ -66,6 +68,12 @@ template <MallocRunnerConfig Config>
 MallocRunner<Config>::MallocRunner(HeapFactory& heap_factory,
                                    const MallocRunnerOptions& options)
     : heap_factory_(&heap_factory), options_(options) {}
+
+/* static */
+template <MallocRunnerConfig Config>
+bool MallocRunner<Config>::IsFailedTestStatus(const absl::Status& status) {
+  return status.message().starts_with(kFailedTestPrefix);
+}
 
 template <MallocRunnerConfig Config>
 absl::Status MallocRunner<Config>::InitializeHeap() {
