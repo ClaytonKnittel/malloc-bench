@@ -33,7 +33,14 @@ void GlobalState::SetHeapStart(bench::Heap* heap) {
 }
 
 FreeBlock* GlobalState::GetFreeListStart(GlobalState* global_state) {
-  return reinterpret_cast<FreeBlock*>(global_state->free_list_start_ptr_);
+  if (global_state == nullptr) {
+    return nullptr;
+  }
+  auto* free_list_start_ptr = global_state->free_list_start_ptr_;
+  if (free_list_start_ptr != nullptr) {
+    return reinterpret_cast<FreeBlock*>(free_list_start_ptr);
+  }
+  return nullptr;
 }
 
 void GlobalState::SetFreeListStart(FreeList* free_list_start,
