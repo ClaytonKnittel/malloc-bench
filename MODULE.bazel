@@ -45,15 +45,6 @@ llvm.toolchain(
     llvm_versions = {
         "": "18.1.8",
     },
-    sha256 = {
-        "darwin-aarch64": "4573b7f25f46d2a9c8882993f091c52f416c83271db6f5b213c93f0bd0346a10",
-    },
-    strip_prefix = {
-        "darwin-aarch64": "clang+llvm-18.1.8-arm64-apple-macos11",
-    },
-    urls = {
-        "darwin-aarch64": ["https://github.com/llvm/llvm-project/releases/download/llvmorg-18.1.8/clang+llvm-18.1.8-arm64-apple-macos11.tar.xz"],
-    },
 )
 use_repo(llvm, "llvm_toolchain")
 register_toolchains("@llvm_toolchain//:all", dev_dependency = True)

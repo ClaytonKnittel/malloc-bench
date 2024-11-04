@@ -3674,7 +3674,7 @@
     "@@toolchains_llvm~//toolchain/extensions:llvm.bzl%llvm": {
       "general": {
         "bzlTransitiveDigest": "dZkcElkfice3BvKPXtFwrvPABm8ac+SwfynSinwK4dQ=",
-        "usagesDigest": "8SwCYC1KHkb34Lk+Vvsqv5nFwhkbrMwCBjmBPrZGQXk=",
+        "usagesDigest": "kfydTI4ay/PsEi1GAqhvB2s0Sn9Cm0AQCZCg+CclHH0=",
         "recordedFileInputs": {},
         "recordedDirentsInputs": {},
         "envVariables": {},
@@ -3694,17 +3694,9 @@
                 "": "18.1.8"
               },
               "netrc": "",
-              "sha256": {
-                "": "4573b7f25f46d2a9c8882993f091c52f416c83271db6f5b213c93f0bd0346a10"
-              },
-              "strip_prefix": {
-                "": "clang+llvm-18.1.8-arm64-apple-macos11"
-              },
-              "urls": {
-                "": [
-                  "https://github.com/llvm/llvm-project/releases/download/llvmorg-18.1.8/clang+llvm-18.1.8-arm64-apple-macos11.tar.xz"
-                ]
-              }
+              "sha256": {},
+              "strip_prefix": {},
+              "urls": {}
             }
           },
           "llvm_toolchain": {
