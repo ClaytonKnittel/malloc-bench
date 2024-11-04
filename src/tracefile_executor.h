@@ -386,17 +386,21 @@ absl::Status TracefileExecutor<Allocator>::ProcessorWorker(
     absl::Mutex& queue_mutex,
     std::deque<std::pair<uint64_t, uint64_t>>& queued_idxs,
     uint64_t num_repetitions) {
-  static constexpr size_t kBatchSize = 32;
+  static constexpr size_t kBatchSize = 128;
+  static constexpr size_t kQueueProcessLen = 64;
   bool queue_empty = false;
   bool tracefile_complete = false;
+  // size_t max_q_size = 0;
 
   while (!done.load(std::memory_order_relaxed) &&
          (!queue_empty || !tracefile_complete)) {
-    std::pair<uint64_t, uint64_t> idxs[4];
+    std::pair<uint64_t, uint64_t> idxs[kQueueProcessLen];
     uint32_t iters;
     {
       absl::MutexLock lock(&queue_mutex);
-      iters = static_cast<uint32_t>(std::min<size_t>(queued_idxs.size(), 4));
+      // max_q_size = std::max(queued_idxs.size(), max_q_size);
+      iters =
+          static_cast<uint32_t>(std::min(queued_idxs.size(), kQueueProcessLen));
       for (uint32_t i = 0; i < iters; i++) {
         idxs[i] = queued_idxs.front();
         queued_idxs.pop_front();
@@ -439,6 +443,8 @@ absl::Status TracefileExecutor<Allocator>::ProcessorWorker(
       }
     }
   }
+
+  // std::cout << "Max q size: " << max_q_size << std::endl;
 
   return absl::OkStatus();
 }
