@@ -22,7 +22,7 @@ jobs:
           key: bazel
       - name: Install dependencies
         run: |
-          sudo apt-get install libncurses5-dev
+          sudo apt-get install libtinfo5
       - name: Test
         working-directory: ckmalloc
         run: |
