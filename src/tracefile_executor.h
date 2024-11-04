@@ -90,36 +90,43 @@ class TracefileExecutor {
     }
   };
 
-  template <IdMapContainer IdMap>
-  absl::Status DoMalloc(const TraceLine::Malloc& malloc, IdMap& id_map);
+  uint64_t UniqueId(uint64_t id, uint64_t iteration) {
+    return id + iteration * reader_.size();
+  }
 
   template <IdMapContainer IdMap>
-  absl::Status DoCalloc(const TraceLine::Calloc& calloc, IdMap& id_map);
+  absl::Status DoMalloc(const TraceLine::Malloc& malloc, uint64_t iteration,
+                        IdMap& id_map);
+
+  template <IdMapContainer IdMap>
+  absl::Status DoCalloc(const TraceLine::Calloc& calloc, uint64_t iteration,
+                        IdMap& id_map);
 
   template <IdMapContainer IdMap>
   absl::StatusOr<bool> DoRealloc(const TraceLine::Realloc& realloc,
-                                 IdMap& id_map);
+                                 uint64_t iteration, IdMap& id_map);
 
   template <IdMapContainer IdMap>
-  absl::StatusOr<bool> DoFree(const TraceLine::Free& free, IdMap& id_map);
+  absl::StatusOr<bool> DoFree(const TraceLine::Free& free, uint64_t iteration,
+                              IdMap& id_map);
 
   absl::Status ProcessTracefile(uint64_t num_repetitions);
 
   absl::Status ProcessTracefileMultithreaded(
       uint64_t num_repetitions, const TracefileExecutorOptions& options);
 
-  absl::Status ProcessorWorker(std::atomic<size_t>& idx,
-                               std::atomic<bool>& done,
-                               const Tracefile& tracefile,
-                               HashIdMap& id_map_container,
-                               absl::Mutex& queue_mutex,
-                               std::deque<uint64_t>& queued_idxs,
-                               uint64_t num_repetitions);
+  absl::Status ProcessorWorker(
+      std::atomic<size_t>& idx, std::atomic<bool>& done,
+      const Tracefile& tracefile, HashIdMap& id_map_container,
+      absl::Mutex& queue_mutex,
+      std::deque<std::pair<uint64_t, uint64_t>>& queued_idxs,
+      uint64_t num_repetitions);
 
   static absl::Status RewriteIdsToUnique(Tracefile& tracefile);
 
   template <IdMapContainer IdMap>
-  absl::StatusOr<bool> ProcessLine(const TraceLine& line, IdMap& id_map);
+  absl::StatusOr<bool> ProcessLine(const TraceLine& line, uint64_t iteration,
+                                   IdMap& id_map);
 
   Allocator allocator_;
 
@@ -157,7 +164,7 @@ absl::Status TracefileExecutor<Allocator>::RunRepeated(
 template <TracefileAllocator Allocator>
 template <IdMapContainer IdMap>
 absl::Status TracefileExecutor<Allocator>::DoMalloc(
-    const TraceLine::Malloc& malloc, IdMap& id_map) {
+    const TraceLine::Malloc& malloc, uint64_t iteration, IdMap& id_map) {
   std::optional<size_t> alignment =
       malloc.has_input_alignment() ? std::optional(malloc.input_alignment())
                                    : std::nullopt;
@@ -165,10 +172,11 @@ absl::Status TracefileExecutor<Allocator>::DoMalloc(
                    allocator_.Malloc(malloc.input_size(), alignment));
 
   if (malloc.input_size() != 0 && malloc.has_result_id()) {
-    if (!id_map.SetId(malloc.result_id(), ptr)) {
+    uint64_t unique_id = UniqueId(malloc.result_id(), iteration);
+    if (!id_map.SetId(unique_id, ptr)) {
       return absl::InternalError(absl::StrFormat(
-          "Failed to set ID %v for malloc in id map, already exists",
-          malloc.result_id()));
+          "Failed to set ID %v (%v) for malloc in id map, already exists",
+          unique_id, malloc.result_id()));
     }
   }
 
@@ -178,16 +186,17 @@ absl::Status TracefileExecutor<Allocator>::DoMalloc(
 template <TracefileAllocator Allocator>
 template <IdMapContainer IdMap>
 absl::Status TracefileExecutor<Allocator>::DoCalloc(
-    const TraceLine::Calloc& calloc, IdMap& id_map) {
+    const TraceLine::Calloc& calloc, uint64_t iteration, IdMap& id_map) {
   DEFINE_OR_RETURN(
       void*, ptr, allocator_.Calloc(calloc.input_nmemb(), calloc.input_size()));
 
   if (calloc.input_nmemb() != 0 && calloc.input_size() != 0 &&
       calloc.has_result_id()) {
-    if (!id_map.SetId(calloc.result_id(), ptr)) {
+    uint64_t unique_id = UniqueId(calloc.result_id(), iteration);
+    if (!id_map.SetId(unique_id, ptr)) {
       return absl::InternalError(absl::StrFormat(
-          "Failed to set ID %v for calloc in id map, already exists",
-          calloc.result_id()));
+          "Failed to set ID %v (%v) for calloc in id map, already exists",
+          unique_id, calloc.result_id()));
     }
   }
 
@@ -197,29 +206,31 @@ absl::Status TracefileExecutor<Allocator>::DoCalloc(
 template <TracefileAllocator Allocator>
 template <IdMapContainer IdMap>
 absl::StatusOr<bool> TracefileExecutor<Allocator>::DoRealloc(
-    const TraceLine::Realloc& realloc, IdMap& id_map) {
+    const TraceLine::Realloc& realloc, uint64_t iteration, IdMap& id_map) {
   void* input_ptr;
   if (realloc.has_input_id()) {
-    std::optional<void*> result = id_map.GetId(realloc.input_id());
+    uint64_t unique_id = UniqueId(realloc.input_id(), iteration);
+    std::optional<void*> result = id_map.GetId(unique_id);
     if (!result.has_value()) {
       return false;
     }
     input_ptr = result.value();
 
-    if (id_map.ClearId(realloc.input_id()) != 1) {
-      return absl::InternalError(
-          absl::StrFormat("ID %v for realloc erased by other concurrent op",
-                          realloc.input_id()));
+    if (id_map.ClearId(unique_id) != 1) {
+      return absl::InternalError(absl::StrFormat(
+          "ID %v (%v) for realloc erased by other concurrent op", unique_id,
+          realloc.input_id()));
     }
   } else {
     input_ptr = nullptr;
   }
   DEFINE_OR_RETURN(void*, result_ptr,
                    allocator_.Realloc(input_ptr, realloc.input_size()));
-  if (!id_map.SetId(realloc.result_id(), result_ptr)) {
+  uint64_t unique_id = UniqueId(realloc.result_id(), iteration);
+  if (!id_map.SetId(unique_id, result_ptr)) {
     return absl::InternalError(absl::StrFormat(
-        "Failed to set ID %v for realloc in id map, already exists",
-        realloc.result_id()));
+        "Failed to set ID %v (%v) for realloc in id map, already exists",
+        unique_id, realloc.result_id()));
   }
 
   return true;
@@ -228,13 +239,14 @@ absl::StatusOr<bool> TracefileExecutor<Allocator>::DoRealloc(
 template <TracefileAllocator Allocator>
 template <IdMapContainer IdMap>
 absl::StatusOr<bool> TracefileExecutor<Allocator>::DoFree(
-    const TraceLine::Free& free, IdMap& id_map) {
+    const TraceLine::Free& free, uint64_t iteration, IdMap& id_map) {
   if (!free.has_input_id()) {
     RETURN_IF_ERROR(allocator_.Free(nullptr, std::nullopt, std::nullopt));
     return true;
   }
 
-  std::optional<void*> result = id_map.GetId(free.input_id());
+  uint64_t unique_id = UniqueId(free.input_id(), iteration);
+  std::optional<void*> result = id_map.GetId(unique_id);
   if (!result.has_value()) {
     return false;
   }
@@ -249,9 +261,10 @@ absl::StatusOr<bool> TracefileExecutor<Allocator>::DoFree(
           : std::nullopt;
   RETURN_IF_ERROR(allocator_.Free(ptr, size_hint, alignment_hint));
 
-  if (id_map.ClearId(free.input_id()) != 1) {
-    return absl::InternalError(absl::StrFormat(
-        "ID %v for free erased by other concurrent op", free.input_id()));
+  if (id_map.ClearId(unique_id) != 1) {
+    return absl::InternalError(
+        absl::StrFormat("ID %v (%v) for free erased by other concurrent op",
+                        unique_id, free.input_id()));
   }
 
   return true;
@@ -285,20 +298,28 @@ absl::Status TracefileExecutor<Allocator>::ProcessTracefile(
   for (uint64_t t = 0; t < num_repetitions; t++) {
     for (const TraceLine& line : reader_) {
       switch (line.op_case()) {
+          // Note: iteration should be kept 0 here. It is used to distinguish
+          // repeated operations in multithreaded mode when repeating a trace,
+          // but this problem does not exist for single-threaded mode. Since
+          // indices here are into a vector, and not a hash map, they must be
+          // contained in the expected range.
+
         case TraceLine::kMalloc: {
-          RETURN_IF_ERROR(DoMalloc(line.malloc(), id_map));
+          RETURN_IF_ERROR(DoMalloc(line.malloc(), /*iteration=*/0, id_map));
           break;
         }
         case TraceLine::kCalloc: {
-          RETURN_IF_ERROR(DoCalloc(line.calloc(), id_map));
+          RETURN_IF_ERROR(DoCalloc(line.calloc(), /*iteration=*/0, id_map));
           break;
         }
         case TraceLine::kRealloc: {
-          RETURN_IF_ERROR(DoRealloc(line.realloc(), id_map).status());
+          RETURN_IF_ERROR(
+              DoRealloc(line.realloc(), /*iteration=*/0, id_map).status());
           break;
         }
         case TraceLine::kFree: {
-          RETURN_IF_ERROR(DoFree(line.free(), id_map).status());
+          RETURN_IF_ERROR(
+              DoFree(line.free(), /*iteration=*/0, id_map).status());
           break;
         }
         case TraceLine::OP_NOT_SET: {
@@ -326,7 +347,7 @@ absl::Status TracefileExecutor<Allocator>::ProcessTracefileMultithreaded(
     HashIdMap id_map_container;
 
     absl::Mutex queue_mutex;
-    std::deque<uint64_t> queued_idxs;
+    std::deque<std::pair<uint64_t, uint64_t>> queued_idxs;
 
     std::vector<std::thread> threads;
     threads.reserve(options.n_threads);
@@ -362,19 +383,68 @@ template <TracefileAllocator Allocator>
 absl::Status TracefileExecutor<Allocator>::ProcessorWorker(
     std::atomic<size_t>& idx, std::atomic<bool>& done,
     const Tracefile& tracefile, HashIdMap& id_map_container,
-    absl::Mutex& queue_mutex, std::deque<uint64_t>& queued_idxs,
+    absl::Mutex& queue_mutex,
+    std::deque<std::pair<uint64_t, uint64_t>>& queued_idxs,
     uint64_t num_repetitions) {
-  static constexpr size_t kBatchSize = 32;
+  static constexpr size_t kBatchSize = 1024;
+  static constexpr size_t kQueueProcessLen = 1024;
+
+  struct LocalIdMap {
+    const HashIdMap& global_id_map;
+    absl::flat_hash_map<uint64_t, void*> id_map;
+    std::vector<uint64_t> erased_ids;
+
+    explicit LocalIdMap(const HashIdMap& global_id_map)
+        : global_id_map(global_id_map) {
+      id_map.reserve(std::max(kBatchSize, kQueueProcessLen));
+      erased_ids.reserve(std::max(kBatchSize, kQueueProcessLen));
+    }
+
+    bool SetId(uint64_t id, void* ptr) {
+      auto [it, inserted] = id_map.insert({ id, ptr });
+      return inserted;
+    }
+    std::optional<void*> GetId(uint64_t id) const {
+      auto result = global_id_map.GetId(id);
+      if (result.has_value()) {
+        return result.value();
+      }
+
+      auto it = id_map.find(id);
+      return it != id_map.end() ? std::optional(it->second) : std::nullopt;
+    }
+    size_t ClearId(uint64_t id) {
+      if (id_map.erase(id) == 0) {
+        erased_ids.push_back(id);
+      }
+      return 1;
+    }
+
+    void FlushOps(HashIdMap& id_map_container) {
+      for (const auto [id, ptr] : id_map) {
+        bool inserted = id_map_container.SetId(id, ptr);
+        assert(inserted);
+      }
+      for (uint64_t erased_id : erased_ids) {
+        size_t erased_elems = id_map_container.ClearId(erased_id);
+        assert(erased_elems == 1);
+      }
+      id_map.clear();
+      erased_ids.clear();
+    }
+  };
+
   bool queue_empty = false;
   bool tracefile_complete = false;
 
   while (!done.load(std::memory_order_relaxed) &&
          (!queue_empty || !tracefile_complete)) {
-    uint64_t idxs[4];
+    std::pair<uint64_t, uint64_t> idxs[kQueueProcessLen];
     uint32_t iters;
     {
       absl::MutexLock lock(&queue_mutex);
-      iters = static_cast<uint32_t>(std::min<size_t>(queued_idxs.size(), 4));
+      iters =
+          static_cast<uint32_t>(std::min(queued_idxs.size(), kQueueProcessLen));
       for (uint32_t i = 0; i < iters; i++) {
         idxs[i] = queued_idxs.front();
         queued_idxs.pop_front();
@@ -382,6 +452,7 @@ absl::Status TracefileExecutor<Allocator>::ProcessorWorker(
     }
     queue_empty = iters == 0;
 
+    LocalIdMap local_id_map(id_map_container);
     size_t first_idx = idx.fetch_add(kBatchSize, std::memory_order_relaxed);
     if (first_idx >= num_repetitions * tracefile.lines_size()) {
       idx.store(num_repetitions * tracefile.lines_size(),
@@ -393,27 +464,33 @@ absl::Status TracefileExecutor<Allocator>::ProcessorWorker(
                                 num_repetitions * tracefile.lines_size());
            i++) {
         size_t line_idx = i % tracefile.lines_size();
-        // TODO: handle repeated IDs when tracefile loops.
+        uint64_t iteration = i / tracefile.lines_size();
         DEFINE_OR_RETURN(
             bool, succeeded,
-            ProcessLine(tracefile.lines(line_idx), id_map_container));
+            ProcessLine(tracefile.lines(line_idx), iteration, local_id_map));
 
         if (!succeeded) {
           absl::MutexLock lock(&queue_mutex);
-          queued_idxs.push_back(line_idx);
+          queued_idxs.emplace_back(line_idx, iteration);
         }
       }
     }
 
+    local_id_map.FlushOps(id_map_container);
+
     for (uint64_t i = 0; i < iters; i++) {
-      DEFINE_OR_RETURN(bool, succeeded,
-                       ProcessLine(tracefile.lines(idxs[i]), id_map_container));
+      auto [line_idx, iteration] = idxs[i];
+      DEFINE_OR_RETURN(
+          bool, succeeded,
+          ProcessLine(tracefile.lines(line_idx), iteration, local_id_map));
 
       if (!succeeded) {
         absl::MutexLock lock(&queue_mutex);
         queued_idxs.push_back(idxs[i]);
       }
     }
+
+    local_id_map.FlushOps(id_map_container);
   }
 
   return absl::OkStatus();
@@ -523,21 +600,21 @@ absl::Status TracefileExecutor<Allocator>::RewriteIdsToUnique(
 template <TracefileAllocator Allocator>
 template <IdMapContainer IdMap>
 absl::StatusOr<bool> TracefileExecutor<Allocator>::ProcessLine(
-    const TraceLine& line, IdMap& id_map) {
+    const TraceLine& line, uint64_t iteration, IdMap& id_map) {
   switch (line.op_case()) {
     case TraceLine::kMalloc: {
-      RETURN_IF_ERROR(DoMalloc(line.malloc(), id_map));
+      RETURN_IF_ERROR(DoMalloc(line.malloc(), iteration, id_map));
       return true;
     }
     case TraceLine::kCalloc: {
-      RETURN_IF_ERROR(DoCalloc(line.calloc(), id_map));
+      RETURN_IF_ERROR(DoCalloc(line.calloc(), iteration, id_map));
       return true;
     }
     case TraceLine::kRealloc: {
-      return DoRealloc(line.realloc(), id_map);
+      return DoRealloc(line.realloc(), iteration, id_map);
     }
     case TraceLine::kFree: {
-      return DoFree(line.free(), id_map);
+      return DoFree(line.free(), iteration, id_map);
     }
     case TraceLine::OP_NOT_SET: {
       __builtin_unreachable();
