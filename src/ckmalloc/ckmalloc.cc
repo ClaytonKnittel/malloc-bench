@@ -1,5 +1,6 @@
 #include "src/ckmalloc/ckmalloc.h"
 
+#include <atomic>
 #include <cstddef>
 #include <cstring>
 
@@ -14,15 +15,15 @@
 namespace ckmalloc {
 
 /* static */
-CkMalloc* CkMalloc::instance_ = nullptr;
+std::atomic<CkMalloc*> CkMalloc::instance_ = nullptr;
 
 /* static */
-absl::Mutex CkMalloc::mutex_;
+absl::Mutex CkMalloc::mutex_(absl::ConstInitType::kConstInit);
 
 /* static */
-void CkMalloc::InitializeHeap() {
+CkMalloc* CkMalloc::InitializeHeap() {
   LocalCache::ClearLocalCaches();
-  Initialize();
+  return Initialize();
 }
 
 // TODO make separate AlignedAlloc to avoid alignment logic in all allocations.
@@ -110,7 +111,7 @@ CkMalloc* CkMalloc::Initialize() {
 
   CkMalloc* instance =
       new (metadata_heap) CkMalloc(metadata_heap, metadata_heap_end);
-  instance_ = instance;
+  instance_.store(instance, std::memory_order_release);
   return instance;
 }
 
