@@ -55,7 +55,7 @@ class Heap {
 
   // Returns the end of the heap.
   void* End() const {
-    return heap_end_;
+    return heap_end_.load(std::memory_order_relaxed);
   }
 
   // Returns the number of allocated bytes in the heap.
