@@ -99,15 +99,26 @@ absl::StatusOr<TraceResult> RunTrace(const std::string& tracefile,
   heap_factory.Reset();
 
   if (result.correct) {
-    DEFINE_OR_RETURN(double, mega_ops,
-                     Perftest::TimeTrace(
-                         reader, absl::GetFlag(FLAGS_perftest_iters), options));
-    DEFINE_OR_RETURN(
-        double, utilization,
-        Utiltest::MeasureUtilization(reader, heap_factory, options));
+    auto perf_util_result =
+        [&reader, &heap_factory,
+         &options]() -> absl::StatusOr<std::pair<double, double>> {
+      DEFINE_OR_RETURN(
+          double, mega_ops,
+          Perftest::TimeTrace(reader, absl::GetFlag(FLAGS_perftest_iters),
+                              options));
+      DEFINE_OR_RETURN(
+          double, utilization,
+          Utiltest::MeasureUtilization(reader, heap_factory, options));
 
-    result.mega_ops = mega_ops;
-    result.utilization = utilization;
+      return std::make_pair(mega_ops, utilization);
+    }();
+    if (!perf_util_result.ok()) {
+      result.correct = false;
+    } else {
+      auto [mega_ops, utilization] = perf_util_result.value();
+      result.mega_ops = mega_ops;
+      result.utilization = utilization;
+    }
   }
 
   return result;

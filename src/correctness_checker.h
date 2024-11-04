@@ -18,8 +18,6 @@ class CorrectnessChecker : public MallocRunner<> {
  public:
   explicit CorrectnessChecker(HeapFactory& heap_factory, bool verbose);
 
-  static bool IsFailedTestStatus(const absl::Status& status);
-
   static absl::Status Check(
       TracefileReader& reader, HeapFactory& heap_factory, bool verbose = false,
       const TracefileExecutorOptions& options = TracefileExecutorOptions());
