@@ -53,7 +53,8 @@ class LocalCache {
   // Once the cache exceeds this size, it is flushed after the next allocation.
   static constexpr uint32_t kMaxCacheSize = 128;
 
-  static LocalCache* instance_;
+  // Thread-local instances of the cache.
+  static CK_CONST_INIT thread_local LocalCache* instance_ CK_INITIAL_EXEC;
 
   // The bins are singly-linked lists of allocations ready to hand out (i.e. the
   // main allocator views them as allocated) of a particular size.

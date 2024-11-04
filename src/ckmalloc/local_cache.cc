@@ -1,11 +1,13 @@
 #include "src/ckmalloc/local_cache.h"
 
 #include "src/ckmalloc/common.h"
+#include "src/ckmalloc/util.h"
 
 namespace ckmalloc {
 
 /* static */
-LocalCache* LocalCache::instance_ = nullptr;
+CK_CONST_INIT thread_local LocalCache* LocalCache::instance_ CK_INITIAL_EXEC =
+    nullptr;
 
 /* static */
 void LocalCache::ClearLocalCaches() {

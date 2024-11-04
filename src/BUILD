@@ -262,4 +262,5 @@ cc_library(
 cc_library(
     name = "util",
     hdrs = ["util.h"],
+    visibility = ["//src:__subpackages__"],
 )
