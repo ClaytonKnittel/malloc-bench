@@ -30,6 +30,11 @@ void RealSysAlloc::UseRealSysAlloc() {
   SysAlloc::instance_ = &instance_;
 }
 
+/* static */
+void RealSysAlloc::Reset() {
+  SysAlloc::instance_ = nullptr;
+}
+
 void* RealSysAlloc::Mmap(void* start_hint, size_t size, HeapType type) {
   (void) type;
   return ::mmap(start_hint, size, PROT_READ | PROT_WRITE,

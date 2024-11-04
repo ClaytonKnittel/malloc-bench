@@ -68,6 +68,7 @@ cc_library(
     hdrs = ["allocator_interface.h"],
     deps = [
         "//src/ckmalloc",
+        "//src/ckmalloc:sys_alloc",
     ],
 )
 

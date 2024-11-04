@@ -59,7 +59,7 @@ class LargeAllocatorTest : public ::testing::Test {
   TestHeap& Heap() {
     auto heaps = slab_manager_fixture_->Heaps();
     CK_ASSERT_EQ(std::ranges::distance(heaps.begin(), heaps.end()), 1);
-    return *heaps.begin()->second.second;
+    return static_cast<TestHeap&>(*(*heaps.begin()).second.second);
   }
 
   TestSlabMap& SlabMap() {

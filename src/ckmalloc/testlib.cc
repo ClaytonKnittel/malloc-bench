@@ -126,8 +126,7 @@ TestSysAlloc::TestSysAlloc(bench::HeapFactory* heap_factory)
     for (const auto& heap : instances) {
       // Assume all already-created heaps are metadata heaps.
       heap_map_.emplace(heap->Start(),
-                        std::make_pair(HeapType::kMetadataHeap,
-                                       static_cast<TestHeap*>(heap.get())));
+                        std::make_pair(HeapType::kMetadataHeap, heap.get()));
     }
   });
 }
@@ -159,7 +158,7 @@ void* TestSysAlloc::Mmap(void* start_hint, size_t size, HeapType type) {
     return nullptr;
   }
 
-  TestHeap* heap = static_cast<TestHeap*>(result.value());
+  bench::Heap* heap = result.value();
   void* heap_start = heap->Start();
   heap_map_.emplace(heap_start, std::make_pair(type, heap));
 

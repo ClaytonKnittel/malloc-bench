@@ -96,6 +96,8 @@ template <MallocRunnerConfig Config>
 absl::Status MallocRunner<Config>::CleanupHeap() {
   if (heap_factory_ != nullptr) {
     bench::reset_test_heap();
+  } else {
+    bench::reset_real_heap();
   }
   return absl::OkStatus();
 }

@@ -45,7 +45,8 @@ class SlabManagerTest : public testing::Test {
   static std::vector<std::pair<void* const, std::pair<HeapType, TestHeap*>>>
   HeapsVec() {
     auto heaps = Heaps();
-    return std::vector(heaps.begin(), heaps.end());
+    return std::vector<std::pair<void* const, std::pair<HeapType, TestHeap*>>>(
+        heaps.begin(), heaps.end());
   }
 
   static size_t TotalHeapsSize() {
@@ -78,7 +79,7 @@ TEST_F(SlabManagerTest, AllPtrsInFirstPageIdZero) {
   ASSERT_THAT(Fixture().AllocateSlab(1), IsOk());
   ASSERT_THAT(HeapsVec(), ElementsAre(_));
 
-  const TestHeap& slab_heap = *Heaps().begin()->second.second;
+  const TestHeap& slab_heap = *(*Heaps().begin()).second.second;
   PageId start_id = PageId::FromPtr(slab_heap.Start());
   for (size_t offset = 0; offset < kPageSize; offset++) {
     EXPECT_EQ(PageId::FromPtr(PtrAdd(slab_heap.Start(), offset)), start_id);
@@ -90,7 +91,7 @@ TEST_F(SlabManagerTest, PageIdIncreasesPerPage) {
   ASSERT_THAT(Fixture().AllocateSlab(kPages), IsOk());
   ASSERT_THAT(HeapsVec(), ElementsAre(_));
 
-  const TestHeap& slab_heap = *Heaps().begin()->second.second;
+  const TestHeap& slab_heap = *(*Heaps().begin()).second.second;
   for (size_t page_n = 0; page_n < kPages; page_n++) {
     void* beginning = PtrAdd(slab_heap.Start(), page_n * kPageSize);
     void* end = PtrAdd(beginning, kPageSize - 1);
@@ -106,7 +107,7 @@ TEST_F(SlabManagerTest, SlabStartFromId) {
   ASSERT_THAT(Fixture().AllocateSlab(kPages), IsOk());
   ASSERT_THAT(HeapsVec(), ElementsAre(_));
 
-  const TestHeap& slab_heap = *Heaps().begin()->second.second;
+  const TestHeap& slab_heap = *(*Heaps().begin()).second.second;
   for (size_t page_n = 0; page_n < kPages; page_n++) {
     EXPECT_EQ((PageId::FromPtr(slab_heap.Start()) + page_n).PageStart(),
               PtrAdd(slab_heap.Start(), page_n * kPageSize));
@@ -122,7 +123,7 @@ TEST_F(SlabManagerTest, SinglePageHeapValid) {
   ASSERT_OK_AND_DEFINE(AllocatedSlab*, slab, Fixture().AllocateSlab(1));
   ASSERT_THAT(HeapsVec(), ElementsAre(_));
 
-  const TestHeap& slab_heap = *Heaps().begin()->second.second;
+  const TestHeap& slab_heap = *(*Heaps().begin()).second.second;
   EXPECT_EQ(slab->StartId(), PageId::FromPtr(slab_heap.Start()));
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
@@ -132,7 +133,7 @@ TEST_F(SlabManagerTest, TwoAdjacentAllocatedSlabs) {
   ASSERT_OK_AND_DEFINE(AllocatedSlab*, slab2, Fixture().AllocateSlab(1));
   ASSERT_THAT(HeapsVec(), ElementsAre(_));
 
-  const TestHeap& slab_heap = *Heaps().begin()->second.second;
+  const TestHeap& slab_heap = *(*Heaps().begin()).second.second;
   EXPECT_EQ(slab1->StartId(), PageId::FromPtr(slab_heap.Start()));
   EXPECT_EQ(slab2->StartId(), PageId::FromPtr(slab_heap.Start()) + 1);
   EXPECT_THAT(ValidateHeap(), IsOk());
@@ -142,7 +143,7 @@ TEST_F(SlabManagerTest, SingleLargeSlab) {
   ASSERT_OK_AND_DEFINE(AllocatedSlab*, slab, Fixture().AllocateSlab(9));
   ASSERT_THAT(HeapsVec(), ElementsAre(_));
 
-  const TestHeap& slab_heap = *Heaps().begin()->second.second;
+  const TestHeap& slab_heap = *(*Heaps().begin()).second.second;
   EXPECT_EQ(slab->StartId(), PageId::FromPtr(slab_heap.Start()));
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
@@ -250,7 +251,7 @@ TEST_F(SlabManagerTest, SlabFillsWholeHeap) {
                        Fixture().AllocateSlab(kHeapSize / kPageSize));
   ASSERT_THAT(HeapsVec(), ElementsAre(_));
 
-  const TestHeap& slab_heap = *Heaps().begin()->second.second;
+  const TestHeap& slab_heap = *(*Heaps().begin()).second.second;
   EXPECT_EQ(slab->StartId(), PageId::FromPtr(slab_heap.Start()));
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
@@ -290,7 +291,7 @@ TEST_F(SlabManagerTest, SingleUnderalignedPage) {
                        Fixture().AllocateSlab(1, kPageSize));
   ASSERT_THAT(HeapsVec(), ElementsAre(_));
 
-  const TestHeap& slab_heap = *Heaps().begin()->second.second;
+  const TestHeap& slab_heap = *(*Heaps().begin()).second.second;
   EXPECT_EQ(slab->StartId(), PageId::FromPtr(slab_heap.Start()));
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
@@ -300,7 +301,7 @@ TEST_F(SlabManagerTest, SingleAlignedPage) {
                        Fixture().AllocateSlab(1, 64 * kPageSize));
   ASSERT_THAT(HeapsVec(), ElementsAre(_));
 
-  const TestHeap& slab_heap = *Heaps().begin()->second.second;
+  const TestHeap& slab_heap = *(*Heaps().begin()).second.second;
   EXPECT_EQ(slab->StartId(), PageId::FromPtr(slab_heap.Start()));
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
@@ -313,7 +314,7 @@ TEST_F(SlabManagerTest, TwoAdjacentAlignedSlabs) {
   ASSERT_OK_AND_DEFINE(AllocatedSlab*, slab3, Fixture().AllocateSlab(3));
   ASSERT_THAT(HeapsVec(), ElementsAre(_));
 
-  const TestHeap& slab_heap = *Heaps().begin()->second.second;
+  const TestHeap& slab_heap = *(*Heaps().begin()).second.second;
   EXPECT_EQ(slab1->StartId(), PageId::FromPtr(slab_heap.Start()));
   EXPECT_EQ(slab2->StartId(), PageId::FromPtr(slab_heap.Start()) + 4);
   EXPECT_EQ(slab3->StartId(), PageId::FromPtr(slab_heap.Start()) + 1);
@@ -330,7 +331,7 @@ TEST_F(SlabManagerTest, LargeAlignedSlabs) {
                        Fixture().AllocateSlab(2, 2 * kPageSize));
   ASSERT_THAT(HeapsVec(), ElementsAre(_));
 
-  const TestHeap& slab_heap = *Heaps().begin()->second.second;
+  const TestHeap& slab_heap = *(*Heaps().begin()).second.second;
   EXPECT_EQ(slab2->StartId(), PageId::FromPtr(slab_heap.Start()) + 1);
   EXPECT_EQ(slab4->StartId(), PageId::FromPtr(slab_heap.Start()) + 2);
   EXPECT_THAT(ValidateHeap(), IsOk());
@@ -344,7 +345,7 @@ TEST_F(SlabManagerTest, AlignAllocCarve) {
                        Fixture().AllocateSlab(2, 2 * kPageSize));
   ASSERT_THAT(HeapsVec(), ElementsAre(_));
 
-  const TestHeap& slab_heap = *Heaps().begin()->second.second;
+  const TestHeap& slab_heap = *(*Heaps().begin()).second.second;
   EXPECT_EQ(slab1->StartId(), PageId::FromPtr(slab_heap.Start()));
   EXPECT_EQ(slab3->StartId(), PageId::FromPtr(slab_heap.Start()) + 2);
   EXPECT_THAT(ValidateHeap(), IsOk());
@@ -359,7 +360,7 @@ TEST_F(SlabManagerTest, AlignedSlabBetweenSlabs) {
                        Fixture().AllocateSlab(1, 2 * kPageSize));
   ASSERT_THAT(HeapsVec(), ElementsAre(_));
 
-  const TestHeap& slab_heap = *Heaps().begin()->second.second;
+  const TestHeap& slab_heap = *(*Heaps().begin()).second.second;
   EXPECT_EQ(slab1->StartId(), PageId::FromPtr(slab_heap.Start()));
   EXPECT_EQ(slab2->StartId(), PageId::FromPtr(slab_heap.Start()) + 4);
   EXPECT_EQ(slab3->StartId(), PageId::FromPtr(slab_heap.Start()) + 2);
@@ -375,7 +376,7 @@ TEST_F(SlabManagerTest, AlignedSlabBetweenSlabs2) {
                        Fixture().AllocateSlab(2, 2 * kPageSize));
   ASSERT_THAT(HeapsVec(), ElementsAre(_));
 
-  const TestHeap& slab_heap = *Heaps().begin()->second.second;
+  const TestHeap& slab_heap = *(*Heaps().begin()).second.second;
   EXPECT_EQ(slab1->StartId(), PageId::FromPtr(slab_heap.Start()));
   EXPECT_EQ(slab2->StartId(), PageId::FromPtr(slab_heap.Start()) + 4);
   EXPECT_EQ(slab3->StartId(), PageId::FromPtr(slab_heap.Start()) + 2);
@@ -391,7 +392,7 @@ TEST_F(SlabManagerTest, AlignedSlabBetweenSlabsExactFit) {
                        Fixture().AllocateSlab(2, 2 * kPageSize));
   ASSERT_THAT(HeapsVec(), ElementsAre(_));
 
-  const TestHeap& slab_heap = *Heaps().begin()->second.second;
+  const TestHeap& slab_heap = *(*Heaps().begin()).second.second;
   EXPECT_EQ(slab1->StartId(), PageId::FromPtr(slab_heap.Start()));
   EXPECT_EQ(slab2->StartId(), PageId::FromPtr(slab_heap.Start()) + 4);
   EXPECT_EQ(slab3->StartId(), PageId::FromPtr(slab_heap.Start()) + 2);

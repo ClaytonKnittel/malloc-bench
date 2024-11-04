@@ -233,7 +233,7 @@ class TestHeapFactory : public bench::HeapFactory {
 
 class TestSysAlloc : public SysAlloc {
  public:
-  using MapT = absl::flat_hash_map<void*, std::pair<HeapType, TestHeap*>>;
+  using MapT = absl::flat_hash_map<void*, std::pair<HeapType, bench::Heap*>>;
   using value_type = MapT::value_type;
   using reference = MapT::reference;
   using const_reference = MapT::const_reference;

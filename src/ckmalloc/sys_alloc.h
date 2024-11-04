@@ -32,6 +32,7 @@ class SysAlloc {
 class RealSysAlloc : public SysAlloc {
  public:
   static void UseRealSysAlloc();
+  static void Reset();
 
   void* Mmap(void* start_hint, size_t size, HeapType type) override;
 

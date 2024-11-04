@@ -14,6 +14,7 @@
 #include "src/ckmalloc/slab_manager.h"
 #include "src/ckmalloc/sys_alloc.h"
 #include "src/ckmalloc/testlib.h"
+#include "src/heap_interface.h"
 
 namespace ckmalloc {
 
@@ -56,15 +57,23 @@ class SlabManagerFixture : public CkMallocTest {
 
   static auto Heaps() {
     return *TestSysAlloc::Instance() |
-           std::ranges::views::filter(
-               [](const std::pair<void*, std::pair<HeapType, TestHeap*>>& it)
-                   -> bool { return it.second.first == HeapType::kUserHeap; });
+           std::views::filter(
+               [](const std::pair<void*, std::pair<HeapType, bench::Heap*>>& it)
+                   -> bool { return it.second.first == HeapType::kUserHeap; }) |
+           std::views::transform(
+               [](const std::pair<void*, std::pair<HeapType, bench::Heap*>>& it)
+                   -> std::pair<void*, std::pair<HeapType, TestHeap*>> {
+                 return { it.first,
+                          { it.second.first,
+                            static_cast<TestHeap*>(it.second.second) } };
+               });
   }
 
   auto SlabsInHeap() {
     return Heaps() |
            std::ranges::views::transform([this](auto it) -> IterableTestHeap {
-             return IterableTestHeap(it.second.second, &SlabMap());
+             return IterableTestHeap(static_cast<TestHeap*>(it.second.second),
+                                     &SlabMap());
            }) |
            std::ranges::views::join;
   }
