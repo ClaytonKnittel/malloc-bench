@@ -29,9 +29,11 @@ inline void initialize_heap(HeapFactory& heap_factory) {
 void initialize();
 
 inline void* malloc(size_t size, size_t alignment = 0) {
-  std::lock_guard<std::mutex> lock(g_lock);
   if (g_heap == nullptr) {
-    initialize();
+    std::lock_guard<std::mutex> lock(g_lock);
+    if (g_heap == nullptr) {
+      initialize();
+    }
   }
 
   // TODO: implement
