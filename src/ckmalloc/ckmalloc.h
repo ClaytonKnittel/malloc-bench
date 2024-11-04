@@ -2,6 +2,8 @@
 
 #include <cstddef>
 
+#include "absl/synchronization/mutex.h"
+
 #include "src/ckmalloc/global_state.h"
 #include "src/ckmalloc/sys_alloc.h"
 #include "src/ckmalloc/util.h"
@@ -13,8 +15,11 @@ class CkMalloc {
   // Returns the singleton `CkMalloc` instance.
   static CkMalloc* Instance() {
     if (CK_EXPECT_FALSE(instance_ == nullptr)) {
-      RealSysAlloc::UseRealSysAlloc();
-      InitializeHeap();
+      absl::MutexLock lock(&mutex_);
+      if (instance_ == nullptr) {
+        RealSysAlloc::UseRealSysAlloc();
+        InitializeHeap();
+      }
     }
     CK_ASSERT_NE(instance_, nullptr);
     instance_->global_state_.AssertConsistency();
@@ -51,6 +56,8 @@ class CkMalloc {
   static CkMalloc* instance_;
 
   class GlobalState global_state_;
+
+  static absl::Mutex mutex_;
 };
 
 }  // namespace ckmalloc

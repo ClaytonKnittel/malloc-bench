@@ -17,6 +17,9 @@ namespace ckmalloc {
 CkMalloc* CkMalloc::instance_ = nullptr;
 
 /* static */
+absl::Mutex CkMalloc::mutex_;
+
+/* static */
 void CkMalloc::InitializeHeap() {
   LocalCache::ClearLocalCaches();
   Initialize();

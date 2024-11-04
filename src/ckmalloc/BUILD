@@ -11,6 +11,7 @@ cc_library(
         ":size_class",
         ":sys_alloc",
         ":util",
+        "@abseil-cpp//absl/synchronization",
     ],
 )
 
@@ -220,6 +221,7 @@ cc_library(
         ":small_allocator",
         ":sys_alloc",
         ":util",
+        "@abseil-cpp//absl/synchronization",
     ],
 )
 

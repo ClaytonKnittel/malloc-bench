@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <cstring>
 
+#include "absl/synchronization/mutex.h"
+
 #include "src/ckmalloc/block.h"
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/large_allocator.h"
@@ -19,7 +21,6 @@
 namespace ckmalloc {
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap,
-          SlabManagerInterface SlabManager,
           SmallAllocatorInterface SmallAllocator,
           LargeAllocatorInterface LargeAllocator>
 class MainAllocatorImpl {
@@ -27,10 +28,9 @@ class MainAllocatorImpl {
   friend class TestMainAllocator;
 
  public:
-  MainAllocatorImpl(SlabMap* slab_map, SlabManager* slab_manager,
-                    SmallAllocator* small_alloc, LargeAllocator* large_alloc)
+  MainAllocatorImpl(SlabMap* slab_map, SmallAllocator* small_alloc,
+                    LargeAllocator* large_alloc)
       : slab_map_(slab_map),
-        slab_manager_(slab_manager),
         small_alloc_(small_alloc),
         large_alloc_(large_alloc) {}
 
@@ -67,17 +67,18 @@ class MainAllocatorImpl {
   void FreeMmap(MmapSlab* slab, Void* ptr);
 
   SlabMap* const slab_map_;
-  SlabManager* const slab_manager_;
   SmallAllocator* const small_alloc_;
   LargeAllocator* const large_alloc_;
+
+  mutable absl::Mutex mutex_;
 };
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap,
-          SlabManagerInterface SlabManager,
           SmallAllocatorInterface SmallAllocator,
           LargeAllocatorInterface LargeAllocator>
-Void* MainAllocatorImpl<MetadataAlloc, SlabMap, SlabManager, SmallAllocator,
+Void* MainAllocatorImpl<MetadataAlloc, SlabMap, SmallAllocator,
                         LargeAllocator>::Alloc(size_t user_size) {
+  absl::MutexLock lock(&mutex_);
   if (IsSmallSize(user_size)) {
     return small_alloc_->AllocSmall(user_size);
   } else if (IsMmapSize(user_size)) {
@@ -88,14 +89,14 @@ Void* MainAllocatorImpl<MetadataAlloc, SlabMap, SlabManager, SmallAllocator,
 }
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap,
-          SlabManagerInterface SlabManager,
           SmallAllocatorInterface SmallAllocator,
           LargeAllocatorInterface LargeAllocator>
-Void* MainAllocatorImpl<MetadataAlloc, SlabMap, SlabManager, SmallAllocator,
+Void* MainAllocatorImpl<MetadataAlloc, SlabMap, SmallAllocator,
                         LargeAllocator>::AlignedAlloc(size_t user_size,
                                                       size_t alignment) {
   CK_ASSERT_NE(alignment, 0);
   CK_ASSERT_EQ((alignment & (alignment - 1)), 0);
+  absl::MutexLock lock(&mutex_);
 
   if (IsSmallSize(user_size)) {
     return small_alloc_->AllocSmall(user_size, alignment);
@@ -108,15 +109,15 @@ Void* MainAllocatorImpl<MetadataAlloc, SlabMap, SlabManager, SmallAllocator,
 }
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap,
-          SlabManagerInterface SlabManager,
           SmallAllocatorInterface SmallAllocator,
           LargeAllocatorInterface LargeAllocator>
-Void* MainAllocatorImpl<MetadataAlloc, SlabMap, SlabManager, SmallAllocator,
+Void* MainAllocatorImpl<MetadataAlloc, SlabMap, SmallAllocator,
                         LargeAllocator>::Realloc(Void* ptr, size_t user_size) {
   Slab* slab = slab_map_->FindSlab(PageId::FromPtr(ptr));
   CK_ASSERT_NE(slab->Type(), SlabType::kFree);
   CK_ASSERT_NE(slab->Type(), SlabType::kUnmapped);
 
+  absl::MutexLock lock(&mutex_);
   switch (slab->Type()) {
     case SlabType::kSmall: {
       // If this is a small-to-small size reallocation, we can use the
@@ -214,15 +215,15 @@ Void* MainAllocatorImpl<MetadataAlloc, SlabMap, SlabManager, SmallAllocator,
 }
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap,
-          SlabManagerInterface SlabManager,
           SmallAllocatorInterface SmallAllocator,
           LargeAllocatorInterface LargeAllocator>
-void MainAllocatorImpl<MetadataAlloc, SlabMap, SlabManager, SmallAllocator,
+void MainAllocatorImpl<MetadataAlloc, SlabMap, SmallAllocator,
                        LargeAllocator>::Free(Void* ptr) {
   Slab* slab = slab_map_->FindSlab(PageId::FromPtr(ptr));
   CK_ASSERT_NE(slab->Type(), SlabType::kFree);
   CK_ASSERT_NE(slab->Type(), SlabType::kUnmapped);
 
+  absl::MutexLock lock(&mutex_);
   switch (slab->Type()) {
     case SlabType::kSmall: {
       small_alloc_->FreeSmall(slab->ToSmall(), ptr);
@@ -247,11 +248,11 @@ void MainAllocatorImpl<MetadataAlloc, SlabMap, SlabManager, SmallAllocator,
 }
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap,
-          SlabManagerInterface SlabManager,
           SmallAllocatorInterface SmallAllocator,
           LargeAllocatorInterface LargeAllocator>
-size_t MainAllocatorImpl<MetadataAlloc, SlabMap, SlabManager, SmallAllocator,
+size_t MainAllocatorImpl<MetadataAlloc, SlabMap, SmallAllocator,
                          LargeAllocator>::AllocSize(Void* ptr) const {
+  absl::MutexLock lock(&mutex_);
   SizeClass size_class = AllocSizeClass(ptr);
   if (size_class != SizeClass::Nil()) {
     return size_class.SliceSize();
@@ -286,20 +287,18 @@ size_t MainAllocatorImpl<MetadataAlloc, SlabMap, SlabManager, SmallAllocator,
 }
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap,
-          SlabManagerInterface SlabManager,
           SmallAllocatorInterface SmallAllocator,
           LargeAllocatorInterface LargeAllocator>
-SizeClass MainAllocatorImpl<MetadataAlloc, SlabMap, SlabManager, SmallAllocator,
+SizeClass MainAllocatorImpl<MetadataAlloc, SlabMap, SmallAllocator,
                             LargeAllocator>::AllocSizeClass(Void* ptr) const {
   PageId page_id = PageId::FromPtr(ptr);
   return slab_map_->FindSizeClass(page_id);
 }
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap,
-          SlabManagerInterface SlabManager,
           SmallAllocatorInterface SmallAllocator,
           LargeAllocatorInterface LargeAllocator>
-Void* MainAllocatorImpl<MetadataAlloc, SlabMap, SlabManager, SmallAllocator,
+Void* MainAllocatorImpl<MetadataAlloc, SlabMap, SmallAllocator,
                         LargeAllocator>::AllocMmap(size_t user_size) {
   Slab* slab = MetadataAlloc::SlabAlloc();
   if (slab == nullptr) {
@@ -329,10 +328,9 @@ Void* MainAllocatorImpl<MetadataAlloc, SlabMap, SlabManager, SmallAllocator,
 }
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap,
-          SlabManagerInterface SlabManager,
           SmallAllocatorInterface SmallAllocator,
           LargeAllocatorInterface LargeAllocator>
-void MainAllocatorImpl<MetadataAlloc, SlabMap, SlabManager, SmallAllocator,
+void MainAllocatorImpl<MetadataAlloc, SlabMap, SmallAllocator,
                        LargeAllocator>::FreeMmap(MmapSlab* slab, Void* ptr) {
   CK_ASSERT_EQ(slab->StartId().PageStart(), ptr);
   SysAlloc::Instance()->Munmap(slab->StartId().PageStart(),
@@ -341,8 +339,7 @@ void MainAllocatorImpl<MetadataAlloc, SlabMap, SlabManager, SmallAllocator,
   MetadataAlloc::SlabFree(slab);
 }
 
-using MainAllocator =
-    MainAllocatorImpl<GlobalMetadataAlloc, SlabMap, SlabManager, SmallAllocator,
-                      LargeAllocator>;
+using MainAllocator = MainAllocatorImpl<GlobalMetadataAlloc, SlabMap,
+                                        SmallAllocator, LargeAllocator>;
 
 }  // namespace ckmalloc

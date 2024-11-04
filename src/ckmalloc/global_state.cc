@@ -12,7 +12,6 @@ GlobalState::GlobalState(void* metadata_heap, void* metadata_heap_end)
                         kMetadataHeapSize),
       small_alloc_(&slab_map_, &slab_manager_, &freelist_),
       large_alloc_(&slab_map_, &slab_manager_, &freelist_),
-      main_allocator_(&slab_map_, &slab_manager_, &small_alloc_,
-                      &large_alloc_) {}
+      main_allocator_(&slab_map_, &small_alloc_, &large_alloc_) {}
 
 }  // namespace ckmalloc

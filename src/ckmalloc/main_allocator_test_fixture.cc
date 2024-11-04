@@ -19,11 +19,10 @@ namespace ckmalloc {
 
 TestMainAllocator::TestMainAllocator(MainAllocatorFixture* test_fixture,
                                      TestSlabMap* slab_map,
-                                     TestSlabManager* slab_manager,
                                      TestSmallAllocator* small_alloc,
                                      TestLargeAllocator* large_alloc)
     : test_fixture_(test_fixture),
-      main_allocator_(slab_map, slab_manager, small_alloc, large_alloc) {}
+      main_allocator_(slab_map, small_alloc, large_alloc) {}
 
 Freelist& TestMainAllocator::Freelist() {
   return test_fixture_->Freelist();
