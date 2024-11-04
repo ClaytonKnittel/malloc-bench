@@ -386,8 +386,54 @@ absl::Status TracefileExecutor<Allocator>::ProcessorWorker(
     absl::Mutex& queue_mutex,
     std::deque<std::pair<uint64_t, uint64_t>>& queued_idxs,
     uint64_t num_repetitions) {
-  static constexpr size_t kBatchSize = 128;
-  static constexpr size_t kQueueProcessLen = 64;
+  static constexpr size_t kBatchSize = 1024;
+  static constexpr size_t kQueueProcessLen = 1024;
+
+  struct LocalIdMap {
+    const HashIdMap& global_id_map;
+    absl::flat_hash_map<uint64_t, void*> id_map;
+    std::vector<uint64_t> erased_ids;
+
+    explicit LocalIdMap(const HashIdMap& global_id_map)
+        : global_id_map(global_id_map) {
+      id_map.reserve(std::max(kBatchSize, kQueueProcessLen));
+      erased_ids.reserve(std::max(kBatchSize, kQueueProcessLen));
+    }
+
+    bool SetId(uint64_t id, void* ptr) {
+      auto [it, inserted] = id_map.insert({ id, ptr });
+      return inserted;
+    }
+    std::optional<void*> GetId(uint64_t id) const {
+      auto result = global_id_map.GetId(id);
+      if (result.has_value()) {
+        return result.value();
+      }
+
+      auto it = id_map.find(id);
+      return it != id_map.end() ? std::optional(it->second) : std::nullopt;
+    }
+    size_t ClearId(uint64_t id) {
+      if (id_map.erase(id) == 0) {
+        erased_ids.push_back(id);
+      }
+      return 1;
+    }
+
+    void FlushOps(HashIdMap& id_map_container) {
+      for (const auto [id, ptr] : id_map) {
+        bool inserted = id_map_container.SetId(id, ptr);
+        assert(inserted);
+      }
+      for (uint64_t erased_id : erased_ids) {
+        size_t erased_elems = id_map_container.ClearId(erased_id);
+        assert(erased_elems == 1);
+      }
+      id_map.clear();
+      erased_ids.clear();
+    }
+  };
+
   bool queue_empty = false;
   bool tracefile_complete = false;
   // size_t max_q_size = 0;
@@ -408,6 +454,7 @@ absl::Status TracefileExecutor<Allocator>::ProcessorWorker(
     }
     queue_empty = iters == 0;
 
+    LocalIdMap local_id_map(id_map_container);
     size_t first_idx = idx.fetch_add(kBatchSize, std::memory_order_relaxed);
     if (first_idx >= num_repetitions * tracefile.lines_size()) {
       idx.store(num_repetitions * tracefile.lines_size(),
@@ -420,9 +467,9 @@ absl::Status TracefileExecutor<Allocator>::ProcessorWorker(
            i++) {
         size_t line_idx = i % tracefile.lines_size();
         uint64_t iteration = i / tracefile.lines_size();
-        DEFINE_OR_RETURN(bool, succeeded,
-                         ProcessLine(tracefile.lines(line_idx), iteration,
-                                     id_map_container));
+        DEFINE_OR_RETURN(
+            bool, succeeded,
+            ProcessLine(tracefile.lines(line_idx), iteration, local_id_map));
 
         if (!succeeded) {
           absl::MutexLock lock(&queue_mutex);
@@ -431,17 +478,21 @@ absl::Status TracefileExecutor<Allocator>::ProcessorWorker(
       }
     }
 
+    local_id_map.FlushOps(id_map_container);
+
     for (uint64_t i = 0; i < iters; i++) {
       auto [line_idx, iteration] = idxs[i];
       DEFINE_OR_RETURN(
           bool, succeeded,
-          ProcessLine(tracefile.lines(line_idx), iteration, id_map_container));
+          ProcessLine(tracefile.lines(line_idx), iteration, local_id_map));
 
       if (!succeeded) {
         absl::MutexLock lock(&queue_mutex);
         queued_idxs.push_back(idxs[i]);
       }
     }
+
+    local_id_map.FlushOps(id_map_container);
   }
 
   // std::cout << "Max q size: " << max_q_size << std::endl;
