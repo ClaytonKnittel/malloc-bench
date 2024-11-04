@@ -23,11 +23,6 @@ CorrectnessChecker::CorrectnessChecker(HeapFactory& heap_factory, bool verbose)
       heap_factory_(&heap_factory) {}
 
 /* static */
-bool CorrectnessChecker::IsFailedTestStatus(const absl::Status& status) {
-  return status.message().starts_with(kFailedTestPrefix);
-}
-
-/* static */
 absl::Status CorrectnessChecker::Check(
     TracefileReader& reader, HeapFactory& heap_factory, bool verbose,
     const TracefileExecutorOptions& options) {

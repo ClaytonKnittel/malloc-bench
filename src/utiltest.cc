@@ -58,9 +58,9 @@ absl::Status Utiltest::PostAlloc(void* ptr, size_t size,
   auto [it, inserted] = size_map_.insert({ ptr, size });
   if (!inserted) {
     return absl::InternalError(
-        absl::StrFormat("Allocated pointer %p of size %zu conflicts with "
+        absl::StrFormat("%s Allocated pointer %p of size %zu conflicts with "
                         "existing allocation %p of size %zu",
-                        ptr, size, it->first, it->second));
+                        kFailedTestPrefix, ptr, size, it->first, it->second));
   }
 
   return absl::OkStatus();
@@ -75,8 +75,9 @@ absl::Status Utiltest::PreRealloc(void* ptr, size_t size) {
 absl::Status Utiltest::PostRealloc(void* new_ptr, void* old_ptr, size_t size) {
   auto it = size_map_.find(old_ptr);
   if (it == size_map_.end()) {
-    return absl::InternalError(absl::StrFormat(
-        "Reallocated memory %p not found in size map.", old_ptr));
+    return absl::InternalError(
+        absl::StrFormat("%s Reallocated memory %p not found in size map.",
+                        kFailedTestPrefix, old_ptr));
   }
   const size_t old_size = RoundUp(it->second);
 
@@ -90,10 +91,10 @@ absl::Status Utiltest::PostRealloc(void* new_ptr, void* old_ptr, size_t size) {
   if (new_ptr == old_ptr) {
     auto result = size_map_.assign(new_ptr, size);
     if (!result.has_value()) {
-      return absl::InternalError(
-          absl::StrFormat("Reassigning size of realloc-ed memory %p from %zu "
-                          "to %zu failed, not found in map.",
-                          new_ptr, old_size, size));
+      return absl::InternalError(absl::StrFormat(
+          "%s Reassigning size of realloc-ed memory %p from %zu "
+          "to %zu failed, not found in map.",
+          kFailedTestPrefix, new_ptr, old_size, size));
     }
     return absl::OkStatus();
   }
@@ -108,10 +109,10 @@ absl::Status Utiltest::PostRealloc(void* new_ptr, void* old_ptr, size_t size) {
 
   auto [new_it, inserted] = size_map_.insert({ new_ptr, size });
   if (!inserted) {
-    return absl::InternalError(
-        absl::StrFormat("Reallocated pointer %p of size %zu conflicts with "
-                        "existing allocation %p of size %zu",
-                        new_ptr, size, new_it->first, new_it->second));
+    return absl::InternalError(absl::StrFormat(
+        "%s Reallocated pointer %p of size %zu conflicts with "
+        "existing allocation %p of size %zu",
+        kFailedTestPrefix, new_ptr, size, new_it->first, new_it->second));
   }
 
   return absl::OkStatus();
@@ -124,8 +125,8 @@ absl::Status Utiltest::PreRelease(void* ptr) {
 
   auto it = size_map_.find(ptr);
   if (it == size_map_.end()) {
-    return absl::InternalError(
-        absl::StrFormat("Freed memory %p not found in size map.", ptr));
+    return absl::InternalError(absl::StrFormat(
+        "%s Freed memory %p not found in size map.", kFailedTestPrefix, ptr));
   }
   const size_t old_size = RoundUp(it->second);
 
