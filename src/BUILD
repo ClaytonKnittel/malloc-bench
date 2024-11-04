@@ -24,13 +24,12 @@ cc_library(
     name = "perftest",
     srcs = ["perftest.cc"],
     hdrs = ["perftest.h"],
-    data = [
-        "//traces",
-    ],
     deps = [
-        ":allocator_interface",
         ":heap_factory",
+        ":malloc_runner",
+        ":tracefile_executor",
         ":tracefile_reader",
+        "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/time",
     ],
@@ -40,9 +39,6 @@ cc_library(
     name = "utiltest",
     srcs = ["utiltest.cc"],
     hdrs = ["utiltest.h"],
-    data = [
-        "//traces",
-    ],
     deps = [
         ":allocator_interface",
         ":heap_factory",
@@ -194,10 +190,8 @@ cc_binary(
 
 cc_library(
     name = "tracefile_executor",
-    srcs = ["tracefile_executor.cc"],
     hdrs = ["tracefile_executor.h"],
     deps = [
-        ":heap_factory",
         ":tracefile_reader",
         "//proto:tracefile_cc_proto",
         "@abseil-cpp//absl/status",
@@ -222,7 +216,6 @@ cc_library(
 
 cc_library(
     name = "malloc_runner",
-    srcs = ["malloc_runner.cc"],
     hdrs = ["malloc_runner.h"],
     deps = [
         ":allocator_interface",

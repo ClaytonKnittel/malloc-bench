@@ -10,14 +10,13 @@
 
 namespace bench {
 
-class Utiltest : private MallocRunner {
+class Utiltest : public MallocRunner<> {
  public:
+  explicit Utiltest(HeapFactory& heap_factory);
+
   static absl::StatusOr<double> MeasureUtilization(
       TracefileReader& reader, HeapFactory& heap_factory,
       const TracefileExecutorOptions& options = TracefileExecutorOptions());
-
- private:
-  Utiltest(TracefileReader& reader, HeapFactory& heap_factory);
 
   absl::Status PostAlloc(void* ptr, size_t size,
                          std::optional<size_t> alignment,
@@ -29,6 +28,7 @@ class Utiltest : private MallocRunner {
 
   absl::Status PreRelease(void* ptr) override;
 
+ private:
   void RecomputeMax(size_t total_allocated_bytes);
 
   absl::StatusOr<double> ComputeUtilization() const;
