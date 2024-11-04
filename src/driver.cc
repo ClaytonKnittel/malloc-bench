@@ -113,6 +113,8 @@ absl::StatusOr<TraceResult> RunTrace(const std::string& tracefile,
       return std::make_pair(mega_ops, utilization);
     }();
     if (!perf_util_result.ok()) {
+      std::cout << "Failed " << tracefile << ": " << perf_util_result.status()
+                << std::endl;
       result.correct = false;
     } else {
       auto [mega_ops, utilization] = perf_util_result.value();
