@@ -26,7 +26,7 @@ class Heap {
   Heap(Heap&& heap) noexcept
       : max_size_(heap.max_size_),
         heap_start_(heap.heap_start_),
-        heap_end_(heap.heap_end_.load()) {
+        heap_end_(heap.heap_end_.load(std::memory_order_relaxed)) {
     heap.heap_start_ = nullptr;
     heap.heap_end_ = nullptr;
   }
