@@ -112,13 +112,17 @@ absl::StatusOr<void*> MallocRunner<Config>::Malloc(
   if (options_.verbose) {
     if (alignment.has_value()) {
       std::cout << "aligned_alloc(" << size << ", " << alignment.value() << ")"
-                << std::endl;
+                << std::flush;
     } else {
-      std::cout << "malloc(" << size << ")" << std::endl;
+      std::cout << "malloc(" << size << ")" << std::flush;
     }
   }
 
   void* ptr = bench::malloc(size, alignment.value_or(0));
+
+  if (options_.verbose) {
+    std::cout << " = " << ptr << std::endl;
+  }
 
   if (size == 0 && ptr != nullptr) {
     return absl::InternalError(
@@ -138,10 +142,14 @@ absl::StatusOr<void*> MallocRunner<Config>::Calloc(size_t nmemb, size_t size) {
   }
 
   if (options_.verbose) {
-    std::cout << "calloc(" << nmemb << ", " << size << ")" << std::endl;
+    std::cout << "calloc(" << nmemb << ", " << size << ")" << std::flush;
   }
 
   void* ptr = bench::calloc(nmemb, size);
+
+  if (options_.verbose) {
+    std::cout << " = " << ptr << std::endl;
+  }
 
   if ((nmemb == 0 || size == 0) && ptr != nullptr) {
     return absl::InternalError(
@@ -163,11 +171,16 @@ absl::StatusOr<void*> MallocRunner<Config>::Realloc(void* ptr, size_t size) {
   }
 
   if (options_.verbose) {
-    std::cout << "realloc(" << ptr << ", " << size << ")" << std::endl;
+    std::cout << "realloc(" << ptr << ", " << size << ")" << std::flush;
   }
 
   if (ptr == nullptr) {
     void* new_ptr = bench::realloc(nullptr, size);
+
+    if (options_.verbose) {
+      std::cout << " = " << ptr << std::endl;
+    }
+
     RETURN_IF_ERROR(PostAlloc(new_ptr, size, /*alignment=*/std::nullopt,
                               /*is_calloc=*/false));
     return new_ptr;
@@ -175,6 +188,11 @@ absl::StatusOr<void*> MallocRunner<Config>::Realloc(void* ptr, size_t size) {
 
   RETURN_IF_ERROR(PreRealloc(ptr, size));
   void* new_ptr = bench::realloc(ptr, size);
+
+  if (options_.verbose) {
+    std::cout << " = " << ptr << std::endl;
+  }
+
   RETURN_IF_ERROR(PostRealloc(new_ptr, /*old_ptr=*/ptr, size));
   return new_ptr;
 }
@@ -183,6 +201,10 @@ template <MallocRunnerConfig Config>
 absl::Status MallocRunner<Config>::Free(void* ptr,
                                         std::optional<size_t> size_hint,
                                         std::optional<size_t> alignment_hint) {
+  if (options_.verbose) {
+    std::cout << "free(" << ptr << ")" << std::endl;
+  }
+
   if constexpr (!Config.perftest) {
     RETURN_IF_ERROR(PreRelease(ptr));
   }
