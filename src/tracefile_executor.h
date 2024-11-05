@@ -548,11 +548,7 @@ absl::Status TracefileExecutor<Allocator>::RewriteIdsToUnique(
             return absl::FailedPreconditionError(absl::StrFormat(
                 "Unknown ID being realloc-ed: %v", realloc.input_id()));
           }
-          if (release_it->second.second != 0) {
-            realloc.set_input_id(release_it->second.first);
-          } else {
-            realloc.clear_input_id();
-          }
+          realloc.set_input_id(release_it->second.first);
           new_id_map.erase(release_it);
         }
 
@@ -577,11 +573,7 @@ absl::Status TracefileExecutor<Allocator>::RewriteIdsToUnique(
           return absl::FailedPreconditionError(
               absl::StrFormat("Unknown ID being freed: %v", free.input_id()));
         }
-        if (release_it->second.second != 0) {
-          free.set_input_id(release_it->second.first);
-        } else {
-          free.clear_input_id();
-        }
+        free.set_input_id(release_it->second.first);
         new_id_map.erase(release_it);
         break;
       }
