@@ -81,14 +81,16 @@ class TracefileExecutor {
     // Adds an allocation to the map. Returns a failure status if it failed
     // because the key `id` was already in use.
     absl::Status AddAllocation(uint64_t id, void* allocated_ptr) {
-      auto [it, inserted] = id_map_.insert(id, allocated_ptr);
+      auto [it, inserted] =
+          id_map_.insert(id, MapVal{ .allocated_ptr = allocated_ptr });
       if (!inserted) {
         // If the insertion failed, that means there was a pending allocation
         // marker in this slot.
-        auto map_val = it->second;
+        auto pending_idx = it->second.idx;
 
         // Replace the slot with the allocated pointer...
-        auto result = id_map_.assign(id, allocated_ptr);
+        auto result =
+            id_map_.assign(id, MapVal{ .allocated_ptr = allocated_ptr });
         if (!result.has_value()) {
           return absl::InternalError(absl::StrFormat(
               "Failed to insert %v after queuing pending operation.", id));
@@ -97,7 +99,7 @@ class TracefileExecutor {
         // and then push the pending index to the queue.
         {
           absl::MutexLock lock(&queue_lock_);
-          queued_ops_.push_back(map_val.idx);
+          queued_ops_.push_back(std::move(pending_idx));
         }
       }
 
