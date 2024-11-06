@@ -1,6 +1,7 @@
 #pragma once
 
 #include <atomic>
+#include <barrier>
 #include <cstddef>
 #include <cstdint>
 #include <deque>
@@ -195,7 +196,8 @@ class TracefileExecutor {
   // Worker thread main loop, returns the total amount of time spend in
   // allocation code (filtering out *most* of the expensive testing
   // infrastructure logic).
-  absl::StatusOr<absl::Duration> ProcessorWorker(std::atomic<size_t>& idx,
+  absl::StatusOr<absl::Duration> ProcessorWorker(std::barrier<>& barrier,
+                                                 std::atomic<size_t>& idx,
                                                  std::atomic<bool>& done,
                                                  const Tracefile& tracefile,
                                                  ConcurrentIdMap& global_id_map,
@@ -435,6 +437,8 @@ TracefileExecutor<Allocator>::ProcessTracefileMultithreaded(
   absl::Mutex status_lock;
 
   {
+    std::barrier barrier(options.n_threads);
+
     std::atomic<bool> done = false;
 
     std::atomic<size_t> idx = 0;
@@ -445,10 +449,12 @@ TracefileExecutor<Allocator>::ProcessTracefileMultithreaded(
 
     for (uint32_t i = 0; i < options.n_threads; i++) {
       threads.emplace_back([this, &max_allocation_time, &status, &status_lock,
-                            &done, &idx, &tracefile, &global_id_map,
+                            &barrier, &done, &idx, &tracefile, &global_id_map,
                             num_repetitions]() {
-        auto result = ProcessorWorker(idx, done, tracefile, global_id_map,
-                                      num_repetitions);
+        auto result = ProcessorWorker(barrier, idx, done, tracefile,
+                                      global_id_map, num_repetitions);
+        barrier.arrive_and_drop();
+
         if (result.ok()) {
           absl::MutexLock lock(&status_lock);
           max_allocation_time = std::max(result.value(), max_allocation_time);
@@ -477,7 +483,7 @@ TracefileExecutor<Allocator>::ProcessTracefileMultithreaded(
 
 template <TracefileAllocator Allocator>
 absl::StatusOr<absl::Duration> TracefileExecutor<Allocator>::ProcessorWorker(
-    std::atomic<size_t>& idx, std::atomic<bool>& done,
+    std::barrier<>& barrier, std::atomic<size_t>& idx, std::atomic<bool>& done,
     const Tracefile& tracefile, ConcurrentIdMap& global_id_map,
     uint64_t num_repetitions) {
   static constexpr size_t kBatchSize = 1024;
@@ -558,6 +564,7 @@ absl::StatusOr<absl::Duration> TracefileExecutor<Allocator>::ProcessorWorker(
     queue_empty = iters == 0;
 
     size_t first_idx = idx.fetch_add(kBatchSize, std::memory_order_relaxed);
+    barrier.arrive_and_wait();
     if (first_idx >= num_repetitions * tracefile.lines_size()) {
       idx.store(num_repetitions * tracefile.lines_size(),
                 std::memory_order_relaxed);
@@ -579,6 +586,7 @@ absl::StatusOr<absl::Duration> TracefileExecutor<Allocator>::ProcessorWorker(
 
     RETURN_IF_ERROR(local_id_map.FlushOps());
 
+    barrier.arrive_and_wait();
     absl::Time start = absl::Now();
     for (uint64_t i = 0; i < iters; i++) {
       auto [line, iteration] = idxs[i];
