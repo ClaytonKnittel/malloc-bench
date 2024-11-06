@@ -549,14 +549,13 @@ absl::StatusOr<absl::Duration> TracefileExecutor<Allocator>::ProcessorWorker(
   bool tracefile_complete = false;
   absl::Duration time;
 
+  LocalIdMap local_id_map(id_map_container);
   while (!done.load(std::memory_order_relaxed) &&
          (!queue_empty || !tracefile_complete)) {
     std::pair<const TraceLine*, uint64_t> idxs[kQueueProcessLen];
     uint32_t iters = id_map_container.TakeFromQueue(idxs);
     queue_empty = iters == 0;
 
-    // TODO: move this outside loop.
-    LocalIdMap local_id_map(id_map_container);
     size_t first_idx = idx.fetch_add(kBatchSize, std::memory_order_relaxed);
     if (first_idx >= num_repetitions * tracefile.lines_size()) {
       idx.store(num_repetitions * tracefile.lines_size(),
