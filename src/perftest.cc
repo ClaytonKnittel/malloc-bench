@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdlib>
 
+#include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/time/time.h"
 
@@ -38,13 +39,14 @@ absl::Status Perftest::PostAlloc(void* ptr, size_t size,
   return absl::OkStatus();
 }
 
-absl::Status Perftest::PreRealloc(void* ptr, size_t size) {
+absl::StatusOr<bool> Perftest::PreRealloc(void* ptr, size_t size) {
   (void) ptr;
   (void) size;
-  return absl::OkStatus();
+  return false;
 }
 
-absl::Status Perftest::PostRealloc(void* new_ptr, void* old_ptr, size_t size) {
+absl::Status Perftest::PostRealloc(void* new_ptr, void* old_ptr, size_t size,
+                                   bool) {
   (void) new_ptr;
   (void) old_ptr;
   (void) size;
