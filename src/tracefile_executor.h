@@ -481,6 +481,7 @@ absl::Status TracefileExecutor<Allocator>::ProcessorWorker(
       auto [it, inserted] = id_map.insert({ id, ptr });
       return inserted;
     }
+
     std::optional<void*> GetId(
         uint64_t id, std::pair<const TraceLine*, uint64_t> idx) const {
       auto it = id_map.find(id);
@@ -490,6 +491,7 @@ absl::Status TracefileExecutor<Allocator>::ProcessorWorker(
 
       return global_id_map.LookupOrQueueAllocation(id, std::move(idx));
     }
+
     size_t ClearId(uint64_t id) {
       if (id_map.erase(id) == 0) {
         erased_ids.push_back(id);
