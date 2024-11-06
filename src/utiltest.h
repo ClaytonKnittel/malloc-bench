@@ -1,5 +1,6 @@
 #pragma once
 
+#include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "folly/concurrency/ConcurrentHashMap.h"
 
@@ -10,7 +11,7 @@
 
 namespace bench {
 
-class Utiltest : public MallocRunner<> {
+class Utiltest : public MallocRunner<size_t> {
  public:
   explicit Utiltest(HeapFactory& heap_factory);
 
@@ -22,9 +23,10 @@ class Utiltest : public MallocRunner<> {
                          std::optional<size_t> alignment,
                          bool is_calloc) override;
 
-  absl::Status PreRealloc(void* ptr, size_t size) override;
+  absl::StatusOr<size_t> PreRealloc(void* ptr, size_t size) override;
 
-  absl::Status PostRealloc(void* new_ptr, void* old_ptr, size_t size) override;
+  absl::Status PostRealloc(void* new_ptr, void* old_ptr, size_t size,
+                           size_t prev_size) override;
 
   absl::Status PreRelease(void* ptr) override;
 

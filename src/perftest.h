@@ -12,7 +12,8 @@
 
 namespace bench {
 
-class Perftest : public MallocRunner<MallocRunnerConfig{ .perftest = true }> {
+class Perftest
+    : public MallocRunner<bool, MallocRunnerConfig{ .perftest = true }> {
  public:
   explicit Perftest(HeapFactory& heap_factory);
 
@@ -26,9 +27,10 @@ class Perftest : public MallocRunner<MallocRunnerConfig{ .perftest = true }> {
                          std::optional<size_t> alignment,
                          bool is_calloc) override;
 
-  absl::Status PreRealloc(void* ptr, size_t size) override;
+  absl::StatusOr<bool> PreRealloc(void* ptr, size_t size) override;
 
-  absl::Status PostRealloc(void* new_ptr, void* old_ptr, size_t size) override;
+  absl::Status PostRealloc(void* new_ptr, void* old_ptr, size_t size,
+                           bool) override;
 
   absl::Status PreRelease(void* ptr) override;
 };
