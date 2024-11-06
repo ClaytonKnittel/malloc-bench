@@ -26,7 +26,7 @@ template <typename T>
 concept IdMapContainer = requires(T t, uint64_t id, void* ptr,
                                   std::pair<const TraceLine*, uint64_t> idx) {
   { t.SetId(id, ptr) } -> std::convertible_to<bool>;
-  { t.GetId(id, idx) } -> std::convertible_to<std::optional<void*>>;
+  { t.GetOrQueueId(id, idx) } -> std::convertible_to<std::optional<void*>>;
   { t.ClearId(id) } -> std::convertible_to<size_t>;
 };
 
@@ -150,22 +150,6 @@ class TracefileExecutor {
     absl::Mutex queue_lock_;
     std::deque<std::pair<const TraceLine*, uint64_t>> queued_ops_
         BENCH_GUARDED_BY(queue_lock_);
-  };
-
-  struct HashIdMap2 {
-    folly::ConcurrentHashMap<uint64_t, void*> id_map;
-
-    bool SetId(uint64_t id, void* ptr) {
-      auto [it, inserted] = id_map.insert({ id, ptr });
-      return inserted;
-    }
-    std::optional<void*> GetId(uint64_t id) const {
-      auto it = id_map.find(id);
-      return it != id_map.end() ? std::optional(it->second) : std::nullopt;
-    }
-    size_t ClearId(uint64_t id) {
-      return id_map.erase(id);
-    }
   };
 
   uint64_t UniqueId(uint64_t id, uint64_t iteration) {
@@ -292,7 +276,8 @@ absl::Status TracefileExecutor<Allocator>::DoRealloc(const TraceLine& line,
   void* input_ptr;
   if (realloc.has_input_id()) {
     uint64_t unique_id = UniqueId(realloc.input_id(), iteration);
-    std::optional<void*> result = id_map.GetId(unique_id, { &line, iteration });
+    std::optional<void*> result =
+        id_map.GetOrQueueId(unique_id, { &line, iteration });
     if (!result.has_value()) {
       return absl::OkStatus();
     }
@@ -329,7 +314,8 @@ absl::Status TracefileExecutor<Allocator>::DoFree(const TraceLine& line,
   }
 
   uint64_t unique_id = UniqueId(free.input_id(), iteration);
-  std::optional<void*> result = id_map.GetId(unique_id, { &line, iteration });
+  std::optional<void*> result =
+      id_map.GetOrQueueId(unique_id, { &line, iteration });
   if (!result.has_value()) {
     return absl::OkStatus();
   }
@@ -366,7 +352,7 @@ absl::Status TracefileExecutor<Allocator>::ProcessTracefile(
       id_map[id] = ptr;
       return true;
     }
-    std::optional<void*> GetId(
+    std::optional<void*> GetOrQueueId(
         uint64_t id, std::pair<const TraceLine*, uint64_t> idx) const {
       (void) idx;
       return id_map[id];
@@ -482,7 +468,7 @@ absl::Status TracefileExecutor<Allocator>::ProcessorWorker(
       return inserted;
     }
 
-    std::optional<void*> GetId(
+    std::optional<void*> GetOrQueueId(
         uint64_t id, std::pair<const TraceLine*, uint64_t> idx) const {
       auto it = id_map.find(id);
       if (it != id_map.end()) {
@@ -508,6 +494,7 @@ absl::Status TracefileExecutor<Allocator>::ProcessorWorker(
       }
       id_map.clear();
       erased_ids.clear();
+      // TODO: reserve capacity again.
       return absl::OkStatus();
     }
   };
