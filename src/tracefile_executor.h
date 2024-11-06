@@ -15,6 +15,7 @@
 
 #include "proto/tracefile.pb.h"
 #include "src/tracefile_reader.h"
+#include "src/util.h"
 
 namespace bench {
 
@@ -74,7 +75,64 @@ class TracefileExecutor {
   }
 
  private:
-  struct HashIdMap {
+  class ConcurrentIdMap {
+   public:
+    // Adds an allocation to the map. Returns a failure status if it failed
+    // because the key `id` was already in use.
+    absl::Status AddAllocation(uint64_t id, void* allocated_ptr) {
+      auto [it, inserted] = id_map_.insert(id, allocated_ptr);
+      if (!inserted) {
+        {
+          absl::MutexLock lock(&queue_lock_);
+          queued_idxs_.push_back(it->second);
+        }
+
+        auto result = id_map_.assign(id, allocated_ptr);
+        if (!result.has_value()) {
+          return absl::InternalError(absl::StrFormat(
+              "Failed to insert %v after queuing pending operation.", id));
+        }
+      }
+
+      return absl::OkStatus();
+    }
+
+    // Removes a tracked allocation from the map (because it was freed). Returns
+    // an error status if the removal failed because the key `id` was not found.
+    absl::Status AddFree(uint64_t id) {
+      size_t erased_elems = id_map_.erase(id);
+      if (erased_elems != 1) {
+        return absl::InternalError(absl::StrFormat(
+            "Failed to erase ID %v from the map, not found", id));
+      }
+      return absl::OkStatus();
+    }
+
+    // Looks up a pointer associated with an allocation with given `id`,
+    // returning that pointer if one is found. If no allocation is found, `op`
+    // is inserted in the map at this id, and `std::nullopt` is returned.
+    std::optional<void*> LookupOrQueueAllocation(
+        uint64_t id, std::pair<uint64_t, uint64_t> idx) {
+      auto [it, inserted] = id_map_.insert(id, std::move(idx));
+      if (inserted) {
+        return std::nullopt;
+      }
+      return (*it).allocated_ptr;
+    }
+
+   private:
+    union MapVal {
+      void* allocated_ptr;
+      std::pair<uint64_t, uint64_t> idx;
+    };
+
+    folly::ConcurrentHashMap<uint64_t, MapVal> id_map_;
+    absl::Mutex queue_lock_;
+    std::deque<std::pair<uint64_t, uint64_t>> queued_idxs_
+        BENCH_GUARDED_BY(queue_lock_);
+  };
+
+  struct HashIdMap2 {
     folly::ConcurrentHashMap<uint64_t, void*> id_map;
 
     bool SetId(uint64_t id, void* ptr) {
@@ -115,12 +173,11 @@ class TracefileExecutor {
   absl::Status ProcessTracefileMultithreaded(
       uint64_t num_repetitions, const TracefileExecutorOptions& options);
 
-  absl::Status ProcessorWorker(
-      std::atomic<size_t>& idx, std::atomic<bool>& done,
-      const Tracefile& tracefile, HashIdMap& id_map_container,
-      absl::Mutex& queue_mutex,
-      std::deque<std::pair<uint64_t, uint64_t>>& queued_idxs,
-      uint64_t num_repetitions);
+  absl::Status ProcessorWorker(std::atomic<size_t>& idx,
+                               std::atomic<bool>& done,
+                               const Tracefile& tracefile,
+                               ConcurrentIdMap& id_map_container,
+                               uint64_t num_repetitions);
 
   static absl::Status RewriteIdsToUnique(Tracefile& tracefile);
 
@@ -339,31 +396,26 @@ absl::Status TracefileExecutor<Allocator>::ProcessTracefileMultithreaded(
   RETURN_IF_ERROR(RewriteIdsToUnique(tracefile));
 
   absl::Status status = absl::OkStatus();
+  absl::Mutex status_lock;
 
   {
     std::atomic<bool> done = false;
 
     std::atomic<size_t> idx = 0;
-    HashIdMap id_map_container;
-
-    absl::Mutex queue_mutex;
-    std::deque<std::pair<uint64_t, uint64_t>> queued_idxs;
+    ConcurrentIdMap id_map_container;
 
     std::vector<std::thread> threads;
     threads.reserve(options.n_threads);
 
     for (uint32_t i = 0; i < options.n_threads; i++) {
-      threads.emplace_back([this, &status, &done, &idx, &tracefile,
-                            &id_map_container, &queue_mutex, &queued_idxs,
-                            num_repetitions]() {
-        auto result =
-            ProcessorWorker(idx, done, tracefile, id_map_container, queue_mutex,
-                            queued_idxs, num_repetitions);
+      threads.emplace_back([this, &status, &status_lock, &done, &idx,
+                            &tracefile, &id_map_container, num_repetitions]() {
+        auto result = ProcessorWorker(idx, done, tracefile, id_map_container,
+                                      num_repetitions);
         if (!result.ok()) {
           done.store(true, std::memory_order_relaxed);
 
-          // Use the queue lock, no need to make another lock.
-          absl::MutexLock lock(&queue_mutex);
+          absl::MutexLock lock(&status_lock);
           if (status.ok()) {
             status = result;
           }
@@ -382,19 +434,17 @@ absl::Status TracefileExecutor<Allocator>::ProcessTracefileMultithreaded(
 template <TracefileAllocator Allocator>
 absl::Status TracefileExecutor<Allocator>::ProcessorWorker(
     std::atomic<size_t>& idx, std::atomic<bool>& done,
-    const Tracefile& tracefile, HashIdMap& id_map_container,
-    absl::Mutex& queue_mutex,
-    std::deque<std::pair<uint64_t, uint64_t>>& queued_idxs,
+    const Tracefile& tracefile, ConcurrentIdMap& id_map_container,
     uint64_t num_repetitions) {
   static constexpr size_t kBatchSize = 1024;
   static constexpr size_t kQueueProcessLen = 1024;
 
   struct LocalIdMap {
-    const HashIdMap& global_id_map;
+    const ConcurrentIdMap& global_id_map;
     absl::flat_hash_map<uint64_t, void*> id_map;
     std::vector<uint64_t> erased_ids;
 
-    explicit LocalIdMap(const HashIdMap& global_id_map)
+    explicit LocalIdMap(const ConcurrentIdMap& global_id_map)
         : global_id_map(global_id_map) {
       id_map.reserve(std::max(kBatchSize, kQueueProcessLen));
       erased_ids.reserve(std::max(kBatchSize, kQueueProcessLen));
@@ -420,7 +470,7 @@ absl::Status TracefileExecutor<Allocator>::ProcessorWorker(
       return 1;
     }
 
-    void FlushOps(HashIdMap& id_map_container) {
+    void FlushOps(ConcurrentIdMap& id_map_container) {
       for (const auto [id, ptr] : id_map) {
         bool inserted = id_map_container.SetId(id, ptr);
         (void) inserted;
