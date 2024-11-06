@@ -5,6 +5,7 @@
 #include <optional>
 
 #include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "folly/concurrency/ConcurrentHashMap.h"
 
 #include "src/heap_factory.h"
@@ -14,7 +15,12 @@
 
 namespace bench {
 
-class CorrectnessChecker : public MallocRunner<> {
+struct AllocatedBlock {
+  size_t size;
+  uint64_t magic_bytes;
+};
+
+class CorrectnessChecker : public MallocRunner<AllocatedBlock> {
  public:
   explicit CorrectnessChecker(HeapFactory& heap_factory, bool verbose);
 
@@ -25,16 +31,12 @@ class CorrectnessChecker : public MallocRunner<> {
   absl::Status PostAlloc(void* ptr, size_t size,
                          std::optional<size_t> alignment,
                          bool is_calloc) override;
-  absl::Status PreRealloc(void* ptr, size_t size) override;
-  absl::Status PostRealloc(void* new_ptr, void* old_ptr, size_t size) override;
+  absl::StatusOr<AllocatedBlock> PreRealloc(void* ptr, size_t size) override;
+  absl::Status PostRealloc(void* new_ptr, void* old_ptr, size_t size,
+                           AllocatedBlock prev_block) override;
   absl::Status PreRelease(void* ptr) override;
 
  private:
-  struct AllocatedBlock {
-    size_t size;
-    uint64_t magic_bytes;
-  };
-
   using BlockMap = folly::ConcurrentHashMap<void*, AllocatedBlock>;
 
   // Validates that a new block doesn't overlap with any existing block, and
