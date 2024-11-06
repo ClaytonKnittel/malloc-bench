@@ -468,51 +468,53 @@ absl::Status TracefileExecutor<Allocator>::ProcessorWorker(
   static constexpr size_t kBatchSize = 1024;
   static constexpr size_t kQueueProcessLen = 1024;
 
-  struct LocalIdMap {
-    ConcurrentIdMap& global_id_map;
-    absl::flat_hash_map<uint64_t, void*> id_map;
-    std::vector<uint64_t> erased_ids;
-
+  class LocalIdMap {
+   public:
     explicit LocalIdMap(ConcurrentIdMap& global_id_map)
-        : global_id_map(global_id_map) {
-      id_map.reserve(std::max(kBatchSize, kQueueProcessLen));
-      erased_ids.reserve(std::max(kBatchSize, kQueueProcessLen));
+        : global_id_map_(global_id_map) {
+      id_map_.reserve(std::max(kBatchSize, kQueueProcessLen));
+      erased_ids_.reserve(std::max(kBatchSize, kQueueProcessLen));
     }
 
     bool SetId(uint64_t id, void* ptr) {
-      auto [it, inserted] = id_map.insert({ id, ptr });
+      auto [it, inserted] = id_map_.insert({ id, ptr });
       return inserted;
     }
 
     std::optional<void*> GetOrQueueId(
         uint64_t id, std::pair<const TraceLine*, uint64_t> idx) const {
-      auto it = id_map.find(id);
-      if (it != id_map.end()) {
+      auto it = id_map_.find(id);
+      if (it != id_map_.end()) {
         return it->second;
       }
 
-      return global_id_map.LookupOrQueueAllocation(id, std::move(idx));
+      return global_id_map_.LookupOrQueueAllocation(id, std::move(idx));
     }
 
     size_t ClearId(uint64_t id) {
-      if (id_map.erase(id) == 0) {
-        erased_ids.push_back(id);
+      if (id_map_.erase(id) == 0) {
+        erased_ids_.push_back(id);
       }
       return 1;
     }
 
     absl::Status FlushOps() {
-      for (const auto [id, ptr] : id_map) {
-        RETURN_IF_ERROR(global_id_map.AddAllocation(id, ptr));
+      for (const auto [id, ptr] : id_map_) {
+        RETURN_IF_ERROR(global_id_map_.AddAllocation(id, ptr));
       }
-      for (uint64_t erased_id : erased_ids) {
-        RETURN_IF_ERROR(global_id_map.AddFree(erased_id));
+      for (uint64_t erased_id : erased_ids_) {
+        RETURN_IF_ERROR(global_id_map_.AddFree(erased_id));
       }
-      id_map.clear();
-      erased_ids.clear();
+      id_map_.clear();
+      erased_ids_.clear();
       // TODO: reserve capacity again.
       return absl::OkStatus();
     }
+
+   private:
+    ConcurrentIdMap& global_id_map_;
+    absl::flat_hash_map<uint64_t, void*> id_map_;
+    std::vector<uint64_t> erased_ids_;
   };
 
   bool queue_empty = false;
