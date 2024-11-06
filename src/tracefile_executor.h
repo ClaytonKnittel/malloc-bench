@@ -144,12 +144,11 @@ class TracefileExecutor {
       }
     }
 
-    template <size_t ArrayLen>
-    size_t TakeFromQueue(
-        std::pair<const TraceLine*, uint64_t> (&array)[ArrayLen]) {
+    size_t TakeFromQueue(std::pair<const TraceLine*, uint64_t> (&array)[],
+                         size_t array_len) {
       absl::MutexLock lock(&queue_lock_);
       uint32_t n_taken_elements =
-          static_cast<uint32_t>(std::min(queued_ops_.size(), ArrayLen));
+          static_cast<uint32_t>(std::min(queued_ops_.size(), array_len));
       for (uint32_t i = 0; i < n_taken_elements; i++) {
         array[i] = queued_ops_.front();
         queued_ops_.pop_front();
@@ -486,17 +485,16 @@ absl::StatusOr<absl::Duration> TracefileExecutor<Allocator>::ProcessorWorker(
     std::barrier<>& barrier, std::atomic<size_t>& idx, std::atomic<bool>& done,
     const Tracefile& tracefile, ConcurrentIdMap& global_id_map,
     uint64_t num_repetitions) {
-  static constexpr size_t kBatchSize = 1024;
-  static constexpr size_t kQueueProcessLen = 1024;
+  static constexpr size_t kBatchSize = 512;
+  static constexpr size_t kMaxQueuedOpsTaken = 128;
 
   class LocalIdMap {
    public:
     explicit LocalIdMap(ConcurrentIdMap& global_id_map)
         : global_id_map_(global_id_map) {
-      constexpr size_t kSuggestedSize = std::max(kBatchSize, kQueueProcessLen);
-      id_map_.reserve(kSuggestedSize);
-      erased_ids_.reserve(kSuggestedSize);
-      pending_ops_.reserve(kSuggestedSize);
+      id_map_.reserve(kBatchSize);
+      erased_ids_.reserve(kBatchSize);
+      pending_ops_.reserve(kBatchSize);
     }
 
     bool SetId(uint64_t id, void* ptr) {
@@ -540,7 +538,6 @@ absl::StatusOr<absl::Duration> TracefileExecutor<Allocator>::ProcessorWorker(
       id_map_.clear();
       erased_ids_.clear();
       pending_ops_.clear();
-      // TODO: reserve capacity again.
       return absl::OkStatus();
     }
 
@@ -552,44 +549,44 @@ absl::StatusOr<absl::Duration> TracefileExecutor<Allocator>::ProcessorWorker(
         pending_ops_;
   };
 
-  bool queue_empty = false;
-  bool tracefile_complete = false;
   absl::Duration time;
 
   LocalIdMap local_id_map(global_id_map);
-  while (!done.load(std::memory_order_relaxed) &&
-         (!queue_empty || !tracefile_complete)) {
-    std::pair<const TraceLine*, uint64_t> idxs[kQueueProcessLen];
-    uint32_t iters = global_id_map.TakeFromQueue(idxs);
-    queue_empty = iters == 0;
+  while (!done.load(std::memory_order_relaxed)) {
+    std::pair<const TraceLine*, uint64_t> ops[kBatchSize];
+    const size_t queued_ops_taken =
+        global_id_map.TakeFromQueue(ops, kMaxQueuedOpsTaken);
 
-    size_t first_idx = idx.fetch_add(kBatchSize, std::memory_order_relaxed);
-    barrier.arrive_and_wait();
+    const size_t num_trace_ops_to_take = kBatchSize - queued_ops_taken;
+    size_t first_idx =
+        idx.fetch_add(num_trace_ops_to_take, std::memory_order_relaxed);
     if (first_idx >= num_repetitions * tracefile.lines_size()) {
       idx.store(num_repetitions * tracefile.lines_size(),
                 std::memory_order_relaxed);
-      tracefile_complete = true;
-    } else {
-      absl::Time start = absl::Now();
-      for (size_t i = first_idx;
-           i < std::min<size_t>(first_idx + kBatchSize,
-                                num_repetitions * tracefile.lines_size());
-           i++) {
-        size_t line_idx = i % tracefile.lines_size();
-        uint64_t iteration = i / tracefile.lines_size();
-        RETURN_IF_ERROR(
-            ProcessLine(tracefile.lines(line_idx), iteration, local_id_map));
-      }
-      absl::Time end = absl::Now();
-      time += end - start;
+      first_idx = num_repetitions * tracefile.lines_size();
     }
 
-    RETURN_IF_ERROR(local_id_map.FlushOps());
+    const size_t end_idx =
+        std::min<size_t>(first_idx + num_trace_ops_to_take,
+                         num_repetitions * tracefile.lines_size());
+    const size_t trace_ops_taken = end_idx - first_idx;
+    for (size_t i = first_idx; i < end_idx; i++) {
+      size_t line_idx = i % tracefile.lines_size();
+      uint64_t iteration = i / tracefile.lines_size();
+      ops[queued_ops_taken + (i - first_idx)] =
+          std::make_pair(&tracefile.lines(line_idx), iteration);
+    }
+
+    const size_t total_ops_taken = queued_ops_taken + trace_ops_taken;
+    if (total_ops_taken == 0) {
+      break;
+    }
 
     barrier.arrive_and_wait();
+
     absl::Time start = absl::Now();
-    for (uint64_t i = 0; i < iters; i++) {
-      auto [line, iteration] = idxs[i];
+    for (size_t i = 0; i < total_ops_taken; i++) {
+      auto [line, iteration] = ops[i];
       RETURN_IF_ERROR(ProcessLine(*line, iteration, local_id_map));
     }
     absl::Time end = absl::Now();
