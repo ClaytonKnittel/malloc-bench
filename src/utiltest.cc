@@ -41,7 +41,7 @@ absl::StatusOr<double> Utiltest::MeasureUtilization(
     TracefileReader& reader, HeapFactory& heap_factory,
     const TracefileExecutorOptions& options) {
   TracefileExecutor<Utiltest> utiltest(reader, std::ref(heap_factory));
-  RETURN_IF_ERROR(utiltest.Run(options));
+  RETURN_IF_ERROR(utiltest.Run(options).status());
   return utiltest.Inner().ComputeUtilization();
 }
 

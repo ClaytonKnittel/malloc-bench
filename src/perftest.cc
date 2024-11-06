@@ -23,12 +23,11 @@ absl::StatusOr<double> Perftest::TimeTrace(
 
   const uint64_t num_repetitions = (min_desired_ops - 1) / reader.size() + 1;
 
-  absl::Time start = absl::Now();
-  RETURN_IF_ERROR(perftest.RunRepeated(num_repetitions, options));
-  absl::Time end = absl::Now();
+  DEFINE_OR_RETURN(absl::Duration, time,
+                   perftest.RunRepeated(num_repetitions, options));
 
   uint64_t total_ops = num_repetitions * reader.size();
-  double seconds = absl::FDivDuration((end - start), absl::Seconds(1));
+  double seconds = absl::FDivDuration(time, absl::Seconds(1));
   return total_ops / seconds / 1000000;
 }
 
