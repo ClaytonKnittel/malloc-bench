@@ -119,16 +119,28 @@ class TracefileExecutor {
       return absl::OkStatus();
     }
 
-    // Looks up a pointer associated with an allocation with given `id`,
-    // returning that pointer if one is found. If no allocation is found, `op`
-    // is inserted in the map at this id, and `std::nullopt` is returned.
-    std::optional<void*> LookupOrQueueAllocation(
-        uint64_t id, std::pair<const TraceLine*, uint64_t> idx) {
-      auto [it, inserted] = id_map_.insert(id, MapVal{ .idx = std::move(idx) });
-      if (inserted) {
+    // Looks up an allocation by ID, returning the pointer allocated with this
+    // ID if it exists, otherwise `std::nullopt`.
+    std::optional<void*> LookupAllocation(uint64_t id) {
+      auto it = id_map_.find(id);
+      if (it == id_map_.end()) {
         return std::nullopt;
       }
       return it->second.allocated_ptr;
+    }
+
+    // Queues an allocation that was previously not able to execute. This will
+    // atomically check for an allocation made under `id`, and if not insert
+    // `idx` into the id map as a dependent operation. If an allocation was
+    // found to be made, this operation is instead directly inserted into the
+    // queue.
+    void QueueAllocation(uint64_t id,
+                         std::pair<const TraceLine*, uint64_t> idx) {
+      auto [it, inserted] = id_map_.insert(id, MapVal{ .idx = idx });
+      if (!inserted) {
+        absl::MutexLock lock(&queue_lock_);
+        queued_ops_.push_back(std::move(idx));
+      }
     }
 
     template <size_t ArrayLen>
@@ -472,8 +484,10 @@ absl::Status TracefileExecutor<Allocator>::ProcessorWorker(
    public:
     explicit LocalIdMap(ConcurrentIdMap& global_id_map)
         : global_id_map_(global_id_map) {
-      id_map_.reserve(std::max(kBatchSize, kQueueProcessLen));
-      erased_ids_.reserve(std::max(kBatchSize, kQueueProcessLen));
+      constexpr size_t kSuggestedSize = std::max(kBatchSize, kQueueProcessLen);
+      id_map_.reserve(kSuggestedSize);
+      erased_ids_.reserve(kSuggestedSize);
+      pending_ops_.reserve(kSuggestedSize);
     }
 
     bool SetId(uint64_t id, void* ptr) {
@@ -482,13 +496,19 @@ absl::Status TracefileExecutor<Allocator>::ProcessorWorker(
     }
 
     std::optional<void*> GetOrQueueId(
-        uint64_t id, std::pair<const TraceLine*, uint64_t> idx) const {
+        uint64_t id, std::pair<const TraceLine*, uint64_t> idx) {
       auto it = id_map_.find(id);
       if (it != id_map_.end()) {
         return it->second;
       }
 
-      return global_id_map_.LookupOrQueueAllocation(id, std::move(idx));
+      auto result = global_id_map_.LookupAllocation(id);
+      if (result.has_value()) {
+        return result.value();
+      }
+
+      pending_ops_.emplace_back(id, std::move(idx));
+      return std::nullopt;
     }
 
     size_t ClearId(uint64_t id) {
@@ -505,8 +525,12 @@ absl::Status TracefileExecutor<Allocator>::ProcessorWorker(
       for (uint64_t erased_id : erased_ids_) {
         RETURN_IF_ERROR(global_id_map_.AddFree(erased_id));
       }
+      for (auto [id, idx] : pending_ops_) {
+        global_id_map_.QueueAllocation(id, std::move(idx));
+      }
       id_map_.clear();
       erased_ids_.clear();
+      pending_ops_.clear();
       // TODO: reserve capacity again.
       return absl::OkStatus();
     }
@@ -515,6 +539,8 @@ absl::Status TracefileExecutor<Allocator>::ProcessorWorker(
     ConcurrentIdMap& global_id_map_;
     absl::flat_hash_map<uint64_t, void*> id_map_;
     std::vector<uint64_t> erased_ids_;
+    std::vector<std::pair<uint64_t, std::pair<const TraceLine*, uint64_t>>>
+        pending_ops_;
   };
 
   bool queue_empty = false;
@@ -526,6 +552,7 @@ absl::Status TracefileExecutor<Allocator>::ProcessorWorker(
     uint32_t iters = id_map_container.TakeFromQueue(idxs);
     queue_empty = iters == 0;
 
+    // TODO: move this outside loop.
     LocalIdMap local_id_map(id_map_container);
     size_t first_idx = idx.fetch_add(kBatchSize, std::memory_order_relaxed);
     if (first_idx >= num_repetitions * tracefile.lines_size()) {
