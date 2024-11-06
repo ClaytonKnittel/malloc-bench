@@ -192,11 +192,13 @@ class TracefileExecutor {
   absl::StatusOr<absl::Duration> ProcessTracefileMultithreaded(
       uint64_t num_repetitions, const TracefileExecutorOptions& options);
 
-  absl::Status ProcessorWorker(std::atomic<size_t>& idx,
-                               std::atomic<bool>& done,
-                               const Tracefile& tracefile,
-                               ConcurrentIdMap& id_map_container,
-                               uint64_t num_repetitions);
+  // Worker thread main loop, returns the total amount of time spend in
+  // allocation code (filtering out *most* of the expensive testing
+  // infrastructure logic).
+  absl::StatusOr<absl::Duration> ProcessorWorker(
+      std::atomic<size_t>& idx, std::atomic<bool>& done,
+      const Tracefile& tracefile, ConcurrentIdMap& id_map_container,
+      uint64_t num_repetitions);
 
   static absl::Status RewriteIdsToUnique(Tracefile& tracefile);
 
@@ -427,10 +429,9 @@ TracefileExecutor<Allocator>::ProcessTracefileMultithreaded(
   Tracefile tracefile(reader_.Tracefile());
   RETURN_IF_ERROR(RewriteIdsToUnique(tracefile));
 
+  absl::Duration max_allocation_time;
   absl::Status status = absl::OkStatus();
   absl::Mutex status_lock;
-  absl::Time start;
-  absl::Time end;
 
   {
     std::atomic<bool> done = false;
@@ -441,18 +442,21 @@ TracefileExecutor<Allocator>::ProcessTracefileMultithreaded(
     std::vector<std::thread> threads;
     threads.reserve(options.n_threads);
 
-    start = absl::Now();
     for (uint32_t i = 0; i < options.n_threads; i++) {
-      threads.emplace_back([this, &status, &status_lock, &done, &idx,
-                            &tracefile, &id_map_container, num_repetitions]() {
+      threads.emplace_back([this, &max_allocation_time, &status, &status_lock,
+                            &done, &idx, &tracefile, &id_map_container,
+                            num_repetitions]() {
         auto result = ProcessorWorker(idx, done, tracefile, id_map_container,
                                       num_repetitions);
-        if (!result.ok()) {
+        if (result.ok()) {
+          absl::MutexLock lock(&status_lock);
+          max_allocation_time = std::max(result.value(), max_allocation_time);
+        } else {
           done.store(true, std::memory_order_relaxed);
 
           absl::MutexLock lock(&status_lock);
           if (status.ok()) {
-            status = result;
+            status = result.status();
           }
         }
       });
@@ -462,18 +466,16 @@ TracefileExecutor<Allocator>::ProcessTracefileMultithreaded(
       threads[i].join();
     }
 
-    end = absl::Now();
-
     if (!status.ok()) {
       return status;
     }
   }
 
-  return end - start;
+  return max_allocation_time;
 }
 
 template <TracefileAllocator Allocator>
-absl::Status TracefileExecutor<Allocator>::ProcessorWorker(
+absl::StatusOr<absl::Duration> TracefileExecutor<Allocator>::ProcessorWorker(
     std::atomic<size_t>& idx, std::atomic<bool>& done,
     const Tracefile& tracefile, ConcurrentIdMap& id_map_container,
     uint64_t num_repetitions) {
@@ -545,6 +547,7 @@ absl::Status TracefileExecutor<Allocator>::ProcessorWorker(
 
   bool queue_empty = false;
   bool tracefile_complete = false;
+  absl::Duration time;
 
   while (!done.load(std::memory_order_relaxed) &&
          (!queue_empty || !tracefile_complete)) {
@@ -560,6 +563,7 @@ absl::Status TracefileExecutor<Allocator>::ProcessorWorker(
                 std::memory_order_relaxed);
       tracefile_complete = true;
     } else {
+      absl::Time start = absl::Now();
       for (size_t i = first_idx;
            i < std::min<size_t>(first_idx + kBatchSize,
                                 num_repetitions * tracefile.lines_size());
@@ -569,19 +573,24 @@ absl::Status TracefileExecutor<Allocator>::ProcessorWorker(
         RETURN_IF_ERROR(
             ProcessLine(tracefile.lines(line_idx), iteration, local_id_map));
       }
+      absl::Time end = absl::Now();
+      time += end - start;
     }
 
     RETURN_IF_ERROR(local_id_map.FlushOps());
 
+    absl::Time start = absl::Now();
     for (uint64_t i = 0; i < iters; i++) {
       auto [line, iteration] = idxs[i];
       RETURN_IF_ERROR(ProcessLine(*line, iteration, local_id_map));
     }
+    absl::Time end = absl::Now();
+    time += end - start;
 
     RETURN_IF_ERROR(local_id_map.FlushOps());
   }
 
-  return absl::OkStatus();
+  return time;
 }
 
 /* static */
