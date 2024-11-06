@@ -10,6 +10,8 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/synchronization/mutex.h"
+#include "absl/time/clock.h"
+#include "absl/time/time.h"
 #include "folly/concurrency/ConcurrentHashMap.h"
 #include "util/absl_util.h"
 
@@ -61,10 +63,10 @@ class TracefileExecutor {
 
   // hi i am a coder woww i am going to hack into your compouter now with mty
   // computer skills hohohohoho
-  absl::Status Run(
+  absl::StatusOr<absl::Duration> Run(
       const TracefileExecutorOptions& options = TracefileExecutorOptions());
 
-  absl::Status RunRepeated(
+  absl::StatusOr<absl::Duration> RunRepeated(
       uint64_t num_repetitions,
       const TracefileExecutorOptions& options = TracefileExecutorOptions());
 
@@ -173,9 +175,9 @@ class TracefileExecutor {
   template <IdMapContainer IdMap>
   absl::Status DoFree(const TraceLine& line, uint64_t iteration, IdMap& id_map);
 
-  absl::Status ProcessTracefile(uint64_t num_repetitions);
+  absl::StatusOr<absl::Duration> ProcessTracefile(uint64_t num_repetitions);
 
-  absl::Status ProcessTracefileMultithreaded(
+  absl::StatusOr<absl::Duration> ProcessTracefileMultithreaded(
       uint64_t num_repetitions, const TracefileExecutorOptions& options);
 
   absl::Status ProcessorWorker(std::atomic<size_t>& idx,
@@ -202,17 +204,17 @@ TracefileExecutor<Allocator>::TracefileExecutor(TracefileReader& reader,
     : allocator_(std::forward<Args>(args)...), reader_(reader) {}
 
 template <TracefileAllocator Allocator>
-absl::Status TracefileExecutor<Allocator>::Run(
+absl::StatusOr<absl::Duration> TracefileExecutor<Allocator>::Run(
     const TracefileExecutorOptions& options) {
   return RunRepeated(/*num_repetitions=*/1, options);
 }
 
 template <TracefileAllocator Allocator>
-absl::Status TracefileExecutor<Allocator>::RunRepeated(
+absl::StatusOr<absl::Duration> TracefileExecutor<Allocator>::RunRepeated(
     uint64_t num_repetitions, const TracefileExecutorOptions& options) {
   RETURN_IF_ERROR(allocator_.InitializeHeap());
 
-  absl::Status result;
+  absl::StatusOr<absl::Duration> result;
   if (options.n_threads == 1) {
     result = ProcessTracefile(num_repetitions);
   } else {
@@ -342,7 +344,7 @@ absl::Status TracefileExecutor<Allocator>::DoFree(const TraceLine& line,
 }
 
 template <TracefileAllocator Allocator>
-absl::Status TracefileExecutor<Allocator>::ProcessTracefile(
+absl::StatusOr<absl::Duration> TracefileExecutor<Allocator>::ProcessTracefile(
     uint64_t num_repetitions) {
   // A map from allocation id's to pointers returned from the allocator. Since
   // id's are assigned contiguously from lowest to highest ID, they can be
@@ -369,6 +371,7 @@ absl::Status TracefileExecutor<Allocator>::ProcessTracefile(
       reader_.Tracefile().max_simultaneous_allocs();
   VectorIdMap id_map{ .id_map = std::vector<void*>(max_simultaneous_allocs) };
 
+  absl::Time start = absl::Now();
   for (uint64_t t = 0; t < num_repetitions; t++) {
     for (const TraceLine& line : reader_) {
       switch (line.op_case()) {
@@ -400,18 +403,22 @@ absl::Status TracefileExecutor<Allocator>::ProcessTracefile(
       }
     }
   }
+  absl::Time end = absl::Now();
 
-  return absl::OkStatus();
+  return end - start;
 }
 
 template <TracefileAllocator Allocator>
-absl::Status TracefileExecutor<Allocator>::ProcessTracefileMultithreaded(
+absl::StatusOr<absl::Duration>
+TracefileExecutor<Allocator>::ProcessTracefileMultithreaded(
     uint64_t num_repetitions, const TracefileExecutorOptions& options) {
   Tracefile tracefile(reader_.Tracefile());
   RETURN_IF_ERROR(RewriteIdsToUnique(tracefile));
 
   absl::Status status = absl::OkStatus();
   absl::Mutex status_lock;
+  absl::Time start;
+  absl::Time end;
 
   {
     std::atomic<bool> done = false;
@@ -422,6 +429,7 @@ absl::Status TracefileExecutor<Allocator>::ProcessTracefileMultithreaded(
     std::vector<std::thread> threads;
     threads.reserve(options.n_threads);
 
+    start = absl::Now();
     for (uint32_t i = 0; i < options.n_threads; i++) {
       threads.emplace_back([this, &status, &status_lock, &done, &idx,
                             &tracefile, &id_map_container, num_repetitions]() {
@@ -441,9 +449,15 @@ absl::Status TracefileExecutor<Allocator>::ProcessTracefileMultithreaded(
     for (uint32_t i = 0; i < options.n_threads; i++) {
       threads[i].join();
     }
+
+    end = absl::Now();
+
+    if (!status.ok()) {
+      return status;
+    }
   }
 
-  return status;
+  return end - start;
 }
 
 template <TracefileAllocator Allocator>

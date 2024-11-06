@@ -31,7 +31,7 @@ absl::Status CorrectnessChecker::Check(
 
   TracefileExecutor<CorrectnessChecker> checker(reader, std::ref(heap_factory),
                                                 verbose);
-  return checker.Run(options);
+  return checker.Run(options).status();
 }
 
 absl::Status CorrectnessChecker::PostAlloc(void* ptr, size_t size,
