@@ -130,10 +130,10 @@ class TracefileExecutor {
     }
 
     // Queues an allocation that was previously not able to execute. This will
-    // atomically check for an allocation made under `id`, and if not insert
-    // `idx` into the id map as a dependent operation. If an allocation was
-    // found to be made, this operation is instead directly inserted into the
-    // queue.
+    // atomically check for an allocation made under `id`, and if not found will
+    // insert `idx` into the id map as a dependent operation. If an allocation
+    // was found to be made, this operation is instead directly inserted into
+    // the queue.
     void QueueAllocation(uint64_t id,
                          std::pair<const TraceLine*, uint64_t> idx) {
       auto [it, inserted] = id_map_.insert(id, MapVal{ .idx = idx });
