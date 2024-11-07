@@ -1,6 +1,9 @@
 #pragma once
 
+#include <atomic>
 #include <cstddef>
+
+#include "absl/synchronization/mutex.h"
 
 #include "src/ckmalloc/global_state.h"
 #include "src/ckmalloc/sys_alloc.h"
@@ -12,20 +15,25 @@ class CkMalloc {
  public:
   // Returns the singleton `CkMalloc` instance.
   static CkMalloc* Instance() {
-    if (CK_EXPECT_FALSE(instance_ == nullptr)) {
-      RealSysAlloc::UseRealSysAlloc();
-      InitializeHeap();
+    CkMalloc* instance = instance_.load(std::memory_order_acquire);
+    if (CK_EXPECT_FALSE(instance == nullptr)) {
+      absl::MutexLock lock(&mutex_);
+      instance = instance_.load(std::memory_order_acquire);
+      if (instance == nullptr) {
+        RealSysAlloc::UseRealSysAlloc();
+        instance = InitializeHeap();
+      }
     }
-    CK_ASSERT_NE(instance_, nullptr);
-    instance_->global_state_.AssertConsistency();
-    return instance_;
+    CK_ASSERT_NE(instance, nullptr);
+    instance->global_state_.AssertConsistency();
+    return instance;
   }
 
   static void Reset() {
-    instance_ = nullptr;
+    instance_.store(nullptr, std::memory_order_relaxed);
   }
 
-  static void InitializeHeap();
+  static CkMalloc* InitializeHeap();
 
   void* Malloc(size_t size, size_t alignment);
 
@@ -48,9 +56,11 @@ class CkMalloc {
   // heap.
   static CkMalloc* Initialize();
 
-  static CkMalloc* instance_;
+  static std::atomic<CkMalloc*> instance_;
 
   class GlobalState global_state_;
+
+  static absl::Mutex mutex_;
 };
 
 }  // namespace ckmalloc

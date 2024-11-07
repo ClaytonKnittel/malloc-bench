@@ -2,6 +2,8 @@
 
 #include <cstddef>
 
+#include "absl/synchronization/mutex.h"
+
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/slab.h"
 #include "src/ckmalloc/slab_map.h"
@@ -56,6 +58,8 @@ class MetadataManagerImpl {
 
   // The head of a singly-linked list of free slabs.
   UnmappedSlab* last_free_slab_ = nullptr;
+
+  mutable absl::Mutex mutex_;
 };
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
@@ -66,6 +70,7 @@ void* MetadataManagerImpl<MetadataAlloc, SlabMap>::Alloc(size_t size,
   CK_ASSERT_LE(alignment, kPageSize);
   // Size must already be aligned to `alignment`.
   CK_ASSERT_EQ((size & (alignment - 1)), 0);
+  absl::MutexLock lock(&mutex_);
 
   uintptr_t current_end = reinterpret_cast<uintptr_t>(heap_end_);
   size_t alignment_offset = (~current_end + 1) & (alignment - 1);
@@ -86,10 +91,13 @@ void* MetadataManagerImpl<MetadataAlloc, SlabMap>::Alloc(size_t size,
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
 Slab* MetadataManagerImpl<MetadataAlloc, SlabMap>::NewSlabMeta() {
-  if (last_free_slab_ != nullptr) {
-    Slab* slab = last_free_slab_;
-    last_free_slab_ = last_free_slab_->NextUnmappedSlab();
-    return slab;
+  {
+    absl::MutexLock lock(&mutex_);
+    if (last_free_slab_ != nullptr) {
+      Slab* slab = last_free_slab_;
+      last_free_slab_ = last_free_slab_->NextUnmappedSlab();
+      return slab;
+    }
   }
 
   return reinterpret_cast<Slab*>(
@@ -99,6 +107,7 @@ Slab* MetadataManagerImpl<MetadataAlloc, SlabMap>::NewSlabMeta() {
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
 void MetadataManagerImpl<MetadataAlloc, SlabMap>::FreeSlabMeta(
     MappedSlab* slab) {
+  absl::MutexLock lock(&mutex_);
   slab->Init<UnmappedSlab>(last_free_slab_);
   last_free_slab_ = static_cast<Slab*>(slab)->ToUnmapped();
 }

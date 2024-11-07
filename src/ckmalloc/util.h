@@ -6,6 +6,27 @@
 #include <optional>
 #include <type_traits>
 
+#include "src/util.h"
+
+// Alias helper macros from ::bench util
+#define CK_HAS_ATTRIBUTE(x) BENCH_HAS_ATTRIBUTE(x)
+#define CK_GUARDED_BY(mu)   BENCH_GUARDED_BY(mu)
+#define CK_EXCLUSIVE_LOCKS_REQUIRED(...) \
+  BENCH_EXCLUSIVE_LOCKS_REQUIRED(__VA_ARGS__)
+#define CK_LOCKS_EXCLUDED(...) BENCH_LOCKS_EXCLUDED(__VA_ARGS__)
+
+#if defined(__cpp_constinit) && __cpp_constinit >= 201907L
+#define CK_CONST_INIT constinit
+#else
+#define CK_CONST_INIT
+#endif
+
+#if CK_HAS_ATTRIBUTE(tls_model) || (defined(__GNUC__) && !defined(__clang__))
+#define CK_INITIAL_EXEC __attribute__((tls_model("initial-exec")))
+#else
+#define CK_INITIAL_EXEC
+#endif
+
 #ifdef NDEBUG
 
 #define CK_ASSERT_MSG(cond, message)              \

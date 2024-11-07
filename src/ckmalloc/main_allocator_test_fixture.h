@@ -20,12 +20,11 @@ namespace ckmalloc {
 class TestMainAllocator {
  public:
   using MainAllocatorT =
-      MainAllocatorImpl<TestGlobalMetadataAlloc, TestSlabMap, TestSlabManager,
+      MainAllocatorImpl<TestGlobalMetadataAlloc, TestSlabMap,
                         TestSmallAllocator, TestLargeAllocator>;
 
   TestMainAllocator(class MainAllocatorFixture* test_fixture,
-                    TestSlabMap* slab_map, TestSlabManager* slab_manager,
-                    TestSmallAllocator* small_alloc,
+                    TestSlabMap* slab_map, TestSmallAllocator* small_alloc,
                     TestLargeAllocator* large_alloc);
 
   MainAllocatorT& Underlying() {
@@ -75,7 +74,6 @@ class MainAllocatorFixture : public CkMallocTest {
         large_allocator_test_fixture_(std::move(large_allocator_test_fixture)),
         main_allocator_(std::make_shared<TestMainAllocator>(
             this, slab_map_.get(),
-            slab_manager_test_fixture_->SlabManagerPtr().get(),
             small_allocator_test_fixture_->SmallAllocatorPtr().get(),
             large_allocator_test_fixture_->LargeAllocatorPtr().get())) {}
 
