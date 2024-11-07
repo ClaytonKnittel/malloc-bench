@@ -2,13 +2,23 @@
 
 #ifdef PERFETTO_ENABLED
 
+#include <cerrno>
+#include <cstdlib>
+#include <cstring>
 #include <fcntl.h>
+#include <iostream>
 #include <memory>
+
+#include "absl/flags/flag.h"
 
 #include "perfetto/tracing/core/trace_config.h"  // IWYU pragma: keep
 #include "perfetto/tracing/tracing.h"
 
 PERFETTO_TRACK_EVENT_STATIC_STORAGE();
+
+ABSL_FLAG(std::string, perfetto_out, "./malloc-bench.perfetto-trace",
+          "The file to write the output of the trace to, which can be read at "
+          "https://ui.perfetto.dev.");
 
 #endif /* PERFETTO_ENABLED */
 
@@ -32,10 +42,13 @@ Perfetto::Perfetto() {
   ds_cfg->set_name("track_event");
   ds_cfg->set_track_event_config_raw(track_event_cfg.SerializeAsString());
 
-  fd_ = open(
-      "/home/cknittel/Documents/VSCode/malloc-bench/"
-      "malloc-bench.perfetto-trace",
-      O_RDWR | O_CREAT | O_TRUNC, 0600);
+  fd_ = open(absl::GetFlag(FLAGS_perfetto_out).c_str(),
+             O_RDWR | O_CREAT | O_TRUNC, 0600);
+  if (fd_ < 0) {
+    std::cerr << "Failed to open " << absl::GetFlag(FLAGS_perfetto_out)
+              << " for writing: " << strerror(errno) << std::endl;
+    std::abort();
+  }
 
   tracing_session_ = perfetto::Tracing::NewTrace();
   tracing_session_->Setup(cfg, fd_);

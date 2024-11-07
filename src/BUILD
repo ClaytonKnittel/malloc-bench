@@ -256,7 +256,9 @@ cc_library(
     srcs = ["perfetto.cc"],
     hdrs = ["perfetto.h"],
     visibility = ["//:__subpackages__"],
-    deps = select({
+    deps = [
+        "@abseil-cpp//absl/flags:flag",
+    ] + select({
         ":perfetto_enabled": ["@com_google_perfetto//:libperfetto_client_experimental"],
         "//conditions:default": [],
     }),

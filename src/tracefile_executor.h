@@ -489,8 +489,8 @@ absl::StatusOr<absl::Duration> TracefileExecutor<Allocator>::ProcessorWorker(
     std::barrier<>& barrier, std::atomic<size_t>& idx, std::atomic<bool>& done,
     const Tracefile& tracefile, ConcurrentIdMap& global_id_map,
     uint64_t num_repetitions) {
-  static constexpr size_t kBatchSize = 2048;
-  static constexpr size_t kMaxQueuedOpsTaken = 512;
+  static constexpr size_t kBatchSize = 512;
+  static constexpr size_t kMaxQueuedOpsTaken = 128;
 
   class LocalIdMap {
    public:
