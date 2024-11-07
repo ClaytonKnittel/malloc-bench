@@ -1,3 +1,16 @@
+load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
+
+bool_flag(
+    name = "enable_perfetto",
+    build_setting_default = False,
+    visibility = ["//visibility:public"],
+)
+
+config_setting(
+    name = "perfetto_enabled",
+    values = {"//:enable_perfetto": "true"},
+)
+
 cc_binary(
     name = "driver",
     srcs = ["driver.cc"],
@@ -8,6 +21,7 @@ cc_binary(
         ":correctness_checker",
         ":heap_factory",
         ":mmap_heap_factory",
+        ":perfetto",
         ":perftest",
         ":tracefile_executor",
         ":tracefile_reader",
@@ -197,6 +211,7 @@ cc_library(
     name = "tracefile_executor",
     hdrs = ["tracefile_executor.h"],
     deps = [
+        ":perfetto",
         ":tracefile_reader",
         "//proto:tracefile_cc_proto",
         "@abseil-cpp//absl/status",
@@ -234,4 +249,14 @@ cc_library(
 cc_library(
     name = "util",
     hdrs = ["util.h"],
+)
+
+cc_library(
+    name = "perfetto",
+    srcs = ["perfetto.cc"],
+    hdrs = ["perfetto.h"],
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "@com_google_perfetto//:libperfetto_client_experimental",
+    ],
 )

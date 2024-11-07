@@ -17,6 +17,7 @@
 #include "util/absl_util.h"
 
 #include "proto/tracefile.pb.h"
+#include "src/perfetto.h"  // IWYU pragma: keep
 #include "src/tracefile_reader.h"
 #include "src/util.h"
 
@@ -84,9 +85,11 @@ class TracefileExecutor {
     // Adds an allocation to the map. Returns a failure status if it failed
     // because the key `id` was already in use.
     absl::Status AddAllocation(uint64_t id, void* allocated_ptr) {
+      TRACE_EVENT("test_infrastructure", "ConcurrentIdMap::AddAllocation");
       auto [it, inserted] =
           id_map_.insert(id, MapVal{ .allocated_ptr = allocated_ptr });
       if (!inserted) {
+        TRACE_EVENT("test_infrastructure", "ConcurrentIdMap::Queue");
         // If the insertion failed, that means there was a pending allocation
         // marker in this slot.
         auto pending_idx = it->second.idx;
@@ -146,6 +149,7 @@ class TracefileExecutor {
 
     size_t TakeFromQueue(std::pair<const TraceLine*, uint64_t> (&array)[],
                          size_t array_len) {
+      TRACE_EVENT("test_infrastructure", "ConcurrentIdMap::TakeFromQueue");
       absl::MutexLock lock(&queue_lock_);
       uint32_t n_taken_elements =
           static_cast<uint32_t>(std::min(queued_ops_.size(), array_len));
@@ -485,8 +489,8 @@ absl::StatusOr<absl::Duration> TracefileExecutor<Allocator>::ProcessorWorker(
     std::barrier<>& barrier, std::atomic<size_t>& idx, std::atomic<bool>& done,
     const Tracefile& tracefile, ConcurrentIdMap& global_id_map,
     uint64_t num_repetitions) {
-  static constexpr size_t kBatchSize = 512;
-  static constexpr size_t kMaxQueuedOpsTaken = 128;
+  static constexpr size_t kBatchSize = 2048;
+  static constexpr size_t kMaxQueuedOpsTaken = 512;
 
   class LocalIdMap {
    public:
@@ -526,14 +530,24 @@ absl::StatusOr<absl::Duration> TracefileExecutor<Allocator>::ProcessorWorker(
     }
 
     absl::Status FlushOps() {
-      for (const auto [id, ptr] : id_map_) {
-        RETURN_IF_ERROR(global_id_map_.AddAllocation(id, ptr));
+      TRACE_EVENT("test_infrastructure", "LocalIdMap::FlushOps");
+      {
+        TRACE_EVENT("test_infrastructure", "AddAllocations");
+        for (const auto [id, ptr] : id_map_) {
+          RETURN_IF_ERROR(global_id_map_.AddAllocation(id, ptr));
+        }
       }
-      for (uint64_t erased_id : erased_ids_) {
-        RETURN_IF_ERROR(global_id_map_.AddFree(erased_id));
+      {
+        TRACE_EVENT("test_infrastructure", "AddFrees");
+        for (uint64_t erased_id : erased_ids_) {
+          RETURN_IF_ERROR(global_id_map_.AddFree(erased_id));
+        }
       }
-      for (auto [id, idx] : pending_ops_) {
-        global_id_map_.QueueAllocation(id, std::move(idx));
+      {
+        TRACE_EVENT("test_infrastructure", "QueueAllocations");
+        for (auto [id, idx] : pending_ops_) {
+          global_id_map_.QueueAllocation(id, std::move(idx));
+        }
       }
       id_map_.clear();
       erased_ids_.clear();
@@ -554,45 +568,54 @@ absl::StatusOr<absl::Duration> TracefileExecutor<Allocator>::ProcessorWorker(
   LocalIdMap local_id_map(global_id_map);
   while (!done.load(std::memory_order_relaxed)) {
     std::pair<const TraceLine*, uint64_t> ops[kBatchSize];
-    const size_t queued_ops_taken =
-        global_id_map.TakeFromQueue(ops, kMaxQueuedOpsTaken);
+    size_t total_ops_taken;
+    {
+      TRACE_EVENT("test_infrastructure", "TracefileExecutor::PrepareWork");
+      RETURN_IF_ERROR(local_id_map.FlushOps());
 
-    const size_t num_trace_ops_to_take = kBatchSize - queued_ops_taken;
-    size_t first_idx =
-        idx.fetch_add(num_trace_ops_to_take, std::memory_order_relaxed);
-    if (first_idx >= num_repetitions * tracefile.lines_size()) {
-      idx.store(num_repetitions * tracefile.lines_size(),
-                std::memory_order_relaxed);
-      first_idx = num_repetitions * tracefile.lines_size();
-    }
+      const size_t queued_ops_taken =
+          global_id_map.TakeFromQueue(ops, kMaxQueuedOpsTaken);
 
-    const size_t end_idx =
-        std::min<size_t>(first_idx + num_trace_ops_to_take,
-                         num_repetitions * tracefile.lines_size());
-    const size_t trace_ops_taken = end_idx - first_idx;
-    for (size_t i = first_idx; i < end_idx; i++) {
-      size_t line_idx = i % tracefile.lines_size();
-      uint64_t iteration = i / tracefile.lines_size();
-      ops[queued_ops_taken + (i - first_idx)] =
-          std::make_pair(&tracefile.lines(line_idx), iteration);
-    }
+      const size_t num_trace_ops_to_take = kBatchSize - queued_ops_taken;
+      size_t first_idx =
+          idx.fetch_add(num_trace_ops_to_take, std::memory_order_relaxed);
+      if (first_idx >= num_repetitions * tracefile.lines_size()) {
+        idx.store(num_repetitions * tracefile.lines_size(),
+                  std::memory_order_relaxed);
+        first_idx = num_repetitions * tracefile.lines_size();
+      }
 
-    const size_t total_ops_taken = queued_ops_taken + trace_ops_taken;
-    if (total_ops_taken == 0) {
-      break;
+      TRACE_EVENT("test_infrastructure",
+                  "TracefileExecutor::PrepareWork::TakingFromTrace");
+      const size_t end_idx =
+          std::min<size_t>(first_idx + num_trace_ops_to_take,
+                           num_repetitions * tracefile.lines_size());
+      const size_t trace_ops_taken = end_idx - first_idx;
+      for (size_t i = first_idx; i < end_idx; i++) {
+        size_t line_idx = i % tracefile.lines_size();
+        uint64_t iteration = i / tracefile.lines_size();
+        ops[queued_ops_taken + (i - first_idx)] =
+            std::make_pair(&tracefile.lines(line_idx), iteration);
+      }
+
+      total_ops_taken = queued_ops_taken + trace_ops_taken;
+      if (total_ops_taken == 0) {
+        break;
+      }
     }
 
     barrier.arrive_and_wait();
 
-    absl::Time start = absl::Now();
-    for (size_t i = 0; i < total_ops_taken; i++) {
-      auto [line, iteration] = ops[i];
-      RETURN_IF_ERROR(ProcessLine(*line, iteration, local_id_map));
+    {
+      TRACE_EVENT("test_infrastructure", "TracefileExecutor::MeasureAllocator");
+      absl::Time start = absl::Now();
+      for (size_t i = 0; i < total_ops_taken; i++) {
+        auto [line, iteration] = ops[i];
+        RETURN_IF_ERROR(ProcessLine(*line, iteration, local_id_map));
+      }
+      absl::Time end = absl::Now();
+      time += end - start;
     }
-    absl::Time end = absl::Now();
-    time += end - start;
-
-    RETURN_IF_ERROR(local_id_map.FlushOps());
   }
 
   return time;
