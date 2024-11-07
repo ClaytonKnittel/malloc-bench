@@ -11,4 +11,14 @@ build:opt --features=thin_lto
 build:profile --copt=-O2
 build:profile --copt=-g3
 build:profile --copt="-DNDEBUG=1"
+build:profile --copt=-fno-omit-frame-pointer
 build:profile --linkopt=-lprofiler
+
+build:perfetto --features=thin_lto
+build:perfetto --copt=-O3
+build:perfetto --copt=-g3
+build:perfetto --copt="-DPERFETTO_ENABLED=1"
+build:perfetto --copt="-DNDEBUG=1"
+build:perfetto --copt=-fno-omit-frame-pointer
+build:perfetto --//src:enable_perfetto=True
+build:perfetto --linkopt="-Wno-unused-command-line-argument"
