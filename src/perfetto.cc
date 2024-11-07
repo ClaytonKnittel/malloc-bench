@@ -1,5 +1,7 @@
 #include "src/perfetto.h"
 
+#ifdef PERFETTO_ENABLED
+
 #include <fcntl.h>
 #include <memory>
 
@@ -8,9 +10,12 @@
 
 PERFETTO_TRACK_EVENT_STATIC_STORAGE();
 
+#endif /* PERFETTO_ENABLED */
+
 namespace bench {
 
 Perfetto::Perfetto() {
+#ifdef PERFETTO_ENABLED
   perfetto::TracingInitArgs args;
   args.backends |= perfetto::kInProcessBackend;
   args.use_monotonic_clock = true;
@@ -35,11 +40,14 @@ Perfetto::Perfetto() {
   tracing_session_ = perfetto::Tracing::NewTrace();
   tracing_session_->Setup(cfg, fd_);
   tracing_session_->Start();
+#endif /* PERFETTO_ENABLED */
 }
 
 Perfetto::~Perfetto() {
+#ifdef PERFETTO_ENABLED
   tracing_session_->StopBlocking();
   close(fd_);
+#endif /* PERFETTO_ENABLED */
 }
 
 }  // namespace bench

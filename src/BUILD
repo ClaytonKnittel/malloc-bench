@@ -8,7 +8,7 @@ bool_flag(
 
 config_setting(
     name = "perfetto_enabled",
-    values = {"//:enable_perfetto": "true"},
+    flag_values = {":enable_perfetto": "True"},
 )
 
 cc_binary(
@@ -256,7 +256,8 @@ cc_library(
     srcs = ["perfetto.cc"],
     hdrs = ["perfetto.h"],
     visibility = ["//:__subpackages__"],
-    deps = [
-        "@com_google_perfetto//:libperfetto_client_experimental",
-    ],
+    deps = select({
+        ":perfetto_enabled": ["@com_google_perfetto//:libperfetto_client_experimental"],
+        "//conditions:default": [],
+    }),
 )
