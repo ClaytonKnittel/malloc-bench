@@ -60,7 +60,7 @@ class FindMaxAllocations {
  public:
   static absl::StatusOr<uint64_t> MaxAllocations(TracefileReader& reader) {
     TracefileExecutor<FindMaxAllocations> find_max_allocs(reader);
-    RETURN_IF_ERROR(find_max_allocs.Run());
+    RETURN_IF_ERROR(find_max_allocs.Run().status());
     return find_max_allocs.Inner().max_iter_;
   }
 
@@ -553,7 +553,7 @@ absl::Status Run(const std::string& tracefile) {
   DEFINE_OR_RETURN(TracefileReader, reader, TracefileReader::Open(tracefile));
   TracefileExecutor<TraceReplayer> replayer(reader);
   replayer.Inner().SetSkips(skips);
-  RETURN_IF_ERROR(replayer.Run());
+  RETURN_IF_ERROR(replayer.Run().status());
   LocalCache::Instance<GlobalMetadataAlloc>()->Flush(
       *CkMalloc::Instance()->GlobalState()->MainAllocator());
   RETURN_IF_ERROR(replayer.Inner().SetDone());

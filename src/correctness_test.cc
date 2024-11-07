@@ -98,7 +98,7 @@ class TestCorrectness : public ::testing::Test {
                         uint32_t validate_every_n = 1) {
     DEFINE_OR_RETURN(TracefileReader, reader, TracefileReader::Open(trace));
     TracefileExecutor<TestCkMalloc> test(reader, this, validate_every_n);
-    return test.Run();
+    return test.Run().status();
   }
 
   absl::Status ValidateHeap() const {
