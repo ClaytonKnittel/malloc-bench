@@ -11,6 +11,7 @@
 #include "src/ckmalloc/size_class.h"
 #include "src/ckmalloc/sys_alloc.h"
 #include "src/ckmalloc/util.h"
+#include "src/perfetto.h"  // IWYU pragma: keep
 
 namespace ckmalloc {
 
@@ -32,6 +33,7 @@ void* CkMalloc::Malloc(size_t size, size_t alignment) {
   if (size == 0) {
     return nullptr;
   }
+  TRACE_EVENT("ckmalloc", "Malloc");
 
   LocalCache* cache = LocalCache::Instance<GlobalMetadataAlloc>();
   if (IsSmallSize(size) && IsSmallSize(alignment)) {
@@ -44,6 +46,7 @@ void* CkMalloc::Malloc(size_t size, size_t alignment) {
   }
 
   if (!IsSmallSize(size) && cache->ShouldFlush()) {
+    TRACE_EVENT("ckmalloc", "FlushCache");
     cache->Flush(*global_state_.MainAllocator());
   }
 
@@ -57,6 +60,7 @@ void* CkMalloc::Malloc(size_t size, size_t alignment) {
 void* CkMalloc::Calloc(size_t nmemb, size_t size) {
   void* block = Malloc(nmemb * size, /*alignment=*/0);
   if (block != nullptr) {
+    TRACE_EVENT("ckmalloc", "CallocClear");
     memset(block, 0, nmemb * size);
   }
   return block;
@@ -79,6 +83,7 @@ void CkMalloc::Free(void* ptr, size_t size_hint, size_t alignment_hint) {
   if (p == nullptr) {
     return;
   }
+  TRACE_EVENT("ckmalloc", "Free");
 
   MainAllocator* main_allocator = global_state_.MainAllocator();
   LocalCache* cache = LocalCache::Instance<GlobalMetadataAlloc>();

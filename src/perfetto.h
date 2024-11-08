@@ -7,7 +7,8 @@
 
 PERFETTO_DEFINE_CATEGORIES(
     perfetto::Category("test_infrastructure")
-        .SetDescription("Events from testing infrastructure"));
+        .SetDescription("Events from testing infrastructure"),
+    perfetto::Category("ckmalloc").SetDescription("Events from ckmalloc"));
 
 #else
 

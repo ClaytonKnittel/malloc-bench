@@ -17,6 +17,7 @@
 #include "src/ckmalloc/small_allocator.h"
 #include "src/ckmalloc/sys_alloc.h"
 #include "src/ckmalloc/util.h"
+#include "src/perfetto.h"  // IWYU pragma: keep
 
 namespace ckmalloc {
 
@@ -80,10 +81,13 @@ Void* MainAllocatorImpl<MetadataAlloc, SlabMap, SmallAllocator,
                         LargeAllocator>::Alloc(size_t user_size) {
   absl::MutexLock lock(&mutex_);
   if (IsSmallSize(user_size)) {
+    TRACE_EVENT("ckmalloc", "AllocSmall");
     return small_alloc_->AllocSmall(user_size);
   } else if (IsMmapSize(user_size)) {
+    TRACE_EVENT("ckmalloc", "AllocMmap");
     return AllocMmap(user_size);
   } else {
+    TRACE_EVENT("ckmalloc", "AllocLarge");
     return large_alloc_->AllocLarge(user_size);
   }
 }
@@ -99,11 +103,14 @@ Void* MainAllocatorImpl<MetadataAlloc, SlabMap, SmallAllocator,
   absl::MutexLock lock(&mutex_);
 
   if (IsSmallSize(user_size)) {
+    TRACE_EVENT("ckmalloc", "AlignedAllocSmall");
     return small_alloc_->AllocSmall(user_size, alignment);
   } else if (IsMmapSize(user_size)) {
+    TRACE_EVENT("ckmalloc", "AlignedAllocMmap");
     // TODO: Use alignment here.
     return AllocMmap(user_size);
   } else {
+    TRACE_EVENT("ckmalloc", "AlignedAllocLarge");
     return large_alloc_->AllocLarge(user_size, alignment);
   }
 }
@@ -117,6 +124,7 @@ Void* MainAllocatorImpl<MetadataAlloc, SlabMap, SmallAllocator,
   CK_ASSERT_NE(slab->Type(), SlabType::kFree);
   CK_ASSERT_NE(slab->Type(), SlabType::kUnmapped);
 
+  TRACE_EVENT("ckmalloc", "Realloc");
   absl::MutexLock lock(&mutex_);
   switch (slab->Type()) {
     case SlabType::kSmall: {
@@ -226,15 +234,18 @@ void MainAllocatorImpl<MetadataAlloc, SlabMap, SmallAllocator,
   absl::MutexLock lock(&mutex_);
   switch (slab->Type()) {
     case SlabType::kSmall: {
+      TRACE_EVENT("ckmalloc", "FreeSmall");
       small_alloc_->FreeSmall(slab->ToSmall(), ptr);
       break;
     }
     case SlabType::kBlocked:
     case SlabType::kSingleAlloc: {
+      TRACE_EVENT("ckmalloc", "FreeLarge");
       large_alloc_->FreeLarge(slab->ToLarge(), ptr);
       break;
     }
     case SlabType::kMmap: {
+      TRACE_EVENT("ckmalloc", "FreeMmap");
       FreeMmap(slab->ToMmap(), ptr);
       break;
     }
