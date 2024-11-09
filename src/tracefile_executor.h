@@ -571,7 +571,6 @@ absl::StatusOr<absl::Duration> TracefileExecutor<Allocator>::ProcessorWorker(
     size_t total_ops_taken;
     {
       TRACE_EVENT("test_infrastructure", "TracefileExecutor::PrepareWork");
-      RETURN_IF_ERROR(local_id_map.FlushOps());
 
       const size_t queued_ops_taken =
           global_id_map.TakeFromQueue(ops, kMaxQueuedOpsTaken);
@@ -616,6 +615,9 @@ absl::StatusOr<absl::Duration> TracefileExecutor<Allocator>::ProcessorWorker(
       absl::Time end = absl::Now();
       time += end - start;
     }
+
+    RETURN_IF_ERROR(local_id_map.FlushOps());
+    barrier.arrive_and_wait();
   }
 
   return time;
