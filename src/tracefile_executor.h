@@ -8,6 +8,8 @@
 #include <optional>
 #include <thread>
 
+#include "absl/container/flat_hash_map.h"
+#include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/synchronization/mutex.h"
@@ -494,8 +496,12 @@ absl::StatusOr<absl::Duration> TracefileExecutor<Allocator>::ProcessorWorker(
 
   class LocalIdMap {
    public:
-    explicit LocalIdMap(ConcurrentIdMap& global_id_map)
-        : global_id_map_(global_id_map) {
+    LocalIdMap(std::atomic<uint64_t>& idx, const Tracefile& tracefile,
+               ConcurrentIdMap& global_id_map, uint64_t num_repetitions)
+        : idx_(idx),
+          tracefile_(tracefile),
+          global_id_map_(global_id_map),
+          num_repetitions_(num_repetitions) {
       id_map_.reserve(kBatchSize);
       erased_ids_.reserve(kBatchSize);
       pending_ops_.reserve(kBatchSize);
@@ -529,6 +535,42 @@ absl::StatusOr<absl::Duration> TracefileExecutor<Allocator>::ProcessorWorker(
       return 1;
     }
 
+    size_t PrepareOpsFromTrace(size_t num_trace_ops_to_take,
+                               std::pair<const TraceLine*, uint64_t>* ops) {
+      TRACE_EVENT("test_infrastructure", "TracefileExecutor::TakingFromTrace");
+
+      size_t first_idx =
+          idx_.fetch_add(num_trace_ops_to_take, std::memory_order_relaxed);
+      if (first_idx >= num_repetitions_ * tracefile_.lines_size()) {
+        idx_.store(num_repetitions_ * tracefile_.lines_size(),
+                   std::memory_order_relaxed);
+        first_idx = num_repetitions_ * tracefile_.lines_size();
+      }
+
+      const size_t end_idx =
+          std::min<size_t>(first_idx + num_trace_ops_to_take,
+                           num_repetitions_ * tracefile_.lines_size());
+      const size_t trace_ops_taken = end_idx - first_idx;
+
+      absl::flat_hash_set<uint64_t> local_allocations;
+
+      for (size_t i = first_idx; i < end_idx; i++) {
+        size_t line_idx = i % tracefile_.lines_size();
+        uint64_t iteration = i / tracefile_.lines_size();
+
+        // TODO: enable this logic
+        // if (!CanDoOpOrQueue(local_allocations, tracefile_.lines(line_idx),
+        //                     iteration)) {
+        //   continue;
+        // }
+
+        ops[i - first_idx] =
+            std::make_pair(&tracefile_.lines(line_idx), iteration);
+      }
+
+      return trace_ops_taken;
+    }
+
     absl::Status FlushOps() {
       TRACE_EVENT("test_infrastructure", "LocalIdMap::FlushOps");
       {
@@ -556,6 +598,67 @@ absl::StatusOr<absl::Duration> TracefileExecutor<Allocator>::ProcessorWorker(
     }
 
    private:
+    // Checks if an operation will be possible, given the set of local
+    // allocations (i.e. allocations made by this thread so far since the last
+    // sync) and already-committed global allocations. If this returns false,
+    // then `line` is placed in the global queue and can be skipped for now.
+    bool CanDoOpOrQueue(absl::flat_hash_set<uint64_t>& local_allocations,
+                        const TraceLine& line, uint64_t iteration) {
+      std::optional<uint64_t> input_id;
+      std::optional<uint64_t> result_id;
+      switch (line.op_case()) {
+        case TraceLine::kMalloc: {
+          const TraceLine::Malloc& malloc = line.malloc();
+          if (malloc.has_result_id()) {
+            result_id = malloc.result_id();
+          }
+          break;
+        }
+        case TraceLine::kCalloc: {
+          const TraceLine::Calloc& calloc = line.calloc();
+          if (calloc.has_result_id()) {
+            result_id = calloc.result_id();
+          }
+          break;
+        }
+        case TraceLine::kRealloc: {
+          const TraceLine::Realloc& realloc = line.realloc();
+          if (realloc.has_input_id()) {
+            input_id = realloc.input_id();
+          }
+          result_id = realloc.result_id();
+          break;
+        }
+        case TraceLine::kFree: {
+          const TraceLine::Free& free = line.free();
+          if (free.has_input_id()) {
+            input_id = free.input_id();
+          }
+          break;
+        }
+        case TraceLine::OP_NOT_SET: {
+          break;
+        }
+      }
+
+      if (input_id.has_value()) {
+        auto local_it = local_allocations.find(input_id.value());
+        if (local_it != local_allocations.end()) {
+          local_allocations.erase(local_it);
+        } else if (!GetOrQueueId(input_id.value(), { &line, iteration })
+                        .has_value()) {
+          return false;
+        }
+      }
+      if (result_id.has_value()) {
+        local_allocations.insert(result_id.value());
+      }
+      return true;
+    }
+
+    std::atomic<uint64_t>& idx_;
+    const Tracefile& tracefile_;
+    const uint64_t num_repetitions_;
     ConcurrentIdMap& global_id_map_;
     absl::flat_hash_map<uint64_t, void*> id_map_;
     std::vector<uint64_t> erased_ids_;
@@ -565,37 +668,16 @@ absl::StatusOr<absl::Duration> TracefileExecutor<Allocator>::ProcessorWorker(
 
   absl::Duration time;
 
-  LocalIdMap local_id_map(global_id_map);
+  LocalIdMap local_id_map(idx, tracefile, global_id_map, num_repetitions);
   while (!done.load(std::memory_order_relaxed)) {
     std::pair<const TraceLine*, uint64_t> ops[kBatchSize];
     size_t total_ops_taken;
     {
       TRACE_EVENT("test_infrastructure", "TracefileExecutor::PrepareWork");
-
       const size_t queued_ops_taken =
           global_id_map.TakeFromQueue(ops, kMaxQueuedOpsTaken);
-
-      const size_t num_trace_ops_to_take = kBatchSize - queued_ops_taken;
-      size_t first_idx =
-          idx.fetch_add(num_trace_ops_to_take, std::memory_order_relaxed);
-      if (first_idx >= num_repetitions * tracefile.lines_size()) {
-        idx.store(num_repetitions * tracefile.lines_size(),
-                  std::memory_order_relaxed);
-        first_idx = num_repetitions * tracefile.lines_size();
-      }
-
-      TRACE_EVENT("test_infrastructure",
-                  "TracefileExecutor::PrepareWork::TakingFromTrace");
-      const size_t end_idx =
-          std::min<size_t>(first_idx + num_trace_ops_to_take,
-                           num_repetitions * tracefile.lines_size());
-      const size_t trace_ops_taken = end_idx - first_idx;
-      for (size_t i = first_idx; i < end_idx; i++) {
-        size_t line_idx = i % tracefile.lines_size();
-        uint64_t iteration = i / tracefile.lines_size();
-        ops[queued_ops_taken + (i - first_idx)] =
-            std::make_pair(&tracefile.lines(line_idx), iteration);
-      }
+      const size_t trace_ops_taken = local_id_map.PrepareOpsFromTrace(
+          kBatchSize - queued_ops_taken, &ops[queued_ops_taken]);
 
       total_ops_taken = queued_ops_taken + trace_ops_taken;
       if (total_ops_taken == 0) {
