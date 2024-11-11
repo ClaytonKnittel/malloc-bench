@@ -7,6 +7,7 @@
 
 #include "absl/algorithm/container.h"
 #include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/str_format.h"
 #include "folly/Random.h"
 #include "util/absl_util.h"
@@ -30,7 +31,7 @@ absl::Status CorrectnessChecker::Check(
 
   TracefileExecutor<CorrectnessChecker> checker(reader, std::ref(heap_factory),
                                                 verbose);
-  return checker.Run(options);
+  return checker.Run(options).status();
 }
 
 absl::Status CorrectnessChecker::PostAlloc(void* ptr, size_t size,
@@ -71,7 +72,8 @@ absl::Status CorrectnessChecker::PostAlloc(void* ptr, size_t size,
   return absl::OkStatus();
 }
 
-absl::Status CorrectnessChecker::PreRealloc(void* ptr, size_t size) {
+absl::StatusOr<AllocatedBlock> CorrectnessChecker::PreRealloc(void* ptr,
+                                                              size_t size) {
   (void) size;
   auto block_it = allocated_blocks_.find(ptr);
   if (block_it == allocated_blocks_.end()) {
@@ -80,51 +82,34 @@ absl::Status CorrectnessChecker::PreRealloc(void* ptr, size_t size) {
         kFailedTestPrefix, ptr));
   }
   AllocatedBlock block = block_it->second;
-  size_t orig_size = block.size;
 
   // Check that the block has not been corrupted.
-  RETURN_IF_ERROR(CheckMagicBytes(ptr, orig_size, block.magic_bytes));
+  RETURN_IF_ERROR(CheckMagicBytes(ptr, block.size, block.magic_bytes));
 
-  return absl::OkStatus();
+  size_t erased_elems = allocated_blocks_.erase(ptr);
+  if (erased_elems != 1) {
+    return absl::InternalError(absl::StrFormat(
+        "%s realloc-ed block %p not found in allocated blocks map",
+        kFailedTestPrefix, ptr));
+  }
+
+  return block;
 }
 
 absl::Status CorrectnessChecker::PostRealloc(void* new_ptr, void* old_ptr,
-                                             size_t size) {
+                                             size_t size,
+                                             AllocatedBlock block) {
   RETURN_IF_ERROR(ValidateNewBlock(new_ptr, size, /*alignment=*/0));
 
-  auto block_it = allocated_blocks_.find(old_ptr);
-  if (block_it == allocated_blocks_.end()) {
-    return absl::InternalError(absl::StrFormat(
-        "%s realloc-ed block %p not found in allocated blocks map",
-        kFailedTestPrefix, old_ptr));
-  }
-  AllocatedBlock block = block_it->second;
   const size_t orig_size = block.size;
   block.size = size;
 
-  if (new_ptr != old_ptr) {
-    size_t erased_elems = allocated_blocks_.erase(old_ptr);
-    if (erased_elems != 1) {
-      return absl::InternalError(absl::StrFormat(
-          "%s realloc-ed block %p not found in allocated blocks map",
-          kFailedTestPrefix, old_ptr));
-    }
-
-    auto [it, inserted] = allocated_blocks_.insert({ new_ptr, block });
-    if (!inserted) {
-      return absl::InternalError(
-          absl::StrFormat("%s realloc-ed block %p of size %zu conflicts with "
-                          "existing allocation",
-                          kFailedTestPrefix, old_ptr, size));
-    }
-  } else {
-    auto result = allocated_blocks_.assign(new_ptr, block);
-    if (!result.has_value()) {
-      return absl::InternalError(
-          absl::StrFormat("Reassigning size of realloc-ed memory %p from %zu "
-                          "to %zu failed, not found in map.",
-                          new_ptr, orig_size, size));
-    }
+  auto [it, inserted] = allocated_blocks_.insert({ new_ptr, block });
+  if (!inserted) {
+    return absl::InternalError(
+        absl::StrFormat("%s realloc-ed block %p of size %zu conflicts with "
+                        "existing allocation",
+                        kFailedTestPrefix, old_ptr, size));
   }
 
   RETURN_IF_ERROR(

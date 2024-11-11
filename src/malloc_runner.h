@@ -3,6 +3,8 @@
 #include <cstddef>
 #include <optional>
 
+#include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "util/absl_util.h"
 
 #include "src/allocator_interface.h"
@@ -19,11 +21,14 @@ struct MallocRunnerConfig {
   bool perftest = false;
 };
 
-template <MallocRunnerConfig Config = MallocRunnerConfig()>
+template <typename ReallocData,
+          MallocRunnerConfig Config = MallocRunnerConfig()>
 class MallocRunner {
  public:
   static constexpr char kFailedTestPrefix[] = "[Failed]";
 
+  explicit MallocRunner(
+      const MallocRunnerOptions& options = MallocRunnerOptions());
   explicit MallocRunner(
       HeapFactory& heap_factory,
       const MallocRunnerOptions& options = MallocRunnerOptions());
@@ -34,10 +39,10 @@ class MallocRunner {
                                  std::optional<size_t> alignment,
                                  bool is_calloc) = 0;
 
-  virtual absl::Status PreRealloc(void* ptr, size_t size) = 0;
+  virtual absl::StatusOr<ReallocData> PreRealloc(void* ptr, size_t size) = 0;
 
-  virtual absl::Status PostRealloc(void* new_ptr, void* old_ptr,
-                                   size_t size) = 0;
+  virtual absl::Status PostRealloc(void* new_ptr, void* old_ptr, size_t size,
+                                   ReallocData realloc_data) = 0;
 
   virtual absl::Status PreRelease(void* ptr) = 0;
 
@@ -62,34 +67,39 @@ class MallocRunner {
   const MallocRunnerOptions options_;
 };
 
-static_assert(TracefileAllocator<MallocRunner<MallocRunnerConfig{}>>);
+static_assert(TracefileAllocator<MallocRunner<bool, MallocRunnerConfig{}>>);
 
-template <MallocRunnerConfig Config>
-MallocRunner<Config>::MallocRunner(HeapFactory& heap_factory,
-                                   const MallocRunnerOptions& options)
+template <typename ReallocData, MallocRunnerConfig Config>
+MallocRunner<ReallocData, Config>::MallocRunner(
+    const MallocRunnerOptions& options)
+    : heap_factory_(nullptr), options_(options) {}
+
+template <typename ReallocData, MallocRunnerConfig Config>
+MallocRunner<ReallocData, Config>::MallocRunner(
+    HeapFactory& heap_factory, const MallocRunnerOptions& options)
     : heap_factory_(&heap_factory), options_(options) {}
 
 /* static */
-template <MallocRunnerConfig Config>
-bool MallocRunner<Config>::IsFailedTestStatus(const absl::Status& status) {
+template <typename ReallocData, MallocRunnerConfig Config>
+bool MallocRunner<ReallocData, Config>::IsFailedTestStatus(
+    const absl::Status& status) {
   return status.message().starts_with(kFailedTestPrefix);
 }
 
-template <MallocRunnerConfig Config>
-absl::Status MallocRunner<Config>::InitializeHeap() {
+template <typename ReallocData, MallocRunnerConfig Config>
+absl::Status MallocRunner<ReallocData, Config>::InitializeHeap() {
   heap_factory_->Reset();
   bench::initialize_heap(*heap_factory_);
   return absl::OkStatus();
 }
 
-template <MallocRunnerConfig Config>
-// NOLINTNEXTLINE(readability-convert-member-functions-to-static)
-absl::Status MallocRunner<Config>::CleanupHeap() {
+template <typename ReallocData, MallocRunnerConfig Config>
+absl::Status MallocRunner<ReallocData, Config>::CleanupHeap() {
   return absl::OkStatus();
 }
 
-template <MallocRunnerConfig Config>
-absl::StatusOr<void*> MallocRunner<Config>::Malloc(
+template <typename ReallocData, MallocRunnerConfig Config>
+absl::StatusOr<void*> MallocRunner<ReallocData, Config>::Malloc(
     size_t size, std::optional<size_t> alignment) {
   if constexpr (Config.perftest) {
     return bench::malloc(size, alignment.value_or(0));
@@ -98,13 +108,17 @@ absl::StatusOr<void*> MallocRunner<Config>::Malloc(
   if (options_.verbose) {
     if (alignment.has_value()) {
       std::cout << "aligned_alloc(" << size << ", " << alignment.value() << ")"
-                << std::endl;
+                << std::flush;
     } else {
-      std::cout << "malloc(" << size << ")" << std::endl;
+      std::cout << "malloc(" << size << ")" << std::flush;
     }
   }
 
   void* ptr = bench::malloc(size, alignment.value_or(0));
+
+  if (options_.verbose) {
+    std::cout << " = " << ptr << std::endl;
+  }
 
   if (size == 0 && ptr != nullptr) {
     return absl::InternalError(
@@ -117,17 +131,22 @@ absl::StatusOr<void*> MallocRunner<Config>::Malloc(
   return ptr;
 }
 
-template <MallocRunnerConfig Config>
-absl::StatusOr<void*> MallocRunner<Config>::Calloc(size_t nmemb, size_t size) {
+template <typename ReallocData, MallocRunnerConfig Config>
+absl::StatusOr<void*> MallocRunner<ReallocData, Config>::Calloc(size_t nmemb,
+                                                                size_t size) {
   if constexpr (Config.perftest) {
     return bench::malloc(nmemb * size);
   }
 
   if (options_.verbose) {
-    std::cout << "calloc(" << nmemb << ", " << size << ")" << std::endl;
+    std::cout << "calloc(" << nmemb << ", " << size << ")" << std::flush;
   }
 
   void* ptr = bench::calloc(nmemb, size);
+
+  if (options_.verbose) {
+    std::cout << " = " << ptr << std::endl;
+  }
 
   if ((nmemb == 0 || size == 0) && ptr != nullptr) {
     return absl::InternalError(
@@ -142,33 +161,49 @@ absl::StatusOr<void*> MallocRunner<Config>::Calloc(size_t nmemb, size_t size) {
   return ptr;
 }
 
-template <MallocRunnerConfig Config>
-absl::StatusOr<void*> MallocRunner<Config>::Realloc(void* ptr, size_t size) {
+template <typename ReallocData, MallocRunnerConfig Config>
+absl::StatusOr<void*> MallocRunner<ReallocData, Config>::Realloc(void* ptr,
+                                                                 size_t size) {
   if constexpr (Config.perftest) {
     return bench::realloc(ptr, size);
   }
 
   if (options_.verbose) {
-    std::cout << "realloc(" << ptr << ", " << size << ")" << std::endl;
+    std::cout << "realloc(" << ptr << ", " << size << ")" << std::flush;
   }
 
   if (ptr == nullptr) {
     void* new_ptr = bench::realloc(nullptr, size);
+
+    if (options_.verbose) {
+      std::cout << " = " << ptr << std::endl;
+    }
+
     RETURN_IF_ERROR(PostAlloc(new_ptr, size, /*alignment=*/std::nullopt,
                               /*is_calloc=*/false));
     return new_ptr;
   }
 
-  RETURN_IF_ERROR(PreRealloc(ptr, size));
+  DEFINE_OR_RETURN(ReallocData, realloc_data, PreRealloc(ptr, size));
   void* new_ptr = bench::realloc(ptr, size);
-  RETURN_IF_ERROR(PostRealloc(new_ptr, /*old_ptr=*/ptr, size));
+
+  if (options_.verbose) {
+    std::cout << " = " << ptr << std::endl;
+  }
+
+  RETURN_IF_ERROR(
+      PostRealloc(new_ptr, /*old_ptr=*/ptr, size, std::move(realloc_data)));
   return new_ptr;
 }
 
-template <MallocRunnerConfig Config>
-absl::Status MallocRunner<Config>::Free(void* ptr,
-                                        std::optional<size_t> size_hint,
-                                        std::optional<size_t> alignment_hint) {
+template <typename ReallocData, MallocRunnerConfig Config>
+absl::Status MallocRunner<ReallocData, Config>::Free(
+    void* ptr, std::optional<size_t> size_hint,
+    std::optional<size_t> alignment_hint) {
+  if (options_.verbose) {
+    std::cout << "free(" << ptr << ")" << std::endl;
+  }
+
   if constexpr (!Config.perftest) {
     RETURN_IF_ERROR(PreRelease(ptr));
   }

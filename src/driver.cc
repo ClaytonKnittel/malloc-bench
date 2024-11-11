@@ -18,6 +18,7 @@
 #include "src/correctness_checker.h"
 #include "src/heap_factory.h"
 #include "src/mmap_heap_factory.h"
+#include "src/perfetto.h"
 #include "src/perftest.h"
 #include "src/tracefile_executor.h"
 #include "src/tracefile_reader.h"
@@ -251,6 +252,7 @@ int RunAllTraces() {
 
 int main(int argc, char* argv[]) {
   absl::ParseCommandLine(argc, argv);
+  bench::Perfetto perfetto;
 
   // Strip .gz in case the user specifies the compressed trace.
   const std::string tracefile(

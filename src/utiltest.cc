@@ -1,8 +1,10 @@
 #include "src/utiltest.h"
 
 #include <atomic>
+#include <cstddef>
 
 #include "absl/flags/flag.h"
+#include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "util/absl_util.h"
 
@@ -39,7 +41,7 @@ absl::StatusOr<double> Utiltest::MeasureUtilization(
     TracefileReader& reader, HeapFactory& heap_factory,
     const TracefileExecutorOptions& options) {
   TracefileExecutor<Utiltest> utiltest(reader, std::ref(heap_factory));
-  RETURN_IF_ERROR(utiltest.Run(options));
+  RETURN_IF_ERROR(utiltest.Run(options).status());
   return utiltest.Inner().ComputeUtilization();
 }
 
@@ -66,46 +68,37 @@ absl::Status Utiltest::PostAlloc(void* ptr, size_t size,
   return absl::OkStatus();
 }
 
-absl::Status Utiltest::PreRealloc(void* ptr, size_t size) {
-  (void) ptr;
+absl::StatusOr<size_t> Utiltest::PreRealloc(void* ptr, size_t size) {
   (void) size;
-  return absl::OkStatus();
-}
-
-absl::Status Utiltest::PostRealloc(void* new_ptr, void* old_ptr, size_t size) {
-  auto it = size_map_.find(old_ptr);
+  auto it = size_map_.find(ptr);
   if (it == size_map_.end()) {
     return absl::InternalError(
         absl::StrFormat("%s Reallocated memory %p not found in size map.",
-                        kFailedTestPrefix, old_ptr));
+                        kFailedTestPrefix, ptr));
   }
-  const size_t old_size = RoundUp(it->second);
+  size_t prev_size = it->second;
 
-  size_t rounded_size = RoundUp(size);
-  size_t total_allocated_bytes =
-      total_allocated_bytes_.fetch_add(rounded_size - old_size,
-                                       std::memory_order_relaxed) +
-      (rounded_size - old_size);
-  RecomputeMax(total_allocated_bytes);
-
-  if (new_ptr == old_ptr) {
-    auto result = size_map_.assign(new_ptr, size);
-    if (!result.has_value()) {
-      return absl::InternalError(absl::StrFormat(
-          "%s Reassigning size of realloc-ed memory %p from %zu "
-          "to %zu failed, not found in map.",
-          kFailedTestPrefix, new_ptr, old_size, size));
-    }
-    return absl::OkStatus();
-  }
-
-  size_t deleted_elems = size_map_.erase(old_ptr);
+  size_t deleted_elems = size_map_.erase(ptr);
   if (deleted_elems != 1) {
     return absl::InternalError(absl::StrFormat(
         "Erasing old realloc-ed memory %p failed. This indicates operations on "
         "a pointer were not properly serialized.",
-        old_ptr));
+        ptr));
   }
+
+  return RoundUp(prev_size);
+}
+
+absl::Status Utiltest::PostRealloc(void* new_ptr, void* old_ptr, size_t size,
+                                   size_t prev_size) {
+  (void) old_ptr;
+
+  size_t rounded_size = RoundUp(size);
+  size_t total_allocated_bytes =
+      total_allocated_bytes_.fetch_add(rounded_size - prev_size,
+                                       std::memory_order_relaxed) +
+      (rounded_size - prev_size);
+  RecomputeMax(total_allocated_bytes);
 
   auto [new_it, inserted] = size_map_.insert({ new_ptr, size });
   if (!inserted) {

@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdlib>
 
+#include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/time/time.h"
 
@@ -22,12 +23,11 @@ absl::StatusOr<double> Perftest::TimeTrace(
 
   const uint64_t num_repetitions = (min_desired_ops - 1) / reader.size() + 1;
 
-  absl::Time start = absl::Now();
-  RETURN_IF_ERROR(perftest.RunRepeated(num_repetitions, options));
-  absl::Time end = absl::Now();
+  DEFINE_OR_RETURN(absl::Duration, time,
+                   perftest.RunRepeated(num_repetitions, options));
 
   uint64_t total_ops = num_repetitions * reader.size();
-  double seconds = absl::FDivDuration((end - start), absl::Seconds(1));
+  double seconds = absl::FDivDuration(time, absl::Seconds(1));
   return total_ops / seconds / 1000000;
 }
 
@@ -41,13 +41,14 @@ absl::Status Perftest::PostAlloc(void* ptr, size_t size,
   return absl::OkStatus();
 }
 
-absl::Status Perftest::PreRealloc(void* ptr, size_t size) {
+absl::StatusOr<bool> Perftest::PreRealloc(void* ptr, size_t size) {
   (void) ptr;
   (void) size;
-  return absl::OkStatus();
+  return false;
 }
 
-absl::Status Perftest::PostRealloc(void* new_ptr, void* old_ptr, size_t size) {
+absl::Status Perftest::PostRealloc(void* new_ptr, void* old_ptr, size_t size,
+                                   bool) {
   (void) new_ptr;
   (void) old_ptr;
   (void) size;
