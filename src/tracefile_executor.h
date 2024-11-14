@@ -173,8 +173,13 @@ class TracefileExecutor {
         BENCH_GUARDED_BY(queue_lock_);
   };
 
+  static uint64_t UniqueId(uint64_t id, uint64_t iteration,
+                           const Tracefile& tracefile) {
+    return id + iteration * tracefile.lines_size();
+  }
+
   uint64_t UniqueId(uint64_t id, uint64_t iteration) {
-    return id + iteration * reader_.size();
+    return UniqueId(id, iteration, reader_.Tracefile());
   }
 
   template <IdMapContainer IdMap>
@@ -600,16 +605,18 @@ absl::StatusOr<absl::Duration> TracefileExecutor<Allocator>::ProcessorWorker(
       }
 
       if (input_id.has_value()) {
-        auto local_it = local_allocations.find(input_id.value());
+        uint64_t id = UniqueId(input_id.value(), iteration, tracefile_);
+        auto local_it = local_allocations.find(id);
         if (local_it != local_allocations.end()) {
           local_allocations.erase(local_it);
         } else if (global_id_map_.MaybeSuspendAllocation(
-                       input_id.value(), { &line, iteration })) {
+                       id, { &line, iteration })) {
           return false;
         }
       }
       if (result_id.has_value()) {
-        local_allocations.insert(result_id.value());
+        local_allocations.insert(
+            UniqueId(result_id.value(), iteration, tracefile_));
       }
       return true;
     }
