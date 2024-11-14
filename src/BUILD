@@ -205,19 +205,52 @@ cc_binary(
 )
 
 cc_library(
+    name = "concurrent_id_map",
+    srcs = ["concurrent_id_map.cc"],
+    hdrs = ["concurrent_id_map.h"],
+    deps = [
+        ":perfetto",
+        ":util",
+        "//proto:tracefile_cc_proto",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/synchronization",
+        "@folly",
+    ],
+)
+
+cc_library(
+    name = "local_id_map",
+    srcs = ["local_id_map.cc"],
+    hdrs = ["local_id_map.h"],
+    deps = [
+        ":concurrent_id_map",
+        ":perfetto",
+        "//proto:tracefile_cc_proto",
+        "@abseil-cpp//absl/container:btree",
+        "@abseil-cpp//absl/container:flat_hash_set",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@cc-util//util:absl_util",
+    ],
+)
+
+cc_library(
     name = "tracefile_executor",
     hdrs = ["tracefile_executor.h"],
     deps = [
+        ":concurrent_id_map",
+        ":local_id_map",
         ":perfetto",
         ":tracefile_reader",
         "//proto:tracefile_cc_proto",
+        "@abseil-cpp//absl/container:flat_hash_map",
+        "@abseil-cpp//absl/container:flat_hash_set",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings:str_format",
         "@abseil-cpp//absl/synchronization",
         "@abseil-cpp//absl/time",
         "@cc-util//util:absl_util",
-        "@folly",
     ],
 )
 
