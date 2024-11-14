@@ -22,7 +22,7 @@ class LocalIdMap {
   static constexpr size_t kMaxQueuedOpsTaken = 128;
 
   // A batch context contains a sequence of modified trace line operations whose
-  // indices correspond to indices in a local array of allocated pointers.
+  // IDs correspond to indices in a local array of allocated pointers.
   //
   // The local array of allocated pointers is populated with already-allocated
   // pointers from the global ID map which will be freed by allocations made in

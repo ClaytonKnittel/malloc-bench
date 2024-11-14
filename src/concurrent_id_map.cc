@@ -48,8 +48,6 @@ absl::Status ConcurrentIdMap::AddAllocation(uint64_t id, void* allocated_ptr) {
   return absl::OkStatus();
 }
 
-// Removes a tracked allocation from the map (because it was freed). Returns
-// an error status if the removal failed because the key `id` was not found.
 absl::Status ConcurrentIdMap::AddFree(uint64_t id) {
   size_t erased_elems = id_map_.erase(id);
   if (erased_elems != 1) {
@@ -59,8 +57,6 @@ absl::Status ConcurrentIdMap::AddFree(uint64_t id) {
   return absl::OkStatus();
 }
 
-// Looks up an allocation by ID, returning the pointer allocated with this
-// ID if it exists, otherwise `std::nullopt`.
 std::optional<void*> ConcurrentIdMap::LookupAllocation(uint64_t id) {
   auto it = id_map_.find(id);
   if (it == id_map_.end()) {
@@ -69,10 +65,6 @@ std::optional<void*> ConcurrentIdMap::LookupAllocation(uint64_t id) {
   return it->second.allocated_ptr;
 }
 
-// Suspends an allocation that was previously not able to execute. This will
-// atomically check for an allocation made under `id`, and if not found will
-// insert `idx` into the id map as a dependent operation and return true. If
-// an allocation was found to be made, this will return false.
 bool ConcurrentIdMap::MaybeSuspendAllocation(
     uint64_t id, std::pair<const TraceLine*, uint64_t> idx) {
   auto [it, inserted] = id_map_.insert(id, MapVal{ .idx = idx });

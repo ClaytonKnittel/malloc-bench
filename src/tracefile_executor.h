@@ -29,7 +29,7 @@ using proto::TraceLine;
 
 // A map from allocation id's to pointers returned from the allocator. Since
 // id's are assigned contiguously from lowest to highest ID, they can be
-// stored in a vector.
+// stored in an array.
 struct IdMap {
   void** const id_map;
 
