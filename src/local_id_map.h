@@ -1,9 +1,11 @@
 #pragma once
 
+#include <array>
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <ranges>
 
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
@@ -19,11 +21,54 @@ class LocalIdMap {
   static constexpr size_t kBatchSize = 512;
   static constexpr size_t kMaxQueuedOpsTaken = 128;
 
+  class BatchContext {
+   public:
+    static absl::StatusOr<BatchContext> MakeFromOps(
+        size_t num_ops, const std::pair<const TraceLine*, uint64_t>* ops,
+        ConcurrentIdMap& global_id_map, const proto::Tracefile& tracefile);
+
+    uint64_t NumOps() const {
+      return num_ops_;
+    }
+
+    auto Ops() const {
+      return ops_ | std::views::take(num_ops_);
+    }
+
+    // Returns a range over pairs `{unique_id, allocated pointer}` of
+    // allocations which are not freed after this batch is complete. Should only
+    // be called after all operations in the batch have been executed.
+    auto AllocationsToRecord() const {
+      return id_to_idx_ | std::views::transform([this](const auto& id_idx) {
+               auto [unique_id, idx] = id_idx;
+               return std::make_pair(unique_id, id_map_[idx]);
+             });
+    }
+
+    std::array<void*, kBatchSize>& IdMap() {
+      return id_map_;
+    }
+
+   private:
+    explicit BatchContext(uint64_t num_ops);
+
+    uint64_t num_ops_;
+    std::array<TraceLine, kBatchSize> ops_;
+
+    // A map from unique id's of an operation to the index of the result of the
+    // operation in id_map_. This only contains allocations which are not freed
+    // in this batch (and must be flushed to the global ID map).
+    absl::flat_hash_map<uint64_t, size_t> id_to_idx_;
+
+    std::array<void*, kBatchSize> id_map_;
+  };
+
   LocalIdMap(std::atomic<uint64_t>& idx, const Tracefile& tracefile,
              ConcurrentIdMap& global_id_map, uint64_t num_repetitions);
 
-  absl::Status FlushOps(size_t num_ops,
-                        std::pair<const TraceLine*, uint64_t>* ops);
+  absl::StatusOr<BatchContext> PrepareBatch();
+
+  absl::Status FlushOps(const BatchContext& context);
 
  private:
   static std::pair<std::optional<uint64_t>, std::optional<uint64_t>>
@@ -32,8 +77,6 @@ class LocalIdMap {
   static void SetInputId(TraceLine& line, uint64_t input_id);
 
   static void SetResultId(TraceLine& line, uint64_t result_id);
-
-  absl::StatusOr<size_t> PrepareBatch();
 
   size_t PrepareOpsFromTrace(size_t num_trace_ops_to_take,
                              std::pair<const TraceLine*, uint64_t>* ops);
@@ -45,15 +88,10 @@ class LocalIdMap {
   bool CanDoOpOrQueue(absl::flat_hash_set<uint64_t>& local_allocations,
                       const TraceLine& line, uint64_t iteration);
 
-  // If this operation freed any memory, this will erase the associated
-  // metadata in the global id map.
-  absl::Status EraseFreedAlloc(const TraceLine& line, uint64_t iteration);
-
   std::atomic<uint64_t>& idx_;
   const Tracefile& tracefile_;
   const uint64_t num_repetitions_;
   ConcurrentIdMap& global_id_map_;
-  void* id_map_[kBatchSize];
 };
 
 }  // namespace bench

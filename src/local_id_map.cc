@@ -11,6 +11,7 @@
 #include "util/absl_util.h"
 
 #include "proto/tracefile.pb.h"
+#include "src/concurrent_id_map.h"
 #include "src/perfetto.h"  // IWYU pragma: keep
 #include "src/tracefile_reader.h"
 
@@ -20,6 +21,10 @@ namespace {
 
 class UniqueTemporalIdGenerator {
  public:
+  uint64_t NextUnusedId() {
+    return next_id_++;
+  }
+
   uint64_t NextId() {
     auto it = available_ids_.begin();
     if (it != available_ids_.end()) {
@@ -28,7 +33,7 @@ class UniqueTemporalIdGenerator {
       return next_id;
     }
 
-    return next_id_++;
+    return NextUnusedId();
   }
 
   void FreeId(uint64_t id) {
@@ -42,6 +47,65 @@ class UniqueTemporalIdGenerator {
 
 }  // namespace
 
+/* static */
+absl::StatusOr<LocalIdMap::BatchContext> LocalIdMap::BatchContext::MakeFromOps(
+    size_t num_ops, const std::pair<const TraceLine*, uint64_t>* ops,
+    ConcurrentIdMap& global_id_map, const proto::Tracefile& tracefile) {
+  BatchContext context(num_ops);
+
+  UniqueTemporalIdGenerator id_gen;
+  for (size_t i = 0; i < num_ops; i++) {
+    const auto& [line_ptr, iteration] = ops[i];
+    TraceLine line = *line_ptr;
+    auto [input_id, result_id] = InputAndResultIds(line);
+
+    if (input_id.has_value()) {
+      uint64_t unique_id =
+          ConcurrentIdMap::UniqueId(input_id.value(), iteration, tracefile);
+      auto it = context.id_to_idx_.find(unique_id);
+      uint64_t idx;
+      if (it != context.id_to_idx_.end()) {
+        idx = it->second;
+        context.id_to_idx_.erase(it);
+      } else {
+        idx = id_gen.NextUnusedId();
+
+        auto allocation = global_id_map.LookupAllocation(unique_id);
+        if (!allocation.has_value()) {
+          return absl::InternalError(absl::StrFormat(
+              "No allocation found with unique id %v", unique_id));
+        }
+        RETURN_IF_ERROR(global_id_map.AddFree(unique_id));
+
+        context.id_map_[idx] = allocation.value();
+      }
+
+      SetInputId(line, idx);
+      id_gen.FreeId(idx);
+    }
+    if (result_id.has_value()) {
+      uint64_t unique_id =
+          ConcurrentIdMap::UniqueId(result_id.value(), iteration, tracefile);
+      uint64_t idx = id_gen.NextId();
+      auto [it, inserted] = context.id_to_idx_.insert({ unique_id, idx });
+      if (!inserted) {
+        return absl::InternalError(
+            absl::StrFormat("Duplicate unique ID encountered while "
+                            "preparing allocation batch: %v",
+                            unique_id));
+      }
+
+      SetResultId(line, idx);
+    }
+
+    context.ops_[i] = std::move(line);
+  }
+
+  return context;
+}
+
+LocalIdMap::BatchContext::BatchContext(uint64_t num_ops) : num_ops_(num_ops) {}
+
 LocalIdMap::LocalIdMap(std::atomic<uint64_t>& idx, const Tracefile& tracefile,
                        ConcurrentIdMap& global_id_map, uint64_t num_repetitions)
     : idx_(idx),
@@ -49,21 +113,23 @@ LocalIdMap::LocalIdMap(std::atomic<uint64_t>& idx, const Tracefile& tracefile,
       num_repetitions_(num_repetitions),
       global_id_map_(global_id_map) {}
 
-absl::Status LocalIdMap::FlushOps(size_t num_ops,
-                                  std::pair<const TraceLine*, uint64_t>* ops) {
+absl::StatusOr<LocalIdMap::BatchContext> LocalIdMap::PrepareBatch() {
+  TRACE_EVENT("test_infrastructure", "LocalIdMap::PrepareBatch");
+
+  std::pair<const TraceLine*, uint64_t> ops[kBatchSize];
+  const size_t queued_ops_taken =
+      global_id_map_.TakeFromQueue(ops, kMaxQueuedOpsTaken);
+  const size_t trace_ops_taken = PrepareOpsFromTrace(
+      kBatchSize - queued_ops_taken, &ops[queued_ops_taken]);
+  const size_t total_ops = queued_ops_taken + trace_ops_taken;
+
+  return BatchContext::MakeFromOps(total_ops, ops, global_id_map_, tracefile_);
+}
+
+absl::Status LocalIdMap::FlushOps(const BatchContext& context) {
   TRACE_EVENT("test_infrastructure", "LocalIdMap::FlushOps");
-  {
-    TRACE_EVENT("test_infrastructure", "AddAllocations");
-    for (const auto [id, ptr] : id_map_) {
-      RETURN_IF_ERROR(global_id_map_.AddAllocation(id, ptr));
-    }
-  }
-  {
-    TRACE_EVENT("test_infrastructure", "AddFrees");
-    for (size_t i = 0; i < num_ops; i++) {
-      auto [line, iteration] = ops[i];
-      RETURN_IF_ERROR(EraseFreedAlloc(*line, iteration));
-    }
+  for (const auto [id, allocated_ptr] : context.AllocationsToRecord()) {
+    RETURN_IF_ERROR(global_id_map_.AddAllocation(id, allocated_ptr));
   }
   return absl::OkStatus();
 }
@@ -152,59 +218,9 @@ void LocalIdMap::SetResultId(TraceLine& line, uint64_t result_id) {
   }
 }
 
-absl::StatusOr<size_t> LocalIdMap::PrepareBatch() {
-  std::pair<TraceLine, uint64_t> ops[kBatchSize];
-  const size_t queued_ops_taken =
-      global_id_map_.TakeFromQueue(ops, kMaxQueuedOpsTaken);
-  const size_t trace_ops_taken = PrepareOpsFromTrace(
-      kBatchSize - queued_ops_taken, &ops[queued_ops_taken]);
-  const size_t total_ops = queued_ops_taken + trace_ops_taken;
-
-  UniqueTemporalIdGenerator id_gen;
-  absl::flat_hash_map<uint64_t, size_t> id_to_idx;
-  for (size_t i = 0; i < total_ops; i++) {
-    auto& [line, iteration] = ops[i];
-    auto [input_id, result_id] = InputAndResultIds(line);
-
-    if (input_id.has_value()) {
-      uint64_t unique_id = UniqueId(input_id.value(), iteration, tracefile_);
-      auto it = id_to_idx.find(unique_id);
-      uint64_t idx;
-      if (it != id_to_idx.end()) {
-        idx = it->second;
-      } else {
-        idx = id_gen.NextId();
-
-        auto allocation = global_id_map_.LookupAllocation(idx);
-        if (!allocation.has_value()) {
-          return absl::InternalError(
-              absl::StrFormat("No allocation found with unique id %v", idx));
-        }
-
-        id_map_[idx] = allocation.value();
-      }
-
-      SetInputId(line, idx);
-    }
-    if (result_id.has_value()) {
-      uint64_t unique_id = UniqueId(result_id.value(), iteration, tracefile_);
-      uint64_t idx = id_gen.NextId();
-      auto [it, inserted] = id_to_idx.insert({ unique_id, idx });
-      if (!inserted) {
-        return absl::InternalError(
-            absl::StrFormat("Duplicate unique ID encountered while "
-                            "preparing allocation batch: %v",
-                            unique_id));
-      }
-
-      SetResultId(line, idx);
-    }
-  }
-}
-
 size_t LocalIdMap::PrepareOpsFromTrace(
     size_t num_trace_ops_to_take, std::pair<const TraceLine*, uint64_t>* ops) {
-  TRACE_EVENT("test_infrastructure", "TracefileExecutor::TakingFromTrace");
+  TRACE_EVENT("test_infrastructure", "LocalIdMap::PrepareOpsFromTrace");
   size_t trace_ops_taken = 0;
   absl::flat_hash_set<uint64_t> local_allocations;
 
@@ -250,7 +266,8 @@ bool LocalIdMap::CanDoOpOrQueue(
   auto [input_id, result_id] = InputAndResultIds(line);
 
   if (input_id.has_value()) {
-    uint64_t id = UniqueId(input_id.value(), iteration, tracefile_);
+    uint64_t id =
+        ConcurrentIdMap::UniqueId(input_id.value(), iteration, tracefile_);
     auto local_it = local_allocations.find(id);
     if (local_it != local_allocations.end()) {
       local_allocations.erase(local_it);
@@ -264,43 +281,9 @@ bool LocalIdMap::CanDoOpOrQueue(
   }
   if (result_id.has_value()) {
     local_allocations.insert(
-        UniqueId(result_id.value(), iteration, tracefile_));
+        ConcurrentIdMap::UniqueId(result_id.value(), iteration, tracefile_));
   }
   return true;
-}
-
-absl::Status LocalIdMap::EraseFreedAlloc(const TraceLine& line,
-                                         uint64_t iteration) {
-  uint64_t input_id;
-  switch (line.op_case()) {
-    case TraceLine::kMalloc:
-    case TraceLine::kCalloc: {
-      return absl::OkStatus();
-    }
-    case TraceLine::kRealloc: {
-      const TraceLine::Realloc& realloc = line.realloc();
-      if (!realloc.has_input_id()) {
-        return absl::OkStatus();
-      }
-      input_id = realloc.input_id();
-      break;
-    }
-    case TraceLine::kFree: {
-      const TraceLine::Free& free = line.free();
-      if (!free.has_input_id()) {
-        return absl::OkStatus();
-      }
-      input_id = free.input_id();
-      break;
-    }
-    case TraceLine::OP_NOT_SET: {
-      return absl::InternalError("Unexpected OP_NO_SET in EraseFreedAlloc()");
-    }
-  }
-
-  uint64_t id = UniqueId(input_id, iteration, tracefile_);
-  RETURN_IF_ERROR(global_id_map_.AddFree(id));
-  return absl::OkStatus();
 }
 
 }  // namespace bench

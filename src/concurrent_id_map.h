@@ -9,6 +9,7 @@
 #include "absl/synchronization/mutex.h"
 #include "folly/concurrency/ConcurrentHashMap.h"
 
+#include "proto/tracefile.pb.h"
 #include "src/tracefile_reader.h"
 #include "src/util.h"
 
@@ -16,6 +17,9 @@ namespace bench {
 
 class ConcurrentIdMap {
  public:
+  static uint64_t UniqueId(uint64_t id, uint64_t iteration,
+                           const proto::Tracefile& tracefile);
+
   // Adds an allocation to the map. Returns a failure status if it failed
   // because the key `id` was already in use.
   absl::Status AddAllocation(uint64_t id, void* allocated_ptr);

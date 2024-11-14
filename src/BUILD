@@ -215,6 +215,7 @@ cc_library(
         ":perfetto",
         ":tracefile_reader",
         ":util",
+        "//proto:tracefile_cc_proto",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/synchronization",
         "@folly",
