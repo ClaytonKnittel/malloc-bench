@@ -306,6 +306,12 @@ absl::StatusOr<absl::Duration> TracefileExecutor<Allocator>::ProcessorWorker(
       break;
     }
 
+    // Wait at the barrier twice to maximize chance of allocator measuring
+    // routines to start simultaneously. Threads waiting at a barrier for a long
+    // time will suspend and may take a long time to reschedule, so waiting at
+    // the barrier a second time makes it more likely all threads are ready to
+    // schedule soon.
+    barrier.arrive_and_wait();
     barrier.arrive_and_wait();
 
     {

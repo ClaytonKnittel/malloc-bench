@@ -75,6 +75,9 @@ absl::StatusOr<LocalIdMap::BatchContext> LocalIdMap::BatchContext::MakeFromOps(
           return absl::InternalError(absl::StrFormat(
               "No allocation found with unique id %v", unique_id));
         }
+        // Since we will be performing this allocation which will be freeing the
+        // memory associated with `input_id`, we can erase the mapping in the
+        // global ID map.
         RETURN_IF_ERROR(global_id_map.AddFree(unique_id));
 
         context.id_map_[idx] = allocation.value();
@@ -103,8 +106,6 @@ absl::StatusOr<LocalIdMap::BatchContext> LocalIdMap::BatchContext::MakeFromOps(
 
   return context;
 }
-
-LocalIdMap::BatchContext::BatchContext(uint64_t num_ops) : num_ops_(num_ops) {}
 
 LocalIdMap::LocalIdMap(std::atomic<uint64_t>& idx, const Tracefile& tracefile,
                        ConcurrentIdMap& global_id_map, uint64_t num_repetitions)

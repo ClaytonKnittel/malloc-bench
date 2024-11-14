@@ -21,8 +21,21 @@ class LocalIdMap {
   static constexpr size_t kBatchSize = 512;
   static constexpr size_t kMaxQueuedOpsTaken = 128;
 
+  // A batch context contains a sequence of modified trace line operations whose
+  // indices correspond to indices in a local array of allocated pointers.
+  //
+  // The local array of allocated pointers is populated with already-allocated
+  // pointers from the global ID map which will be freed by allocations made in
+  // this batch. Trace lines which allocate new memory will reserve unused slots
+  // in this local array.
+  //
+  // After all operations in `Ops()` have been performed by the allocator,
+  // `AllocationsToRecord()` will yield all of the allocated pointers which need
+  // to be added to the global ID map.
   class BatchContext {
    public:
+    // Given a list of { trace line, iteration } pairs to execute, constructs a
+    // batch context.
     static absl::StatusOr<BatchContext> MakeFromOps(
         size_t num_ops, const std::pair<const TraceLine*, uint64_t>* ops,
         ConcurrentIdMap& global_id_map, const proto::Tracefile& tracefile);
@@ -50,7 +63,7 @@ class LocalIdMap {
     }
 
    private:
-    explicit BatchContext(uint64_t num_ops);
+    explicit BatchContext(uint64_t num_ops) : num_ops_(num_ops) {}
 
     uint64_t num_ops_;
     std::array<TraceLine, kBatchSize> ops_;

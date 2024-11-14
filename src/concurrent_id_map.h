@@ -17,6 +17,9 @@ namespace bench {
 
 class ConcurrentIdMap {
  public:
+  // Given an id from a tracefile (which must be unique within the trace),
+  // generates a globally unique ID across multiple repetitions of the trace
+  // (where `iteration` is the current iteration over the trace).
   static uint64_t UniqueId(uint64_t id, uint64_t iteration,
                            const proto::Tracefile& tracefile);
 
