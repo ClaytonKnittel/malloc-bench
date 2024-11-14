@@ -635,7 +635,9 @@ absl::StatusOr<absl::Duration> TracefileExecutor<Allocator>::ProcessorWorker(
     const Tracefile& tracefile_;
     const uint64_t num_repetitions_;
     ConcurrentIdMap& global_id_map_;
-    // TODO: make the local ID map an array, will be much faster to operate on.
+    // TODO: have trace line batches preprocessed to mutate a local array (i.e.
+    // prefetch dependent ID allocations from the global id map in prep stage,
+    // then can use the same IdMap as single-threaded executor).
     absl::flat_hash_map<uint64_t, void*> id_map_;
   };
 
