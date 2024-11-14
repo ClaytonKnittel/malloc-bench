@@ -595,6 +595,8 @@ absl::StatusOr<absl::Duration> TracefileExecutor<Allocator>::ProcessorWorker(
       return true;
     }
 
+    // If this operation freed any memory, this will erase the associated
+    // metadata in the global id map.
     absl::Status EraseFreedAlloc(const TraceLine& line, uint64_t iteration) {
       uint64_t input_id;
       switch (line.op_case()) {
@@ -633,6 +635,7 @@ absl::StatusOr<absl::Duration> TracefileExecutor<Allocator>::ProcessorWorker(
     const Tracefile& tracefile_;
     const uint64_t num_repetitions_;
     ConcurrentIdMap& global_id_map_;
+    // TODO: make the local ID map an array, will be much faster to operate on.
     absl::flat_hash_map<uint64_t, void*> id_map_;
   };
 
