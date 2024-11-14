@@ -13,7 +13,6 @@
 #include "proto/tracefile.pb.h"
 #include "src/concurrent_id_map.h"
 #include "src/perfetto.h"  // IWYU pragma: keep
-#include "src/tracefile_reader.h"
 
 namespace bench {
 
@@ -50,7 +49,7 @@ class UniqueTemporalIdGenerator {
 /* static */
 absl::StatusOr<LocalIdMap::BatchContext> LocalIdMap::BatchContext::MakeFromOps(
     size_t num_ops, const std::pair<const TraceLine*, uint64_t>* ops,
-    ConcurrentIdMap& global_id_map, const proto::Tracefile& tracefile) {
+    ConcurrentIdMap& global_id_map, const Tracefile& tracefile) {
   BatchContext context(num_ops);
 
   UniqueTemporalIdGenerator id_gen;

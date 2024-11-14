@@ -9,15 +9,13 @@
 #include "absl/synchronization/mutex.h"
 #include "folly/concurrency/ConcurrentHashMap.h"
 
-#include "proto/tracefile.pb.h"
 #include "src/perfetto.h"  // IWYU pragma: keep
-#include "src/tracefile_reader.h"
 
 namespace bench {
 
 /* static */
 uint64_t ConcurrentIdMap::UniqueId(uint64_t id, uint64_t iteration,
-                                   const proto::Tracefile& tracefile) {
+                                   const Tracefile& tracefile) {
   return id + iteration * tracefile.lines_size();
 }
 

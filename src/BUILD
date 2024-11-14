@@ -213,7 +213,6 @@ cc_library(
     hdrs = ["concurrent_id_map.h"],
     deps = [
         ":perfetto",
-        ":tracefile_reader",
         ":util",
         "//proto:tracefile_cc_proto",
         "@abseil-cpp//absl/status",
@@ -229,7 +228,6 @@ cc_library(
     deps = [
         ":concurrent_id_map",
         ":perfetto",
-        ":tracefile_reader",
         "//proto:tracefile_cc_proto",
         "@abseil-cpp//absl/container:btree",
         "@abseil-cpp//absl/container:flat_hash_set",

@@ -11,10 +11,13 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 
+#include "proto/tracefile.pb.h"
 #include "src/concurrent_id_map.h"
-#include "src/tracefile_reader.h"
 
 namespace bench {
+
+using proto::Tracefile;
+using proto::TraceLine;
 
 class LocalIdMap {
  public:
