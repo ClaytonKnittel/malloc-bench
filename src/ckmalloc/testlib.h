@@ -9,6 +9,7 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
+#include "absl/synchronization/mutex.h"
 
 #include "src/ckmalloc/block.h"
 #include "src/ckmalloc/common.h"
@@ -262,13 +263,15 @@ class TestSysAlloc : public SysAlloc {
   const_iterator end() const;
 
   auto Find(void* heap_start) const {
+    absl::MutexLock lock(&mutex_);
     return heap_map_.find(heap_start);
   }
 
  private:
   bench::HeapFactory* heap_factory_;
 
-  MapT heap_map_;
+  mutable absl::Mutex mutex_;
+  MapT heap_map_ CK_GUARDED_BY(mutex_);
 };
 
 class CkMallocTest {

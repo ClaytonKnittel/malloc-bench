@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "absl/status/statusor.h"
+#include "absl/synchronization/mutex.h"
 
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/slab.h"
@@ -123,6 +124,7 @@ TestHeap* RandomHeapFromFactory(bench::HeapFactory& heap_factory) {
 TestSysAlloc::TestSysAlloc(bench::HeapFactory* heap_factory)
     : heap_factory_(heap_factory) {
   heap_factory_->WithInstances<void>([this](const auto& instances) {
+    absl::MutexLock lock(&mutex_);
     for (const auto& heap : instances) {
       // Assume all already-created heaps are metadata heaps.
       heap_map_.emplace(heap->Start(),
@@ -160,12 +162,16 @@ void* TestSysAlloc::Mmap(void* start_hint, size_t size, HeapType type) {
 
   bench::Heap* heap = result.value();
   void* heap_start = heap->Start();
-  heap_map_.emplace(heap_start, std::make_pair(type, heap));
+  {
+    absl::MutexLock lock(&mutex_);
+    heap_map_.emplace(heap_start, std::make_pair(type, heap));
+  }
 
   return heap_start;
 }
 
 void TestSysAlloc::Munmap(void* ptr, size_t size) {
+  absl::MutexLock lock(&mutex_);
   auto it = heap_map_.find(ptr);
   CK_ASSERT_TRUE(it != heap_map_.end());
   bench::Heap* heap = it->second.second;
@@ -188,20 +194,24 @@ void TestSysAlloc::Sbrk(void* heap_start, size_t increment, void* current_end) {
 }
 
 bench::Heap* TestSysAlloc::HeapFromStart(void* heap_start) {
+  absl::MutexLock lock(&mutex_);
   auto it = heap_map_.find(heap_start);
   CK_ASSERT_TRUE(it != heap_map_.end());
   return it->second.second;
 }
 
 size_t TestSysAlloc::Size() const {
+  absl::MutexLock lock(&mutex_);
   return heap_map_.size();
 }
 
 TestSysAlloc::const_iterator TestSysAlloc::begin() const {
+  absl::MutexLock lock(&mutex_);
   return heap_map_.begin();
 }
 
 TestSysAlloc::const_iterator TestSysAlloc::end() const {
+  absl::MutexLock lock(&mutex_);
   return heap_map_.end();
 }
 
