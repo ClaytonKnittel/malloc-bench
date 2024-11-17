@@ -313,6 +313,7 @@ absl::Status TracefileExecutor<Allocator>::RewriteIdsToUnique(
     Tracefile& tracefile) {
   uint64_t next_id = 0;
   absl::flat_hash_map<uint64_t, std::pair<uint64_t, size_t>> new_id_map;
+
   for (TraceLine& line : *tracefile.mutable_lines()) {
     switch (line.op_case()) {
       case TraceLine::kMalloc: {
@@ -320,6 +321,7 @@ absl::Status TracefileExecutor<Allocator>::RewriteIdsToUnique(
         if (!malloc.has_result_id()) {
           break;
         }
+
         auto [it, inserted] = new_id_map.insert(
             { malloc.result_id(), { next_id, malloc.input_size() } });
         if (!inserted) {
@@ -335,6 +337,7 @@ absl::Status TracefileExecutor<Allocator>::RewriteIdsToUnique(
         if (!calloc.has_result_id()) {
           break;
         }
+
         auto [it, inserted] = new_id_map.insert(
             { calloc.result_id(),
               { next_id, calloc.input_nmemb() * calloc.input_size() } });
@@ -357,6 +360,7 @@ absl::Status TracefileExecutor<Allocator>::RewriteIdsToUnique(
           realloc.set_input_id(release_it->second.first);
           new_id_map.erase(release_it);
         }
+
         auto [it, inserted] = new_id_map.insert(
             { realloc.result_id(), { next_id, realloc.input_size() } });
         if (!inserted) {
@@ -372,6 +376,7 @@ absl::Status TracefileExecutor<Allocator>::RewriteIdsToUnique(
         if (!free.has_input_id()) {
           break;
         }
+
         auto release_it = new_id_map.find(free.input_id());
         if (release_it == new_id_map.end()) {
           return absl::FailedPreconditionError(
@@ -386,10 +391,12 @@ absl::Status TracefileExecutor<Allocator>::RewriteIdsToUnique(
       }
     }
   }
+
   if (!new_id_map.empty()) {
     return absl::FailedPreconditionError(
         "Not all allocations freed in tracefile");
   }
+
   return absl::OkStatus();
 }
 
