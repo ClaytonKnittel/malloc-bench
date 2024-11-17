@@ -249,20 +249,22 @@ class TestSysAlloc : public SysAlloc {
 
   static void Reset();
 
-  void* Mmap(void* start_hint, size_t size, HeapType type) override;
+  void* Mmap(void* start_hint, size_t size, HeapType type) override
+      CK_LOCKS_EXCLUDED(mutex_);
 
-  void Munmap(void* ptr, size_t size) override;
+  void Munmap(void* ptr, size_t size) override CK_LOCKS_EXCLUDED(mutex_);
 
-  void Sbrk(void* heap_start, size_t increment, void* current_end) override;
+  void Sbrk(void* heap_start, size_t increment, void* current_end) override
+      CK_LOCKS_EXCLUDED(mutex_);
 
-  bench::Heap* HeapFromStart(void* heap_start);
+  bench::Heap* HeapFromStart(void* heap_start) CK_LOCKS_EXCLUDED(mutex_);
 
-  size_t Size() const;
+  size_t Size() const CK_LOCKS_EXCLUDED(mutex_);
 
-  const_iterator begin() const;
-  const_iterator end() const;
+  const_iterator begin() const CK_LOCKS_EXCLUDED(mutex_);
+  const_iterator end() const CK_LOCKS_EXCLUDED(mutex_);
 
-  auto Find(void* heap_start) const {
+  auto Find(void* heap_start) const CK_LOCKS_EXCLUDED(mutex_) {
     absl::MutexLock lock(&mutex_);
     return heap_map_.find(heap_start);
   }
