@@ -3,68 +3,38 @@
 #include <cstddef>
 #include <cstdlib>
 #include <cstring>
-#include <mutex>
 
 #include "src/heap_factory.h"
-#include "src/heap_interface.h"
+#include "src/perfetto.h"  // IWYU pragma: keep
 
 namespace bench {
 
-static constexpr size_t kHeapSize = 512 * (1 << 20);
-
-extern Heap* g_heap;
-
-extern std::mutex g_lock;
-
 // Called before any allocations are made.
-inline void initialize_heap(HeapFactory& heap_factory) {
-  auto res = heap_factory.NewInstance(kHeapSize);
-  if (!res.ok()) {
-    std::cerr << "Failed to initialize heap" << std::endl;
-    std::exit(-1);
-  }
-  g_heap = res.value();
-}
+inline void initialize_heap(HeapFactory& heap_factory) {}
 
 void initialize();
 
 inline void* malloc(size_t size, size_t alignment = 0) {
-  if (g_heap == nullptr) {
-    std::lock_guard<std::mutex> lock(g_lock);
-    if (g_heap == nullptr) {
-      initialize();
-    }
-  }
-
-  // TODO: implement
   (void) alignment;
-  if (size == 0) {
-    return nullptr;
-  }
-  size_t round_up = (size + 0xf) & ~0xf;
-  return g_heap->sbrk(round_up);
+  TRACE_EVENT("test_infrastructure", "Malloc");
+  return ::malloc(size);
 }
 
 inline void* calloc(size_t nmemb, size_t size) {
-  // TODO: implement
-  void* ptr = malloc(nmemb * size);
-  if (ptr != nullptr) {
-    memset(ptr, 0, nmemb * size);
-  }
-  return ptr;
+  TRACE_EVENT("test_infrastructure", "Calloc");
+  return ::calloc(nmemb, size);
 }
 
 inline void* realloc(void* ptr, size_t size) {
-  // TODO: implement
-  void* new_ptr = malloc(size);
-  if (ptr != nullptr && new_ptr != nullptr) {
-    memcpy(new_ptr, ptr, size);
-  }
-  return new_ptr;
+  TRACE_EVENT("test_infrastructure", "Realloc");
+  return ::realloc(ptr, size);
 }
 
 inline void free(void* ptr, size_t size = 0, size_t alignment = 0) {
-  // TODO: implement
+  (void) size;
+  (void) alignment;
+  TRACE_EVENT("test_infrastructure", "Free");
+  ::free(ptr);
 }
 
 inline size_t get_size(void* ptr) {
