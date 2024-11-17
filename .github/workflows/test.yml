@@ -23,7 +23,6 @@ jobs:
           path: "~/.cache/bazel"
           key: ${{ env.cache-name }}-${{ hashFiles('~/.cache/bazel/**/*') }}
           restore-keys: |
-            ${{ env.cache-name }}-${{ hashFiles('~/.cache/bazel/**/*') }}
             ${{ env.cache-name }}-
       - name: Install dependencies
         run: |
