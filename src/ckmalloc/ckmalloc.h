@@ -6,6 +6,8 @@
 #include "absl/synchronization/mutex.h"
 
 #include "src/ckmalloc/global_state.h"
+#include "src/ckmalloc/local_cache.h"
+#include "src/ckmalloc/main_allocator.h"
 #include "src/ckmalloc/sys_alloc.h"
 #include "src/ckmalloc/util.h"
 
@@ -30,6 +32,7 @@ class CkMalloc {
   }
 
   static void Reset() {
+    LocalCache::ClearLocalCache<MainAllocator>();
     instance_.store(nullptr, std::memory_order_relaxed);
   }
 

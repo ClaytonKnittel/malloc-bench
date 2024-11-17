@@ -32,8 +32,8 @@ inline size_t get_size(void* ptr) {
 // Called after a trace run to clear all internal data structs before another
 // run.
 inline void reset_real_heap() {
-  ckmalloc::RealSysAlloc::Reset();
   ckmalloc::CkMalloc::Reset();
+  ckmalloc::RealSysAlloc::Reset();
 }
 
 }  // namespace bench

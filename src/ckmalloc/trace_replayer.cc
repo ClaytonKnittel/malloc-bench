@@ -23,7 +23,6 @@
 #include "util/print_colors.h"
 
 #include "src/ckmalloc/ckmalloc.h"
-#include "src/ckmalloc/common.h"
 #include "src/ckmalloc/global_state.h"
 #include "src/ckmalloc/heap_printer.h"
 #include "src/ckmalloc/local_cache.h"
@@ -72,6 +71,7 @@ class FindMaxAllocations {
 
   // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
   absl::Status CleanupHeap() {
+    CkMalloc::Reset();
     TestSysAlloc::Reset();
     return absl::OkStatus();
   }
@@ -176,6 +176,9 @@ class TraceReplayer {
       SetNonCanonicalMode(/*enable=*/false);
       std::cout << CSI_SHOW << CSI_MAIN_DISPLAY;
     }
+
+    CkMalloc::Reset();
+    TestSysAlloc::Reset();
   }
 
   void SetSkips(uint64_t skips) {
@@ -201,7 +204,8 @@ class TraceReplayer {
 
   // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
   absl::Status CleanupHeap() {
-    TestSysAlloc::Reset();
+    // Don't clean the heap, let the destructor do this so we can continue to
+    // display the heap after finishing the trace.
     return absl::OkStatus();
   }
 
@@ -509,9 +513,11 @@ class TraceReplayer {
     }
 
     // Iterate over all cached guys.
-    for (auto* bin : LocalCache::Instance<GlobalMetadataAlloc>()->bins_) {
-      for (auto* alloc = bin; alloc != nullptr; alloc = alloc->next) {
-        p.WithHighlightAddr(alloc, CACHED_COLOR);
+    if (LocalCache::Instance() != nullptr) {
+      for (auto* bin : LocalCache::Instance()->bins_) {
+        for (auto* alloc = bin; alloc != nullptr; alloc = alloc->next) {
+          p.WithHighlightAddr(alloc, CACHED_COLOR);
+        }
       }
     }
 
@@ -554,8 +560,10 @@ absl::Status Run(const std::string& tracefile) {
   TracefileExecutor<TraceReplayer> replayer(reader);
   replayer.Inner().SetSkips(skips);
   RETURN_IF_ERROR(replayer.Run().status());
-  LocalCache::Instance<GlobalMetadataAlloc>()->Flush(
-      *CkMalloc::Instance()->GlobalState()->MainAllocator());
+  if (LocalCache::Instance() != nullptr) {
+    LocalCache::Instance()->Flush(
+        *CkMalloc::Instance()->GlobalState()->MainAllocator());
+  }
   RETURN_IF_ERROR(replayer.Inner().SetDone());
 
   if (absl::GetFlag(FLAGS_test_run)) {

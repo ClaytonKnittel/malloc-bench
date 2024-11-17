@@ -17,9 +17,13 @@ jobs:
       - uses: bazelbuild/setup-bazelisk@v3
       - name: Mount bazel cache
         uses: actions/cache@v4
+        env:
+          cache-name: cache-bazel-v2
         with:
           path: "~/.cache/bazel"
-          key: bazel
+          key: ${{ env.cache-name }}-${{ hashFiles('ckmalloc/.bazelrc', 'ckmalloc/.bazelversion', 'ckmalloc/WORKSPACE', 'ckmalloc/MODULE.bazel') }}
+          restore-keys: |
+            ${{ env.cache-name }}-
       - name: Install dependencies
         run: |
           sudo apt-get install libtinfo5

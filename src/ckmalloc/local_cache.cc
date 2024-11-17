@@ -10,8 +10,8 @@ CK_CONST_INIT thread_local LocalCache* LocalCache::instance_ CK_INITIAL_EXEC =
     nullptr;
 
 /* static */
-void LocalCache::ClearLocalCaches() {
-  instance_ = nullptr;
+LocalCache* LocalCache::Instance() {
+  return instance_;
 }
 
 Void* LocalCache::TakeAlloc(SizeClass size_class) {

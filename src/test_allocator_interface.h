@@ -15,8 +15,8 @@ inline void initialize_test_heap(HeapFactory& heap_factory) {
 // Called after a trace run to clear all internal data structs before another
 // run.
 inline void reset_test_heap() {
-  ckmalloc::TestSysAlloc::Reset();
   ckmalloc::CkMalloc::Reset();
+  ckmalloc::TestSysAlloc::Reset();
 }
 
 }  // namespace bench

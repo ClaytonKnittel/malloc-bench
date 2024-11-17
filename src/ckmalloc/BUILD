@@ -636,7 +636,6 @@ cc_binary(
     ],
     deps = [
         ":ckmalloc",
-        ":common",
         ":global_state",
         ":heap_printer",
         ":local_cache",
