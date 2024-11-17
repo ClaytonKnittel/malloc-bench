@@ -116,7 +116,8 @@ class TracefileExecutor {
 
   static absl::Status RewriteIdsToUnique(Tracefile& tracefile);
 
-  absl::Status ProcessLine(const TraceLine& line, IdMap& id_map);
+  BENCH_ALWAYS_INLINE absl::Status ProcessLine(const TraceLine& line,
+                                               IdMap& id_map);
 
   Allocator allocator_;
 
