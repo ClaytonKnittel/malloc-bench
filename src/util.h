@@ -6,6 +6,13 @@
 #define BENCH_HAS_ATTRIBUTE(x) 0
 #endif
 
+#if BENCH_HAS_ATTRIBUTE(always_inline) || \
+    (defined(__GNUC__) && !defined(__clang__))
+#define BENCH_ALWAYS_INLINE __attribute__((always_inline))
+#else
+#define BENCH_ALWAYS_INLINE
+#endif
+
 #if BENCH_HAS_ATTRIBUTE(guarded_by)
 #define BENCH_GUARDED_BY(mu) __attribute__((guarded_by(mu)))
 #else
