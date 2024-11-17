@@ -16,10 +16,36 @@ git_override(
     remote = "https://github.com/ClaytonKnittel/cc-util.git",
 )
 
+bazel_dep(name = "rules_boost", repo_name = "com_github_nelhage_rules_boost")
+git_override(
+    module_name = "rules_boost",
+    commit = "504e4dbc8c480fac5da33035490bc2ccc59db749",
+    remote = "https://github.com/nelhage/rules_boost.git",
+)
+
+non_module_boost_repositories = use_extension("@com_github_nelhage_rules_boost//:boost/repositories.bzl", "non_module_dependencies")
+use_repo(
+    non_module_boost_repositories,
+    "boost",
+)
+
 bazel_dep(name = "buildifier_prebuilt", version = "6.4.0", dev_dependency = True)
 
 bazel_dep(name = "abseil-cpp", version = "20240116.2")
+bazel_dep(name = "fmt", version = "11.0.2")
+bazel_dep(name = "glog", version = "0.7.1", repo_name = "com_github_google_glog")
 bazel_dep(name = "googletest", version = "1.14.0.bcr.1")
 bazel_dep(name = "protobuf", version = "28.2")
 bazel_dep(name = "re2", version = "2024-07-02")
 bazel_dep(name = "rules_python", version = "0.36.0")
+bazel_dep(name = "zlib", version = "1.3.1.bcr.3")
+
+bazel_dep(name = "toolchains_llvm", version = "1.2.0")
+llvm = use_extension("@toolchains_llvm//toolchain/extensions:llvm.bzl", "llvm", dev_dependency = True)
+llvm.toolchain(
+    llvm_versions = {
+        "": "18.1.8",
+    },
+)
+use_repo(llvm, "llvm_toolchain")
+register_toolchains("@llvm_toolchain//:all", dev_dependency = True)

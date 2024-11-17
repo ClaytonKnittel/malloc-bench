@@ -1,3 +1,16 @@
+load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
+
+bool_flag(
+    name = "enable_perfetto",
+    build_setting_default = False,
+    visibility = ["//visibility:public"],
+)
+
+config_setting(
+    name = "perfetto_enabled",
+    flag_values = {":enable_perfetto": "True"},
+)
+
 cc_binary(
     name = "driver",
     srcs = ["driver.cc"],
@@ -8,7 +21,9 @@ cc_binary(
         ":correctness_checker",
         ":heap_factory",
         ":mmap_heap_factory",
+        ":perfetto",
         ":perftest",
+        ":tracefile_executor",
         ":tracefile_reader",
         ":utiltest",
         "@abseil-cpp//absl/flags:flag",
@@ -23,13 +38,12 @@ cc_library(
     name = "perftest",
     srcs = ["perftest.cc"],
     hdrs = ["perftest.h"],
-    data = [
-        "//traces",
-    ],
     deps = [
-        ":allocator_interface",
         ":heap_factory",
+        ":malloc_runner",
+        ":tracefile_executor",
         ":tracefile_reader",
+        "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/time",
     ],
@@ -39,15 +53,17 @@ cc_library(
     name = "utiltest",
     srcs = ["utiltest.cc"],
     hdrs = ["utiltest.h"],
-    data = [
-        "//traces",
-    ],
     deps = [
         ":allocator_interface",
         ":heap_factory",
+        ":malloc_runner",
+        ":tracefile_executor",
         ":tracefile_reader",
         "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
+        "@cc-util//util:absl_util",
+        "@folly",
     ],
 )
 
@@ -70,18 +86,17 @@ cc_library(
     srcs = ["correctness_checker.cc"],
     hdrs = ["correctness_checker.h"],
     deps = [
-        ":allocator_interface",
         ":heap_factory",
-        ":rng",
+        ":malloc_runner",
         ":tracefile_executor",
         ":tracefile_reader",
         "@abseil-cpp//absl/algorithm:container",
-        "@abseil-cpp//absl/container:btree",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",
         "@cc-util//util:absl_util",
+        "@folly",
     ],
 )
 
@@ -110,10 +125,12 @@ cc_library(
     visibility = ["//src:__subpackages__"],
     deps = [
         ":heap_interface",
+        ":util",
         "@abseil-cpp//absl/container:flat_hash_set",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings:str_format",
+        "@abseil-cpp//absl/synchronization",
         "@cc-util//util:absl_util",
     ],
 )
@@ -194,16 +211,51 @@ cc_binary(
 )
 
 cc_library(
+    name = "concurrent_id_map",
+    srcs = ["concurrent_id_map.cc"],
+    hdrs = ["concurrent_id_map.h"],
+    deps = [
+        ":perfetto",
+        ":util",
+        "//proto:tracefile_cc_proto",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/synchronization",
+        "@folly",
+    ],
+)
+
+cc_library(
+    name = "local_id_map",
+    srcs = ["local_id_map.cc"],
+    hdrs = ["local_id_map.h"],
+    deps = [
+        ":concurrent_id_map",
+        ":perfetto",
+        "//proto:tracefile_cc_proto",
+        "@abseil-cpp//absl/container:btree",
+        "@abseil-cpp//absl/container:flat_hash_set",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@cc-util//util:absl_util",
+    ],
+)
+
+cc_library(
     name = "tracefile_executor",
-    srcs = ["tracefile_executor.cc"],
     hdrs = ["tracefile_executor.h"],
     deps = [
-        ":heap_factory",
+        ":concurrent_id_map",
+        ":local_id_map",
+        ":perfetto",
         ":tracefile_reader",
         "//proto:tracefile_cc_proto",
+        "@abseil-cpp//absl/container:flat_hash_map",
+        "@abseil-cpp//absl/container:flat_hash_set",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings:str_format",
+        "@abseil-cpp//absl/synchronization",
+        "@abseil-cpp//absl/time",
         "@cc-util//util:absl_util",
     ],
 )
@@ -220,9 +272,30 @@ cc_library(
 )
 
 cc_library(
-    name = "rng",
-    hdrs = ["rng.h"],
+    name = "malloc_runner",
+    hdrs = ["malloc_runner.h"],
     deps = [
-        "@abseil-cpp//absl/status:statusor",
+        ":allocator_interface",
+        ":heap_factory",
+        ":tracefile_executor",
+        "@cc-util//util:absl_util",
     ],
+)
+
+cc_library(
+    name = "util",
+    hdrs = ["util.h"],
+)
+
+cc_library(
+    name = "perfetto",
+    srcs = ["perfetto.cc"],
+    hdrs = ["perfetto.h"],
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "@abseil-cpp//absl/flags:flag",
+    ] + select({
+        ":perfetto_enabled": ["@com_google_perfetto//:libperfetto_client_experimental"],
+        "//conditions:default": [],
+    }),
 )
