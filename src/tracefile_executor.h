@@ -228,11 +228,9 @@ absl::StatusOr<absl::Duration> TracefileExecutor<Allocator>::ProcessTracefile(
 
   absl::Time start = absl::Now();
   for (uint64_t t = 0; t < num_repetitions; t++) {
-    asm volatile("unique_label_1:");
     for (const TraceLine& line : reader_) {
       RETURN_IF_ERROR(ProcessLine(line, id_map));
     }
-    asm volatile("unique_label_2:");
   }
   absl::Time end = absl::Now();
 
