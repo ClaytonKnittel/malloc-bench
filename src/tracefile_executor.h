@@ -7,8 +7,6 @@
 #include <optional>
 #include <thread>
 
-#include "absl/container/flat_hash_map.h"
-#include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/synchronization/mutex.h"
@@ -99,9 +97,7 @@ class TracefileExecutor {
 
   absl::Status DoFree(const TraceLine::Free& free, IdMap& id_map);
 
-  absl::StatusOr<absl::Duration> ProcessTracefile(uint64_t num_repetitions);
-
-  absl::StatusOr<absl::Duration> ProcessTracefileMultithreaded(
+  absl::StatusOr<absl::Duration> ProcessTracefile(
       uint64_t num_repetitions, const TracefileExecutorOptions& options);
 
   // Worker thread main loop, returns the total amount of time spend in
@@ -113,8 +109,6 @@ class TracefileExecutor {
                                                  const Tracefile& tracefile,
                                                  ConcurrentIdMap& global_id_map,
                                                  uint64_t num_repetitions);
-
-  static absl::Status RewriteIdsToUnique(Tracefile& tracefile);
 
   BENCH_ALWAYS_INLINE absl::Status ProcessLine(const TraceLine& line,
                                                IdMap& id_map);
@@ -141,12 +135,8 @@ absl::StatusOr<absl::Duration> TracefileExecutor<Allocator>::RunRepeated(
     uint64_t num_repetitions, const TracefileExecutorOptions& options) {
   RETURN_IF_ERROR(allocator_.InitializeHeap());
 
-  absl::StatusOr<absl::Duration> result;
-  if (options.n_threads == 1) {
-    result = ProcessTracefile(num_repetitions);
-  } else {
-    result = ProcessTracefileMultithreaded(num_repetitions, options);
-  }
+  absl::StatusOr<absl::Duration> result =
+      ProcessTracefile(num_repetitions, options);
 
   RETURN_IF_ERROR(allocator_.CleanupHeap());
   return result;
@@ -220,73 +210,50 @@ absl::Status TracefileExecutor<Allocator>::DoFree(const TraceLine::Free& free,
 
 template <TracefileAllocator Allocator>
 absl::StatusOr<absl::Duration> TracefileExecutor<Allocator>::ProcessTracefile(
-    uint64_t num_repetitions) {
-  size_t max_simultaneous_allocs =
-      reader_.Tracefile().max_simultaneous_allocs();
-  std::vector<void*> id_map_vec(max_simultaneous_allocs);
-  IdMap id_map{ .id_map = id_map_vec.data() };
-
-  absl::Time start = absl::Now();
-  for (uint64_t t = 0; t < num_repetitions; t++) {
-    for (const TraceLine& line : reader_) {
-      RETURN_IF_ERROR(ProcessLine(line, id_map));
-    }
-  }
-  absl::Time end = absl::Now();
-
-  return end - start;
-}
-
-template <TracefileAllocator Allocator>
-absl::StatusOr<absl::Duration>
-TracefileExecutor<Allocator>::ProcessTracefileMultithreaded(
     uint64_t num_repetitions, const TracefileExecutorOptions& options) {
-  Tracefile tracefile(reader_.Tracefile());
-  RETURN_IF_ERROR(RewriteIdsToUnique(tracefile));
-
   absl::Duration max_allocation_time;
   absl::Status status = absl::OkStatus();
   absl::Mutex status_lock;
 
-  {
-    std::barrier barrier(options.n_threads);
+  std::barrier barrier(options.n_threads);
+  std::atomic<bool> done = false;
+  std::atomic<size_t> idx = 0;
+  ConcurrentIdMap global_id_map;
 
-    std::atomic<bool> done = false;
+  if (options.n_threads == 1) {
+    return ProcessorWorker(barrier, idx, done, reader_.Tracefile(),
+                           global_id_map, num_repetitions);
+  }
 
-    std::atomic<size_t> idx = 0;
-    ConcurrentIdMap global_id_map;
+  std::vector<std::thread> threads;
+  threads.reserve(options.n_threads);
+  for (uint32_t i = 0; i < options.n_threads; i++) {
+    threads.emplace_back([this, &max_allocation_time, &status, &status_lock,
+                          &barrier, &done, &idx, &global_id_map,
+                          num_repetitions]() {
+      auto result = ProcessorWorker(barrier, idx, done, reader_.Tracefile(),
+                                    global_id_map, num_repetitions);
 
-    std::vector<std::thread> threads;
-    threads.reserve(options.n_threads);
+      if (result.ok()) {
+        absl::MutexLock lock(&status_lock);
+        max_allocation_time = std::max(result.value(), max_allocation_time);
+      } else {
+        done.store(true, std::memory_order_relaxed);
 
-    for (uint32_t i = 0; i < options.n_threads; i++) {
-      threads.emplace_back([this, &max_allocation_time, &status, &status_lock,
-                            &barrier, &done, &idx, &tracefile, &global_id_map,
-                            num_repetitions]() {
-        auto result = ProcessorWorker(barrier, idx, done, tracefile,
-                                      global_id_map, num_repetitions);
-
-        if (result.ok()) {
-          absl::MutexLock lock(&status_lock);
-          max_allocation_time = std::max(result.value(), max_allocation_time);
-        } else {
-          done.store(true, std::memory_order_relaxed);
-
-          absl::MutexLock lock(&status_lock);
-          if (status.ok()) {
-            status = result.status();
-          }
+        absl::MutexLock lock(&status_lock);
+        if (status.ok()) {
+          status = result.status();
         }
-      });
-    }
+      }
+    });
+  }
 
-    for (uint32_t i = 0; i < options.n_threads; i++) {
-      threads[i].join();
-    }
+  for (uint32_t i = 0; i < options.n_threads; i++) {
+    threads[i].join();
+  }
 
-    if (!status.ok()) {
-      return status;
-    }
+  if (!status.ok()) {
+    return status;
   }
 
   return max_allocation_time;
@@ -333,99 +300,6 @@ absl::StatusOr<absl::Duration> TracefileExecutor<Allocator>::ProcessorWorker(
 
   barrier.arrive_and_drop();
   return time;
-}
-
-/* static */
-template <TracefileAllocator Allocator>
-absl::Status TracefileExecutor<Allocator>::RewriteIdsToUnique(
-    Tracefile& tracefile) {
-  uint64_t next_id = 0;
-  absl::flat_hash_map<uint64_t, std::pair<uint64_t, size_t>> new_id_map;
-
-  for (TraceLine& line : *tracefile.mutable_lines()) {
-    switch (line.op_case()) {
-      case TraceLine::kMalloc: {
-        TraceLine::Malloc& malloc = *line.mutable_malloc();
-        if (!malloc.has_result_id()) {
-          break;
-        }
-
-        auto [it, inserted] = new_id_map.insert(
-            { malloc.result_id(), { next_id, malloc.input_size() } });
-        if (!inserted) {
-          return absl::FailedPreconditionError(
-              absl::StrFormat("Duplicate result ID %v", malloc.result_id()));
-        }
-        malloc.set_result_id(next_id);
-        next_id++;
-        break;
-      }
-      case TraceLine::kCalloc: {
-        TraceLine::Calloc& calloc = *line.mutable_calloc();
-        if (!calloc.has_result_id()) {
-          break;
-        }
-
-        auto [it, inserted] = new_id_map.insert(
-            { calloc.result_id(),
-              { next_id, calloc.input_nmemb() * calloc.input_size() } });
-        if (!inserted) {
-          return absl::FailedPreconditionError(
-              absl::StrFormat("Duplicate result ID %v", calloc.result_id()));
-        }
-        calloc.set_result_id(next_id);
-        next_id++;
-        break;
-      }
-      case TraceLine::kRealloc: {
-        TraceLine::Realloc& realloc = *line.mutable_realloc();
-        if (realloc.has_input_id()) {
-          auto release_it = new_id_map.find(realloc.input_id());
-          if (release_it == new_id_map.end()) {
-            return absl::FailedPreconditionError(absl::StrFormat(
-                "Unknown ID being realloc-ed: %v", realloc.input_id()));
-          }
-          realloc.set_input_id(release_it->second.first);
-          new_id_map.erase(release_it);
-        }
-
-        auto [it, inserted] = new_id_map.insert(
-            { realloc.result_id(), { next_id, realloc.input_size() } });
-        if (!inserted) {
-          return absl::FailedPreconditionError(
-              absl::StrFormat("Duplicate result ID %v", realloc.result_id()));
-        }
-        realloc.set_result_id(next_id);
-        next_id++;
-        break;
-      }
-      case TraceLine::kFree: {
-        TraceLine::Free& free = *line.mutable_free();
-        if (!free.has_input_id()) {
-          break;
-        }
-
-        auto release_it = new_id_map.find(free.input_id());
-        if (release_it == new_id_map.end()) {
-          return absl::FailedPreconditionError(
-              absl::StrFormat("Unknown ID being freed: %v", free.input_id()));
-        }
-        free.set_input_id(release_it->second.first);
-        new_id_map.erase(release_it);
-        break;
-      }
-      case TraceLine::OP_NOT_SET: {
-        return absl::FailedPreconditionError("Op not set in tracefile");
-      }
-    }
-  }
-
-  if (!new_id_map.empty()) {
-    return absl::FailedPreconditionError(
-        "Not all allocations freed in tracefile");
-  }
-
-  return absl::OkStatus();
 }
 
 template <TracefileAllocator Allocator>
