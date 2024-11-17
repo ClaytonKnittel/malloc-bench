@@ -21,7 +21,7 @@ jobs:
           cache-name: cache-bazel-v2
         with:
           path: "~/.cache/bazel"
-          key: ${{ env.cache-name }}-${{ hashFiles('.bazelrc', '.bazelversion', 'WORKSPACE', 'MODULE.bazel' }}
+          key: ${{ env.cache-name }}-${{ hashFiles('.bazelrc', '.bazelversion', 'WORKSPACE', 'MODULE.bazel') }}
           restore-keys: |
             ${{ env.cache-name }}-
       - name: Install dependencies
