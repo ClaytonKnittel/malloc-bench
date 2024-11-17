@@ -17,7 +17,7 @@ class CacheCleanup {
     return cache_cleanup_;
   }
 
-  static void Destroy() {
+  static void DestroyLocalCache() {
     cache_cleanup_.~CacheCleanup();
   }
 
@@ -127,7 +127,7 @@ LocalCache* LocalCache::InstanceOrInitialize(MainAllocator& main_allocator) {
 /* static */
 template <MainAllocatorInterface MainAllocator>
 void LocalCache::ClearLocalCache() {
-  CacheCleanup<MainAllocator>::Destroy();
+  CacheCleanup<MainAllocator>::DestroyLocalCache();
   instance_ = nullptr;
 }
 

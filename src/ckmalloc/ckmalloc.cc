@@ -23,7 +23,6 @@ absl::Mutex CkMalloc::mutex_(absl::ConstInitType::kConstInit);
 
 /* static */
 CkMalloc* CkMalloc::InitializeHeap() {
-  LocalCache::ClearLocalCache<MainAllocator>();
   return Initialize();
 }
 
