@@ -7,6 +7,7 @@
 #include <ostream>
 #include <unistd.h>
 
+#include "absl/container/btree_set.h"
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
 #include "absl/status/status.h"
@@ -92,12 +93,21 @@ class DirtyTracefileReader {
     class Tracefile tracefile;
     std::optional<int32_t> required_pid;
     absl::flat_hash_map<void*, uint64_t> id_map;
+    absl::btree_set<uint64_t> available_ids;
     uint64_t next_id = 0;
     uint64_t max_simultaneous_allocs = 0;
 
-    const auto get_next_id = [&next_id,
+    const auto get_next_id = [&available_ids, &next_id,
                               &id_map](void* ptr) -> absl::StatusOr<uint64_t> {
-      uint64_t id = next_id++;
+      uint64_t id;
+      if (available_ids.empty()) {
+        id = next_id++;
+      } else {
+        auto it = available_ids.begin();
+        id = *it;
+        available_ids.erase(it);
+      }
+
       auto [_it, inserted] = id_map.emplace(ptr, id);
       if (!inserted) {
         return absl::FailedPreconditionError(
@@ -106,7 +116,7 @@ class DirtyTracefileReader {
       return id;
     };
     const auto find_and_erase_id =
-        [&id_map](void* ptr) -> absl::StatusOr<uint64_t> {
+        [&available_ids, &id_map](void* ptr) -> absl::StatusOr<uint64_t> {
       auto it = id_map.find(ptr);
       if (it == id_map.end()) {
         return absl::FailedPreconditionError(
@@ -115,6 +125,8 @@ class DirtyTracefileReader {
       uint64_t id = it->second;
       id_map.erase(it);
 
+      auto [_it, inserted] = available_ids.insert(id);
+      assert(inserted);
       return id;
     };
 
