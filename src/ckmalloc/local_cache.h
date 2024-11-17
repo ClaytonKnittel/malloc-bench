@@ -8,16 +8,51 @@
 
 namespace ckmalloc {
 
+template <MainAllocatorInterface MainAllocator>
+class CacheCleanup {
+ public:
+  ~CacheCleanup();
+
+  static CacheCleanup& Instance() {
+    return cache_cleanup_;
+  }
+
+  static void Destroy() {
+    cache_cleanup_.~CacheCleanup();
+  }
+
+  void RegisterCleanup(MainAllocator* main_allocator) {
+    main_allocator_ = main_allocator;
+  }
+
+ private:
+  static CK_CONST_INIT thread_local CacheCleanup cache_cleanup_ CK_INITIAL_EXEC;
+
+  MainAllocator* main_allocator_ = nullptr;
+};
+
+template <MainAllocatorInterface MainAllocator>
+/* static */
+CK_CONST_INIT thread_local CacheCleanup<MainAllocator>
+    CacheCleanup<MainAllocator>::cache_cleanup_ CK_INITIAL_EXEC =
+        CacheCleanup();
+
 class LocalCache {
+  template <MainAllocatorInterface>
+  friend class CacheCleanup;
   friend class TraceReplayer;
 
  public:
   LocalCache() = default;
 
-  template <MetadataAllocInterface MetadataAlloc>
   static LocalCache* Instance();
 
-  static void ClearLocalCaches();
+  template <MetadataAllocInterface MetadataAlloc,
+            MainAllocatorInterface MainAllocator>
+  static LocalCache* InstanceOrInitialize(MainAllocator& main_allocator);
+
+  template <MainAllocatorInterface MainAllocator>
+  static void ClearLocalCache();
 
   // Takes and returns an allocation of the given size from the cache, if one
   // exists, otherwise returning `nullptr`.
@@ -65,17 +100,35 @@ class LocalCache {
   uint32_t total_allocs_ = 0;
 };
 
+template <MainAllocatorInterface MainAllocator>
+CacheCleanup<MainAllocator>::~CacheCleanup() {
+  if (main_allocator_ != nullptr) {
+    LocalCache::instance_->Flush(*main_allocator_);
+    main_allocator_ = nullptr;
+  }
+}
+
 /* static */
-template <MetadataAllocInterface MetadataAlloc>
-LocalCache* LocalCache::Instance() {
+template <MetadataAllocInterface MetadataAlloc,
+          MainAllocatorInterface MainAllocator>
+LocalCache* LocalCache::InstanceOrInitialize(MainAllocator& main_allocator) {
   if (CK_EXPECT_FALSE(instance_ == nullptr)) {
     void* instance_data =
         (MetadataAlloc::Alloc(sizeof(LocalCache), alignof(LocalCache)));
     instance_ = new (instance_data) LocalCache();
     CK_ASSERT_NE(instance_, nullptr);
+
+    CacheCleanup<MainAllocator>::Instance().RegisterCleanup(&main_allocator);
   }
 
   return instance_;
+}
+
+/* static */
+template <MainAllocatorInterface MainAllocator>
+void LocalCache::ClearLocalCache() {
+  CacheCleanup<MainAllocator>::Destroy();
+  instance_ = nullptr;
 }
 
 template <MainAllocatorInterface MainAllocator>

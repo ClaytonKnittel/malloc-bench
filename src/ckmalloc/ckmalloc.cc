@@ -23,7 +23,7 @@ absl::Mutex CkMalloc::mutex_(absl::ConstInitType::kConstInit);
 
 /* static */
 CkMalloc* CkMalloc::InitializeHeap() {
-  LocalCache::ClearLocalCaches();
+  LocalCache::ClearLocalCache<MainAllocator>();
   return Initialize();
 }
 
@@ -35,7 +35,9 @@ void* CkMalloc::Malloc(size_t size, size_t alignment) {
   }
   TRACE_EVENT("ckmalloc", "Malloc");
 
-  LocalCache* cache = LocalCache::Instance<GlobalMetadataAlloc>();
+  LocalCache* cache =
+      LocalCache::InstanceOrInitialize<GlobalMetadataAlloc, MainAllocator>(
+          *global_state_.MainAllocator());
   if (IsSmallSize(size) && IsSmallSize(alignment)) {
     SizeClass size_class = SizeClass::FromUserDataSize(
         size, alignment != 0 ? std::optional(alignment) : std::nullopt);
@@ -86,7 +88,9 @@ void CkMalloc::Free(void* ptr, size_t size_hint, size_t alignment_hint) {
   TRACE_EVENT("ckmalloc", "Free");
 
   MainAllocator* main_allocator = global_state_.MainAllocator();
-  LocalCache* cache = LocalCache::Instance<GlobalMetadataAlloc>();
+  LocalCache* cache =
+      LocalCache::InstanceOrInitialize<GlobalMetadataAlloc, MainAllocator>(
+          *main_allocator);
   SizeClass size_class = main_allocator->AllocSizeClass(p);
   if (size_class != SizeClass::Nil() &&
       LocalCache::CanHoldSize(size_class.SliceSize())) {
