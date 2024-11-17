@@ -90,8 +90,8 @@ bool MallocRunner<ReallocData, Config>::IsFailedTestStatus(
 template <typename ReallocData, MallocRunnerConfig Config>
 absl::Status MallocRunner<ReallocData, Config>::InitializeHeap() {
   if (heap_factory_ != nullptr) {
-    heap_factory_->Reset();
     bench::reset_test_heap();
+    heap_factory_->Reset();
     bench::initialize_test_heap(*heap_factory_);
   }
   return absl::OkStatus();
