@@ -176,7 +176,7 @@ absl::StatusOr<void*> MallocRunner<ReallocData, Config>::Realloc(void* ptr,
     void* new_ptr = bench::realloc(nullptr, size);
 
     if (options_.verbose) {
-      std::cout << " = " << ptr << std::endl;
+      std::cout << " = " << new_ptr << std::endl;
     }
 
     RETURN_IF_ERROR(PostAlloc(new_ptr, size, /*alignment=*/std::nullopt,
