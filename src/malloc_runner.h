@@ -188,7 +188,7 @@ absl::StatusOr<void*> MallocRunner<ReallocData, Config>::Realloc(void* ptr,
   void* new_ptr = bench::realloc(ptr, size);
 
   if (options_.verbose) {
-    std::cout << " = " << ptr << std::endl;
+    std::cout << " = " << new_ptr << std::endl;
   }
 
   RETURN_IF_ERROR(
@@ -200,11 +200,11 @@ template <typename ReallocData, MallocRunnerConfig Config>
 absl::Status MallocRunner<ReallocData, Config>::Free(
     void* ptr, std::optional<size_t> size_hint,
     std::optional<size_t> alignment_hint) {
-  if (options_.verbose) {
-    std::cout << "free(" << ptr << ")" << std::endl;
-  }
-
   if constexpr (!Config.perftest) {
+    if (options_.verbose) {
+      std::cout << "free(" << ptr << ")" << std::endl;
+    }
+
     RETURN_IF_ERROR(PreRelease(ptr));
   }
   bench::free(ptr, size_hint.value_or(0), alignment_hint.value_or(0));
