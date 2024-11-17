@@ -71,6 +71,7 @@ class FindMaxAllocations {
 
   // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
   absl::Status CleanupHeap() {
+    CkMalloc::Reset();
     TestSysAlloc::Reset();
     return absl::OkStatus();
   }
@@ -175,6 +176,9 @@ class TraceReplayer {
       SetNonCanonicalMode(/*enable=*/false);
       std::cout << CSI_SHOW << CSI_MAIN_DISPLAY;
     }
+
+    CkMalloc::Reset();
+    TestSysAlloc::Reset();
   }
 
   void SetSkips(uint64_t skips) {
@@ -200,7 +204,8 @@ class TraceReplayer {
 
   // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
   absl::Status CleanupHeap() {
-    TestSysAlloc::Reset();
+    // Don't clean the heap, let the destructor do this so we can continue to
+    // display the heap after finishing the trace.
     return absl::OkStatus();
   }
 
