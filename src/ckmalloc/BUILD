@@ -223,7 +223,6 @@ cc_library(
         ":sys_alloc",
         ":util",
         "//src:perfetto",
-        "@abseil-cpp//absl/synchronization",
     ],
 )
 
@@ -446,6 +445,7 @@ cc_library(
         ":slab_map",
         ":sys_alloc",
         ":util",
+        "@abseil-cpp//absl/synchronization",
         "@cc-util//util:std_util",
     ],
 )

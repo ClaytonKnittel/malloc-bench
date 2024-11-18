@@ -125,7 +125,7 @@ TestSysAlloc::TestSysAlloc(bench::HeapFactory* heap_factory)
     : heap_factory_(heap_factory) {
   absl::MutexLock lock(&mutex_);
   heap_factory_->WithInstances<void>(
-      [this](const auto& instances) CK_EXCLUSIVE_LOCKS_REQUIRED(mutex_) {
+      [this](const auto& instances) BENCH_NO_THREAD_SAFETY_ANALYSIS {
         for (const auto& heap : instances) {
           // Assume all already-created heaps are metadata heaps.
           heap_map_.emplace(

@@ -4,8 +4,6 @@
 #include <cstdint>
 #include <cstring>
 
-#include "absl/synchronization/mutex.h"
-
 #include "src/ckmalloc/block.h"
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/large_allocator.h"
@@ -70,8 +68,6 @@ class MainAllocatorImpl {
   SlabMap* const slab_map_;
   SmallAllocator* const small_alloc_;
   LargeAllocator* const large_alloc_;
-
-  mutable absl::Mutex mutex_;
 };
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap,
@@ -79,7 +75,6 @@ template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap,
           LargeAllocatorInterface LargeAllocator>
 Void* MainAllocatorImpl<MetadataAlloc, SlabMap, SmallAllocator,
                         LargeAllocator>::Alloc(size_t user_size) {
-  absl::MutexLock lock(&mutex_);
   if (IsSmallSize(user_size)) {
     TRACE_EVENT("ckmalloc", "AllocSmall");
     return small_alloc_->AllocSmall(user_size);
@@ -100,7 +95,6 @@ Void* MainAllocatorImpl<MetadataAlloc, SlabMap, SmallAllocator,
                                                       size_t alignment) {
   CK_ASSERT_NE(alignment, 0);
   CK_ASSERT_EQ((alignment & (alignment - 1)), 0);
-  absl::MutexLock lock(&mutex_);
 
   if (IsSmallSize(user_size)) {
     TRACE_EVENT("ckmalloc", "AlignedAllocSmall");
@@ -125,7 +119,6 @@ Void* MainAllocatorImpl<MetadataAlloc, SlabMap, SmallAllocator,
   CK_ASSERT_NE(slab->Type(), SlabType::kUnmapped);
 
   TRACE_EVENT("ckmalloc", "Realloc");
-  absl::MutexLock lock(&mutex_);
   switch (slab->Type()) {
     case SlabType::kSmall: {
       // If this is a small-to-small size reallocation, we can use the
@@ -231,7 +224,6 @@ void MainAllocatorImpl<MetadataAlloc, SlabMap, SmallAllocator,
   CK_ASSERT_NE(slab->Type(), SlabType::kFree);
   CK_ASSERT_NE(slab->Type(), SlabType::kUnmapped);
 
-  absl::MutexLock lock(&mutex_);
   switch (slab->Type()) {
     case SlabType::kSmall: {
       TRACE_EVENT("ckmalloc", "FreeSmall");
@@ -263,7 +255,6 @@ template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap,
           LargeAllocatorInterface LargeAllocator>
 size_t MainAllocatorImpl<MetadataAlloc, SlabMap, SmallAllocator,
                          LargeAllocator>::AllocSize(Void* ptr) const {
-  absl::MutexLock lock(&mutex_);
   SizeClass size_class = AllocSizeClass(ptr);
   if (size_class != SizeClass::Nil()) {
     return size_class.SliceSize();

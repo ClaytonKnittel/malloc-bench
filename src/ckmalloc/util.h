@@ -15,6 +15,13 @@
   BENCH_EXCLUSIVE_LOCKS_REQUIRED(__VA_ARGS__)
 #define CK_LOCKS_EXCLUDED(...) BENCH_LOCKS_EXCLUDED(__VA_ARGS__)
 
+#if CK_HAS_ATTRIBUTE(no_thread_safety_analysis)
+#define BENCH_NO_THREAD_SAFETY_ANALYSIS \
+  __attribute__((no_thread_safety_analysis))
+#else
+#define BENCH_NO_THREAD_SAFETY_ANALYSIS
+#endif
+
 #if defined(__cpp_constinit) && __cpp_constinit >= 201907L
 #define CK_CONST_INIT constinit
 #else
