@@ -192,7 +192,6 @@ cc_binary(
     ],
     deps = [
         "//proto:tracefile_cc_proto",
-        "@abseil-cpp//absl/container:btree",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/flags:parse",
         "@abseil-cpp//absl/status",
@@ -244,8 +243,6 @@ cc_library(
         ":perfetto",
         ":tracefile_reader",
         "//proto:tracefile_cc_proto",
-        "@abseil-cpp//absl/container:flat_hash_map",
-        "@abseil-cpp//absl/container:flat_hash_set",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings:str_format",
