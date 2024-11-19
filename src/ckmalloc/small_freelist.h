@@ -26,6 +26,11 @@ class SmallFreelistImpl {
     return size_class_;
   }
 
+  PageId AvailableSlabsHead() const {
+    absl::MutexLock lock(&mutex_);
+    return available_slabs_head_;
+  }
+
   // Returns a slice from the freelist if there is one, or `std::nullopt` if the
   // freelist is empty.
   std::optional<AllocatedSlice*> FindSliceInFreelist() {

@@ -40,7 +40,8 @@ absl::Status SmallAllocatorFixture::ValidateHeap() {
 
     PageId prev_id = PageId::Nil();
     for (PageId page_id =
-             small_allocator_->FreelistHead(SizeClass::FromOrdinal(i));
+             small_allocator_->SmallFreelistForSize(SizeClass::FromOrdinal(i))
+                 .AvailableSlabsHead();
          page_id != PageId::Nil();) {
       auto it = id_to_slab.find(page_id);
       if (it == id_to_slab.end()) {
@@ -89,8 +90,8 @@ absl::Status SmallAllocatorFixture::ValidateEmpty() {
   for (size_t i = 0; i < SizeClass::kNumSizeClasses; i++) {
     SizeClass size_class = SizeClass::FromOrdinal(i);
 
-    if (small_allocator_->FreelistHead(SizeClass::FromOrdinal(i)) !=
-        PageId::Nil()) {
+    if (small_allocator_->SmallFreelistForSize(SizeClass::FromOrdinal(i))
+            .AvailableSlabsHead() != PageId::Nil()) {
       return FailedTest("Expected empty freelist for size class %v",
                         size_class);
     }
