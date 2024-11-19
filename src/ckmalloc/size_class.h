@@ -192,10 +192,6 @@ constexpr T SizeClass::SizeClassSwitch(SizeClass size_class, const Fn& fn) {
   }
 }
 
-const auto kAllSizeClasses = std::ranges::iota_view{
-  static_cast<uint32_t>(0), static_cast<uint32_t>(SizeClass::kNumSizeClasses)
-} | std::views::transform(SizeClass::FromOrdinal);
-
 template <typename T, typename Fn, uint32_t NextOrd, uint32_t... Ords>
 requires std::is_invocable_r_v<T, Fn, SizeClass>
 constexpr std::array<T, SizeClass::kNumSizeClasses> AllSizeClassesArrayHelper(
