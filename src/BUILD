@@ -223,6 +223,7 @@ cc_binary(
     ],
     deps = [
         "//proto:tracefile_cc_proto",
+        "@abseil-cpp//absl/container:btree",
         "@abseil-cpp//absl/flags:flag",
         "@abseil-cpp//absl/flags:parse",
         "@abseil-cpp//absl/status",
