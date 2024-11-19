@@ -473,9 +473,8 @@ std::optional<std::pair<PageId, Slab*>>
 SlabManagerImpl<MetadataAlloc, SlabMap>::Alloc(uint32_t n_pages) {
   return OptionalOrElse<std::pair<PageId, Slab*>>(
       DoAllocWithoutSbrk(n_pages),
-      [this, n_pages]() BENCH_NO_THREAD_SAFETY_ANALYSIS {
-        return AllocEndWithSbrk(n_pages);
-      });
+      [this, n_pages]()
+          CK_NO_THREAD_SAFETY_ANALYSIS { return AllocEndWithSbrk(n_pages); });
 }
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
@@ -484,7 +483,7 @@ SlabManagerImpl<MetadataAlloc, SlabMap>::AlignedAlloc(uint32_t n_pages,
                                                       size_t alignment) {
   return OptionalOrElse<std::pair<PageId, Slab*>>(
       DoAlignedAllocWithoutSbrk(n_pages, alignment),
-      [this, n_pages, alignment]() BENCH_NO_THREAD_SAFETY_ANALYSIS {
+      [this, n_pages, alignment]() CK_NO_THREAD_SAFETY_ANALYSIS {
         return AllocEndWithSbrk(n_pages, alignment);
       });
 }

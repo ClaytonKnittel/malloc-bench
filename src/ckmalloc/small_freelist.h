@@ -30,25 +30,17 @@ class SmallFreelistImpl {
   // freelist is empty.
   std::optional<AllocatedSlice*> FindSliceInFreelist() {
     absl::MutexLock lock(&mutex_);
-    if (available_slabs_head_ == PageId::Nil()) {
-      return std::nullopt;
-    }
-    return TakeSlice(slab_map_->FindSlab(available_slabs_head_)->ToSmall());
+    return MaybeTakeSliceFromFreelist();
   }
 
   // Allocates a new slab of the given size class, inserting it into the
   // freelist and returning a slice from it.
-  std::optional<AllocatedSlice*> TakeSliceFromNewSlab() {
-    using AllocRes = std::pair<PageId, SmallSlab*>;
-    DEFINE_OR_RETURN_OPT(AllocRes, result,
-                         slab_manager_->template Alloc<SmallSlab>(
-                             size_class_.Pages(), size_class_));
-    auto [page_id, slab] = result;
-
+  std::optional<AllocatedSlice*> FindSlice() {
     absl::MutexLock lock(&mutex_);
-    CK_ASSERT_EQ(available_slabs_head_, PageId::Nil());
-    AddToFreelist(slab);
-    return TakeSlice(slab);
+    return OptionalOrElse(MaybeTakeSliceFromFreelist(),
+                          [this]() CK_NO_THREAD_SAFETY_ANALYSIS {
+                            return TakeSliceFromNewSlab();
+                          });
   }
 
   // Returns a slice to the small slab, allowing it to be reallocated.
@@ -76,6 +68,27 @@ class SmallFreelistImpl {
   }
 
  private:
+  std::optional<AllocatedSlice*> MaybeTakeSliceFromFreelist()
+      CK_EXCLUSIVE_LOCKS_REQUIRED(mutex_) {
+    if (available_slabs_head_ == PageId::Nil()) {
+      return std::nullopt;
+    }
+    return TakeSlice(slab_map_->FindSlab(available_slabs_head_)->ToSmall());
+  }
+
+  std::optional<AllocatedSlice*> TakeSliceFromNewSlab()
+      CK_EXCLUSIVE_LOCKS_REQUIRED(mutex_) {
+    using AllocRes = std::pair<PageId, SmallSlab*>;
+    DEFINE_OR_RETURN_OPT(AllocRes, result,
+                         slab_manager_->template Alloc<SmallSlab>(
+                             size_class_.Pages(), size_class_));
+    auto [page_id, slab] = result;
+
+    CK_ASSERT_EQ(available_slabs_head_, PageId::Nil());
+    AddToFreelist(slab);
+    return TakeSlice(slab);
+  }
+
   // Allocates a single slice from this small blocks slab, which must not be
   // full.
   // TODO: return multiple once we have a cache?

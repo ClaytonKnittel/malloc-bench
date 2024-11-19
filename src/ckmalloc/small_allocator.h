@@ -93,7 +93,7 @@ Void* SmallAllocatorImpl<SlabMap, SlabManager>::AllocSmall(
     }
   }
 
-  auto slice_from_new_slab = freelist.TakeSliceFromNewSlab();
+  auto slice_from_new_slab = freelist.FindSlice();
   if (slice_from_new_slab.has_value()) {
     return slice_from_new_slab.value()->UserDataPtr();
   }
