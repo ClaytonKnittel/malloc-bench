@@ -6,6 +6,8 @@
 #include <limits>
 #include <optional>
 #include <ostream>
+#include <ranges>
+#include <type_traits>
 
 #include "absl/strings/str_format.h"
 
@@ -114,6 +116,29 @@ static_assert(SizeClass::OrdinalMapIdx(kMaxSmallSize) + 1 ==
 template <typename Sink>
 void AbslStringify(Sink& sink, ckmalloc::SizeClass size_class) {
   absl::Format(&sink, "[%" PRIu64 "]", size_class.SliceSize());
+}
+
+const auto kAllSizeClasses = std::ranges::iota_view{
+  static_cast<uint32_t>(0), static_cast<uint32_t>(SizeClass::kNumSizeClasses)
+} | std::views::transform(SizeClass::FromOrdinal);
+
+template <typename T, typename Fn, uint32_t NextOrd, uint32_t... Ords>
+requires std::is_invocable_r_v<T, Fn, SizeClass>
+constexpr std::array<T, SizeClass::kNumSizeClasses> AllSizeClassesArrayHelper(
+    const Fn& fn) {
+  if constexpr (NextOrd == SizeClass::kNumSizeClasses) {
+    return std::array<T, SizeClass::kNumSizeClasses>{ fn(
+        SizeClass::FromOrdinal(Ords))... };
+  } else {
+    return AllSizeClassesArrayHelper<T, Fn, NextOrd + 1, Ords..., NextOrd>(fn);
+  }
+}
+
+template <typename T, typename Fn>
+requires std::is_invocable_r_v<T, Fn, SizeClass>
+constexpr std::array<T, SizeClass::kNumSizeClasses> AllSizeClassesArray(
+    const Fn& fn) {
+  return AllSizeClassesArrayHelper<T, Fn, 0>(fn);
 }
 
 }  // namespace ckmalloc

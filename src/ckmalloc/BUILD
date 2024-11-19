@@ -548,6 +548,7 @@ cc_library(
         ":slab_manager",
         ":slab_map",
         ":slice",
+        ":small_freelist",
         ":util",
     ],
 )
@@ -591,6 +592,20 @@ cc_library(
         "@abseil-cpp//absl/container:btree",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/strings:str_format",
+    ],
+)
+
+cc_library(
+    name = "small_freelist",
+    hdrs = ["small_freelist.h"],
+    deps = [
+        ":page_id",
+        ":size_class",
+        ":slab_manager",
+        ":slab_map",
+        ":slice",
+        ":util",
+        "@abseil-cpp//absl/synchronization",
     ],
 )
 
