@@ -6,6 +6,7 @@
 #include <limits>
 #include <optional>
 #include <ostream>
+#include <ranges>
 
 #include "absl/strings/str_format.h"
 
@@ -63,6 +64,10 @@ class SizeClass {
     return !(*this == other);
   }
 
+  template <typename T, typename Fn>
+  requires std::is_invocable_r_v<T, Fn, SizeClass>
+  static constexpr T SizeClassSwitch(SizeClass size_class, const Fn& fn);
+
   // Returns the size of slices represented by this size class.
   uint64_t SliceSize() const;
 
@@ -114,6 +119,77 @@ static_assert(SizeClass::OrdinalMapIdx(kMaxSmallSize) + 1 ==
 template <typename Sink>
 void AbslStringify(Sink& sink, ckmalloc::SizeClass size_class) {
   absl::Format(&sink, "[%" PRIu64 "]", size_class.SliceSize());
+}
+
+constexpr auto kAllSizeClasses = std::ranges::iota_view{
+  static_cast<uint32_t>(0), static_cast<uint32_t>(SizeClass::kNumSizeClasses)
+} | std::views::transform(SizeClass::FromOrdinal);
+
+/* static */
+template <typename T, typename Fn>
+requires std::is_invocable_r_v<T, Fn, SizeClass>
+constexpr T SizeClass::SizeClassSwitch(SizeClass size_class, const Fn& fn) {
+  // For the time being, I can't find a way to do this better. With recursive
+  // variadic always_inline template functions, only clang is able to fully
+  // optimize the sequence of ifs into a jump table, GCC fails and generates a
+  // partial table.
+  static_assert(kNumSizeClasses == 26);
+  switch (size_class.Ordinal()) {
+    case 0:
+      return fn(FromOrdinal(0));
+    case 1:
+      return fn(FromOrdinal(1));
+    case 2:
+      return fn(FromOrdinal(2));
+    case 3:
+      return fn(FromOrdinal(3));
+    case 4:
+      return fn(FromOrdinal(4));
+    case 5:
+      return fn(FromOrdinal(5));
+    case 6:
+      return fn(FromOrdinal(6));
+    case 7:
+      return fn(FromOrdinal(7));
+    case 8:
+      return fn(FromOrdinal(8));
+    case 9:
+      return fn(FromOrdinal(9));
+    case 10:
+      return fn(FromOrdinal(10));
+    case 11:
+      return fn(FromOrdinal(11));
+    case 12:
+      return fn(FromOrdinal(12));
+    case 13:
+      return fn(FromOrdinal(13));
+    case 14:
+      return fn(FromOrdinal(14));
+    case 15:
+      return fn(FromOrdinal(15));
+    case 16:
+      return fn(FromOrdinal(16));
+    case 17:
+      return fn(FromOrdinal(17));
+    case 18:
+      return fn(FromOrdinal(18));
+    case 19:
+      return fn(FromOrdinal(19));
+    case 20:
+      return fn(FromOrdinal(20));
+    case 21:
+      return fn(FromOrdinal(21));
+    case 22:
+      return fn(FromOrdinal(22));
+    case 23:
+      return fn(FromOrdinal(23));
+    case 24:
+      return fn(FromOrdinal(24));
+    case 25:
+      return fn(FromOrdinal(25));
+    default:
+      CK_UNREACHABLE();
+  }
 }
 
 }  // namespace ckmalloc
