@@ -68,30 +68,30 @@ Void* SmallAllocatorImpl<SlabMap, SlabManager>::AllocSmall(
   }
 
   // TODO: Test this in main allocator test.
-  uint64_t block_size = Block::BlockSizeForUserSize(user_size);
-  if (block_size >= Block::kMinTrackedSize) {
-    TrackedBlock* block =
-        alignment.has_value()
-            ? freelist_->FindFreeLazyAligned(block_size, alignment.value())
-            : freelist_->FindFreeLazy(block_size);
-    if (block != nullptr) {
-      // TODO: unify this logic in freelist.
-      BlockedSlab* slab =
-          slab_map_->FindSlab(PageId::FromPtr(block))->ToBlocked();
-      AllocatedBlock* allocated_block;
-      if (alignment.has_value()) {
-        auto [prev_free, allocated, next_free] =
-            freelist_->SplitAligned(block, block_size, alignment.value());
-        allocated_block = allocated;
-      } else {
-        auto [allocated, free] = freelist_->Split(block, block_size);
-        allocated_block = allocated;
-      }
-      CK_ASSERT_EQ(allocated_block->Size(), block_size);
-      slab->AddAllocation(block_size);
-      return allocated_block->UserDataPtr();
-    }
-  }
+  // uint64_t block_size = Block::BlockSizeForUserSize(user_size);
+  // if (block_size >= Block::kMinTrackedSize) {
+  //   TrackedBlock* block =
+  //       alignment.has_value()
+  //           ? freelist_->FindFreeLazyAligned(block_size, alignment.value())
+  //           : freelist_->FindFreeLazy(block_size);
+  //   if (block != nullptr) {
+  //     // TODO: unify this logic in freelist.
+  //     BlockedSlab* slab =
+  //         slab_map_->FindSlab(PageId::FromPtr(block))->ToBlocked();
+  //     AllocatedBlock* allocated_block;
+  //     if (alignment.has_value()) {
+  //       auto [prev_free, allocated, next_free] =
+  //           freelist_->SplitAligned(block, block_size, alignment.value());
+  //       allocated_block = allocated;
+  //     } else {
+  //       auto [allocated, free] = freelist_->Split(block, block_size);
+  //       allocated_block = allocated;
+  //     }
+  //     CK_ASSERT_EQ(allocated_block->Size(), block_size);
+  //     slab->AddAllocation(block_size);
+  //     return allocated_block->UserDataPtr();
+  //   }
+  // }
 
   auto slice_from_new_slab = freelist.FindSlice();
   if (slice_from_new_slab.has_value()) {

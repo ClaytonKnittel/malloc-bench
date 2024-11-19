@@ -33,7 +33,7 @@ class GlobalState {
 
   // These assertions help the compiler avoid redundant memory reads for member
   // pointers to other metadata types.
-  void AssertConsistency() const {
+  void AssertConsistency() const CK_NO_THREAD_SAFETY_ANALYSIS {
     CK_ASSERT_EQ(slab_manager_.slab_map_, &slab_map_);
     CK_ASSERT_EQ(metadata_manager_.slab_map_, &slab_map_);
     CK_ASSERT_EQ(small_alloc_.slab_map_, &slab_map_);
