@@ -29,6 +29,7 @@ class SmallFreelistImpl {
   // Returns a slice from the freelist if there is one, or `std::nullopt` if the
   // freelist is empty.
   std::optional<AllocatedSlice*> FindSliceInFreelist() {
+    absl::MutexLock lock(&mutex_);
     if (available_slabs_head_ == PageId::Nil()) {
       return std::nullopt;
     }
@@ -44,6 +45,7 @@ class SmallFreelistImpl {
                              size_class_.Pages(), size_class_));
     auto [page_id, slab] = result;
 
+    absl::MutexLock lock(&mutex_);
     CK_ASSERT_EQ(available_slabs_head_, PageId::Nil());
     AddToFreelist(slab);
     return TakeSlice(slab);
@@ -61,6 +63,7 @@ class SmallFreelistImpl {
                             slab_start, slab->SizeClass().Pages() * kPageSize -
                                             slab->SizeClass().SliceSize()));
 
+    absl::MutexLock lock(&mutex_);
     if (slab->Full()) {
       AddToFreelist(slab);
     }
@@ -76,7 +79,8 @@ class SmallFreelistImpl {
   // Allocates a single slice from this small blocks slab, which must not be
   // full.
   // TODO: return multiple once we have a cache?
-  AllocatedSlice* TakeSlice(SmallSlab* slab) {
+  AllocatedSlice* TakeSlice(SmallSlab* slab)
+      CK_EXCLUSIVE_LOCKS_REQUIRED(mutex_) {
     CK_ASSERT_FALSE(slab->Full());
     AllocatedSlice* slice = slab->PopSlice(slab->StartId().PageStart());
 
@@ -86,7 +90,7 @@ class SmallFreelistImpl {
     return slice;
   }
 
-  void AddToFreelist(SmallSlab* slab) {
+  void AddToFreelist(SmallSlab* slab) CK_EXCLUSIVE_LOCKS_REQUIRED(mutex_) {
     PageId page_id = slab->StartId();
     slab->SetNextFree(available_slabs_head_);
     slab->SetPrevFree(PageId::Nil());
@@ -99,7 +103,7 @@ class SmallFreelistImpl {
     available_slabs_head_ = page_id;
   }
 
-  void RemoveFromFreelist(SmallSlab* slab) {
+  void RemoveFromFreelist(SmallSlab* slab) CK_EXCLUSIVE_LOCKS_REQUIRED(mutex_) {
     PageId prev_id = slab->PrevFree();
     PageId next_id = slab->NextFree();
     if (prev_id != PageId::Nil()) {
