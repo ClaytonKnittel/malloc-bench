@@ -1,4 +1,3 @@
-#include <ranges>
 #include <vector>
 
 #include "absl/status/status.h"
@@ -286,14 +285,10 @@ TEST_P(SizeClassTest, AllocAligned) {
   EXPECT_THAT(ValidateHeap(), IsOk());
 }
 
-static const auto kAllSizeClasses =
-    testing::ValuesIn(std::ranges::iota_view{
-                          static_cast<uint32_t>(0),
-                          static_cast<uint32_t>(SizeClass::kNumSizeClasses) } |
-                      std::views::transform(SizeClass::FromOrdinal) |
-                      RangeToContainer<std::vector<SizeClass>>());
+static const auto kAllSizeClassesValues = testing::ValuesIn(
+    kAllSizeClasses | RangeToContainer<std::vector<SizeClass>>());
 
-INSTANTIATE_TEST_SUITE_P(SizeClassSuite, SizeClassTest, kAllSizeClasses,
+INSTANTIATE_TEST_SUITE_P(SizeClassSuite, SizeClassTest, kAllSizeClassesValues,
                          [](const testing::TestParamInfo<SizeClass>& info) {
                            return absl::StrCat(info.param.SliceSize());
                          });

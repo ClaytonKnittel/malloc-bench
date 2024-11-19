@@ -156,65 +156,10 @@ SizeClass SizeClass::FromSliceSize(uint64_t slice_size,
 
 // TODO check if this is the fastest way to do this.
 uint32_t SizeClass::OffsetToIdx(uint64_t offset_bytes) const {
-  static_assert(kNumSizeClasses == 26);
   CK_ASSERT_LT(offset_bytes, Pages() * kPageSize);
-  switch (Ordinal()) {
-    // NOLINTNEXTLINE(bugprone-branch-clone)
-    case 0:
-      return static_cast<uint32_t>(offset_bytes / SliceSize());
-    case 1:
-      return static_cast<uint32_t>(offset_bytes / SliceSize());
-    case 2:
-      return static_cast<uint32_t>(offset_bytes / SliceSize());
-    case 3:
-      return static_cast<uint32_t>(offset_bytes / SliceSize());
-    case 4:
-      return static_cast<uint32_t>(offset_bytes / SliceSize());
-    case 5:
-      return static_cast<uint32_t>(offset_bytes / SliceSize());
-    case 6:
-      return static_cast<uint32_t>(offset_bytes / SliceSize());
-    case 7:
-      return static_cast<uint32_t>(offset_bytes / SliceSize());
-    case 8:
-      return static_cast<uint32_t>(offset_bytes / SliceSize());
-    case 9:
-      return static_cast<uint32_t>(offset_bytes / SliceSize());
-    case 10:
-      return static_cast<uint32_t>(offset_bytes / SliceSize());
-    case 11:
-      return static_cast<uint32_t>(offset_bytes / SliceSize());
-    case 12:
-      return static_cast<uint32_t>(offset_bytes / SliceSize());
-    case 13:
-      return static_cast<uint32_t>(offset_bytes / SliceSize());
-    case 14:
-      return static_cast<uint32_t>(offset_bytes / SliceSize());
-    case 15:
-      return static_cast<uint32_t>(offset_bytes / SliceSize());
-    case 16:
-      return static_cast<uint32_t>(offset_bytes / SliceSize());
-    case 17:
-      return static_cast<uint32_t>(offset_bytes / SliceSize());
-    case 18:
-      return static_cast<uint32_t>(offset_bytes / SliceSize());
-    case 19:
-      return static_cast<uint32_t>(offset_bytes / SliceSize());
-    case 20:
-      return static_cast<uint32_t>(offset_bytes / SliceSize());
-    case 21:
-      return static_cast<uint32_t>(offset_bytes / SliceSize());
-    case 22:
-      return static_cast<uint32_t>(offset_bytes / SliceSize());
-    case 23:
-      return static_cast<uint32_t>(offset_bytes / SliceSize());
-    case 24:
-      return static_cast<uint32_t>(offset_bytes / SliceSize());
-    case 25:
-      return static_cast<uint32_t>(offset_bytes / SliceSize());
-    default:
-      CK_UNREACHABLE();
-  }
+  return SizeClassSwitch<uint32_t>(*this, [offset_bytes](SizeClass size_class) {
+    return static_cast<uint32_t>(offset_bytes / size_class.SliceSize());
+  });
 }
 
 }  // namespace ckmalloc
