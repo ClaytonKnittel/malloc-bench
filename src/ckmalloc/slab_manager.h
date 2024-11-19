@@ -164,7 +164,7 @@ class SlabManagerImpl {
   const size_t max_heap_size_;
 
   // The start of the current heap being allocated from.
-  void* heap_start_ = nullptr;
+  void* heap_start_ CK_GUARDED_BY(mutex_) = nullptr;
   // The end of already-allocated memory from the heap.
   void* heap_end_ CK_GUARDED_BY(mutex_) = nullptr;
 
