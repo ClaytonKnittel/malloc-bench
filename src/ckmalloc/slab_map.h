@@ -5,6 +5,8 @@
 #include <optional>
 #include <type_traits>
 
+#include "absl/synchronization/mutex.h"
+
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/page_id.h"
 #include "src/ckmalloc/size_class.h"
@@ -192,6 +194,8 @@ class SlabMapImpl {
     return nodes_[idx];
   }
 
+  absl::Mutex path_allocator_mutex_;
+
   Node* nodes_[kRootSize] = {};
 
   // The following are freelists of slab map nodes, for reuse by future
@@ -246,6 +250,7 @@ bool SlabMapImpl<MetadataAlloc>::AllocatePath(PageId start_id, PageId end_id) {
       std::make_pair(MiddleIdx(start_id), MiddleIdx(end_id));
   const auto leaf_idxs = std::make_pair(LeafIdx(start_id), LeafIdx(end_id));
 
+  absl::MutexLock lock(&path_allocator_mutex_);
   CK_ASSERT_LE(root_idxs.first, root_idxs.second);
   for (size_t root_idx = root_idxs.first; root_idx <= root_idxs.second;
        root_idx++) {
@@ -304,6 +309,7 @@ void SlabMapImpl<MetadataAlloc>::DeallocatePath(PageId start_id,
       std::make_pair(MiddleIdx(start_id), MiddleIdx(end_id));
   const auto leaf_idxs = std::make_pair(LeafIdx(start_id), LeafIdx(end_id));
 
+  absl::MutexLock lock(&path_allocator_mutex_);
   CK_ASSERT_LE(root_idxs.first, root_idxs.second);
   for (size_t root_idx = root_idxs.first; root_idx <= root_idxs.second;
        root_idx++) {

@@ -111,10 +111,11 @@ Void* LargeAllocatorImpl<SlabMap, SlabManager>::ReallocLarge(LargeSlab* slab,
   if (slab->Type() == SlabType::kBlocked) {
     BlockedSlab* blocked_slab = slab->ToBlocked();
     AllocatedBlock* block = AllocatedBlock::FromUserDataPtr(ptr);
+
+    absl::MutexLock lock(&mutex_);
     uint64_t block_size = block->Size();
     uint64_t new_block_size = Block::BlockSizeForUserSize(user_size);
 
-    absl::MutexLock lock(&mutex_);
     // If we can resize the block in-place, then we don't need to copy any data
     // and can return the same pointer back to the user.
     if (freelist_->ResizeIfPossible(block, new_block_size)) {

@@ -244,6 +244,8 @@ bool SlabManagerImpl<MetadataAlloc, SlabMap>::Resize(AllocatedSlab* slab,
   }
 
   const PageId slab_start = slab->StartId();
+
+  absl::MutexLock lock(&mutex_);
   MappedSlab* next_slab = slab_map_->FindSlab(slab->EndId() + 1);
   // The start of the next adjacent free slab, if there will be one.
   const PageId free_start = slab_start + new_size;
@@ -253,7 +255,6 @@ bool SlabManagerImpl<MetadataAlloc, SlabMap>::Resize(AllocatedSlab* slab,
   // next adjacent free slab.
   Slab* free_meta;
 
-  absl::MutexLock lock(&mutex_);
   if (new_size < n_pages) {
     free_size = n_pages - new_size;
 

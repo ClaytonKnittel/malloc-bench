@@ -501,6 +501,7 @@ cc_library(
         ":page_id",
         ":size_class",
         ":util",
+        "@abseil-cpp//absl/synchronization",
     ],
 )
 
