@@ -221,6 +221,7 @@ template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap,
 void MainAllocatorImpl<MetadataAlloc, SlabMap, SmallAllocator,
                        LargeAllocator>::Free(Void* ptr) {
   Slab* slab = slab_map_->FindSlab(PageId::FromPtr(ptr));
+  CK_ASSERT_NE(slab, nullptr);
   CK_ASSERT_NE(slab->Type(), SlabType::kFree);
   CK_ASSERT_NE(slab->Type(), SlabType::kUnmapped);
 

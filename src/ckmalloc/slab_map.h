@@ -172,10 +172,10 @@ class SlabMapImpl {
   };
 
   template <typename T>
-  T* Allocate();
+  T* Allocate() CK_EXCLUSIVE_LOCKS_REQUIRED(path_allocator_mutex_);
 
   template <typename T>
-  void Free(T* node);
+  void Free(T* node) CK_EXCLUSIVE_LOCKS_REQUIRED(path_allocator_mutex_);
 
   static size_t RootIdx(PageId page_id) {
     return page_id.Idx() / (kNodeSize * kNodeSize);
