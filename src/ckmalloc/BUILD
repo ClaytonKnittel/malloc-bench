@@ -223,7 +223,6 @@ cc_library(
         ":sys_alloc",
         ":util",
         "//src:perfetto",
-        "@abseil-cpp//absl/synchronization",
     ],
 )
 
@@ -446,6 +445,7 @@ cc_library(
         ":slab_map",
         ":sys_alloc",
         ":util",
+        "@abseil-cpp//absl/synchronization",
         "@cc-util//util:std_util",
     ],
 )
@@ -501,6 +501,7 @@ cc_library(
         ":page_id",
         ":size_class",
         ":util",
+        "@abseil-cpp//absl/synchronization",
     ],
 )
 
@@ -548,6 +549,7 @@ cc_library(
         ":slab_manager",
         ":slab_map",
         ":slice",
+        ":small_freelist",
         ":util",
     ],
 )
@@ -591,6 +593,20 @@ cc_library(
         "@abseil-cpp//absl/container:btree",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/strings:str_format",
+    ],
+)
+
+cc_library(
+    name = "small_freelist",
+    hdrs = ["small_freelist.h"],
+    deps = [
+        ":page_id",
+        ":size_class",
+        ":slab_manager",
+        ":slab_map",
+        ":slice",
+        ":util",
+        "@abseil-cpp//absl/synchronization",
     ],
 )
 

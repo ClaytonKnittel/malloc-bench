@@ -4,6 +4,7 @@
 #include <optional>
 #include <utility>
 
+#include "absl/synchronization/mutex.h"
 #include "util/std_util.h"
 
 #include "src/ckmalloc/block.h"
@@ -57,49 +58,54 @@ class SlabManagerImpl {
   Block* FirstBlockInBlockedSlab(const BlockedSlab* slab) const;
 
  private:
-  size_t HeapSize() const;
+  size_t HeapSize() const CK_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
   // Returns the `PageId` of the end of the heap (i.e. one page past the last
   // allocated slab).
-  PageId HeapEndPageId();
+  PageId HeapEndPageId() CK_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
   // Returns the slab metadata for the rightmost slab, i.e. the slab with
   // highest start `PageId`. Should only be called if the heap is not empty.
-  MappedSlab* LastSlab();
+  MappedSlab* LastSlab() CK_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
   // Removes the single-page free slab from the freelist, returning the start ID
   // of the slab and a slab metadata which may be used.
   std::pair<PageId, Slab*> TakeSinglePageFreeSlab(
-      FreeSinglePageSlab* slab_start);
+      FreeSinglePageSlab* slab_start) CK_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
   // Removes the multi-page free slab from the freelist, returning the start ID
   // of the slab and a slab metadata which may be used.
   std::pair<PageId, Slab*> TakeMultiPageFreeSlab(
       FreeMultiPageSlab* slab_start, uint32_t n_pages,
-      std::optional<size_t> alignment = std::nullopt);
+      std::optional<size_t> alignment = std::nullopt)
+      CK_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
   // Allocates `n_pages` contiguous pages, returning the `PageId` of the first
   // page in the slab, and returning an allocated a `Slab` metadata without
   // initializing it.
-  std::optional<std::pair<PageId, Slab*>> Alloc(uint32_t n_pages);
+  std::optional<std::pair<PageId, Slab*>> Alloc(uint32_t n_pages)
+      CK_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
   // Like `Alloc`, but returns a region of pages aligned to `alignment`.
   std::optional<std::pair<PageId, Slab*>> AlignedAlloc(uint32_t n_pages,
-                                                       size_t alignment);
+                                                       size_t alignment)
+      CK_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
   template <typename S, typename... Args>
   std::pair<PageId, S*> InitializeAllocation(PageId page_id, uint32_t n_pages,
-                                             Slab* slab, Args...);
+                                             Slab* slab, Args...)
+      CK_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
   // Finds a region of memory to return for `Alloc`, returning the `PageId` of
   // the beginning of the region and a `Slab` metadata object that may be used
   // to hold metadata for this region. This method will not increase the size of
   // the heap, and may return `std::nullopt` if there was no memory region large
   // enough for this allocation already available.
-  std::optional<std::pair<PageId, Slab*>> DoAllocWithoutSbrk(uint32_t n_pages);
+  std::optional<std::pair<PageId, Slab*>> DoAllocWithoutSbrk(uint32_t n_pages)
+      CK_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
   std::optional<std::pair<PageId, Slab*>> DoAlignedAllocWithoutSbrk(
-      uint32_t n_pages, size_t alignment);
+      uint32_t n_pages, size_t alignment) CK_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
   // Tries to allocate `n_pages` at the end of the heap, which should increase
   // the size of the heap. This should be called if allocating within the heap
@@ -111,31 +117,37 @@ class SlabManagerImpl {
   // this isn't possible, the remainder of this heap is consumed into a free
   // slab, and a new heap is created.
   std::optional<std::pair<PageId, Slab*>> AllocEndWithSbrk(
-      uint32_t n_pages, std::optional<size_t> alignment = std::nullopt);
+      uint32_t n_pages, std::optional<size_t> alignment = std::nullopt)
+      CK_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
   // Inserts a single-page free slab into the slab freelist.
-  void InsertSinglePageFreeSlab(FreeSinglePageSlab* slab_start);
+  void InsertSinglePageFreeSlab(FreeSinglePageSlab* slab_start)
+      CK_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
   // Inserts a multi-page free slab into the freelist.
-  void InsertMultiPageFreeSlab(FreeMultiPageSlab* slab_start, uint32_t n_pages);
+  void InsertMultiPageFreeSlab(FreeMultiPageSlab* slab_start, uint32_t n_pages)
+      CK_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
   // Given a `Slab` metadata object to use, a start `PageId`, and number of
   // pages, initializes the `Slab` metadata to describe this region as free, and
   // inserts it into the necessary data structures to track this free region.
   // This does not coalesce with neighbors.
-  void FreeRegion(Slab* slab, PageId start_id, uint32_t n_pages);
+  void FreeRegion(Slab* slab, PageId start_id, uint32_t n_pages)
+      CK_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
   // Removes a single-page free slab from the slab freelist, allowing it to be
   // allocated or merged into another slab.
-  void RemoveSinglePageFreeSlab(FreeSinglePageSlab* slab_start);
+  void RemoveSinglePageFreeSlab(FreeSinglePageSlab* slab_start)
+      CK_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
   // Removes a multi-page free slab from the freelist, allowing it to be
   // allocated or merged into another slab.
-  void RemoveMultiPageFreeSlab(FreeMultiPageSlab* slab_start);
+  void RemoveMultiPageFreeSlab(FreeMultiPageSlab* slab_start)
+      CK_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
   // Removes a free slab with given metadata from the freelist it is in,
   // allowing it to be allocated or merged into another slab.
-  void RemoveFreeSlab(FreeSlab* slab);
+  void RemoveFreeSlab(FreeSlab* slab) CK_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
   // Extends the heap by `n_pages`, returning true if the operation was
   // successful.
@@ -143,15 +155,18 @@ class SlabManagerImpl {
   // `heap_end` is only passed since callers typically already have this value.
   // This is a performance consideration, and `heap_end` should always equal
   // `HeapEndPageId()`.
-  bool ExtendHeap(PageId heap_end, uint32_t n_pages);
+  bool ExtendHeap(PageId heap_end, uint32_t n_pages)
+      CK_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
+
+  mutable absl::Mutex mutex_;
 
   // How large each heap is.
   const size_t max_heap_size_;
 
   // The start of the current heap being allocated from.
-  void* heap_start_ = nullptr;
+  void* heap_start_ CK_GUARDED_BY(mutex_) = nullptr;
   // The end of already-allocated memory from the heap.
-  void* heap_end_ = nullptr;
+  void* heap_end_ CK_GUARDED_BY(mutex_) = nullptr;
 
   // The slab manager needs to access the slab map when coalescing to know if
   // the adjacent slabs are free or allocated, and if they are free how large
@@ -159,12 +174,12 @@ class SlabManagerImpl {
   SlabMap* const slab_map_;
 
   // Single-page slabs are kept in a singly-linked freelist.
-  LinkedList<FreeSinglePageSlab> single_page_freelist_;
+  LinkedList<FreeSinglePageSlab> single_page_freelist_ CK_GUARDED_BY(mutex_);
 
   // Multi-page slabs are kept in a red-black tree sorted by size.
-  RbTree<FreeMultiPageSlab> multi_page_free_slabs_;
+  RbTree<FreeMultiPageSlab> multi_page_free_slabs_ CK_GUARDED_BY(mutex_);
   // Cache a pointer to the smallest multi-page slab in the tree.
-  FreeMultiPageSlab* smallest_multi_page_ = nullptr;
+  FreeMultiPageSlab* smallest_multi_page_ CK_GUARDED_BY(mutex_) = nullptr;
 };
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
@@ -183,6 +198,7 @@ SlabManagerImpl<MetadataAlloc, SlabMap>::Alloc(uint32_t n_pages, Args... args) {
   CK_ASSERT_NE(n_pages, 0);
   CK_ASSERT_LE(n_pages, PagesPerHeap());
 
+  absl::MutexLock lock(&mutex_);
   DEFINE_OR_RETURN_OPT(AllocResult, result, Alloc(n_pages));
   auto [page_id, slab] = std::move(result);
   return InitializeAllocation<S, Args...>(page_id, n_pages, slab,
@@ -208,6 +224,7 @@ SlabManagerImpl<MetadataAlloc, SlabMap>::AlignedAlloc(uint32_t n_pages,
     return Alloc<S, Args...>(n_pages, std::forward<Args>(args)...);
   }
 
+  absl::MutexLock lock(&mutex_);
   DEFINE_OR_RETURN_OPT(AllocResult, result, AlignedAlloc(n_pages, alignment));
   auto [page_id, slab] = std::move(result);
   return InitializeAllocation<S, Args...>(page_id, n_pages, slab,
@@ -227,6 +244,8 @@ bool SlabManagerImpl<MetadataAlloc, SlabMap>::Resize(AllocatedSlab* slab,
   }
 
   const PageId slab_start = slab->StartId();
+
+  absl::MutexLock lock(&mutex_);
   MappedSlab* next_slab = slab_map_->FindSlab(slab->EndId() + 1);
   // The start of the next adjacent free slab, if there will be one.
   const PageId free_start = slab_start + new_size;
@@ -342,6 +361,7 @@ void SlabManagerImpl<MetadataAlloc, SlabMap>::Free(AllocatedSlab* slab) {
   }
 
   PageId start_id = slab->StartId();
+  absl::MutexLock lock(&mutex_);
   // TODO: need to check that this isn't the first slab in it's heap?
   {
     MappedSlab* prev_slab = slab_map_->FindSlab(start_id - 1);
@@ -454,7 +474,8 @@ std::optional<std::pair<PageId, Slab*>>
 SlabManagerImpl<MetadataAlloc, SlabMap>::Alloc(uint32_t n_pages) {
   return OptionalOrElse<std::pair<PageId, Slab*>>(
       DoAllocWithoutSbrk(n_pages),
-      [this, n_pages]() { return AllocEndWithSbrk(n_pages); });
+      [this, n_pages]()
+          CK_NO_THREAD_SAFETY_ANALYSIS { return AllocEndWithSbrk(n_pages); });
 }
 
 template <MetadataAllocInterface MetadataAlloc, SlabMapInterface SlabMap>
@@ -463,7 +484,7 @@ SlabManagerImpl<MetadataAlloc, SlabMap>::AlignedAlloc(uint32_t n_pages,
                                                       size_t alignment) {
   return OptionalOrElse<std::pair<PageId, Slab*>>(
       DoAlignedAllocWithoutSbrk(n_pages, alignment),
-      [this, n_pages, alignment]() {
+      [this, n_pages, alignment]() CK_NO_THREAD_SAFETY_ANALYSIS {
         return AllocEndWithSbrk(n_pages, alignment);
       });
 }

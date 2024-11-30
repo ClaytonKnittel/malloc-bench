@@ -56,7 +56,7 @@ void TestSlabManager::HandleAlloc(AllocatedSlab* slab) {
   CK_ASSERT_TRUE(inserted);
 }
 
-absl::Status SlabManagerFixture::ValidateHeap() {
+absl::Status SlabManagerFixture::ValidateHeap() CK_NO_THREAD_SAFETY_ANALYSIS {
   absl::flat_hash_set<MappedSlab*> visited_slabs;
   uint32_t free_slabs = 0;
   uint32_t allocated_slabs = 0;

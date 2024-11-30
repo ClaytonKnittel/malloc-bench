@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <cstring>
 
+#include "absl/synchronization/mutex.h"
+
 #include "src/ckmalloc/block.h"
 #include "src/ckmalloc/common.h"
 #include "src/ckmalloc/freelist.h"
@@ -28,29 +30,34 @@ class LargeAllocatorImpl {
   // Performs allocation for a large-sized allocation (i.e.
   // !IsSmallSize(user_size)).
   Void* AllocLarge(size_t user_size,
-                   std::optional<size_t> alignment = std::nullopt);
+                   std::optional<size_t> alignment = std::nullopt)
+      CK_LOCKS_EXCLUDED(mutex_);
 
   // Performs reallocation for an allocation in a large slab. `user_size` must
   // be a large size.
-  Void* ReallocLarge(LargeSlab* slab, Void* ptr, size_t user_size);
+  Void* ReallocLarge(LargeSlab* slab, Void* ptr, size_t user_size)
+      CK_LOCKS_EXCLUDED(mutex_);
 
   // Frees an allocation in a large slab.
-  void FreeLarge(LargeSlab* slab, Void* ptr);
+  void FreeLarge(LargeSlab* slab, Void* ptr) CK_LOCKS_EXCLUDED(mutex_);
 
  private:
   // Releases an empty blocked slab back to the slab manager.
-  void ReleaseBlockedSlab(BlockedSlab* slab);
+  void ReleaseBlockedSlab(BlockedSlab* slab)
+      CK_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
   // Tries to find a free block large enough for `user_size`, and if one is
   // found, returns the `AllocatedBlock` large enough to serve this request.
   AllocatedBlock* MakeBlockFromFreelist(uint64_t block_size,
-                                        std::optional<size_t> alignment);
+                                        std::optional<size_t> alignment)
+      CK_LOCKS_EXCLUDED(mutex_);
 
   // Allocates a new large slab large enough for `user_size`, and returns a
   // pointer to the newly created `AllocatedBlock` that is large enough for
   // `user_size`.
   AllocatedBlock* AllocBlockedSlabAndMakeBlock(uint64_t block_size,
-                                               std::optional<size_t> alignment);
+                                               std::optional<size_t> alignment)
+      CK_LOCKS_EXCLUDED(mutex_);
 
   // Allocates a single-alloc slab, returning a pointer to the single allocation
   // within that slab.
@@ -62,11 +69,13 @@ class LargeAllocatorImpl {
   // slab.
   bool ResizeSingleAllocIfPossible(SingleAllocSlab* slab, size_t new_size);
 
+  mutable absl::Mutex mutex_;
+
   SlabMap* const slab_map_;
 
   SlabManager* const slab_manager_;
 
-  Freelist* const freelist_;
+  Freelist* const freelist_ CK_GUARDED_BY(mutex_);
 };
 
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
@@ -102,6 +111,8 @@ Void* LargeAllocatorImpl<SlabMap, SlabManager>::ReallocLarge(LargeSlab* slab,
   if (slab->Type() == SlabType::kBlocked) {
     BlockedSlab* blocked_slab = slab->ToBlocked();
     AllocatedBlock* block = AllocatedBlock::FromUserDataPtr(ptr);
+
+    absl::MutexLock lock(&mutex_);
     uint64_t block_size = block->Size();
     uint64_t new_block_size = Block::BlockSizeForUserSize(user_size);
 
@@ -141,6 +152,8 @@ void LargeAllocatorImpl<SlabMap, SlabManager>::FreeLarge(LargeSlab* slab,
   if (slab->Type() == SlabType::kBlocked) {
     BlockedSlab* blocked_slab = slab->ToBlocked();
     AllocatedBlock* block = AllocatedBlock::FromUserDataPtr(ptr);
+
+    absl::MutexLock lock(&mutex_);
     blocked_slab->RemoveAllocation(block->Size());
     freelist_->MarkFree(block);
 
@@ -156,11 +169,10 @@ void LargeAllocatorImpl<SlabMap, SlabManager>::FreeLarge(LargeSlab* slab,
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
 void LargeAllocatorImpl<SlabMap, SlabManager>::ReleaseBlockedSlab(
     BlockedSlab* slab) {
-  BlockedSlab* blocked_slab = slab->ToBlocked();
-  CK_ASSERT_EQ(blocked_slab->AllocatedBytes(), 0);
+  CK_ASSERT_EQ(slab->AllocatedBytes(), 0);
 
-  Block* only_block = slab_manager_->FirstBlockInBlockedSlab(blocked_slab);
-  CK_ASSERT_EQ(only_block->Size(), blocked_slab->MaxBlockSize());
+  Block* only_block = slab_manager_->FirstBlockInBlockedSlab(slab);
+  CK_ASSERT_EQ(only_block->Size(), slab->MaxBlockSize());
   CK_ASSERT_TRUE(only_block->Free());
   CK_ASSERT_TRUE(only_block->IsTracked());
 
@@ -172,6 +184,8 @@ void LargeAllocatorImpl<SlabMap, SlabManager>::ReleaseBlockedSlab(
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
 AllocatedBlock* LargeAllocatorImpl<SlabMap, SlabManager>::MakeBlockFromFreelist(
     uint64_t block_size, std::optional<size_t> alignment) {
+  absl::MutexLock lock(&mutex_);
+
   TrackedBlock* free_block =
       alignment.has_value()
           ? freelist_->FindFreeAligned(block_size, alignment.value())
@@ -220,6 +234,8 @@ LargeAllocatorImpl<SlabMap, SlabManager>::AllocBlockedSlabAndMakeBlock(
   uint64_t remaining_block_size = slab->MaxBlockSize();
   Block* block = slab_manager_->FirstBlockInBlockedSlab(slab);
   bool prev_free = false;
+
+  absl::MutexLock lock(&mutex_);
   // If alignment forces this block to start somewhere past the beginning, we
   // need to initialize a free block at the beginning.
   if (alignment.has_value() && alignment_offset != 0) {
