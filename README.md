@@ -4,13 +4,13 @@ A malloc implementation, just for fun. The benchmarking framework here was devel
 
 # Allocator overview
 
-There are two different sizes of allocations that get treated differently. Small sizes (<= 256 btes) and large sizes (> 256 bytes).
+There are two different sizes of allocations that are treated differently: small allocations (≤ 256 bytes) and large allocations (> 256 bytes).
 
 ### Small size allocator (<= 256 bytes)
 
-Any `malloc(size)` call with `size <= 256` bytes is treated specially.
+Any `malloc(size)` call with `size ≤ 256` bytes is treated specially.
 
-Small sizes are stored stores in fixed size "bins" packed within a "SmallBlock." A small block looks like:
+Small sizes are stored stores in fixed size "bins" packed within a _SmallBlock_. A small block looks like:
 
 ```
 SmallBlock (4096 bytes)
@@ -38,43 +38,51 @@ SmallBlock (4096 bytes)
  └───────────────────┘
 ```
 
-Each SmallBlock handles allocations of a fixed size (its "size class"). There are SmallBlocks to handle every 16-byte increment up to 256 (8, 16, 32, 48, ..., 240, 256). For example, `SmallBlock` for 8-byte data bins will contain 498 bins (the other 112 bytes is overhead).
+Each SmallBlock handles allocations of a fixed size (its "size class"). There is a SmallBlock kind for every 16-byte increment up to 256 (8, 16, 32, 48, ..., 240, 256). For example, `SmallBlock` for 8-byte data bins will contain 498 bins (the other 112 bytes is used for bookkeeping).
 
-Small blocks themselves are stored in a large `mmap`'d region of memory:
+Small blocks themselves are stored in a larger `mmap`'d region of memory:
 
 ```
-┌─────────────────────────────┬──────────────┬──────────────┬──────────────┬─────┐
-│ Dequeues of non-full blocks │   Stack of   │  SmallBlock  │  SmallBlock  │ ... │
-│    (one per size class)     │ empty blocks │ (4096 bytes) │ (4096 bytes) │     │
-└─────────────────────────────┴──────────────┴──────────────┴──────────────┴─────┘
+┌───────────────────────────┐
+│Dequeues of non-full blocks│ <- Small blocks with some free space available are
+│   (one per size class)    │    kept track of here (one dequeue per size class).
+├───────────────────────────┤
+│         Stack of          │ <- Blocks that are _completely_ empty are recorded
+│       empty blocks        │    in a stack to facilitate reallocation.
+├───────────────────────────┤
+│        SmallBlock         │
+│       (4096 bytes)        │
+├───────────────────────────┤
+│        SmallBlock         │
+│       (4096 bytes)        │
+├───────────────────────────┼
+│           ...             │
+└───────────────────────────┘
 ```
 
 #### Allocation logic
 
 In the fast-path, allocation looks like:
 
-1. Pick the list of free `SmallBlock`s for the size class we need.
-1. Find and set the first unset bit in the used-bins bitset of the `SmallBlock`; increment used-bin count.
-1. Return the memory address corresponding to that free bit.
+1. **Find a suitable SmallBlock**: Pick a `SmallBlock` from the dequeue of the requested size class.
+1. **Allocate a bin from the block**: Find and set the first unset bit in the used-bins bitset of the `SmallBlock`; increment used-bin count. Return the bin's address.
 
 There are two slowdowns:
-* If there isn't a `SmallBlock` with any free data bins, then we have to edit the "stack of unused blocks" to pop off a free block.
-* If, after the allocation, the `SmallBlock` is full, then we must incur the cost of pushing the block onto the stack of free blocks.
+* If there isn't a `SmallBlock` with any free data bins, the stack of unused blocks must be updated to pop a free block.
+* If, after allocation, the `SmallBlock` becomes full, the block must be removed from its dequeue of non-full blocks.
 
 #### Deallocation logic
 
-Since SmallBlocks are always page-aligned, it's very fast to free small sizes:
+Because `SmallBlock`s are always page-aligned, freeing a small allocation is very fast:
 
-1. Truncate the address at the page to get the start of a `SmallBlock`.
-1. Clear the used-bin bitset bit; decrement used-bin count.
+1. **Identify the SmallBlock**: Truncate the address to the page boundary to obtain the start of the `SmallBlock`.
+1. **Mark the bin as free**: Clear the corresponding bit in the used-bins bitset and decrement the used-bin count.
 
-Likewise to allocating, there's a slowdown if the block is now empty since we need to update its free block stacks and linked list entries.
-
-Happily, however, since all blocks are exactly 4096 bytes, we never need to coalesce free blocks.
+Similarly to allocation, there is a slowdown if the block becomes empty, since its free block stacks and linked list entries must be updated. Fortunately, since all blocks are exactly 4096 bytes, coalescing free blocks is never necessary.
 
 ### Large size allocator (> 256 bytes)
 
-Similar to the smaller allocation sizes, large data sizes live in a `LargeBlock`. Unlike with `SmallBlock`s, each allocation gets its own `LargeBlock`:
+Similar to small allocation sizes, large allocations reside in a _LargeBlock_. Unlike with `SmallBlock`s, each allocation receives its own `LargeBlock`:
 
 ```
        LargeBlock        
@@ -88,11 +96,11 @@ Similar to the smaller allocation sizes, large data sizes live in a `LargeBlock`
 │         Size          │  <- The size of this block.
 │        28 bits        │
 ├───────────────────────┤
-│       Alignment       │  <- Variable empty space for alignment.
+│       Alignment       │  <- Variable length empty space for alignment.
 │     Variable size     │
 ├───────────────────────┤
 │   Data offset length  │  <- Stores the number of bytes to jump back from this address.
-│        4 bytes        │     Used during `free` to get a pointer to the block's start.
+│        4 bytes        │     Used during `free` to locate the block's start.
 ├───────────────────────┤
 │       User data       │  <- Actual memory handed back to the user.
 │     Variable size     │
@@ -128,7 +136,7 @@ When a LargeBlock is freed, its memory layout looks like:
 
 Generally, free blocks are stored in a RB tree keyed on the block's size.
 
-However, for sizes between 256 bytes and 8096 bytes, there's an additional optimization to skip the RB tree, since traversing all the links in the tree can be pretty slow. For these sizes, there is a set of ~500 linked lists of `FreeBlock`s. Each list contains blocks of exactly the same size. Each list is tracked in a bitset that indicates if the list is empty. When allocating a size between 256 and 8096 bytes, we do a popcount on the bitset to see if there's a `FreeBlock` among the linked list with a size greater than the requested size. If there is, we can pop that block and allocate it. Otherwise, we fall back to the RB tree. If there's no free block, we fall back to allocating new memory.
+However, for sizes between 256 bytes and 8096 bytes, there's an additional optimization to skip the RB tree, since traversing all the links in the tree can be pretty slow. For these sizes, there is a set of ~500 linked lists of `FreeBlock`s. Each list contains blocks of exactly the same size. Each list is tracked in a bitset that indicates if the list is empty. The bitset enables a fast lookup of which linked list has `FreeBlock`s available via `popcount`. If there is a `FreeBlock` with space, the system just pops that block and allocates it. Otherwise, it falls back to the RB tree. If there's no free block, it falls back to allocating new memory.
 
 ```
          Linked lists for sizes >256 and <=8096         
