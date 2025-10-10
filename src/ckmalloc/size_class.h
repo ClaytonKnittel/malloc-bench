@@ -192,4 +192,23 @@ constexpr T SizeClass::SizeClassSwitch(SizeClass size_class, const Fn& fn) {
   }
 }
 
+template <typename T, typename Fn, uint32_t NextOrd, uint32_t... Ords>
+requires std::is_invocable_r_v<T, Fn, SizeClass>
+constexpr std::array<T, SizeClass::kNumSizeClasses> AllSizeClassesArrayHelper(
+    const Fn& fn) {
+  if constexpr (NextOrd == SizeClass::kNumSizeClasses) {
+    return std::array<T, SizeClass::kNumSizeClasses>{ fn(
+        SizeClass::FromOrdinal(Ords))... };
+  } else {
+    return AllSizeClassesArrayHelper<T, Fn, NextOrd + 1, Ords..., NextOrd>(fn);
+  }
+}
+
+template <typename T, typename Fn>
+requires std::is_invocable_r_v<T, Fn, SizeClass>
+constexpr std::array<T, SizeClass::kNumSizeClasses> AllSizeClassesArray(
+    const Fn& fn) {
+  return AllSizeClassesArrayHelper<T, Fn, 0>(fn);
+}
+
 }  // namespace ckmalloc
