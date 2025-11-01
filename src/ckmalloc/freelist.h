@@ -22,37 +22,37 @@ class Freelist {
  public:
   // Searches the freelists for a block at least as large as `block_size`. If
   // none is found, `nullptr` is returned.
-  TrackedBlock* FindFree(uint64_t block_size);
+  TrackedBlock* FindFree(size_t block_size);
 
   // Like FindFree, but returns a block that can fit an aligned allocation of
   // size `block_size`.
-  TrackedBlock* FindFreeAligned(uint64_t block_size, uint64_t alignment);
+  TrackedBlock* FindFreeAligned(size_t block_size, size_t alignment);
 
   // Searches the freelists for a block at least as large as `block_size`, but
   // only checks one potentially non-empty exact-size bin. Does not check the
   // red-black tree for blocks.
-  TrackedBlock* FindFreeLazy(uint64_t block_size);
+  TrackedBlock* FindFreeLazy(size_t block_size);
 
   // Like FindFreeLazy, but returns a block that can fit an aligned allocation
   // of size `block_size`.
-  TrackedBlock* FindFreeLazyAligned(uint64_t block_size, uint64_t alignment);
+  TrackedBlock* FindFreeLazyAligned(size_t block_size, size_t alignment);
 
   // Initializes an uninitialized block to free with given size, inserting it
   // into the given freelist if the size is large enough, and returning `block`
   // down-cast to `FreeBlock`.
-  FreeBlock* InitFree(Block* block, uint64_t size);
+  FreeBlock* InitFree(Block* block, size_t size);
 
   // Splits this block into two blocks, allocating the first and keeping the
   // second free. The allocated block will be at least `block_size` large, and
   // the second may be null if this method decides to keep this block intact.
   // `block_size` must not be larger than the block's current size.
   std::pair<AllocatedBlock*, FreeBlock*> Split(TrackedBlock* block,
-                                               uint64_t block_size);
+                                               size_t block_size);
 
   // Splits this block into up to 3 blocks, such that the middle block is
   // aligned to `alignment`.
   std::tuple<FreeBlock*, AllocatedBlock*, FreeBlock*> SplitAligned(
-      TrackedBlock* block, uint64_t block_size, size_t alignment);
+      TrackedBlock* block, size_t block_size, size_t alignment);
 
   // Marks this block as free, inserting it into the given free block list and
   // writing the footer to the end of the block and setting the "prev free" bit
@@ -65,20 +65,20 @@ class Freelist {
   // Tries to resize this block to `new_size` if possible. If the resize could
   // not be done because it would cause this block to overlap with another
   // allocated block, then this returns `false` and the block is not modified.
-  bool ResizeIfPossible(AllocatedBlock* block, uint64_t new_size);
+  bool ResizeIfPossible(AllocatedBlock* block, size_t new_size);
 
   // Deletes a block in the freelist, should only be called when a large slab is
   // deallocated.
   void DeleteBlock(TrackedBlock* block);
 
  private:
-  static size_t ExactSizeIdx(uint64_t block_size);
+  static size_t ExactSizeIdx(size_t block_size);
 
   // This method marks this block as allocated, removes it from the free list,
   // and returns a pointer to `block` down-cast to `AllocatedBlock`, now that
   // the block has been allocated.
-  AllocatedBlock* MarkAllocated(
-      TrackedBlock* block, std::optional<uint64_t> new_size = std::nullopt);
+  AllocatedBlock* MarkAllocated(TrackedBlock* block,
+                                std::optional<size_t> new_size = std::nullopt);
 
   // Adds the block to the freelist.
   void AddBlock(TrackedBlock* block);

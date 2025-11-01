@@ -470,10 +470,11 @@ bool SmallSlab::IsTiny() const {
 }
 
 /* static */
-uint32_t BlockedSlab::NPagesForBlock(uint64_t block_size) {
-  return static_cast<uint32_t>(CeilDiv(
-      block_size + Block::kFirstBlockInSlabOffset + Block::kMetadataOverhead,
-      kPageSize));
+uint32_t BlockedSlab::NPagesForBlock(size_t block_size) {
+  return static_cast<uint32_t>(
+      CeilDiv(static_cast<size_t>(block_size + Block::kFirstBlockInSlabOffset +
+                                  Block::kMetadataOverhead),
+              kPageSize));
 }
 
 /* static */
@@ -483,9 +484,9 @@ Block* BlockedSlab::FirstBlock(void* slab_start) {
 
 uint64_t BlockedSlab::MaxBlockSize() const {
   CK_ASSERT_EQ(Type(), SlabType::kBlocked);
-  return AlignDown(mapped.n_pages_ * kPageSize -
-                       Block::kFirstBlockInSlabOffset -
-                       Block::kMetadataOverhead,
+  return AlignDown(static_cast<size_t>((mapped.n_pages_ * kPageSize) -
+                                       Block::kFirstBlockInSlabOffset -
+                                       Block::kMetadataOverhead),
                    kDefaultAlignment);
 }
 

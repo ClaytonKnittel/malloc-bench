@@ -104,7 +104,7 @@ std::ostream& operator<<(std::ostream& ostr, ckmalloc::SizeClass size_class) {
   }
 }
 
-uint64_t SizeClass::SliceSize() const {
+size_t SizeClass::SliceSize() const {
   CK_ASSERT_NE(*this, Nil());
   return kSizeClassInfo[Ordinal()].max_size;
 }

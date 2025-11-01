@@ -69,7 +69,7 @@ class SizeClass {
   static constexpr T SizeClassSwitch(SizeClass size_class, const Fn& fn);
 
   // Returns the size of slices represented by this size class.
-  uint64_t SliceSize() const;
+  size_t SliceSize() const;
 
   // Returns a number 0 - `kNumSizeClasses`-1,
   constexpr size_t Ordinal() const {

@@ -43,13 +43,13 @@ class LargeAllocatorImpl {
 
   // Tries to find a free block large enough for `user_size`, and if one is
   // found, returns the `AllocatedBlock` large enough to serve this request.
-  AllocatedBlock* MakeBlockFromFreelist(uint64_t block_size,
+  AllocatedBlock* MakeBlockFromFreelist(size_t block_size,
                                         std::optional<size_t> alignment);
 
   // Allocates a new large slab large enough for `user_size`, and returns a
   // pointer to the newly created `AllocatedBlock` that is large enough for
   // `user_size`.
-  AllocatedBlock* AllocBlockedSlabAndMakeBlock(uint64_t block_size,
+  AllocatedBlock* AllocBlockedSlabAndMakeBlock(size_t block_size,
                                                std::optional<size_t> alignment);
 
   // Allocates a single-alloc slab, returning a pointer to the single allocation
@@ -73,7 +73,7 @@ template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
 Void* LargeAllocatorImpl<SlabMap, SlabManager>::AllocLarge(
     size_t user_size, std::optional<size_t> alignment) {
   CK_ASSERT_LT(user_size, kMinMmapSize);
-  uint64_t block_size = Block::BlockSizeForUserSize(user_size);
+  size_t block_size = Block::BlockSizeForUserSize(user_size);
   AllocatedBlock* block = MakeBlockFromFreelist(block_size, alignment);
   if (block != nullptr) {
     return block->UserDataPtr();
@@ -98,12 +98,12 @@ Void* LargeAllocatorImpl<SlabMap, SlabManager>::ReallocLarge(LargeSlab* slab,
                                                              size_t user_size) {
   CK_ASSERT_LT(user_size, kMinMmapSize);
 
-  uint64_t orig_user_size;
+  size_t orig_user_size;
   if (slab->Type() == SlabType::kBlocked) {
     BlockedSlab* blocked_slab = slab->ToBlocked();
     AllocatedBlock* block = AllocatedBlock::FromUserDataPtr(ptr);
-    uint64_t block_size = block->Size();
-    uint64_t new_block_size = Block::BlockSizeForUserSize(user_size);
+    size_t block_size = block->Size();
+    size_t new_block_size = Block::BlockSizeForUserSize(user_size);
 
     // If we can resize the block in-place, then we don't need to copy any data
     // and can return the same pointer back to the user.
@@ -171,7 +171,7 @@ void LargeAllocatorImpl<SlabMap, SlabManager>::ReleaseBlockedSlab(
 
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
 AllocatedBlock* LargeAllocatorImpl<SlabMap, SlabManager>::MakeBlockFromFreelist(
-    uint64_t block_size, std::optional<size_t> alignment) {
+    size_t block_size, std::optional<size_t> alignment) {
   TrackedBlock* free_block =
       alignment.has_value()
           ? freelist_->FindFreeAligned(block_size, alignment.value())
@@ -200,7 +200,7 @@ AllocatedBlock* LargeAllocatorImpl<SlabMap, SlabManager>::MakeBlockFromFreelist(
 template <SlabMapInterface SlabMap, SlabManagerInterface SlabManager>
 AllocatedBlock*
 LargeAllocatorImpl<SlabMap, SlabManager>::AllocBlockedSlabAndMakeBlock(
-    uint64_t block_size, std::optional<size_t> alignment) {
+    size_t block_size, std::optional<size_t> alignment) {
   CK_ASSERT_LT(alignment.value_or(0), kPageSize);
 
   size_t alignment_offset = 0;
@@ -217,7 +217,7 @@ LargeAllocatorImpl<SlabMap, SlabManager>::AllocBlockedSlabAndMakeBlock(
   }
   BlockedSlab* slab = result->second;
 
-  uint64_t remaining_block_size = slab->MaxBlockSize();
+  size_t remaining_block_size = slab->MaxBlockSize();
   Block* block = slab_manager_->FirstBlockInBlockedSlab(slab);
   bool prev_free = false;
   // If alignment forces this block to start somewhere past the beginning, we
@@ -232,7 +232,7 @@ LargeAllocatorImpl<SlabMap, SlabManager>::AllocBlockedSlabAndMakeBlock(
   }
 
   CK_ASSERT_LE(block_size, remaining_block_size);
-  uint64_t remainder_size = remaining_block_size - block_size;
+  size_t remainder_size = remaining_block_size - block_size;
   CK_ASSERT_TRUE(IsAligned(remainder_size, kDefaultAlignment));
 
   AllocatedBlock* allocated_block = block->InitAllocated(block_size, prev_free);

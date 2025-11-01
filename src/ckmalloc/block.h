@@ -29,35 +29,35 @@ class Block {
  public:
   // The number of bytes of metadata at the beginning of this block which can
   // never be allocated to the user.
-  static constexpr uint64_t kMetadataOverhead = sizeof(uint64_t);
+  static constexpr size_t kMetadataOverhead = sizeof(uint64_t);
 
   // The number of bytes to offset the first block in a large slab so that the
   // user-allocatable regions of blocks in the slab align to the required
   // alignment.
-  static constexpr uint64_t kFirstBlockInSlabOffset =
+  static constexpr size_t kFirstBlockInSlabOffset =
       kDefaultAlignment - kMetadataOverhead;
 
-  static constexpr uint64_t kMinBlockSize = kDefaultAlignment;
+  static constexpr size_t kMinBlockSize = kDefaultAlignment;
 
   // Blocks of this size or smaller will not be tracked in any freelist.
-  static constexpr uint64_t kMaxUntrackedSize = 256;
-  static constexpr uint64_t kMinTrackedSize =
+  static constexpr size_t kMaxUntrackedSize = 256;
+  static constexpr size_t kMinTrackedSize =
       kMaxUntrackedSize + kDefaultAlignment;
 
   // The largest sized blocks which are tracked in single-size lists. All blocks
   // larger than this are stored in a red-black tree ordered by size.
-  static constexpr uint64_t kMaxExactSizeBlock = 4096;
+  static constexpr size_t kMaxExactSizeBlock = 4096;
 
   // Returns the maximum user size that fits in a block of size `block_size`.
-  static constexpr size_t UserSizeForBlockSize(uint64_t block_size);
+  static constexpr size_t UserSizeForBlockSize(size_t block_size);
 
   // Returns the minimum block size such that `UserDataSize()` is >=
   // `user_size`.
-  static constexpr uint64_t BlockSizeForUserSize(size_t user_size);
+  static constexpr size_t BlockSizeForUserSize(size_t user_size);
 
   // Initializes an uninitialized block to allocated with given size and
   // prev_free bit set accordingly.
-  class AllocatedBlock* InitAllocated(uint64_t size, bool prev_free);
+  class AllocatedBlock* InitAllocated(size_t size, bool prev_free);
 
   // Initializes this block to a phony header, which is placed in the last 8
   // bytes of large slabs. This is a header with size 0 which will always remain
@@ -66,16 +66,16 @@ class Block {
   void InitPhonyHeader(bool prev_free);
 
   // Returns the size of this block including metadata.
-  uint64_t Size() const;
+  size_t Size() const;
 
   // Returns the size of user-allocatable space in this block.
-  uint64_t UserDataSize() const;
+  size_t UserDataSize() const;
 
   bool Free() const;
 
   // If true, this block size is not large enough to hold large block
   // allocations, and should not be allocated or placed in the freelist.
-  static constexpr bool IsUntrackedSize(uint64_t size);
+  static constexpr bool IsUntrackedSize(size_t size);
 
   // If true, this block is not large enough to hold large block allocations,
   // and should not be allocated or placed in the freelist.
@@ -117,7 +117,7 @@ class Block {
   const Block* PrevAdjacentBlock() const;
 
  private:
-  void SetSize(uint64_t size);
+  void SetSize(size_t size);
 
   bool PrevFree() const;
 
@@ -126,11 +126,11 @@ class Block {
   // Returns the size of the previous block, which is stored in the footer of
   // the previous block (i.e. the 8 bytes before this block's header). This
   // method may only be called if `PrevFree()` is true.
-  uint64_t PrevSize() const;
+  size_t PrevSize() const;
 
   // Writes to the footer of the previous block, which holds the size of the
   // previous block.
-  void SetPrevSize(uint64_t size);
+  void SetPrevSize(size_t size);
 
   // Writes the footer of this block and the prev_free bit of the next block.
   void WriteFooterAndPrevFree();
@@ -150,8 +150,8 @@ class AllocatedBlock : public Block {
 
  public:
   // You can't initialize already-initialized blocks.
-  class AllocatedBlock* InitAllocated(uint64_t size) = delete;
-  class UntrackedBlock* InitUntracked(uint64_t size) = delete;
+  class AllocatedBlock* InitAllocated(size_t size) = delete;
+  class UntrackedBlock* InitUntracked(size_t size) = delete;
   void InitPhonyHeader(bool prev_free) = delete;
 
   // Allocated blocks are not free by definition.
@@ -174,7 +174,7 @@ class AllocatedBlock : public Block {
 class FreeBlock : public Block {
  public:
   // You can't initialize already-initialized blocks.
-  class AllocatedBlock* InitAllocated(uint64_t size) = delete;
+  class AllocatedBlock* InitAllocated(size_t size) = delete;
   void InitPhonyHeader(bool prev_free) = delete;
 
   // Free blocks are free by definition.
@@ -217,18 +217,18 @@ class UntrackedBlock : public FreeBlock {
 };
 
 /* static */
-constexpr size_t Block::UserSizeForBlockSize(uint64_t block_size) {
+constexpr size_t Block::UserSizeForBlockSize(size_t block_size) {
   CK_ASSERT_TRUE(IsAligned(block_size, kDefaultAlignment));
   return block_size - kMetadataOverhead;
 }
 
 /* static */
-constexpr uint64_t Block::BlockSizeForUserSize(size_t user_size) {
+constexpr size_t Block::BlockSizeForUserSize(size_t user_size) {
   return AlignUp<size_t>(user_size + kMetadataOverhead, kDefaultAlignment);
 }
 
 /* static */
-constexpr bool Block::IsUntrackedSize(uint64_t size) {
+constexpr bool Block::IsUntrackedSize(size_t size) {
   return size <= kMaxUntrackedSize;
 }
 

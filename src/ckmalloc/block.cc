@@ -32,7 +32,7 @@ static_assert(
 static_assert(sizeof(UntrackedBlock) + sizeof(uint64_t) <= Block::kMinBlockSize,
               "Untracked blocks + footers must be <= default alignment");
 
-AllocatedBlock* Block::InitAllocated(uint64_t size, bool prev_free) {
+AllocatedBlock* Block::InitAllocated(size_t size, bool prev_free) {
   CK_ASSERT_GE(size, kMinBlockSize);
   CK_ASSERT_TRUE(IsAligned(size, kDefaultAlignment));
   header_ = size | (prev_free ? kPrevFreeBitMask : 0);
@@ -43,11 +43,11 @@ void Block::InitPhonyHeader(bool prev_free) {
   header_ = prev_free ? kPrevFreeBitMask : 0;
 }
 
-uint64_t Block::Size() const {
+size_t Block::Size() const {
   return header_ & kSizeMask;
 }
 
-uint64_t Block::UserDataSize() const {
+size_t Block::UserDataSize() const {
   CK_ASSERT_GE(Size(), kMinBlockSize);
   return UserSizeForBlockSize(Size());
 }
@@ -158,7 +158,7 @@ const Block* Block::PrevAdjacentBlock() const {
   return PtrSub<const Block>(this, PrevSize());
 }
 
-void Block::SetSize(uint64_t size) {
+void Block::SetSize(size_t size) {
   CK_ASSERT_GE(size, kMinBlockSize);
   CK_ASSERT_TRUE(IsAligned(size, kDefaultAlignment));
   CK_ASSERT_EQ(size, (size & kSizeMask));
@@ -177,17 +177,17 @@ void Block::SetPrevFree(bool free) {
   }
 }
 
-uint64_t Block::PrevSize() const {
+size_t Block::PrevSize() const {
   CK_ASSERT_TRUE(PrevFree());
-  return *(&header_ - 1);
+  return static_cast<size_t>(*(&header_ - 1));
 }
 
-void Block::SetPrevSize(uint64_t size) {
-  *(&header_ - 1) = size;
+void Block::SetPrevSize(size_t size) {
+  *(&header_ - 1) = static_cast<uint64_t>(size);
 }
 
 void Block::WriteFooterAndPrevFree() {
-  uint64_t size = Size();
+  size_t size = Size();
   Block* next = NextAdjacentBlock();
   // Write our footer at the end of this block.
   next->SetPrevFree(true);

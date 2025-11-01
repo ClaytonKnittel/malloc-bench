@@ -399,7 +399,7 @@ class BlockedSlab : public LargeSlab {
 
   // Given a block size, returns the number of pages of the minimum-sized slab
   // that could fit a block of this size.
-  static uint32_t NPagesForBlock(uint64_t block_size);
+  static uint32_t NPagesForBlock(size_t block_size);
 
   // Given a pointer to the start of a blocked slab, returns a pointer to the
   // first block.
