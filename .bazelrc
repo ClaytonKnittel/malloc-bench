@@ -1,6 +1,7 @@
 build --features=layering_check
 build --cxxopt=-std=c++20
 build --copt=-fno-exceptions
+build --macos_minimum_os=10.13
 
 build:opt -c opt
 build:opt --copt="-DNDEBUG=1"
