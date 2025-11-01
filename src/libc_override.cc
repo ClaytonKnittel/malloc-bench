@@ -1,6 +1,8 @@
 #include <cerrno>
+#ifdef __linux__
 #include <features.h>
 #include <malloc.h>
+#endif
 #include <new>
 #include <unistd.h>
 
@@ -11,7 +13,6 @@
 // NOLINTBEGIN(bugprone-reserved-identifier, readability-identifier-naming)
 
 extern "C" {
-
 namespace {
 
 inline int posix_memalign_helper(void** ptr, size_t align, size_t size) {
@@ -24,6 +25,13 @@ inline int posix_memalign_helper(void** ptr, size_t align, size_t size) {
 }
 
 }  // namespace
+}
+
+#ifdef __GLIBC__
+
+#define MALLOC_NOEXCEPT noexcept
+
+extern "C" {
 
 void* __libc_malloc(size_t size) noexcept {
   return bench::malloc(size);
@@ -99,6 +107,12 @@ void* (*__MALLOC_HOOK_VOLATILE __memalign_hook)(size_t, size_t, const void*) =
     &glibc_override_memalign;
 
 }  // extern "C"
+
+#else
+
+#define MALLOC_NOEXCEPT
+
+#endif  // __GLIBC__
 
 void* operator new(size_t size) noexcept(false) {
   void* res = bench::malloc(size);
@@ -186,10 +200,10 @@ void operator delete[](void* p, size_t size,
 
 extern "C" {
 
-void* malloc(size_t size) noexcept {
+void* malloc(size_t size) MALLOC_NOEXCEPT {
   return bench::malloc(size);
 }
-void free(void* ptr) noexcept {
+void free(void* ptr) MALLOC_NOEXCEPT {
   bench::free(ptr);
 }
 void free_sized(void* ptr, size_t size) noexcept {
@@ -198,13 +212,20 @@ void free_sized(void* ptr, size_t size) noexcept {
 void free_aligned_sized(void* ptr, size_t align, size_t size) noexcept {
   bench::free(ptr, size, align);
 }
-void* realloc(void* ptr, size_t size) noexcept {
+void* realloc(void* ptr, size_t size) MALLOC_NOEXCEPT {
   return bench::realloc(ptr, size);
 }
 void* reallocarray(void* ptr, size_t nmemb, size_t size) noexcept {
   return bench::realloc(ptr, nmemb * size);
 }
-void* calloc(size_t nmemb, size_t size) noexcept {
+void* reallocf(void* ptr, size_t size) MALLOC_NOEXCEPT {
+  void* result = bench::realloc(ptr, size);
+  if (result == nullptr) {
+    bench::free(ptr);
+  }
+  return result;
+}
+void* calloc(size_t nmemb, size_t size) MALLOC_NOEXCEPT {
   return bench::calloc(nmemb, size);
 }
 void cfree(void* ptr) noexcept {
@@ -213,17 +234,17 @@ void cfree(void* ptr) noexcept {
 void* memalign(size_t __alignment, size_t __size) noexcept {
   return bench::malloc(__size, __alignment);
 }
-void* aligned_alloc(size_t __alignment, size_t __size) noexcept {
+void* aligned_alloc(size_t __alignment, size_t __size) MALLOC_NOEXCEPT {
   return bench::malloc(__size, __alignment);
 }
-void* valloc(size_t size) noexcept {
+void* valloc(size_t size) MALLOC_NOEXCEPT {
   return bench::malloc(size, 4096);
 }
 void* pvalloc(size_t size) noexcept {
   return bench::malloc((size + 4095) & ~4096, 4096);
 }
 int posix_memalign(void** __memptr, size_t __alignment,
-                   size_t __size) noexcept {
+                   size_t __size) MALLOC_NOEXCEPT {
   return posix_memalign_helper(__memptr, __alignment, __size);
 }
 void malloc_stats(void) noexcept {}
