@@ -104,7 +104,7 @@ class TracefileExecutor {
   // allocation code (filtering out *most* of the expensive testing
   // infrastructure logic).
   absl::StatusOr<absl::Duration> ProcessorWorker(std::barrier<>& barrier,
-                                                 std::atomic<size_t>& idx,
+                                                 std::atomic<uint64_t>& idx,
                                                  std::atomic<bool>& done,
                                                  const Tracefile& tracefile,
                                                  ConcurrentIdMap& global_id_map,
@@ -222,7 +222,7 @@ absl::StatusOr<absl::Duration> TracefileExecutor<Allocator>::ProcessTracefile(
 
   std::barrier barrier(options.n_threads);
   std::atomic<bool> done = false;
-  std::atomic<size_t> idx = 0;
+  std::atomic<uint64_t> idx = 0;
   ConcurrentIdMap global_id_map;
 
   if (options.n_threads == 1) {
@@ -266,7 +266,7 @@ absl::StatusOr<absl::Duration> TracefileExecutor<Allocator>::ProcessTracefile(
 
 template <TracefileAllocator Allocator>
 absl::StatusOr<absl::Duration> TracefileExecutor<Allocator>::ProcessorWorker(
-    std::barrier<>& barrier, std::atomic<size_t>& idx, std::atomic<bool>& done,
+    std::barrier<>& barrier, std::atomic<uint64_t>& idx, std::atomic<bool>& done,
     const Tracefile& tracefile, ConcurrentIdMap& global_id_map,
     uint64_t num_repetitions) {
   absl::Duration time;
